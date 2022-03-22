@@ -1,0 +1,32 @@
+{
+	"folders": [
+		{
+			"name": "templates",
+			"path": "templates"
+		},
+		{
+			"name": "rest",
+			"path": "rest"
+		},
+		{
+			"name": "ui",
+			"path": "ui"
+		},
+		{
+			"name": "lint",
+			"path": "lint"
+		},
+	
+		{
+			"name": "localization",
+			"path": "localization"
+		},
+		{
+			"name": "doc",
+			"path": "doc"
+		}
+	],
+	"settings": {
+		"codeTemplateTool.templatesPath": "{workspace}/common",
+	}
+}

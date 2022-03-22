@@ -1,0 +1,4 @@
+analyzer:
+  exclude:
+    - "**/generated/**/*.dart"
+    - "**/generated/*.dart"

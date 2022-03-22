@@ -1,0 +1,11 @@
+{
+    "name": "Page",
+    "variables": [
+        {
+            "name": "pageName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}
