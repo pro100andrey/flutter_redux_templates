@@ -28,7 +28,7 @@
 		{
 			"name": "doc",
 			"path": "doc"
-		}
+		},
 	],
 	"settings": {
 		"codeTemplateTool.templatesPath": "{workspace}/common",

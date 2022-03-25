@@ -1,0 +1,37 @@
+@startuml "modules"
+!theme vibrant
+
+package "App" {
+    [Connectors]
+    Connectors ..> Business: use
+    Connectors ..> UI: use
+    App ..> Localization: use
+}
+
+package "UI" {
+    UI ..> Localization: use
+    [Pages]
+    [OhterUIElements]
+}
+
+package "Localization" {
+    [En]
+    [OhterLangugages]
+}
+
+package "Http" {
+    [AuthAPIServcie]
+    [OhterAPIService]
+}
+
+package "Storage" {
+    [KeyValueStorage]
+}
+
+package "Business" {
+    [Redux]
+    Redux ..> Storage: use
+    Redux ..> Http: use
+}
+
+@enduml
