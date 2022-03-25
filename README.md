@@ -8,10 +8,11 @@ It has four characteristics:
 - Is easy to use
 - Is easy to test
 - Has no boilerplate
-- Separate UI package
-  - Storybook - is a development environment for UI components. It allows you to browse a component library, view the different states of each component, and interactively develop and test components)
-- Separate business logic package
-- Separate http services package
+- Multi packages App/UI/business/Localization/Http
+- Code Generation (source_gen) for Http/Models/Localization
+- Code generation templates (VSCode plugin)
+
+## Modules UML
 
 ![Image](doc/out/modules/modules.png)
 
