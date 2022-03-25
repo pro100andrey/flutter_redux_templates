@@ -9,8 +9,8 @@
 			"path": "app"
 		},
 		{
-			"name": "rest",
-			"path": "rest"
+			"name": "business",
+			"path": "business"
 		},
 		{
 			"name": "ui",
