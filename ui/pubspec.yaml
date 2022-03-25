@@ -20,8 +20,7 @@ dev_dependencies:
   build_runner: ^2.1.4
   flutter_gen_runner: ^4.1.2
   flutter_test:
-    sdk: flutter
-  
+    sdk: flutter 
   lint:
     path: ../lint
   

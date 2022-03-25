@@ -5,6 +5,10 @@
 			"path": "templates"
 		},
 		{
+			"name": "app",
+			"path": "app"
+		},
+		{
 			"name": "rest",
 			"path": "rest"
 		},
