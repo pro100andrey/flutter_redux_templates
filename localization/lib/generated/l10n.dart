@@ -60,30 +60,30 @@ class S {
     );
   }
 
-  /// `LogIn`
+  /// `Log in`
   String get logIn {
     return Intl.message(
-      'LogIn',
+      'Log in',
       name: 'logIn',
       desc: '',
       args: [],
     );
   }
 
-  /// `Registration`
-  String get registration {
+  /// `Register`
+  String get register {
     return Intl.message(
-      'Registration',
-      name: 'registration',
+      'Register',
+      name: 'register',
       desc: '',
       args: [],
     );
   }
 
-  /// `Forgot password`
+  /// `Forgot password ?`
   String get forgotPassword {
     return Intl.message(
-      'Forgot password',
+      'Forgot password ?',
       name: 'forgotPassword',
       desc: '',
       args: [],

@@ -28,6 +28,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/placeholders/
     - assets/colors/
     
 flutter_gen:

@@ -11,7 +11,7 @@ class TextInput extends StatefulWidget {
     this.helperText,
     this.prefixText,
     this.prefixIcon,
-    this.suffixIcon,
+    this.suffix,
     this.keyboardType,
     this.autofillHints,
     this.filled,
@@ -25,7 +25,7 @@ class TextInput extends StatefulWidget {
   final String? hintText;
   final String? helperText;
   final String? prefixText;
-  final Widget? suffixIcon;
+  final Widget? suffix;
   final Widget? prefixIcon;
   final int? maxLength;
   final bool? filled;
@@ -56,7 +56,8 @@ class _TextInputState extends State<TextInput> {
           helperText: widget.helperText,
           prefixText: widget.prefixText,
           prefixIcon: widget.prefixIcon,
-          suffix: widget.obscureText
+          suffix: widget.suffix,
+          suffixIcon: widget.obscureText
               ? IconButton(
                   onPressed: () {
                     setState(() {
@@ -70,7 +71,6 @@ class _TextInputState extends State<TextInput> {
                   ),
                 )
               : null,
-          suffixIcon: widget.suffixIcon,
           filled: widget.filled,
           errorText: widget.vm.error,
         ),

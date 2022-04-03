@@ -23,11 +23,23 @@ class $AssetsImagesGen {
   SvgGenImage get icLogo => const SvgGenImage('assets/images/ic_logo.svg');
 }
 
+class $AssetsPlaceholdersGen {
+  const $AssetsPlaceholdersGen();
+
+  /// File path: assets/placeholders/log_in.svg
+  SvgGenImage get logIn => const SvgGenImage('assets/placeholders/log_in.svg');
+
+  /// File path: assets/placeholders/sign_up.svg
+  SvgGenImage get signUp =>
+      const SvgGenImage('assets/placeholders/sign_up.svg');
+}
+
 class Assets {
   Assets._();
 
   static const $AssetsColorsGen colors = $AssetsColorsGen();
   static const $AssetsImagesGen images = $AssetsImagesGen();
+  static const $AssetsPlaceholdersGen placeholders = $AssetsPlaceholdersGen();
 }
 
 class AssetGenImage extends AssetImage {

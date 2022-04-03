@@ -14,7 +14,9 @@ List<Story> get pages => [
             isWaiting: context.knobIsWaiting(),
             email: context.newEmailInputVm(),
             password: context.newPasswordInputVm(),
-            onPressedLogIn: context.knobOnPressed(),
+            onPressedLogIn: context.knobOnPressed(label: 'Login Button'),
+            onPressedForgotPassword:
+                context.knobOnPressed(label: 'ForgotPassword Button'),
           ),
         ),
       ),
@@ -26,6 +28,7 @@ List<Story> get pages => [
             email: context.newEmailInputVm(),
             password: context.newPasswordInputVm(),
             confirmPassword: context.newPasswordInputVm(),
+            onPressedRegister: context.knobOnPressed(label: 'Register Button'),
           ),
         ),
       ),

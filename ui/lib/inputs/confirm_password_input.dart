@@ -16,7 +16,8 @@ class ConfirmPasswordInput extends StatelessWidget {
   Widget build(BuildContext context) => TextInput(
         vm: vm,
         labelText: S.current.confirmPassword,
-        obscureText: true,
+        prefixIcon: const Icon(Icons.check_outlined),
         keyboardType: TextInputType.visiblePassword,
+        obscureText: true,
       );
 }

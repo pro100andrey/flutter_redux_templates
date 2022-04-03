@@ -1,10 +1,11 @@
 {
     "title": "Заголовок",
-    "login": "Авторизация"
-    "registration": "Регистрация",
+    "login": "Авторизация",
+    "register": "Регистрация",
     "forgotPassword": "Забыли пароль",
     "email": "Почта",
     "emailInvalid": "Неправильная почта",
     "password": "Пароль",
-    "confirmPassword": "Проверить пароль"
+    "confirmPassword": "Проверить пароль",
+    "forgotPassword": "Забыли пароль ?"
 }
