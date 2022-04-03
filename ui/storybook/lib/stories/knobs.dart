@@ -4,10 +4,11 @@ import 'package:storybook_flutter/storybook_flutter.dart';
 import 'package:ui/alerts/styled_snackbar.dart';
 
 extension BuildContextEx on BuildContext {
-  VoidCallback? knobOnPressed([
+  VoidCallback? knobOnPressed({
     String label = 'Enabled',
-  ]) =>
-      knobs.boolean(label: label)
+    bool initial = true,
+  }) =>
+      knobs.boolean(label: label, initial: initial)
           ? () => showStyledSnackbar(
                 context: this,
                 title: label,
@@ -15,16 +16,19 @@ extension BuildContextEx on BuildContext {
               )
           : null;
 
-  ValueChanged<T>? knobOnValueChanged<T>([
+  ValueChanged<T>? knobOnValueChanged<T>({
+    bool initial = true,
     String label = 'Enabled',
-  ]) =>
-      knobs.boolean(label: label)
-          ? (v) => showStyledSnackbar(
-                context: this,
-                title: label,
-                message: v.toString(),
-              )
+  }) =>
+      knobs.boolean(label: label, initial: initial)
+          // ignore: avoid_print
+          ? (v) => print('$label: $v')
           : null;
+
+  String? knobInputError([
+    String label = 'Input Error',
+  ]) =>
+      knobs.boolean(label: label) ? label : null;
 
   bool knobIsWaiting() => knobs.boolean(label: 'isWaiting');
 

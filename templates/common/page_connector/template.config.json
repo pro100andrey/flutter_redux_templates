@@ -1,0 +1,11 @@
+{
+    "name": "Page Connector",
+    "variables": [
+        {
+            "name": "connectorName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}

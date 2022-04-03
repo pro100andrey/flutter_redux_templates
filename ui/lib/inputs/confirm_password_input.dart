@@ -4,8 +4,8 @@ import 'package:localization/export.dart';
 import '../models/value_changed.dart';
 import 'text_input.dart';
 
-class EmailInput extends StatelessWidget {
-  const EmailInput({
+class ConfirmPasswordInput extends StatelessWidget {
+  const ConfirmPasswordInput({
     required this.vm,
     Key? key,
   }) : super(key: key);
@@ -15,9 +15,8 @@ class EmailInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextInput(
         vm: vm,
-        labelText: S.current.email,
-        prefixIcon: const Icon(Icons.email_outlined),
-        keyboardType: TextInputType.emailAddress,
-        autofillHints: const [AutofillHints.email],
+        labelText: S.current.confirmPassword,
+        obscureText: true,
+        keyboardType: TextInputType.visiblePassword,
       );
 }

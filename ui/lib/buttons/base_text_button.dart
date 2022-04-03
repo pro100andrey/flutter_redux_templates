@@ -2,8 +2,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
 @immutable
-class StyledButtonVm extends Equatable {
-  const StyledButtonVm({
+class BaseTextButtonVm extends Equatable {
+  const BaseTextButtonVm({
     required this.title,
     this.onPressed,
   });
@@ -12,19 +12,19 @@ class StyledButtonVm extends Equatable {
   final VoidCallback? onPressed;
 
   @override
-  List<Object?> get props => [title, onPressed == null];
+  List<Object?> get props => [onPressed == null, title];
 }
 
-class StyledButton extends StatelessWidget {
-  const StyledButton({
+class BaseTextButton extends StatelessWidget {
+  const BaseTextButton({
     required this.vm,
     Key? key,
   }) : super(key: key);
 
-  final StyledButtonVm vm;
+  final BaseTextButtonVm vm;
 
   @override
-  Widget build(BuildContext context) => ElevatedButton(
+  Widget build(BuildContext context) => TextButton(
         onPressed: vm.onPressed,
         child: Text(vm.title),
       );

@@ -16,7 +16,7 @@ class ValueChangedVm<T> extends Equatable {
   List<Object?> get props => [value, isEnabled];
 }
 
-class ValueChangedWithErrorVm<T, E> extends ValueChangedVm<T> {
+class ValueChangedWithErrorVm<T> extends ValueChangedVm<T> {
   const ValueChangedWithErrorVm({
     required this.error,
     required T? value,
@@ -26,7 +26,9 @@ class ValueChangedWithErrorVm<T, E> extends ValueChangedVm<T> {
           onChanged: onChanged,
         );
 
-  final E error;
+  final String? error;
+
+  bool get isError => error != null;
 
   @override
   List<Object?> get props => super.props + [error];

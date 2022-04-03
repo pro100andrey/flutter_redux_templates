@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="dark_primary">#FF7A00</color>
-    <color name="dark_main">#E0E0E0</color>
-    <color name="dark_background">#121212</color>
-    <color name="dark_secondary">#89ED5B</color>
-    <color name="dark_icons">#888888</color>
-    <color name="dark_shade">#272727</color>
-    <color name="secondary_color">#2ECC71</color>
+    <color name="primary">#6A84E4</color>
+    <color name="secondary">#E0E0E0</color>
+    <color name="main">#E0E0E0</color>
 </resources>

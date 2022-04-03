@@ -3,7 +3,7 @@ import 'package:ui/pages/forgot_password_page.dart';
 import 'package:ui/pages/log_in_page.dart';
 import 'package:ui/pages/registration_page.dart';
 
-import 'inputs_vm_knobs.dart';
+import 'inputs.dart';
 import 'knobs.dart';
 
 List<Story> get pages => [
@@ -14,6 +14,7 @@ List<Story> get pages => [
             isWaiting: context.knobIsWaiting(),
             email: context.newEmailInputVm(),
             password: context.newPasswordInputVm(),
+            onPressedLogIn: context.knobOnPressed(),
           ),
         ),
       ),

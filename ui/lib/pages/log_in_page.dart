@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:localization/export.dart';
 
+import '../buttons/rounded_button.dart';
 import '../export.dart';
 import '../inputs/email_input.dart';
 import '../inputs/password_input.dart';
@@ -12,11 +13,13 @@ class LogInPageVm {
     required this.isWaiting,
     required this.email,
     required this.password,
+    required this.onPressedLogIn,
   });
 
   final bool isWaiting;
-  final ValueChangedWithErrorVm<String, EmailErrorVm> email;
-  final ValueChangedWithErrorVm<String, PasswordErrorVm> password;
+  final ValueChangedWithErrorVm<String> email;
+  final ValueChangedWithErrorVm<String> password;
+  final VoidCallback? onPressedLogIn;
 }
 
 class LogInPage extends StatelessWidget {
@@ -35,11 +38,22 @@ class LogInPage extends StatelessWidget {
             ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Assets.images.icLogo.svg(
-                  height: 100,
-                ),
+                const SizedBox(height: 32),
+                Assets.images.icLogo.svg(height: 100),
+                const SizedBox(height: 16),
                 EmailInput(vm: vm.email),
+                const SizedBox(height: 16),
                 PasswordInput(vm: vm.password),
+                const SizedBox(height: 32),
+                
+                Center(
+                  child: RoundedButton(
+                    vm: RoundedButtonVm(
+                      title: S.current.logIn,
+                      onPressed: vm.onPressedLogIn,
+                    ),
+                  ),
+                ),
               ],
             )
           ],

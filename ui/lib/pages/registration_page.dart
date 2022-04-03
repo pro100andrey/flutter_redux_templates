@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:localization/export.dart';
 
 import '../generated/assets.gen.dart';
+import '../inputs/confirm_password_input.dart';
 import '../inputs/email_input.dart';
 import '../inputs/password_input.dart';
 import '../models/value_changed.dart';
@@ -16,9 +17,9 @@ class RegistrationPageVm {
   });
 
   final bool isWaiting;
-  final ValueChangedWithErrorVm<String, EmailErrorVm> email;
-  final ValueChangedWithErrorVm<String, PasswordErrorVm> password;
-  final ValueChangedWithErrorVm<String, PasswordErrorVm> confirmPassword;
+  final ValueChangedWithErrorVm<String> email;
+  final ValueChangedWithErrorVm<String> password;
+  final ValueChangedWithErrorVm<String> confirmPassword;
 }
 
 class RegistrationPage extends StatelessWidget {
@@ -31,9 +32,7 @@ class RegistrationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(S.current.registration),
-        ),
+        appBar: AppBar(title: Text(S.current.registration)),
         body: Stack(
           children: [
             ListView(
@@ -42,12 +41,7 @@ class RegistrationPage extends StatelessWidget {
                 Assets.images.icLogo.svg(height: 100),
                 EmailInput(vm: vm.email),
                 PasswordInput(vm: vm.password),
-                PasswordInput(
-                  vm: vm.confirmPassword,
-                  labelText: S.current.confirmPassword,
-                ),
-
-                
+                ConfirmPasswordInput(vm: vm.confirmPassword),
               ],
             )
           ],

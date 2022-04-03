@@ -1,0 +1,11 @@
+{
+    "name": "StatelessWidget with Vm",
+    "variables": [
+        {
+            "name": "widgetName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}
