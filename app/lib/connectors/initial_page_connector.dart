@@ -53,18 +53,7 @@ class _Factory extends VmFactory<AppState, InitialPageConnector> {
     return _InitialPageVm(homePage: homePage);
   }
 
-  _HomePage _homePage(AppState state) {
-    // if (selectSessionIsAvailable(state)) {
-    //   return _HomePage.home;
-    // } else if (selectSplashIsShow(state)) {
-    //   return _HomePage.splash;
-    // } else if (selectResetPasswordIsAvailable(state)) {
-    //   return _HomePage.resetPassword;
-    // } else {
-
-    // }
-    return _HomePage.logIn;
-  }
+  _HomePage _homePage(AppState state) => _HomePage.logIn;
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.

@@ -57,14 +57,8 @@ class _MyWrapError extends WrapError<AppState> {
   _MyWrapError({this.customErrorWrapper});
   final UserErrorWrapperHandler? customErrorWrapper;
 
-  bool _logoutProcessed = false;
-
   @override
   Object? wrap(Object error, StackTrace stackTrace, ReduxAction action) {
-    if (_logoutProcessed) {
-      return null;
-    }
-
     if (customErrorWrapper != null) {
       final message = customErrorWrapper!(error);
       if (message != null) {

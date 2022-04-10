@@ -9,5 +9,7 @@
     "emailInvalid": "Неправильная почта",
     "password": "Пароль",
     "confirmPassword": "Проверить пароль",
-    "forgotPassword": "Забыли пароль ?"
+    "forgotPassword": "Забыли пароль ?",
+    "fieldIsRequired": "This field is required",
+    "invalidEmail": "Invalid email"
 }

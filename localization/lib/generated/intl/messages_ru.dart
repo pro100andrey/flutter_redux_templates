@@ -28,8 +28,11 @@ class MessageLookup extends MessageLookupByLibrary {
         "email": MessageLookupByLibrary.simpleMessage("Почта"),
         "emailInvalid":
             MessageLookupByLibrary.simpleMessage("Неправильная почта"),
+        "fieldIsRequired":
+            MessageLookupByLibrary.simpleMessage("This field is required"),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("Забыли пароль ?"),
+        "invalidEmail": MessageLookupByLibrary.simpleMessage("Invalid email"),
         "ok": MessageLookupByLibrary.simpleMessage("OK"),
         "password": MessageLookupByLibrary.simpleMessage("Пароль"),
         "register": MessageLookupByLibrary.simpleMessage("Регистрация"),

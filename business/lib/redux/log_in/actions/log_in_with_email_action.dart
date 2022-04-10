@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:async_redux/async_redux.dart';
-import 'package:business/redux/log_in/models/waiting.dart';
 
 import '../../app_state.dart';
 import '../log_in_selectors.dart';
+import '../models/waiting.dart';
 
 class LogInWithEmailAction extends ReduxAction<AppState> {
   @override

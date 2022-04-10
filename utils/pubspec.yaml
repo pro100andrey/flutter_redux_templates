@@ -1,0 +1,15 @@
+name: utils
+description: The utils library.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.16.2 <3.0.0"
+  flutter: ">=2.10.4"
+
+dependencies:
+  logging: ^1.0.2
+
+  
+  
+  

@@ -9,5 +9,7 @@
     "emailInvalid": "Email is invalid",
     "password": "Password",
     "confirmPassword": "Confirm Password",
-    "forgotPassword": "Forgot password ?"
+    "forgotPassword": "Forgot password ?",
+    "fieldIsRequired": "This field is required",
+    "invalidEmail": "Invalid email"
 }

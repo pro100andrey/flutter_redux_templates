@@ -9,6 +9,14 @@
 			"path": "app"
 		},
 		{
+			"name": "utils",
+			"path": "utils"
+		},
+		{
+			"name": "dao",
+			"path": "dao"
+		},
+		{
 			"name": "business",
 			"path": "business"
 		},

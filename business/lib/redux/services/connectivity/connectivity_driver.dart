@@ -1,9 +1,8 @@
 import 'package:async_redux/async_redux.dart';
-import 'package:business/redux/connectivity/connectivity_selectors.dart';
 
 import '../../app_state.dart';
-
 import '../../connectivity/actions/set_connectivity_status_action.dart';
+import '../../connectivity/connectivity_selectors.dart';
 import 'connectivity.dart';
 
 class ConnectivityDriver implements ConnectivityServiceDriverInterface {
