@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  validator:
+    git: https://github.com/pro100andrey/validator.git
 
 dev_dependencies:
   flutter_test:

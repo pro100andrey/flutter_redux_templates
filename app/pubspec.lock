@@ -210,6 +210,15 @@ packages:
       relative: true
     source: path
     version: "1.0.0+1"
+  validator:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: HEAD
+      resolved-ref: "811736a9952f6a5bd572d069cf776436602aeb40"
+      url: "https://github.com/pro100andrey/validator.git"
+    source: git
+    version: "0.0.1+1"
   vector_math:
     dependency: transitive
     description:
@@ -225,5 +234,5 @@ packages:
     source: hosted
     version: "5.3.1"
 sdks:
-  dart: ">=2.16.1 <3.0.0"
+  dart: ">=2.16.2 <3.0.0"
   flutter: ">=2.10.2"
