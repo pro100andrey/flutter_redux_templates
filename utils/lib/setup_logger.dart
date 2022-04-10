@@ -1,7 +1,8 @@
 import 'dart:developer';
 import 'package:logging/logging.dart';
 
-void setupRootLogger({bool isDebugMode = true}) {
+
+void setupRootLogger({bool isDebugMode = false}) {
   // only enable logging for debug mode
   Logger.root.level = isDebugMode ? Level.ALL : Level.OFF;
   hierarchicalLoggingEnabled = true;

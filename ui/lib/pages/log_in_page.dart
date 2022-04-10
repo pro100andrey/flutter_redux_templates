@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
+import '../assets.dart';
 import '../buttons/base_text_button.dart';
 import '../buttons/rounded_button.dart';
-import '../export.dart';
 import '../inputs/email_input.dart';
 import '../inputs/password_input.dart';
 import '../models/value_changed.dart';
@@ -53,7 +53,9 @@ class LogInPage extends StatelessWidget {
                           S.current.logIn,
                           style: Theme.of(context).textTheme.headline5,
                         ),
+                        const SizedBox(height: 16),
                         EmailInput(vm: vm.email),
+                        const SizedBox(height: 16),
                         PasswordInput(vm: vm.password),
                         const SizedBox(height: 16),
                         Row(

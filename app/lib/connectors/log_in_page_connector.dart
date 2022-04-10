@@ -9,11 +9,13 @@ import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/log_in_page.dart';
 
 import '../common/validators.dart';
+import '../routes.dart';
 
 class LogInPageConnector extends StatelessWidget {
   const LogInPageConnector({
     Key? key,
   }) : super(key: key);
+
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _LogInPageVm>(
         debug: this,
@@ -33,6 +35,7 @@ class LogInPageConnector extends StatelessWidget {
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, LogInPageConnector> {
   _Factory(LogInPageConnector widget) : super(widget);
+
   @override
   _LogInPageVm fromStore() {
     final email = selectLogInEmail(state);
@@ -45,15 +48,15 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
       email: ValueChangedWithErrorVm<String>(
         value: email,
         error: emailError,
-        onChanged: (v) => SetEmailAction(value: v),
+        onChanged: (v) => dispatch(SetEmailAction(value: v)),
       ),
       password: ValueChangedWithErrorVm<String>(
         value: password,
         error: passwordError,
-        onChanged: (v) => SetPasswordAction(value: v),
+        onChanged: (v) => dispatch(SetPasswordAction(value: v)),
       ),
       onPressedLogIn: () {},
-      onPressedForgotPassword: () {},
+      onPressedForgotPassword: () => routemaster.push(Routes.forgotPassword),
     );
   }
 }
