@@ -90,6 +90,16 @@ class S {
     );
   }
 
+  /// `Back to logIn`
+  String get backToLogIn {
+    return Intl.message(
+      'Back to logIn',
+      name: 'backToLogIn',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Register`
   String get register {
     return Intl.message(
@@ -105,6 +115,16 @@ class S {
     return Intl.message(
       'Forgot password ?',
       name: 'forgotPassword',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Reset password`
+  String get resetPassword {
+    return Intl.message(
+      'Reset password',
+      name: 'resetPassword',
       desc: '',
       args: [],
     );
@@ -165,6 +185,26 @@ class S {
     return Intl.message(
       'Invalid email',
       name: 'invalidEmail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Couldn't connect to internet.`
+  String get couldNotConnectToInternet {
+    return Intl.message(
+      'Couldn\'t connect to internet.',
+      name: 'couldNotConnectToInternet',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Please check yor network settings.`
+  String get pleaseCheckYorNetworkSettings {
+    return Intl.message(
+      'Please check yor network settings.',
+      name: 'pleaseCheckYorNetworkSettings',
       desc: '',
       args: [],
     );

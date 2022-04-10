@@ -1,30 +1,17 @@
-import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
-
-
-@immutable
-class RoundedButtonVm extends Equatable {
-  const RoundedButtonVm({
-    required this.title,
-    required this.onPressed,
-  });
-
-  final String title;
-  final VoidCallback? onPressed;
-
-  @override
-  List<Object?> get props => [onPressed == null];
-}
 
 class RoundedButton extends StatelessWidget {
   const RoundedButton({
-    required this.vm,
+    required this.title,
+    required this.onPressed,
     this.borderColor,
     this.backgroundColor,
     this.foregroundColor,
-    this.width = 150,
+    this.width = 200,
     this.height = 48,
     this.borderRadius = const BorderRadius.all(Radius.circular(25)),
+    
+
     Key? key,
   }) : super(key: key);
 
@@ -34,7 +21,8 @@ class RoundedButton extends StatelessWidget {
   final double width;
   final double height;
   final BorderRadiusGeometry borderRadius;
-  final RoundedButtonVm vm;
+  final String title;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
@@ -54,8 +42,8 @@ class RoundedButton extends StatelessWidget {
                   : BorderSide.none,
             ),
           ),
-          onPressed: vm.onPressed,
-          child: Text(vm.title),
+          onPressed: onPressed,
+          child: Text(title),
         ),
       );
 }

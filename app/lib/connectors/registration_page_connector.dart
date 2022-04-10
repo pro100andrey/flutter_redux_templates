@@ -5,14 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/registration_page.dart';
 
+import '../routes.dart';
+
 class RegistrationPageConnector extends StatelessWidget {
   const RegistrationPageConnector({
     Key? key,
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) =>
-      StoreConnector<AppState, _Vm>(
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
         vm: () => _Factory(this),
         builder: (context, vm) => RegistrationPage(
@@ -21,6 +22,7 @@ class RegistrationPageConnector extends StatelessWidget {
           password: vm.password,
           confirmPassword: vm.confirmPassword,
           onPressedRegister: vm.onPressedRegister,
+          onPressedBackToLogin: vm.onPressedBackToLogin,
         ),
       );
 }
@@ -52,6 +54,7 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
         onChanged: (confirmPassword) {},
       ),
       onPressedRegister: () {},
+      onPressedBackToLogin: routemaster.pop,
     );
   }
 }
@@ -64,6 +67,7 @@ class _Vm extends Vm with EquatableMixin {
     required this.password,
     required this.confirmPassword,
     required this.onPressedRegister,
+    required this.onPressedBackToLogin,
   });
 
   final bool isWaiting;
@@ -71,6 +75,7 @@ class _Vm extends Vm with EquatableMixin {
   final ValueChangedWithErrorVm<String> password;
   final ValueChangedWithErrorVm<String> confirmPassword;
   final VoidCallback? onPressedRegister;
+  final VoidCallback? onPressedBackToLogin;
 
   @override
   List<Object?> get props => [isWaiting, email, password, confirmPassword];

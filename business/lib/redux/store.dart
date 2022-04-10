@@ -115,8 +115,10 @@ class _DefaultModelObserver<Model> implements ModelObserver<Model> {
     int? reduceCount,
     int? dispatchCount,
   }) {
-    _logger.info('D: $dispatchCount R: $reduceCount = '
-        'Rebuild: $isDistinct, '
-        '${storeConnector.runtimeType}');
+    final debug =
+        (storeConnector?.debug == null ? storeConnector : storeConnector!.debug)
+            .runtimeType;
+    _logger
+        .info('$debug D: $dispatchCount R: $reduceCount Rebuild: $isDistinct');
   }
 }

@@ -3,13 +3,17 @@
     "ok": "OK",
     "cancel": "Отмена",
     "login": "Авторизация",
+    "backToLogIn": "Назад к авторизации",
     "register": "Регистрация",
     "forgotPassword": "Забыли пароль",
+    "resetPassword": "Сбросить пароль",
     "email": "Почта",
     "emailInvalid": "Неправильная почта",
     "password": "Пароль",
     "confirmPassword": "Проверить пароль",
     "forgotPassword": "Забыли пароль ?",
-    "fieldIsRequired": "This field is required",
-    "invalidEmail": "Invalid email"
+    "fieldIsRequired": "Обязательное поле",
+    "invalidEmail": "Неверная почта",
+    "couldNotConnectToInternet": "Отсутствует подключение к интернету.",
+    "pleaseCheckYorNetworkSettings": "Пожалуйста, проверьте настройки сети."
 }

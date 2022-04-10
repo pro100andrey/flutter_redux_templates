@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
 import '../buttons/rounded_button.dart';
+import '../containers/auth_from_container.dart';
 import '../generated/assets.gen.dart';
 import '../inputs/confirm_password_input.dart';
 import '../inputs/email_input.dart';
@@ -15,6 +16,7 @@ class RegistrationPage extends StatelessWidget {
     required this.password,
     required this.confirmPassword,
     required this.onPressedRegister,
+    required this.onPressedBackToLogin,
     Key? key,
   }) : super(key: key);
 
@@ -23,42 +25,34 @@ class RegistrationPage extends StatelessWidget {
   final ValueChangedWithErrorVm<String> password;
   final ValueChangedWithErrorVm<String> confirmPassword;
   final VoidCallback? onPressedRegister;
+  final VoidCallback? onPressedBackToLogin;
 
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Stack(
           fit: StackFit.expand,
           children: [
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const SizedBox(height: 32),
-                  Assets.placeholders.signUp.svg(height: 180),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: 320,
-                    child: Column(
-                      children: [
-                        Text(
-                          S.current.logIn,
-                          style: Theme.of(context).textTheme.headline5,
-                        ),
-                        EmailInput(vm: email),
-                        PasswordInput(vm: password),
-                        ConfirmPasswordInput(vm: confirmPassword),
-                        const SizedBox(height: 16),
-                        RoundedButton(
-                          vm: RoundedButtonVm(
-                            title: S.current.register,
-                            onPressed: onPressedRegister,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            AuthFormContainer(
+              placeholder: Assets.placeholders.signUp,
+              title: S.current.register,
+              children: [
+                const SizedBox(height: 24),
+                EmailInput(vm: email),
+                const SizedBox(height: 16),
+                PasswordInput(vm: password),
+                const SizedBox(height: 16),
+                ConfirmPasswordInput(vm: confirmPassword),
+                const SizedBox(height: 16),
+                RoundedButton(
+                  title: S.current.register,
+                  onPressed: onPressedRegister,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: onPressedBackToLogin,
+                  child: Text(S.current.backToLogIn),
+                )
+              ],
             )
           ],
         ),

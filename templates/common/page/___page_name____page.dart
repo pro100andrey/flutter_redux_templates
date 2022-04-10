@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
+
 class ___PageName___Page extends StatelessWidget {
   const ___PageName___Page({
     required this.isWaiting,

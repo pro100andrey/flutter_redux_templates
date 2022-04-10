@@ -22,9 +22,12 @@ class MessageLookup extends MessageLookupByLibrary {
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
+        "backToLogIn": MessageLookupByLibrary.simpleMessage("Back to logIn"),
         "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
         "confirmPassword":
             MessageLookupByLibrary.simpleMessage("Confirm Password"),
+        "couldNotConnectToInternet": MessageLookupByLibrary.simpleMessage(
+            "Couldn\'t connect to internet."),
         "email": MessageLookupByLibrary.simpleMessage("Email"),
         "emailInvalid":
             MessageLookupByLibrary.simpleMessage("Email is invalid"),
@@ -36,7 +39,10 @@ class MessageLookup extends MessageLookupByLibrary {
         "logIn": MessageLookupByLibrary.simpleMessage("Log in"),
         "ok": MessageLookupByLibrary.simpleMessage("OK"),
         "password": MessageLookupByLibrary.simpleMessage("Password"),
+        "pleaseCheckYorNetworkSettings": MessageLookupByLibrary.simpleMessage(
+            "Please check yor network settings."),
         "register": MessageLookupByLibrary.simpleMessage("Register"),
+        "resetPassword": MessageLookupByLibrary.simpleMessage("Reset password"),
         "title": MessageLookupByLibrary.simpleMessage("title")
       };
 }

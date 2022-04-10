@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
 import '../assets.dart';
-import '../buttons/base_text_button.dart';
 import '../buttons/rounded_button.dart';
+import '../containers/auth_from_container.dart';
 import '../inputs/email_input.dart';
 import '../inputs/password_input.dart';
 import '../models/value_changed.dart';
@@ -31,55 +31,34 @@ class LogInPage extends StatelessWidget {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const SizedBox(height: 32),
-                  Assets.placeholders.logIn.svg(height: 180),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: 320,
-                    child: Column(
-                      children: [
-                        Text(
-                          S.current.logIn,
-                          style: Theme.of(context).textTheme.headline5,
-                        ),
-                        const SizedBox(height: 16),
-                        EmailInput(vm: email),
-                        const SizedBox(height: 16),
-                        PasswordInput(vm: password),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            BaseTextButton(
-                              vm: BaseTextButtonVm(
-                                title: S.current.forgotPassword,
-                                onPressed: onPressedForgotPassword,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        RoundedButton(
-                          vm: RoundedButtonVm(
-                            title: S.current.logIn,
-                            onPressed: onPressedLogIn,
-                          ),
-                        ),
-                        RoundedButton(
-                          vm: RoundedButtonVm(
-                            title: S.current.register,
-                            onPressed: onPressedRegister,
-                          ),
-                        ),
-                      ],
-                    ),
+            AuthFormContainer(
+              placeholder: Assets.placeholders.logIn,
+              title: S.current.logIn,
+              children: [
+                const SizedBox(height: 24),
+                EmailInput(vm: email),
+                const SizedBox(height: 16),
+                PasswordInput(vm: password),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: onPressedForgotPassword,
+                    child: Text(S.current.forgotPassword),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                RoundedButton(
+                  title: S.current.logIn,
+                  backgroundColor: ColorName.secondary,
+                  onPressed: onPressedLogIn,
+                ),
+                const SizedBox(height: 16),
+                RoundedButton(
+                  title: S.current.register,
+                  onPressed: onPressedRegister,
+                ),
+              ],
             ),
           ],
         ),

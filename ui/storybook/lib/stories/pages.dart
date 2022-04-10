@@ -28,12 +28,17 @@ List<Story> get pages => [
           confirmPassword: context.newPasswordInputVm(),
           onPressedRegister:
               context.knobOnPressedOptional(label: 'Register Button'),
+          onPressedBackToLogin: context.knobOnPressed(label: 'Back to Login'),
         ),
       ),
       Story(
         name: 'Pages/ForgotPassword',
         builder: (context) => ForgotPasswordPage(
           isWaiting: context.knobIsWaiting(),
+          email: context.newEmailInputVm(),
+          onPressedResetPassword:
+              context.knobOnPressedOptional(label: 'Register Button'),
+          onPressedBackToLogin: context.knobOnPressed(label: 'Back to Login'),
         ),
       ),
     ];

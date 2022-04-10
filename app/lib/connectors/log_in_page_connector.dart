@@ -1,5 +1,6 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/log_in/actions/log_in_with_email_action.dart';
 import 'package:business/redux/log_in/actions/set_email_action.dart';
 import 'package:business/redux/log_in/actions/set_password_action.dart';
 import 'package:business/redux/log_in/log_in_selectors.dart';
@@ -37,28 +38,29 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
 
   @override
   _Vm fromStore() {
+    final isWaiting = selectLogInWaiting(state);
     final email = selectLogInEmail(state);
     final password = selectLogInPassword(state);
     final emailError = emailValidator(email);
     final passwordError = passwordValidator(password);
+    final formIsValid = selectLogInDataIsSet(state) &&
+        emailError == null &&
+        passwordError == null;
 
     return _Vm(
-      isWaiting: false,
+      isWaiting: isWaiting,
       email: ValueChangedWithErrorVm<String>(
         value: email,
         error: emailError,
-        onChanged: (email) => dispatch(
-          SetEmailAction(email),
-        ),
+        onChanged: (email) => dispatch(SetEmailAction(email)),
       ),
       password: ValueChangedWithErrorVm<String>(
         value: password,
         error: passwordError,
-        onChanged: (password) => dispatch(
-          SetPasswordAction(password),
-        ),
+        onChanged: (password) => dispatch(SetPasswordAction(password)),
       ),
-      onPressedLogIn: () {},
+      onPressedLogIn:
+          !formIsValid ? null : () => dispatch(LogInWithEmailAction()),
       onPressedForgotPassword: () => routemaster.push(Routes.forgotPassword),
       onPressedRegister: () => routemaster.push(Routes.register),
     );

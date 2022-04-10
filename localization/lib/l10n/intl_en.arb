@@ -3,13 +3,17 @@
     "ok": "OK",
     "cancel": "Cancel",
     "logIn": "Log in",
+    "backToLogIn": "Back to logIn",
     "register": "Register",
     "forgotPassword": "Forgot password",
+    "resetPassword": "Reset password",
     "email": "Email",
     "emailInvalid": "Email is invalid",
     "password": "Password",
     "confirmPassword": "Confirm Password",
     "forgotPassword": "Forgot password ?",
     "fieldIsRequired": "This field is required",
-    "invalidEmail": "Invalid email"
+    "invalidEmail": "Invalid email",
+    "couldNotConnectToInternet": "Couldn't connect to internet.",
+    "pleaseCheckYorNetworkSettings": "Please check yor network settings."
 }

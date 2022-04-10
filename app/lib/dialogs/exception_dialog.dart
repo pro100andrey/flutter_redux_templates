@@ -45,8 +45,9 @@ class ExceptionDialog<St> extends StatelessWidget {
   final bool useLocalContext;
 
   @override
-  Widget build(BuildContext context) => StoreConnector<St, _ViewModel>(
-        model: _ViewModel(),
+  Widget build(BuildContext context) => StoreConnector<St, _Vm>(
+        model: _Vm(),
+        debug: this,
         builder: (context, vm) => _ExceptionDialogWidget(
           child,
           vm.error,
@@ -158,14 +159,14 @@ class _UserExceptionDialogState extends State<_ExceptionDialogWidget> {
 
 // ////////////////////////////////////////////////////////////////////////////
 
-class _ViewModel extends BaseModel<AppState> {
-  _ViewModel();
-  _ViewModel.build({required this.error});
+class _Vm extends BaseModel<AppState> {
+  _Vm();
+  _Vm.build({required this.error});
 
   Event<UserException>? error;
 
   @override
-  _ViewModel fromStore() => _ViewModel.build(
+  _Vm fromStore() => _Vm.build(
         error: Event(getAndRemoveFirstError()),
       );
 

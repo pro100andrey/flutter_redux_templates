@@ -22,20 +22,28 @@ class MessageLookup extends MessageLookupByLibrary {
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
+        "backToLogIn":
+            MessageLookupByLibrary.simpleMessage("Назад к авторизации"),
         "cancel": MessageLookupByLibrary.simpleMessage("Отмена"),
         "confirmPassword":
             MessageLookupByLibrary.simpleMessage("Проверить пароль"),
+        "couldNotConnectToInternet": MessageLookupByLibrary.simpleMessage(
+            "Отсутствует подключение к интернету."),
         "email": MessageLookupByLibrary.simpleMessage("Почта"),
         "emailInvalid":
             MessageLookupByLibrary.simpleMessage("Неправильная почта"),
         "fieldIsRequired":
-            MessageLookupByLibrary.simpleMessage("This field is required"),
+            MessageLookupByLibrary.simpleMessage("Обязательное поле"),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("Забыли пароль ?"),
-        "invalidEmail": MessageLookupByLibrary.simpleMessage("Invalid email"),
+        "invalidEmail": MessageLookupByLibrary.simpleMessage("Неверная почта"),
         "ok": MessageLookupByLibrary.simpleMessage("OK"),
         "password": MessageLookupByLibrary.simpleMessage("Пароль"),
+        "pleaseCheckYorNetworkSettings": MessageLookupByLibrary.simpleMessage(
+            "Пожалуйста, проверьте настройки сети."),
         "register": MessageLookupByLibrary.simpleMessage("Регистрация"),
+        "resetPassword":
+            MessageLookupByLibrary.simpleMessage("Сбросить пароль"),
         "title": MessageLookupByLibrary.simpleMessage("Заголовок")
       };
 }
