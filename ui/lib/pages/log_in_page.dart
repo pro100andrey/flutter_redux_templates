@@ -8,30 +8,23 @@ import '../inputs/email_input.dart';
 import '../inputs/password_input.dart';
 import '../models/value_changed.dart';
 
-@immutable
-class LogInPageVm {
-  const LogInPageVm({
+class LogInPage extends StatelessWidget {
+  const LogInPage({
     required this.isWaiting,
     required this.email,
     required this.password,
     required this.onPressedLogIn,
     required this.onPressedForgotPassword,
-  });
+    required this.onPressedRegister,
+    Key? key,
+  }) : super(key: key);
 
   final bool isWaiting;
   final ValueChangedWithErrorVm<String> email;
   final ValueChangedWithErrorVm<String> password;
   final VoidCallback? onPressedLogIn;
-  final VoidCallback? onPressedForgotPassword;
-}
-
-class LogInPage extends StatelessWidget {
-  const LogInPage({
-    required this.vm,
-    Key? key,
-  }) : super(key: key);
-
-  final LogInPageVm vm;
+  final VoidCallback onPressedForgotPassword;
+  final VoidCallback onPressedRegister;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -54,9 +47,9 @@ class LogInPage extends StatelessWidget {
                           style: Theme.of(context).textTheme.headline5,
                         ),
                         const SizedBox(height: 16),
-                        EmailInput(vm: vm.email),
+                        EmailInput(vm: email),
                         const SizedBox(height: 16),
-                        PasswordInput(vm: vm.password),
+                        PasswordInput(vm: password),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
@@ -64,7 +57,7 @@ class LogInPage extends StatelessWidget {
                             BaseTextButton(
                               vm: BaseTextButtonVm(
                                 title: S.current.forgotPassword,
-                                onPressed: vm.onPressedForgotPassword,
+                                onPressed: onPressedForgotPassword,
                               ),
                             ),
                           ],
@@ -73,7 +66,13 @@ class LogInPage extends StatelessWidget {
                         RoundedButton(
                           vm: RoundedButtonVm(
                             title: S.current.logIn,
-                            onPressed: vm.onPressedLogIn,
+                            onPressed: onPressedLogIn,
+                          ),
+                        ),
+                        RoundedButton(
+                          vm: RoundedButtonVm(
+                            title: S.current.register,
+                            onPressed: onPressedRegister,
                           ),
                         ),
                       ],

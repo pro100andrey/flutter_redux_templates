@@ -1,21 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
-
-@immutable
-class ___PageName___PageVm {
-  const ___PageName___PageVm({
-    required this.isWaiting,
-  });
-  final bool isWaiting;
-}
-
 class ___PageName___Page extends StatelessWidget {
   const ___PageName___Page({
-    required this.vm,
+    required this.isWaiting,
     Key? key,
   }) : super(key: key);
 
-  final ___PageName___PageVm vm;
+  final bool isWaiting;
 
   @override
   Widget build(BuildContext context) => Scaffold(

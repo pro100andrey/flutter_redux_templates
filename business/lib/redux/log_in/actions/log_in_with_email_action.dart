@@ -4,7 +4,7 @@ import 'package:async_redux/async_redux.dart';
 
 import '../../app_state.dart';
 import '../log_in_selectors.dart';
-import '../models/waiting.dart';
+import '../models/log_in_state.dart';
 
 class LogInWithEmailAction extends ReduxAction<AppState> {
   @override

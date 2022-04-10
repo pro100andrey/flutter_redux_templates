@@ -10,34 +10,30 @@ List<Story> get pages => [
       Story(
         name: 'Pages/LogIn',
         builder: (context) => LogInPage(
-          vm: LogInPageVm(
-            isWaiting: context.knobIsWaiting(),
-            email: context.newEmailInputVm(),
-            password: context.newPasswordInputVm(),
-            onPressedLogIn: context.knobOnPressed(label: 'Login Button'),
-            onPressedForgotPassword:
-                context.knobOnPressed(label: 'ForgotPassword Button'),
-          ),
+          isWaiting: context.knobIsWaiting(),
+          email: context.newEmailInputVm(),
+          password: context.newPasswordInputVm(),
+          onPressedLogIn: context.knobOnPressedOptional(label: 'Login Button'),
+          onPressedForgotPassword:
+              context.knobOnPressed(label: 'ForgotPassword Button'),
+          onPressedRegister: context.knobOnPressed(label: 'Register Button'),
         ),
       ),
       Story(
         name: 'Pages/Registration',
         builder: (context) => RegistrationPage(
-          vm: RegistrationPageVm(
-            isWaiting: context.knobIsWaiting(),
-            email: context.newEmailInputVm(),
-            password: context.newPasswordInputVm(),
-            confirmPassword: context.newPasswordInputVm(),
-            onPressedRegister: context.knobOnPressed(label: 'Register Button'),
-          ),
+          isWaiting: context.knobIsWaiting(),
+          email: context.newEmailInputVm(),
+          password: context.newPasswordInputVm(),
+          confirmPassword: context.newPasswordInputVm(),
+          onPressedRegister:
+              context.knobOnPressedOptional(label: 'Register Button'),
         ),
       ),
       Story(
         name: 'Pages/ForgotPassword',
         builder: (context) => ForgotPasswordPage(
-          vm: ForgotPasswordPageVm(
-            isWaiting: context.knobIsWaiting(),
-          ),
+          isWaiting: context.knobIsWaiting(),
         ),
       ),
     ];

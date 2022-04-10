@@ -23,7 +23,7 @@ class InitialPageConnector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ExceptionDialog<AppState>(
-        child: StoreConnector<AppState, _InitialPageVm>(
+        child: StoreConnector<AppState, _Vm>(
           onWillChange: (context, store, previousVm, newVm) {},
           debug: this,
           vm: () => _Factory(this),
@@ -48,17 +48,17 @@ class _Factory extends VmFactory<AppState, InitialPageConnector> {
   _Factory(InitialPageConnector widget) : super(widget);
 
   @override
-  _InitialPageVm fromStore() {
+  _Vm fromStore() {
     final homePage = _homePage(state);
-    return _InitialPageVm(homePage: homePage);
+    return _Vm(homePage: homePage);
   }
 
   _HomePage _homePage(AppState state) => _HomePage.logIn;
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _InitialPageVm extends Vm with EquatableMixin {
-  _InitialPageVm({
+class _Vm extends Vm with EquatableMixin {
+  _Vm({
     required this.homePage,
   });
 

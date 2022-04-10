@@ -1,21 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
-@immutable
-class ForgotPasswordPageVm {
-  const ForgotPasswordPageVm({
-    required this.isWaiting,
-  });
-  final bool isWaiting;
-}
-
 class ForgotPasswordPage extends StatelessWidget {
   const ForgotPasswordPage({
-    required this.vm,
+    required this.isWaiting,
     Key? key,
   }) : super(key: key);
 
-  final ForgotPasswordPageVm vm;
+  final bool isWaiting;
 
   @override
   Widget build(BuildContext context) => Scaffold(

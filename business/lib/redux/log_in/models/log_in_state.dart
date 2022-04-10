@@ -8,5 +8,6 @@ class LogInState with _$LogInState {
     String? email,
     String? password,
   }) = _LogInState;
-
 }
+
+enum LogInWarning { wait }

@@ -22,12 +22,12 @@ List<Story> get buttons => [
 
 extension ButtonsKnobsBuildContextEx on BuildContext {
   RoundedButtonVm newRoundedButtonVm({String? label}) => RoundedButtonVm(
-        onPressed: knobOnPressed(),
+        onPressed: knobOnPressedOptional(),
         title: knobs.text(label: label ?? 'Rounded button', initial: 'Button'),
       );
 
   BaseTextButtonVm newTextButtonVm({String? label}) => BaseTextButtonVm(
-        onPressed: knobOnPressed(),
+        onPressed: knobOnPressedOptional(),
         title: knobs.text(label: label ?? 'Text button', initial: 'Button'),
       );
 }

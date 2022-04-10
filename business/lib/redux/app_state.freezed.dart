@@ -19,13 +19,15 @@ class _$AppStateTearOff {
   const _$AppStateTearOff();
 
   _AppState call(
-      {Wait wait = Wait.empty,
-      required ConnectivityState connectivity,
-      required LogInState logIn}) {
+      {required ConnectivityState connectivity,
+      required LogInState logIn,
+      required RegistrationState registration,
+      required Wait wait}) {
     return _AppState(
-      wait: wait,
       connectivity: connectivity,
       logIn: logIn,
+      registration: registration,
+      wait: wait,
     );
   }
 }
@@ -35,9 +37,10 @@ const $AppState = _$AppStateTearOff();
 
 /// @nodoc
 mixin _$AppState {
-  Wait get wait => throw _privateConstructorUsedError;
   ConnectivityState get connectivity => throw _privateConstructorUsedError;
   LogInState get logIn => throw _privateConstructorUsedError;
+  RegistrationState get registration => throw _privateConstructorUsedError;
+  Wait get wait => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
   $AppStateCopyWith<AppState> get copyWith =>
@@ -48,10 +51,15 @@ mixin _$AppState {
 abstract class $AppStateCopyWith<$Res> {
   factory $AppStateCopyWith(AppState value, $Res Function(AppState) then) =
       _$AppStateCopyWithImpl<$Res>;
-  $Res call({Wait wait, ConnectivityState connectivity, LogInState logIn});
+  $Res call(
+      {ConnectivityState connectivity,
+      LogInState logIn,
+      RegistrationState registration,
+      Wait wait});
 
   $ConnectivityStateCopyWith<$Res> get connectivity;
   $LogInStateCopyWith<$Res> get logIn;
+  $RegistrationStateCopyWith<$Res> get registration;
 }
 
 /// @nodoc
@@ -64,15 +72,12 @@ class _$AppStateCopyWithImpl<$Res> implements $AppStateCopyWith<$Res> {
 
   @override
   $Res call({
-    Object? wait = freezed,
     Object? connectivity = freezed,
     Object? logIn = freezed,
+    Object? registration = freezed,
+    Object? wait = freezed,
   }) {
     return _then(_value.copyWith(
-      wait: wait == freezed
-          ? _value.wait
-          : wait // ignore: cast_nullable_to_non_nullable
-              as Wait,
       connectivity: connectivity == freezed
           ? _value.connectivity
           : connectivity // ignore: cast_nullable_to_non_nullable
@@ -81,6 +86,14 @@ class _$AppStateCopyWithImpl<$Res> implements $AppStateCopyWith<$Res> {
           ? _value.logIn
           : logIn // ignore: cast_nullable_to_non_nullable
               as LogInState,
+      registration: registration == freezed
+          ? _value.registration
+          : registration // ignore: cast_nullable_to_non_nullable
+              as RegistrationState,
+      wait: wait == freezed
+          ? _value.wait
+          : wait // ignore: cast_nullable_to_non_nullable
+              as Wait,
     ));
   }
 
@@ -97,6 +110,13 @@ class _$AppStateCopyWithImpl<$Res> implements $AppStateCopyWith<$Res> {
       return _then(_value.copyWith(logIn: value));
     });
   }
+
+  @override
+  $RegistrationStateCopyWith<$Res> get registration {
+    return $RegistrationStateCopyWith<$Res>(_value.registration, (value) {
+      return _then(_value.copyWith(registration: value));
+    });
+  }
 }
 
 /// @nodoc
@@ -104,12 +124,18 @@ abstract class _$AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
   factory _$AppStateCopyWith(_AppState value, $Res Function(_AppState) then) =
       __$AppStateCopyWithImpl<$Res>;
   @override
-  $Res call({Wait wait, ConnectivityState connectivity, LogInState logIn});
+  $Res call(
+      {ConnectivityState connectivity,
+      LogInState logIn,
+      RegistrationState registration,
+      Wait wait});
 
   @override
   $ConnectivityStateCopyWith<$Res> get connectivity;
   @override
   $LogInStateCopyWith<$Res> get logIn;
+  @override
+  $RegistrationStateCopyWith<$Res> get registration;
 }
 
 /// @nodoc
@@ -123,15 +149,12 @@ class __$AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
 
   @override
   $Res call({
-    Object? wait = freezed,
     Object? connectivity = freezed,
     Object? logIn = freezed,
+    Object? registration = freezed,
+    Object? wait = freezed,
   }) {
     return _then(_AppState(
-      wait: wait == freezed
-          ? _value.wait
-          : wait // ignore: cast_nullable_to_non_nullable
-              as Wait,
       connectivity: connectivity == freezed
           ? _value.connectivity
           : connectivity // ignore: cast_nullable_to_non_nullable
@@ -140,6 +163,14 @@ class __$AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
           ? _value.logIn
           : logIn // ignore: cast_nullable_to_non_nullable
               as LogInState,
+      registration: registration == freezed
+          ? _value.registration
+          : registration // ignore: cast_nullable_to_non_nullable
+              as RegistrationState,
+      wait: wait == freezed
+          ? _value.wait
+          : wait // ignore: cast_nullable_to_non_nullable
+              as Wait,
     ));
   }
 }
@@ -148,21 +179,23 @@ class __$AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
 
 class _$_AppState implements _AppState {
   const _$_AppState(
-      {this.wait = Wait.empty,
-      required this.connectivity,
-      required this.logIn});
+      {required this.connectivity,
+      required this.logIn,
+      required this.registration,
+      required this.wait});
 
-  @JsonKey()
-  @override
-  final Wait wait;
   @override
   final ConnectivityState connectivity;
   @override
   final LogInState logIn;
+  @override
+  final RegistrationState registration;
+  @override
+  final Wait wait;
 
   @override
   String toString() {
-    return 'AppState(wait: $wait, connectivity: $connectivity, logIn: $logIn)';
+    return 'AppState(connectivity: $connectivity, logIn: $logIn, registration: $registration, wait: $wait)';
   }
 
   @override
@@ -170,18 +203,21 @@ class _$_AppState implements _AppState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _AppState &&
-            const DeepCollectionEquality().equals(other.wait, wait) &&
             const DeepCollectionEquality()
                 .equals(other.connectivity, connectivity) &&
-            const DeepCollectionEquality().equals(other.logIn, logIn));
+            const DeepCollectionEquality().equals(other.logIn, logIn) &&
+            const DeepCollectionEquality()
+                .equals(other.registration, registration) &&
+            const DeepCollectionEquality().equals(other.wait, wait));
   }
 
   @override
   int get hashCode => Object.hash(
       runtimeType,
-      const DeepCollectionEquality().hash(wait),
       const DeepCollectionEquality().hash(connectivity),
-      const DeepCollectionEquality().hash(logIn));
+      const DeepCollectionEquality().hash(logIn),
+      const DeepCollectionEquality().hash(registration),
+      const DeepCollectionEquality().hash(wait));
 
   @JsonKey(ignore: true)
   @override
@@ -191,16 +227,19 @@ class _$_AppState implements _AppState {
 
 abstract class _AppState implements AppState {
   const factory _AppState(
-      {Wait wait,
-      required ConnectivityState connectivity,
-      required LogInState logIn}) = _$_AppState;
+      {required ConnectivityState connectivity,
+      required LogInState logIn,
+      required RegistrationState registration,
+      required Wait wait}) = _$_AppState;
 
-  @override
-  Wait get wait;
   @override
   ConnectivityState get connectivity;
   @override
   LogInState get logIn;
+  @override
+  RegistrationState get registration;
+  @override
+  Wait get wait;
   @override
   @JsonKey(ignore: true)
   _$AppStateCopyWith<_AppState> get copyWith =>

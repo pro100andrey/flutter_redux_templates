@@ -17,17 +17,16 @@ class LogInPageConnector extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) => StoreConnector<AppState, _LogInPageVm>(
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
         vm: () => _Factory(this),
         builder: (context, vm) => LogInPage(
-          vm: LogInPageVm(
-            isWaiting: vm.isWaiting,
-            email: vm.email,
-            password: vm.password,
-            onPressedForgotPassword: vm.onPressedForgotPassword,
-            onPressedLogIn: vm.onPressedLogIn,
-          ),
+          isWaiting: vm.isWaiting,
+          email: vm.email,
+          password: vm.password,
+          onPressedForgotPassword: vm.onPressedForgotPassword,
+          onPressedLogIn: vm.onPressedLogIn,
+          onPressedRegister: vm.onPressedRegister,
         ),
       );
 }
@@ -37,45 +36,52 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
   _Factory(LogInPageConnector widget) : super(widget);
 
   @override
-  _LogInPageVm fromStore() {
+  _Vm fromStore() {
     final email = selectLogInEmail(state);
     final password = selectLogInPassword(state);
     final emailError = emailValidator(email);
     final passwordError = passwordValidator(password);
 
-    return _LogInPageVm(
+    return _Vm(
       isWaiting: false,
       email: ValueChangedWithErrorVm<String>(
         value: email,
         error: emailError,
-        onChanged: (v) => dispatch(SetEmailAction(value: v)),
+        onChanged: (email) => dispatch(
+          SetEmailAction(email),
+        ),
       ),
       password: ValueChangedWithErrorVm<String>(
         value: password,
         error: passwordError,
-        onChanged: (v) => dispatch(SetPasswordAction(value: v)),
+        onChanged: (password) => dispatch(
+          SetPasswordAction(password),
+        ),
       ),
       onPressedLogIn: () {},
       onPressedForgotPassword: () => routemaster.push(Routes.forgotPassword),
+      onPressedRegister: () => routemaster.push(Routes.register),
     );
   }
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _LogInPageVm extends Vm with EquatableMixin {
-  _LogInPageVm({
+class _Vm extends Vm with EquatableMixin {
+  _Vm({
     required this.isWaiting,
     required this.email,
     required this.password,
     required this.onPressedLogIn,
     required this.onPressedForgotPassword,
+    required this.onPressedRegister,
   });
 
   final bool isWaiting;
   final ValueChangedWithErrorVm<String> email;
   final ValueChangedWithErrorVm<String> password;
   final VoidCallback? onPressedLogIn;
-  final VoidCallback? onPressedForgotPassword;
+  final VoidCallback onPressedForgotPassword;
+  final VoidCallback onPressedRegister;
 
   @override
   List<Object?> get props => [isWaiting, email, password];

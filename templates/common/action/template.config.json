@@ -1,0 +1,11 @@
+{
+    "name": "Action (sync)",
+    "variables": [
+        {
+            "name": "actionName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}

@@ -4,7 +4,7 @@ import 'package:storybook_flutter/storybook_flutter.dart';
 import 'package:ui/alerts/styled_snackbar.dart';
 
 extension BuildContextEx on BuildContext {
-  VoidCallback? knobOnPressed({
+  VoidCallback? knobOnPressedOptional({
     String label = 'Enabled',
     bool initial = true,
   }) =>
@@ -15,6 +15,15 @@ extension BuildContextEx on BuildContext {
                 message: 'On Pressed',
               )
           : null;
+
+  VoidCallback knobOnPressed({
+    String label = 'Some pressed',
+  }) =>
+      () => showStyledSnackbar(
+            context: this,
+            title: label,
+            message: 'On Pressed',
+          );
 
   ValueChanged<T>? knobOnValueChanged<T>({
     bool initial = true,

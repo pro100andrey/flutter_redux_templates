@@ -1,21 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
-@immutable
-class HomePageVm {
-  const HomePageVm({
-    required this.isWaiting,
-  });
-  final bool isWaiting;
-}
-
 class HomePage extends StatelessWidget {
   const HomePage({
-    required this.vm,
+    required this.isWaiting,
     Key? key,
   }) : super(key: key);
 
-  final HomePageVm vm;
+  final bool isWaiting;
 
   @override
   Widget build(BuildContext context) => Scaffold(

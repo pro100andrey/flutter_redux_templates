@@ -8,7 +8,7 @@ class SetPasswordAction extends ReduxAction<AppState> {
   final String password;
 
   @override
-  AppState reduce() => state.copyWith.logIn(
+  AppState reduce() => state.copyWith.registration(
         password: password,
       );
 }

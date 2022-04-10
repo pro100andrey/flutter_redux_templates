@@ -14,9 +14,7 @@ class ResetPasswordPageConnector extends StatelessWidget {
         debug: this,
         vm: () => _Factory(this),
         builder: (context, vm) => ResetPasswordPage(
-          vm: ResetPasswordPageVm(
-            isWaiting: vm.isWaiting,
-          ),
+          isWaiting: vm.isWaiting,
         ),
       );
 }

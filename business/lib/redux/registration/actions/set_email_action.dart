@@ -8,7 +8,7 @@ class SetEmailAction extends ReduxAction<AppState> {
   final String email;
 
   @override
-  AppState reduce() => state.copyWith.logIn(
+  AppState reduce() => state.copyWith.registration(
         email: email,
       );
 }

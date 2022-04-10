@@ -8,15 +8,13 @@ class HomePageConnector extends StatelessWidget {
   const HomePageConnector({
     Key? key,
   }) : super(key: key);
+
   @override
-  Widget build(BuildContext context) =>
-      StoreConnector<AppState, _HomePageVm>(
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
         vm: () => _Factory(this),
         builder: (context, vm) => HomePage(
-          vm: HomePageVm(
-            isWaiting: vm.isWaiting,
-          ),
+          isWaiting: vm.isWaiting,
         ),
       );
 }
@@ -24,15 +22,16 @@ class HomePageConnector extends StatelessWidget {
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, HomePageConnector> {
   _Factory(HomePageConnector widget) : super(widget);
+  
   @override
-  _HomePageVm fromStore() => _HomePageVm(
+  _Vm fromStore() => _Vm(
         isWaiting: false,
       );
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _HomePageVm extends Vm with EquatableMixin {
-  _HomePageVm({
+class _Vm extends Vm with EquatableMixin {
+  _Vm({
     required this.isWaiting,
   });
 

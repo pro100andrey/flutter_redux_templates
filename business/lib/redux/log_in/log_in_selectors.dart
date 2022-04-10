@@ -1,5 +1,5 @@
 import '../../redux/app_state.dart';
-import 'models/waiting.dart';
+import 'models/log_in_state.dart';
 
 /// Returns waiting value
 bool selectLogInWaiting(AppState state) =>

@@ -19,7 +19,7 @@ package "Localization" {
     [OhterLangugages]
 }
 
-package "Http" {
+package "ApiDAO" {
     [AuthAPIServcie]
     [OhterAPIService]
 }
@@ -31,7 +31,7 @@ package "Storage" {
 package "Business" {
     [Redux]
     Redux ..> Storage: use
-    Redux ..> Http: use
+    Redux ..> ApiDAO: use
 }
 
 @enduml

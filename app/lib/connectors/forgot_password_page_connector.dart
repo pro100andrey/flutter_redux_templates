@@ -9,14 +9,11 @@ class ForgotPasswordPageConnector extends StatelessWidget {
     Key? key,
   }) : super(key: key);
   @override
-  Widget build(BuildContext context) =>
-      StoreConnector<AppState, _ForgotPasswordPageVm>(
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
         vm: () => _Factory(this),
         builder: (context, vm) => ForgotPasswordPage(
-          vm: ForgotPasswordPageVm(
-            isWaiting: vm.isWaiting,
-          ),
+          isWaiting: vm.isWaiting,
         ),
       );
 }
@@ -24,15 +21,16 @@ class ForgotPasswordPageConnector extends StatelessWidget {
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector> {
   _Factory(ForgotPasswordPageConnector widget) : super(widget);
+
   @override
-  _ForgotPasswordPageVm fromStore() => _ForgotPasswordPageVm(
+  _Vm fromStore() => _Vm(
         isWaiting: false,
       );
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _ForgotPasswordPageVm extends Vm with EquatableMixin {
-  _ForgotPasswordPageVm({
+class _Vm extends Vm with EquatableMixin {
+  _Vm({
     required this.isWaiting,
   });
 
