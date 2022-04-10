@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:localization/export.dart';
+import 'package:localization/localization.dart';
 
 @immutable
 class ForgotPasswordPageVm {

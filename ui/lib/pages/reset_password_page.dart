@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
 @immutable
-class ___PageName___PageVm {
-  const ___PageName___PageVm({
+class ResetPasswordPageVm {
+  const ResetPasswordPageVm({
     required this.isWaiting,
   });
   final bool isWaiting;
 }
 
-class ___PageName___Page extends StatelessWidget {
-  const ___PageName___Page({
+class ResetPasswordPage extends StatelessWidget {
+  const ResetPasswordPage({
     required this.vm,
     Key? key,
   }) : super(key: key);
 
-  final ___PageName___PageVm vm;
+  final ResetPasswordPageVm vm;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -25,7 +25,7 @@ class ___PageName___Page extends StatelessWidget {
         body: Stack(
           children: const [
             Center(
-              child: Text('___PageName___Page'),
+              child: Text('ResetPasswordPage'),
             ),
           ],
         ),

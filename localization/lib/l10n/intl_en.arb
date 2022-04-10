@@ -1,5 +1,7 @@
 {
     "title": "title",
+    "ok": "OK",
+    "cancel": "Cancel",
     "logIn": "Log in",
     "register": "Register",
     "forgotPassword": "Forgot password",

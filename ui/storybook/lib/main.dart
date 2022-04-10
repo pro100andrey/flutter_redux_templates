@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:localization/export.dart';
+import 'package:localization/localization.dart';
 import 'package:storybook_flutter/storybook_flutter.dart';
 import 'package:ui/scrolls/custom_scroll_behavior.dart';
 import 'package:ui/theme/common.dart';

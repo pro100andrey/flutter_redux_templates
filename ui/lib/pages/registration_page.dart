@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:localization/export.dart';
+import 'package:localization/localization.dart';
 
 import '../buttons/rounded_button.dart';
 import '../generated/assets.gen.dart';

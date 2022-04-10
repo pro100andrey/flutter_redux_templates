@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:localization/export.dart';
+import 'package:localization/localization.dart';
 
 import '../models/value_changed.dart';
 import 'text_input.dart';

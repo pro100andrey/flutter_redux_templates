@@ -1,24 +1,34 @@
 name: app
-description: A new Flutter project.
+description: App project.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.16.1 <3.0.0"
+  sdk: ">=2.16.2 <3.0.0"
+  flutter: ">=2.10.4"
 
 dependencies:
+  async_redux: ^13.3.1
+  business:
+    path: ../business
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  localization:
+    path: ../localization
+  routemaster: ^0.9.5
+  ui:
+    path: ../ui
   validator:
     git: https://github.com/pro100andrey/validator.git
-
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
   lint:
     path: ../lint
-  ui:
-    path: ../ui
+
 flutter:
   uses-material-design: true
 
