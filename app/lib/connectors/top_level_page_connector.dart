@@ -50,9 +50,7 @@ class _Factory extends VmFactory<AppState, TopLevelPageConnector> {
 }
 
 class _Vm extends Vm with EquatableMixin {
-  _Vm({
-    this.overlay,
-  });
+  _Vm({this.overlay});
 
   final _Overlay? overlay;
 

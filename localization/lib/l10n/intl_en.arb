@@ -5,15 +5,18 @@
     "logIn": "Log in",
     "backToLogIn": "Back to logIn",
     "register": "Register",
-    "forgotPassword": "Forgot password",
     "resetPassword": "Reset password",
     "email": "Email",
     "emailInvalid": "Email is invalid",
     "password": "Password",
     "confirmPassword": "Confirm Password",
     "forgotPassword": "Forgot password ?",
-    "fieldIsRequired": "This field is required",
+    "thisFieldIsRequired": "This field is required",
     "invalidEmail": "Invalid email",
     "couldNotConnectToInternet": "Couldn't connect to internet.",
-    "pleaseCheckYorNetworkSettings": "Please check yor network settings."
+    "pleaseCheckYorNetworkSettings": "Please check yor network settings.",
+    "minimumLengthSymbols": "Minimum length {value} symbols",
+    "mustContainAtLeastOneLowercase": "Must contain at least one lowercase",
+    "mustContainAtLeastOneUppercase": "Must contain at least one uppercase",
+    "passwordsDoNotMatch": "Passwords do not match"
 }

@@ -436,8 +436,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: ee824f53a02fccbd0a696eb0364f532eb1bd3ef4
-      resolved-ref: ee824f53a02fccbd0a696eb0364f532eb1bd3ef4
+      ref: aa06f69d01d31a2451d39a73a61074cd7d850749
+      resolved-ref: aa06f69d01d31a2451d39a73a61074cd7d850749
       url: "https://github.com/pro100andrey/validator.git"
     source: git
     version: "0.0.1+1"

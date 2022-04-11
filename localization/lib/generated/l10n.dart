@@ -110,16 +110,6 @@ class S {
     );
   }
 
-  /// `Forgot password ?`
-  String get forgotPassword {
-    return Intl.message(
-      'Forgot password ?',
-      name: 'forgotPassword',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Reset password`
   String get resetPassword {
     return Intl.message(
@@ -170,11 +160,21 @@ class S {
     );
   }
 
+  /// `Forgot password ?`
+  String get forgotPassword {
+    return Intl.message(
+      'Forgot password ?',
+      name: 'forgotPassword',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `This field is required`
-  String get fieldIsRequired {
+  String get thisFieldIsRequired {
     return Intl.message(
       'This field is required',
-      name: 'fieldIsRequired',
+      name: 'thisFieldIsRequired',
       desc: '',
       args: [],
     );
@@ -209,6 +209,46 @@ class S {
       args: [],
     );
   }
+
+  /// `Minimum length {value} symbols`
+  String minimumLengthSymbols(Object value) {
+    return Intl.message(
+      'Minimum length $value symbols',
+      name: 'minimumLengthSymbols',
+      desc: '',
+      args: [value],
+    );
+  }
+
+  /// `Must contain at least one lowercase`
+  String get mustContainAtLeastOneLowercase {
+    return Intl.message(
+      'Must contain at least one lowercase',
+      name: 'mustContainAtLeastOneLowercase',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Must contain at least one uppercase`
+  String get mustContainAtLeastOneUppercase {
+    return Intl.message(
+      'Must contain at least one uppercase',
+      name: 'mustContainAtLeastOneUppercase',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Passwords do not match`
+  String get passwordsDoNotMatch {
+    return Intl.message(
+      'Passwords do not match',
+      name: 'passwordsDoNotMatch',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {
@@ -217,7 +257,6 @@ class AppLocalizationDelegate extends LocalizationsDelegate<S> {
   List<Locale> get supportedLocales {
     return const <Locale>[
       Locale.fromSubtags(languageCode: 'en'),
-      Locale.fromSubtags(languageCode: 'ru'),
     ];
   }
 

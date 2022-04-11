@@ -1,10 +1,16 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/registration/actions/registration_action.dart';
+import 'package:business/redux/registration/actions/set_confirm_password_action.dart';
+import 'package:business/redux/registration/actions/set_email_action.dart';
+import 'package:business/redux/registration/actions/set_password_action.dart';
+import 'package:business/redux/registration/registration_selectors.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/registration_page.dart';
 
+import '../common/validators.dart';
 import '../routes.dart';
 
 class RegistrationPageConnector extends StatelessWidget {
@@ -33,27 +39,49 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
 
   @override
   _Vm fromStore() {
-    const String? password = null;
-    const String? passwordError = null;
+    final isWaiting = selectRegistrationIsWaiting(state);
+    final email = selectRegistrationEmail(state);
+    final emailError = emailValidator(email);
+    final password = selectRegistrationPassword(state);
+    final passwordError = passwordValidator(password);
+    final confirmPassword = selectRegistrationConfirmPassword(state);
+    final confirmPasswordError = passwordValidator(confirmPassword);
+    final passwordsMatchError =
+        passwordsMatchValidator(password, confirmPassword);
+    final formIsValid = selectRegistrationDataIsSet(state) &&
+        emailError == null &&
+        passwordError == null &&
+        confirmPasswordError == null &&
+        passwordsMatchError == null;
 
     return _Vm(
-      isWaiting: false,
+      isWaiting: isWaiting,
       email: ValueChangedWithErrorVm<String>(
-        value: password,
-        error: passwordError,
-        onChanged: (email) {},
+        value: email,
+        error: emailError,
+        onChanged: (email) => dispatch(
+          SetEmailAction(email),
+        ),
       ),
       password: ValueChangedWithErrorVm<String>(
         value: password,
         error: passwordError,
-        onChanged: (password) {},
+        onChanged: (password) => dispatch(
+          SetPasswordAction(password),
+        ),
       ),
       confirmPassword: ValueChangedWithErrorVm<String>(
-        value: password,
-        error: passwordError,
-        onChanged: (confirmPassword) {},
+        value: confirmPassword,
+        error: confirmPasswordError ?? passwordsMatchError,
+        onChanged: (confirmPassword) => dispatch(
+          SetConfirmPasswordAction(confirmPassword),
+        ),
       ),
-      onPressedRegister: () {},
+      onPressedRegister: formIsValid
+          ? () => dispatch(
+                RegistrationAction(),
+              )
+          : null,
       onPressedBackToLogin: routemaster.pop,
     );
   }

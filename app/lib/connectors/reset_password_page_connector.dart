@@ -8,6 +8,7 @@ class ResetPasswordPageConnector extends StatelessWidget {
   const ResetPasswordPageConnector({
     Key? key,
   }) : super(key: key);
+
   @override
   Widget build(BuildContext context) =>
       StoreConnector<AppState, _ResetPasswordPageVm>(
@@ -30,9 +31,7 @@ class _Factory extends VmFactory<AppState, ResetPasswordPageConnector> {
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
 class _ResetPasswordPageVm extends Vm with EquatableMixin {
-  _ResetPasswordPageVm({
-    required this.isWaiting,
-  });
+  _ResetPasswordPageVm({required this.isWaiting});
 
   final bool isWaiting;
 

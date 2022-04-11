@@ -58,9 +58,7 @@ class _Factory extends VmFactory<AppState, InitialPageConnector> {
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
 class _Vm extends Vm with EquatableMixin {
-  _Vm({
-    required this.homePage,
-  });
+  _Vm({required this.homePage});
 
   final _HomePage homePage;
 

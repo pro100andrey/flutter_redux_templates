@@ -25,8 +25,7 @@ dependencies:
   validator:
     git:
       url: https://github.com/pro100andrey/validator.git
-      ref: "ee824f53a02fccbd0a696eb0364f532eb1bd3ef4"
-  
+      ref: "aa06f69d01d31a2451d39a73a61074cd7d850749"
   
 dev_dependencies:
   flutter_test:

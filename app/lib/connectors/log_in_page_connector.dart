@@ -52,17 +52,28 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
       email: ValueChangedWithErrorVm<String>(
         value: email,
         error: emailError,
-        onChanged: (email) => dispatch(SetEmailAction(email)),
+        onChanged: (email) => dispatch(
+          SetEmailAction(email),
+        ),
       ),
       password: ValueChangedWithErrorVm<String>(
         value: password,
         error: passwordError,
-        onChanged: (password) => dispatch(SetPasswordAction(password)),
+        onChanged: (password) => dispatch(
+          SetPasswordAction(password),
+        ),
       ),
-      onPressedLogIn:
-          !formIsValid ? null : () => dispatch(LogInWithEmailAction()),
-      onPressedForgotPassword: () => routemaster.push(Routes.forgotPassword),
-      onPressedRegister: () => routemaster.push(Routes.register),
+      onPressedLogIn: formIsValid
+          ? () => dispatch(
+                LogInWithEmailAction(),
+              )
+          : null,
+      onPressedForgotPassword: () => routemaster.push(
+        Routes.forgotPassword,
+      ),
+      onPressedRegister: () => routemaster.push(
+        Routes.register,
+      ),
     );
   }
 }

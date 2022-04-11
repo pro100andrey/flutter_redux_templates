@@ -20,6 +20,8 @@ typedef String MessageIfAbsent(String messageStr, List<dynamic> args);
 class MessageLookup extends MessageLookupByLibrary {
   String get localeName => 'en';
 
+  static String m0(value) => "Minimum length ${value} symbols";
+
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
         "backToLogIn": MessageLookupByLibrary.simpleMessage("Back to logIn"),
@@ -31,18 +33,25 @@ class MessageLookup extends MessageLookupByLibrary {
         "email": MessageLookupByLibrary.simpleMessage("Email"),
         "emailInvalid":
             MessageLookupByLibrary.simpleMessage("Email is invalid"),
-        "fieldIsRequired":
-            MessageLookupByLibrary.simpleMessage("This field is required"),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("Forgot password ?"),
         "invalidEmail": MessageLookupByLibrary.simpleMessage("Invalid email"),
         "logIn": MessageLookupByLibrary.simpleMessage("Log in"),
+        "minimumLengthSymbols": m0,
+        "mustContainAtLeastOneLowercase": MessageLookupByLibrary.simpleMessage(
+            "Must contain at least one lowercase"),
+        "mustContainAtLeastOneUppercase": MessageLookupByLibrary.simpleMessage(
+            "Must contain at least one uppercase"),
         "ok": MessageLookupByLibrary.simpleMessage("OK"),
         "password": MessageLookupByLibrary.simpleMessage("Password"),
+        "passwordsDoNotMatch":
+            MessageLookupByLibrary.simpleMessage("Passwords do not match"),
         "pleaseCheckYorNetworkSettings": MessageLookupByLibrary.simpleMessage(
             "Please check yor network settings."),
         "register": MessageLookupByLibrary.simpleMessage("Register"),
         "resetPassword": MessageLookupByLibrary.simpleMessage("Reset password"),
+        "thisFieldIsRequired":
+            MessageLookupByLibrary.simpleMessage("This field is required"),
         "title": MessageLookupByLibrary.simpleMessage("title")
       };
 }
