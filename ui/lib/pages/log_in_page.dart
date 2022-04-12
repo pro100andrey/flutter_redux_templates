@@ -10,7 +10,6 @@ import '../models/value_changed.dart';
 
 class LogInPage extends StatelessWidget {
   const LogInPage({
-    required this.isWaiting,
     required this.email,
     required this.password,
     required this.onPressedLogIn,
@@ -19,7 +18,6 @@ class LogInPage extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
-  final bool isWaiting;
   final ValueChangedWithErrorVm<String> email;
   final ValueChangedWithErrorVm<String> password;
   final VoidCallback? onPressedLogIn;

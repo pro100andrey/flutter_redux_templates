@@ -10,7 +10,6 @@ List<Story> get pages => [
       Story(
         name: 'Pages/LogIn',
         builder: (context) => LogInPage(
-          isWaiting: context.knobIsWaiting(),
           email: context.newEmailInputVm(),
           password: context.newPasswordInputVm(),
           onPressedLogIn: context.knobOnPressedOptional(label: 'Login Button'),

@@ -20,6 +20,8 @@ class LogInWithEmailAction extends ReduxAction<AppState> {
     // ignore: unused_local_variable
     final password = selectLogInPassword(state);
     // async login request ...
+
+    await Future<dynamic>.delayed(const Duration(seconds: 2));
     return null;
   }
 }

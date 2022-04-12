@@ -21,8 +21,8 @@ class LogInPageConnector extends StatelessWidget {
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
         vm: () => _Factory(this),
+        
         builder: (context, vm) => LogInPage(
-          isWaiting: vm.isWaiting,
           email: vm.email,
           password: vm.password,
           onPressedForgotPassword: vm.onPressedForgotPassword,
@@ -32,7 +32,7 @@ class LogInPageConnector extends StatelessWidget {
       );
 }
 
-/// Factory that creates a view-model for the StoreConnector.
+/// Factory that creates a view-model  for the StoreConnector.
 class _Factory extends VmFactory<AppState, LogInPageConnector> {
   _Factory(LogInPageConnector widget) : super(widget);
 

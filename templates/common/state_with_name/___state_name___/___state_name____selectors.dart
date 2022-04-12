@@ -1,5 +1,5 @@
 import '../app_state.dart';
-import 'models/___stateName____state.dart';
+import 'models/___state_name____state.dart';
 
 /// returns waiting value
 bool select___StateName___IsWaiting(AppState state) =>

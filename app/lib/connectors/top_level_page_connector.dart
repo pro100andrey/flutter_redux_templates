@@ -1,6 +1,7 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
 import 'package:business/redux/connectivity/connectivity_selectors.dart';
+import 'package:business/redux/log_in/log_in_selectors.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/overlays/barrier_overlay.dart';
@@ -43,6 +44,10 @@ class _Factory extends VmFactory<AppState, TopLevelPageConnector> {
 
     if (!selectNetworkConnectionIsAvailable(state)) {
       overlay = _Overlay.noInternetConnection;
+    }
+
+    if (selectLogInWaiting(state)) {
+      overlay = _Overlay.barrier;
     }
 
     return _Vm(overlay: overlay);
