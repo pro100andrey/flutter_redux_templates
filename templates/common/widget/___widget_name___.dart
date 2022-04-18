@@ -10,7 +10,7 @@ class ___WidgetName___Vm extends Equatable {
   final VoidCallback? onPressed;
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [onPressed == null];
 }
 
 class ___WidgetName___ extends StatelessWidget {
