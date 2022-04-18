@@ -29,7 +29,7 @@ class ResetPasswordPage extends StatelessWidget {
           children: [
             AuthFormContainer(
               placeholder: Assets.placeholders.signUp,
-              title: S.current.register,
+              title: S.current.resetPassword,
               children: [
                 const SizedBox(height: 24),
                 PasswordInput(vm: password),
