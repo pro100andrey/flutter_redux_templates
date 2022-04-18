@@ -12,7 +12,7 @@ String? selectRegistrationEmail(AppState state) => state.registration.email;
 String? selectRegistrationPassword(AppState state) =>
     state.registration.password;
 
-/// Returns password value
+/// Returns confirm password value
 String? selectRegistrationConfirmPassword(AppState state) =>
     state.registration.confirmPassword;
 

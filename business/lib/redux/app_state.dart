@@ -5,6 +5,7 @@ import 'connectivity/models/connectivity_state.dart';
 import 'forgot_password/models/forgot_password_state.dart';
 import 'log_in/models/log_in_state.dart';
 import 'registration/models/registration_state.dart';
+import 'reset_password/models/reset_password_state.dart';
 
 part 'app_state.freezed.dart';
 
@@ -15,6 +16,7 @@ class AppState with _$AppState {
     required LogInState logIn,
     required RegistrationState registration,
     required ForgotPasswordState forgotPassword,
+    required ResetPasswordState resetPassword,
     required Wait wait,
   }) = _AppState;
 
@@ -23,6 +25,7 @@ class AppState with _$AppState {
         logIn: LogInState(),
         registration: RegistrationState(),
         forgotPassword: ForgotPasswordState(),
+        resetPassword: ResetPasswordState(),
         wait: Wait.empty,
       );
 }

@@ -2,6 +2,7 @@ import 'package:storybook_flutter/storybook_flutter.dart';
 import 'package:ui/pages/forgot_password_page.dart';
 import 'package:ui/pages/log_in_page.dart';
 import 'package:ui/pages/registration_page.dart';
+import 'package:ui/pages/reset_password_page.dart';
 
 import 'inputs.dart';
 import 'knobs.dart';
@@ -21,7 +22,6 @@ List<Story> get pages => [
       Story(
         name: 'Pages/Registration',
         builder: (context) => RegistrationPage(
-          isWaiting: context.knobIsWaiting(),
           email: context.newEmailInputVm(),
           password: context.newPasswordInputVm(),
           confirmPassword: context.newPasswordInputVm(),
@@ -37,6 +37,16 @@ List<Story> get pages => [
           email: context.newEmailInputVm(),
           onPressedResetPassword:
               context.knobOnPressedOptional(label: 'Register Button'),
+          onPressedBackToLogin: context.knobOnPressed(label: 'Back to Login'),
+        ),
+      ),
+      Story(
+        name: 'Pages/ResetPassword',
+        builder: (context) => ResetPasswordPage(
+          password: context.newPasswordInputVm(),
+          confirmPassword: context.newPasswordInputVm(),
+          onPressedResetPassword:
+              context.knobOnPressedOptional(label: 'ResetPassword Button'),
           onPressedBackToLogin: context.knobOnPressed(label: 'Back to Login'),
         ),
       ),

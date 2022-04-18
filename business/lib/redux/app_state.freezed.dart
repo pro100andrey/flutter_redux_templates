@@ -23,12 +23,14 @@ class _$AppStateTearOff {
       required LogInState logIn,
       required RegistrationState registration,
       required ForgotPasswordState forgotPassword,
+      required ResetPasswordState resetPassword,
       required Wait wait}) {
     return _AppState(
       connectivity: connectivity,
       logIn: logIn,
       registration: registration,
       forgotPassword: forgotPassword,
+      resetPassword: resetPassword,
       wait: wait,
     );
   }
@@ -43,6 +45,7 @@ mixin _$AppState {
   LogInState get logIn => throw _privateConstructorUsedError;
   RegistrationState get registration => throw _privateConstructorUsedError;
   ForgotPasswordState get forgotPassword => throw _privateConstructorUsedError;
+  ResetPasswordState get resetPassword => throw _privateConstructorUsedError;
   Wait get wait => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
@@ -59,12 +62,14 @@ abstract class $AppStateCopyWith<$Res> {
       LogInState logIn,
       RegistrationState registration,
       ForgotPasswordState forgotPassword,
+      ResetPasswordState resetPassword,
       Wait wait});
 
   $ConnectivityStateCopyWith<$Res> get connectivity;
   $LogInStateCopyWith<$Res> get logIn;
   $RegistrationStateCopyWith<$Res> get registration;
   $ForgotPasswordStateCopyWith<$Res> get forgotPassword;
+  $ResetPasswordStateCopyWith<$Res> get resetPassword;
 }
 
 /// @nodoc
@@ -81,6 +86,7 @@ class _$AppStateCopyWithImpl<$Res> implements $AppStateCopyWith<$Res> {
     Object? logIn = freezed,
     Object? registration = freezed,
     Object? forgotPassword = freezed,
+    Object? resetPassword = freezed,
     Object? wait = freezed,
   }) {
     return _then(_value.copyWith(
@@ -100,6 +106,10 @@ class _$AppStateCopyWithImpl<$Res> implements $AppStateCopyWith<$Res> {
           ? _value.forgotPassword
           : forgotPassword // ignore: cast_nullable_to_non_nullable
               as ForgotPasswordState,
+      resetPassword: resetPassword == freezed
+          ? _value.resetPassword
+          : resetPassword // ignore: cast_nullable_to_non_nullable
+              as ResetPasswordState,
       wait: wait == freezed
           ? _value.wait
           : wait // ignore: cast_nullable_to_non_nullable
@@ -134,6 +144,13 @@ class _$AppStateCopyWithImpl<$Res> implements $AppStateCopyWith<$Res> {
       return _then(_value.copyWith(forgotPassword: value));
     });
   }
+
+  @override
+  $ResetPasswordStateCopyWith<$Res> get resetPassword {
+    return $ResetPasswordStateCopyWith<$Res>(_value.resetPassword, (value) {
+      return _then(_value.copyWith(resetPassword: value));
+    });
+  }
 }
 
 /// @nodoc
@@ -146,6 +163,7 @@ abstract class _$AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
       LogInState logIn,
       RegistrationState registration,
       ForgotPasswordState forgotPassword,
+      ResetPasswordState resetPassword,
       Wait wait});
 
   @override
@@ -156,6 +174,8 @@ abstract class _$AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
   $RegistrationStateCopyWith<$Res> get registration;
   @override
   $ForgotPasswordStateCopyWith<$Res> get forgotPassword;
+  @override
+  $ResetPasswordStateCopyWith<$Res> get resetPassword;
 }
 
 /// @nodoc
@@ -173,6 +193,7 @@ class __$AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
     Object? logIn = freezed,
     Object? registration = freezed,
     Object? forgotPassword = freezed,
+    Object? resetPassword = freezed,
     Object? wait = freezed,
   }) {
     return _then(_AppState(
@@ -192,6 +213,10 @@ class __$AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
           ? _value.forgotPassword
           : forgotPassword // ignore: cast_nullable_to_non_nullable
               as ForgotPasswordState,
+      resetPassword: resetPassword == freezed
+          ? _value.resetPassword
+          : resetPassword // ignore: cast_nullable_to_non_nullable
+              as ResetPasswordState,
       wait: wait == freezed
           ? _value.wait
           : wait // ignore: cast_nullable_to_non_nullable
@@ -208,6 +233,7 @@ class _$_AppState implements _AppState {
       required this.logIn,
       required this.registration,
       required this.forgotPassword,
+      required this.resetPassword,
       required this.wait});
 
   @override
@@ -219,11 +245,13 @@ class _$_AppState implements _AppState {
   @override
   final ForgotPasswordState forgotPassword;
   @override
+  final ResetPasswordState resetPassword;
+  @override
   final Wait wait;
 
   @override
   String toString() {
-    return 'AppState(connectivity: $connectivity, logIn: $logIn, registration: $registration, forgotPassword: $forgotPassword, wait: $wait)';
+    return 'AppState(connectivity: $connectivity, logIn: $logIn, registration: $registration, forgotPassword: $forgotPassword, resetPassword: $resetPassword, wait: $wait)';
   }
 
   @override
@@ -238,6 +266,8 @@ class _$_AppState implements _AppState {
                 .equals(other.registration, registration) &&
             const DeepCollectionEquality()
                 .equals(other.forgotPassword, forgotPassword) &&
+            const DeepCollectionEquality()
+                .equals(other.resetPassword, resetPassword) &&
             const DeepCollectionEquality().equals(other.wait, wait));
   }
 
@@ -248,6 +278,7 @@ class _$_AppState implements _AppState {
       const DeepCollectionEquality().hash(logIn),
       const DeepCollectionEquality().hash(registration),
       const DeepCollectionEquality().hash(forgotPassword),
+      const DeepCollectionEquality().hash(resetPassword),
       const DeepCollectionEquality().hash(wait));
 
   @JsonKey(ignore: true)
@@ -262,6 +293,7 @@ abstract class _AppState implements AppState {
       required LogInState logIn,
       required RegistrationState registration,
       required ForgotPasswordState forgotPassword,
+      required ResetPasswordState resetPassword,
       required Wait wait}) = _$_AppState;
 
   @override
@@ -272,6 +304,8 @@ abstract class _AppState implements AppState {
   RegistrationState get registration;
   @override
   ForgotPasswordState get forgotPassword;
+  @override
+  ResetPasswordState get resetPassword;
   @override
   Wait get wait;
   @override

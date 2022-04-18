@@ -11,7 +11,6 @@ import '../models/value_changed.dart';
 
 class RegistrationPage extends StatelessWidget {
   const RegistrationPage({
-    required this.isWaiting,
     required this.email,
     required this.password,
     required this.confirmPassword,
@@ -20,7 +19,6 @@ class RegistrationPage extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
-  final bool isWaiting;
   final ValueChangedWithErrorVm<String> email;
   final ValueChangedWithErrorVm<String> password;
   final ValueChangedWithErrorVm<String> confirmPassword;

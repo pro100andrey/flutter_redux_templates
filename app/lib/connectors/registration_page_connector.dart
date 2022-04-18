@@ -23,7 +23,6 @@ class RegistrationPageConnector extends StatelessWidget {
         debug: this,
         vm: () => _Factory(this),
         builder: (context, vm) => RegistrationPage(
-          isWaiting: vm.isWaiting,
           email: vm.email,
           password: vm.password,
           confirmPassword: vm.confirmPassword,
@@ -39,7 +38,6 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
 
   @override
   _Vm fromStore() {
-    final isWaiting = selectRegistrationIsWaiting(state);
     final email = selectRegistrationEmail(state);
     final emailError = emailValidator(email);
     final password = selectRegistrationPassword(state);
@@ -55,7 +53,6 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
         passwordsMatchError == null;
 
     return _Vm(
-      isWaiting: isWaiting,
       email: ValueChangedWithErrorVm<String>(
         value: email,
         error: emailError,
@@ -90,7 +87,6 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
 /// The view-model holds the part of the Store state the dumb-widget needs.
 class _Vm extends Vm with EquatableMixin {
   _Vm({
-    required this.isWaiting,
     required this.email,
     required this.password,
     required this.confirmPassword,
@@ -98,7 +94,6 @@ class _Vm extends Vm with EquatableMixin {
     required this.onPressedBackToLogin,
   });
 
-  final bool isWaiting;
   final ValueChangedWithErrorVm<String> email;
   final ValueChangedWithErrorVm<String> password;
   final ValueChangedWithErrorVm<String> confirmPassword;
@@ -106,5 +101,5 @@ class _Vm extends Vm with EquatableMixin {
   final VoidCallback? onPressedBackToLogin;
 
   @override
-  List<Object?> get props => [isWaiting, email, password, confirmPassword];
+  List<Object?> get props => [email, password, confirmPassword];
 }

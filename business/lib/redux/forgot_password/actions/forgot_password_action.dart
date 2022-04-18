@@ -1,7 +1,7 @@
 import 'package:async_redux/async_redux.dart';
 
-import '../models/forgot_password_state.dart';
 import '../../app_state.dart';
+import '../models/forgot_password_state.dart';
 
 class ForgotPasswordAction extends ReduxAction<AppState> {
   ForgotPasswordAction({
