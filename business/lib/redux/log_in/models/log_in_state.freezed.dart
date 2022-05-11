@@ -12,22 +12,7 @@ part of 'log_in_state.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more informations: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
-
-/// @nodoc
-class _$LogInStateTearOff {
-  const _$LogInStateTearOff();
-
-  _LogInState call({String? email, String? password}) {
-    return _LogInState(
-      email: email,
-      password: password,
-    );
-  }
-}
-
-/// @nodoc
-const $LogInState = _$LogInStateTearOff();
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
 /// @nodoc
 mixin _$LogInState {
@@ -74,30 +59,31 @@ class _$LogInStateCopyWithImpl<$Res> implements $LogInStateCopyWith<$Res> {
 }
 
 /// @nodoc
-abstract class _$LogInStateCopyWith<$Res> implements $LogInStateCopyWith<$Res> {
-  factory _$LogInStateCopyWith(
-          _LogInState value, $Res Function(_LogInState) then) =
-      __$LogInStateCopyWithImpl<$Res>;
+abstract class _$$_LogInStateCopyWith<$Res>
+    implements $LogInStateCopyWith<$Res> {
+  factory _$$_LogInStateCopyWith(
+          _$_LogInState value, $Res Function(_$_LogInState) then) =
+      __$$_LogInStateCopyWithImpl<$Res>;
   @override
   $Res call({String? email, String? password});
 }
 
 /// @nodoc
-class __$LogInStateCopyWithImpl<$Res> extends _$LogInStateCopyWithImpl<$Res>
-    implements _$LogInStateCopyWith<$Res> {
-  __$LogInStateCopyWithImpl(
-      _LogInState _value, $Res Function(_LogInState) _then)
-      : super(_value, (v) => _then(v as _LogInState));
+class __$$_LogInStateCopyWithImpl<$Res> extends _$LogInStateCopyWithImpl<$Res>
+    implements _$$_LogInStateCopyWith<$Res> {
+  __$$_LogInStateCopyWithImpl(
+      _$_LogInState _value, $Res Function(_$_LogInState) _then)
+      : super(_value, (v) => _then(v as _$_LogInState));
 
   @override
-  _LogInState get _value => super._value as _LogInState;
+  _$_LogInState get _value => super._value as _$_LogInState;
 
   @override
   $Res call({
     Object? email = freezed,
     Object? password = freezed,
   }) {
-    return _then(_LogInState(
+    return _then(_$_LogInState(
       email: email == freezed
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
@@ -129,7 +115,7 @@ class _$_LogInState implements _LogInState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _LogInState &&
+            other is _$_LogInState &&
             const DeepCollectionEquality().equals(other.email, email) &&
             const DeepCollectionEquality().equals(other.password, password));
   }
@@ -142,19 +128,20 @@ class _$_LogInState implements _LogInState {
 
   @JsonKey(ignore: true)
   @override
-  _$LogInStateCopyWith<_LogInState> get copyWith =>
-      __$LogInStateCopyWithImpl<_LogInState>(this, _$identity);
+  _$$_LogInStateCopyWith<_$_LogInState> get copyWith =>
+      __$$_LogInStateCopyWithImpl<_$_LogInState>(this, _$identity);
 }
 
 abstract class _LogInState implements LogInState {
-  const factory _LogInState({String? email, String? password}) = _$_LogInState;
+  const factory _LogInState({final String? email, final String? password}) =
+      _$_LogInState;
 
   @override
-  String? get email;
+  String? get email => throw _privateConstructorUsedError;
   @override
-  String? get password;
+  String? get password => throw _privateConstructorUsedError;
   @override
   @JsonKey(ignore: true)
-  _$LogInStateCopyWith<_LogInState> get copyWith =>
+  _$$_LogInStateCopyWith<_$_LogInState> get copyWith =>
       throw _privateConstructorUsedError;
 }

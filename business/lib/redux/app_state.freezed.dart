@@ -12,32 +12,7 @@ part of 'app_state.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more informations: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
-
-/// @nodoc
-class _$AppStateTearOff {
-  const _$AppStateTearOff();
-
-  _AppState call(
-      {required ConnectivityState connectivity,
-      required LogInState logIn,
-      required RegistrationState registration,
-      required ForgotPasswordState forgotPassword,
-      required ResetPasswordState resetPassword,
-      required Wait wait}) {
-    return _AppState(
-      connectivity: connectivity,
-      logIn: logIn,
-      registration: registration,
-      forgotPassword: forgotPassword,
-      resetPassword: resetPassword,
-      wait: wait,
-    );
-  }
-}
-
-/// @nodoc
-const $AppState = _$AppStateTearOff();
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
 /// @nodoc
 mixin _$AppState {
@@ -154,9 +129,10 @@ class _$AppStateCopyWithImpl<$Res> implements $AppStateCopyWith<$Res> {
 }
 
 /// @nodoc
-abstract class _$AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
-  factory _$AppStateCopyWith(_AppState value, $Res Function(_AppState) then) =
-      __$AppStateCopyWithImpl<$Res>;
+abstract class _$$_AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
+  factory _$$_AppStateCopyWith(
+          _$_AppState value, $Res Function(_$_AppState) then) =
+      __$$_AppStateCopyWithImpl<$Res>;
   @override
   $Res call(
       {ConnectivityState connectivity,
@@ -179,13 +155,14 @@ abstract class _$AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
-    implements _$AppStateCopyWith<$Res> {
-  __$AppStateCopyWithImpl(_AppState _value, $Res Function(_AppState) _then)
-      : super(_value, (v) => _then(v as _AppState));
+class __$$_AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
+    implements _$$_AppStateCopyWith<$Res> {
+  __$$_AppStateCopyWithImpl(
+      _$_AppState _value, $Res Function(_$_AppState) _then)
+      : super(_value, (v) => _then(v as _$_AppState));
 
   @override
-  _AppState get _value => super._value as _AppState;
+  _$_AppState get _value => super._value as _$_AppState;
 
   @override
   $Res call({
@@ -196,7 +173,7 @@ class __$AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
     Object? resetPassword = freezed,
     Object? wait = freezed,
   }) {
-    return _then(_AppState(
+    return _then(_$_AppState(
       connectivity: connectivity == freezed
           ? _value.connectivity
           : connectivity // ignore: cast_nullable_to_non_nullable
@@ -258,7 +235,7 @@ class _$_AppState implements _AppState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _AppState &&
+            other is _$_AppState &&
             const DeepCollectionEquality()
                 .equals(other.connectivity, connectivity) &&
             const DeepCollectionEquality().equals(other.logIn, logIn) &&
@@ -283,33 +260,33 @@ class _$_AppState implements _AppState {
 
   @JsonKey(ignore: true)
   @override
-  _$AppStateCopyWith<_AppState> get copyWith =>
-      __$AppStateCopyWithImpl<_AppState>(this, _$identity);
+  _$$_AppStateCopyWith<_$_AppState> get copyWith =>
+      __$$_AppStateCopyWithImpl<_$_AppState>(this, _$identity);
 }
 
 abstract class _AppState implements AppState {
   const factory _AppState(
-      {required ConnectivityState connectivity,
-      required LogInState logIn,
-      required RegistrationState registration,
-      required ForgotPasswordState forgotPassword,
-      required ResetPasswordState resetPassword,
-      required Wait wait}) = _$_AppState;
+      {required final ConnectivityState connectivity,
+      required final LogInState logIn,
+      required final RegistrationState registration,
+      required final ForgotPasswordState forgotPassword,
+      required final ResetPasswordState resetPassword,
+      required final Wait wait}) = _$_AppState;
 
   @override
-  ConnectivityState get connectivity;
+  ConnectivityState get connectivity => throw _privateConstructorUsedError;
   @override
-  LogInState get logIn;
+  LogInState get logIn => throw _privateConstructorUsedError;
   @override
-  RegistrationState get registration;
+  RegistrationState get registration => throw _privateConstructorUsedError;
   @override
-  ForgotPasswordState get forgotPassword;
+  ForgotPasswordState get forgotPassword => throw _privateConstructorUsedError;
   @override
-  ResetPasswordState get resetPassword;
+  ResetPasswordState get resetPassword => throw _privateConstructorUsedError;
   @override
-  Wait get wait;
+  Wait get wait => throw _privateConstructorUsedError;
   @override
   @JsonKey(ignore: true)
-  _$AppStateCopyWith<_AppState> get copyWith =>
+  _$$_AppStateCopyWith<_$_AppState> get copyWith =>
       throw _privateConstructorUsedError;
 }

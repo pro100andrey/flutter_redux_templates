@@ -12,24 +12,7 @@ part of 'registration_state.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more informations: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
-
-/// @nodoc
-class _$RegistrationStateTearOff {
-  const _$RegistrationStateTearOff();
-
-  _RegistrationState call(
-      {String? email, String? password, String? confirmPassword}) {
-    return _RegistrationState(
-      email: email,
-      password: password,
-      confirmPassword: confirmPassword,
-    );
-  }
-}
-
-/// @nodoc
-const $RegistrationState = _$RegistrationStateTearOff();
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
 /// @nodoc
 mixin _$RegistrationState {
@@ -83,25 +66,25 @@ class _$RegistrationStateCopyWithImpl<$Res>
 }
 
 /// @nodoc
-abstract class _$RegistrationStateCopyWith<$Res>
+abstract class _$$_RegistrationStateCopyWith<$Res>
     implements $RegistrationStateCopyWith<$Res> {
-  factory _$RegistrationStateCopyWith(
-          _RegistrationState value, $Res Function(_RegistrationState) then) =
-      __$RegistrationStateCopyWithImpl<$Res>;
+  factory _$$_RegistrationStateCopyWith(_$_RegistrationState value,
+          $Res Function(_$_RegistrationState) then) =
+      __$$_RegistrationStateCopyWithImpl<$Res>;
   @override
   $Res call({String? email, String? password, String? confirmPassword});
 }
 
 /// @nodoc
-class __$RegistrationStateCopyWithImpl<$Res>
+class __$$_RegistrationStateCopyWithImpl<$Res>
     extends _$RegistrationStateCopyWithImpl<$Res>
-    implements _$RegistrationStateCopyWith<$Res> {
-  __$RegistrationStateCopyWithImpl(
-      _RegistrationState _value, $Res Function(_RegistrationState) _then)
-      : super(_value, (v) => _then(v as _RegistrationState));
+    implements _$$_RegistrationStateCopyWith<$Res> {
+  __$$_RegistrationStateCopyWithImpl(
+      _$_RegistrationState _value, $Res Function(_$_RegistrationState) _then)
+      : super(_value, (v) => _then(v as _$_RegistrationState));
 
   @override
-  _RegistrationState get _value => super._value as _RegistrationState;
+  _$_RegistrationState get _value => super._value as _$_RegistrationState;
 
   @override
   $Res call({
@@ -109,7 +92,7 @@ class __$RegistrationStateCopyWithImpl<$Res>
     Object? password = freezed,
     Object? confirmPassword = freezed,
   }) {
-    return _then(_RegistrationState(
+    return _then(_$_RegistrationState(
       email: email == freezed
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
@@ -147,7 +130,7 @@ class _$_RegistrationState implements _RegistrationState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _RegistrationState &&
+            other is _$_RegistrationState &&
             const DeepCollectionEquality().equals(other.email, email) &&
             const DeepCollectionEquality().equals(other.password, password) &&
             const DeepCollectionEquality()
@@ -163,24 +146,25 @@ class _$_RegistrationState implements _RegistrationState {
 
   @JsonKey(ignore: true)
   @override
-  _$RegistrationStateCopyWith<_RegistrationState> get copyWith =>
-      __$RegistrationStateCopyWithImpl<_RegistrationState>(this, _$identity);
+  _$$_RegistrationStateCopyWith<_$_RegistrationState> get copyWith =>
+      __$$_RegistrationStateCopyWithImpl<_$_RegistrationState>(
+          this, _$identity);
 }
 
 abstract class _RegistrationState implements RegistrationState {
   const factory _RegistrationState(
-      {String? email,
-      String? password,
-      String? confirmPassword}) = _$_RegistrationState;
+      {final String? email,
+      final String? password,
+      final String? confirmPassword}) = _$_RegistrationState;
 
   @override
-  String? get email;
+  String? get email => throw _privateConstructorUsedError;
   @override
-  String? get password;
+  String? get password => throw _privateConstructorUsedError;
   @override
-  String? get confirmPassword;
+  String? get confirmPassword => throw _privateConstructorUsedError;
   @override
   @JsonKey(ignore: true)
-  _$RegistrationStateCopyWith<_RegistrationState> get copyWith =>
+  _$$_RegistrationStateCopyWith<_$_RegistrationState> get copyWith =>
       throw _privateConstructorUsedError;
 }
