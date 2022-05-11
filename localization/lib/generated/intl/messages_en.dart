@@ -49,6 +49,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "pleaseCheckYorNetworkSettings": MessageLookupByLibrary.simpleMessage(
             "Please check yor network settings."),
         "register": MessageLookupByLibrary.simpleMessage("Register"),
+        "requiredField": MessageLookupByLibrary.simpleMessage("Required field"),
         "resetPassword": MessageLookupByLibrary.simpleMessage("Reset password"),
         "thisFieldIsRequired":
             MessageLookupByLibrary.simpleMessage("This field is required"),

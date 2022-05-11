@@ -7,7 +7,7 @@ final emailValidator = MultiValidator([
 ]);
 
 final passwordValidator = MultiValidator([
-  RequiredValidator(error: 'Required field'),
+  RequiredValidator(error: S.current.requiredField),
   MinLengthValidator(8, error: S.current.minimumLengthSymbols(8)),
   HasUppercaseValidator(error: S.current.mustContainAtLeastOneUppercase),
   HasLowercaseValidator(error: S.current.mustContainAtLeastOneLowercase),

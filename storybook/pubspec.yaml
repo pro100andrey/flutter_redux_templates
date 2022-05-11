@@ -13,18 +13,18 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   localization:
-    path: ../../localization
-  storybook_flutter: ^0.10.0
+    path: ../localization
+  storybook_flutter: ^0.10.1
   ui:
-    path: ../../ui
-
+    path: ../ui
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
   lint:
-    path: ../../lint
+    git:
+      url: 'https://github.com/pro100andrey/lint.git'
+      href: '0e13a7c'
 
 flutter:
   uses-material-design: true

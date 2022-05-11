@@ -25,10 +25,9 @@
 			"path": "ui"
 		},
 		{
-			"name": "lint",
-			"path": "lint"
+			"name": "storybook",
+			"path": "storybook"
 		},
-	
 		{
 			"name": "localization",
 			"path": "localization"
@@ -36,7 +35,7 @@
 		{
 			"name": "doc",
 			"path": "doc"
-		},
+		}
 	],
 	"settings": {
 		"codeTemplateTool.templatesPath": "{workspace}/common",

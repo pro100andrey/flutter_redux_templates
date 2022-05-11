@@ -5,10 +5,9 @@ version: 1.0.0+1
 
 environment:
   sdk: ">=2.16.2 <3.0.0"
-  flutter: ">=2.10.4"
-
+  
 dependencies:
-  async_redux: ^13.3.1
+  async_redux: ^14.1.4
   business:
     path: ../business
   flutter:
@@ -17,7 +16,7 @@ dependencies:
     sdk: flutter
   localization:
     path: ../localization
-  routemaster: ^0.9.5
+  routemaster: ^1.0.0
   ui:
     path: ../ui
   utils:
@@ -31,7 +30,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   lint:
-    path: ../lint
+    git:
+      url: 'https://github.com/pro100andrey/lint.git'
+      href: '0e13a7c'
+      
 
 flutter:
   uses-material-design: true

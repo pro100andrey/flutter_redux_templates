@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../assets.dart';
 
-ThemeData buildTheme() => ThemeData.light().copyWith(
+ThemeData buildTheme() => ThemeData(
       colorScheme: const ColorScheme.light(
         primary: ColorName.primary,
         secondary: ColorName.secondary,
