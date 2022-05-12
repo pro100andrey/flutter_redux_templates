@@ -13,8 +13,8 @@ class ForgotPasswordPage extends StatelessWidget {
     required this.email,
     required this.onPressedResetPassword,
     required this.onPressedBackToLogin,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final bool isWaiting;
   final ValueChangedWithErrorVm<String> email;

@@ -15,8 +15,8 @@ import '../routes.dart';
 
 class RegistrationPageConnector extends StatelessWidget {
   const RegistrationPageConnector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
@@ -53,21 +53,21 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
         passwordsMatchError == null;
 
     return _Vm(
-      email: ValueChangedWithErrorVm<String>(
+      email: StringCallback(
         value: email,
         error: emailError,
         onChanged: (email) => dispatch(
           SetEmailAction(email),
         ),
       ),
-      password: ValueChangedWithErrorVm<String>(
+      password: StringCallback(
         value: password,
         error: passwordError,
         onChanged: (password) => dispatch(
           SetPasswordAction(password),
         ),
       ),
-      confirmPassword: ValueChangedWithErrorVm<String>(
+      confirmPassword: StringCallback(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
         onChanged: (confirmPassword) => dispatch(
@@ -94,9 +94,9 @@ class _Vm extends Vm with EquatableMixin {
     required this.onPressedBackToLogin,
   });
 
-  final ValueChangedWithErrorVm<String> email;
-  final ValueChangedWithErrorVm<String> password;
-  final ValueChangedWithErrorVm<String> confirmPassword;
+  final StringCallback email;
+  final StringCallback password;
+  final StringCallback confirmPassword;
   final VoidCallback? onPressedRegister;
   final VoidCallback? onPressedBackToLogin;
 

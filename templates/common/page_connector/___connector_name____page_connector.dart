@@ -6,8 +6,8 @@ import 'package:ui/pages/___connector_name____page.dart';
 
 class ___ConnectorName___PageConnector extends StatelessWidget {
   const ___ConnectorName___PageConnector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
@@ -21,7 +21,7 @@ class ___ConnectorName___PageConnector extends StatelessWidget {
 
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, ___ConnectorName___PageConnector> {
-  _Factory(___ConnectorName___PageConnector widget) : super(widget);
+  _Factory(super.widget);
 
   @override
   _Vm fromStore() => _Vm(

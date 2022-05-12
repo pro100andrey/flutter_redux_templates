@@ -9,9 +9,9 @@ import '../routes.dart';
 
 class ForgotPasswordPageConnector extends StatelessWidget {
   const ForgotPasswordPageConnector({
-    Key? key,
-  }) : super(key: key);
-  
+    super.key,
+  });
+
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
@@ -35,7 +35,7 @@ class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector> {
     const String? emailError = null;
     return _Vm(
       isWaiting: false,
-      email: ValueChangedWithErrorVm<String>(
+      email: StringCallback(
         value: email,
         error: emailError,
         onChanged: (email) {},
@@ -56,7 +56,7 @@ class _Vm extends Vm with EquatableMixin {
   });
 
   final bool isWaiting;
-  final ValueChangedWithErrorVm<String> email;
+  final StringCallback email;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback onPressedBackToLogin;
 

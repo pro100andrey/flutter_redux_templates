@@ -15,8 +15,8 @@ enum _Overlay {
 class TopLevelPageConnector extends StatelessWidget {
   const TopLevelPageConnector({
     required this.child,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Widget? child;
 

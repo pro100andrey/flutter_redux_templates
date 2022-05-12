@@ -3,7 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class BarrierOverlay extends StatelessWidget {
-  const BarrierOverlay({Key? key}) : super(key: key);
+  const BarrierOverlay({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => Stack(

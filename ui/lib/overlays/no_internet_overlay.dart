@@ -3,8 +3,8 @@ import 'package:localization/localization.dart';
 
 class NoInternetOverlay extends StatelessWidget {
   const NoInternetOverlay({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => Material(

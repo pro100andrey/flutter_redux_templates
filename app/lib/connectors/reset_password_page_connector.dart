@@ -13,8 +13,8 @@ import '../common/validators.dart';
 
 class ResetPasswordPageConnector extends StatelessWidget {
   const ResetPasswordPageConnector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
@@ -47,14 +47,14 @@ class _Factory extends VmFactory<AppState, ResetPasswordPageConnector> {
         passwordsMatchError == null;
 
     return _Vm(
-      password: ValueChangedWithErrorVm<String>(
+      password: StringCallback(
         value: password,
         error: passwordError,
         onChanged: (password) => dispatch(
           SetPasswordAction(password),
         ),
       ),
-      confirmPassword: ValueChangedWithErrorVm<String>(
+      confirmPassword: StringCallback(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
         onChanged: (confirmPassword) => dispatch(
@@ -80,8 +80,8 @@ class _Vm extends Vm with EquatableMixin {
     required this.onPressedBackToLogin,
   });
 
-  final ValueChangedWithErrorVm<String> password;
-  final ValueChangedWithErrorVm<String> confirmPassword;
+  final StringCallback password;
+  final StringCallback confirmPassword;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback? onPressedBackToLogin;
 

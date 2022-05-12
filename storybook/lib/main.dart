@@ -15,7 +15,9 @@ void main() {
 }
 
 class StoryBookApp extends StatelessWidget {
-  const StoryBookApp({Key? key}) : super(key: key);
+  const StoryBookApp({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => MaterialApp(

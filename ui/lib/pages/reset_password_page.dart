@@ -14,11 +14,11 @@ class ResetPasswordPage extends StatelessWidget {
     required this.confirmPassword,
     required this.onPressedResetPassword,
     required this.onPressedBackToLogin,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
-  final ValueChangedWithErrorVm<String> password;
-  final ValueChangedWithErrorVm<String> confirmPassword;
+  final StringCallback password;
+  final StringCallback confirmPassword;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback? onPressedBackToLogin;
 

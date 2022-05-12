@@ -4,6 +4,7 @@ import 'package:ui/inputs/confirm_password_input.dart';
 import 'package:ui/inputs/email_input.dart';
 import 'package:ui/inputs/password_input.dart';
 import 'package:ui/models/value_changed.dart';
+
 import 'knobs.dart';
 
 List<Story> get inputs => [
@@ -11,7 +12,7 @@ List<Story> get inputs => [
         name: 'Inputs/Email',
         builder: (context) => Center(
           child: EmailInput(
-            vm: context.newEmailInputVm(),
+            vm: context.newInputVm('Email'),
           ),
         ),
       ),
@@ -19,7 +20,7 @@ List<Story> get inputs => [
         name: 'Inputs/Password',
         builder: (context) => Center(
           child: PasswordInput(
-            vm: context.newPasswordInputVm(),
+            vm: context.newInputVm('Password'),
           ),
         ),
       ),
@@ -27,23 +28,16 @@ List<Story> get inputs => [
         name: 'Inputs/ConfirmPassword',
         builder: (context) => Center(
           child: ConfirmPasswordInput(
-            vm: context.newPasswordInputVm(),
+            vm: context.newInputVm('ConfirmPassword'),
           ),
         ),
       ),
     ];
 
 extension ButtonsKnobsBuildContextEx on BuildContext {
-  ValueChangedWithErrorVm<String> newEmailInputVm() => ValueChangedWithErrorVm(
+  StringCallback newInputVm(String label) => StringCallback(
         value: null,
-        error: knobInputError('Email error'),
-        onChanged: knobOnValueChanged(label: 'Email onChanged'),
-      );
-
-  ValueChangedWithErrorVm<String> newPasswordInputVm() =>
-      ValueChangedWithErrorVm(
-        value: null,
-        error: knobInputError('Password error'),
-        onChanged: knobOnValueChanged(label: 'Password onChanged'),
+        error: knobInputError('$label error'),
+        onChanged: knobOnValueChanged(label: '$label onChanged'),
       );
 }

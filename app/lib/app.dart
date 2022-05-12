@@ -13,8 +13,8 @@ import 'routes.dart';
 class App extends StatelessWidget {
   const App({
     required this.store,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Store<AppState> store;
   // This widget is the root of your application.

@@ -4,8 +4,8 @@ import 'package:localization/localization.dart';
 class ProfilePage extends StatelessWidget {
   const ProfilePage({
     required this.isWaiting,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final bool isWaiting;
 

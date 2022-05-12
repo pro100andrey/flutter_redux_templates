@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/value_changed.dart';
 
+
 class TextInput extends StatefulWidget {
   const TextInput({
     required this.vm,
@@ -16,8 +17,8 @@ class TextInput extends StatefulWidget {
     this.autofillHints,
     this.filled,
     this.maxLength,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final bool obscureText;
   final int maxLines;
@@ -31,7 +32,7 @@ class TextInput extends StatefulWidget {
   final bool? filled;
   final TextInputType? keyboardType;
   final List<String>? autofillHints;
-  final ValueChangedWithErrorVm<String> vm;
+  final StringCallback vm;
 
   @override
   _TextInputState createState() => _TextInputState();

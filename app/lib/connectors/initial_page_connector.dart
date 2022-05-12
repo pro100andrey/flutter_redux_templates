@@ -18,8 +18,8 @@ enum _HomePage {
 
 class InitialPageConnector extends StatelessWidget {
   const InitialPageConnector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => ExceptionDialog<AppState>(

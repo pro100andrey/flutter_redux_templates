@@ -8,7 +8,7 @@ import 'app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setupRootLogger(isDebugMode: kDebugMode);
-  
+
   final store = newStore();
   runApp(App(store: store));
 }

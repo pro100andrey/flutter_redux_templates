@@ -14,14 +14,13 @@ import '../routes.dart';
 
 class LogInPageConnector extends StatelessWidget {
   const LogInPageConnector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
         vm: () => _Factory(this),
-        
         builder: (context, vm) => LogInPage(
           email: vm.email,
           password: vm.password,
@@ -34,11 +33,10 @@ class LogInPageConnector extends StatelessWidget {
 
 /// Factory that creates a view-model  for the StoreConnector.
 class _Factory extends VmFactory<AppState, LogInPageConnector> {
-  _Factory(LogInPageConnector widget) : super(widget);
+  _Factory(super.widget);
 
   @override
   _Vm fromStore() {
-    final isWaiting = selectLogInWaiting(state);
     final email = selectLogInEmail(state);
     final password = selectLogInPassword(state);
     final emailError = emailValidator(email);
@@ -48,15 +46,14 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
         passwordError == null;
 
     return _Vm(
-      isWaiting: isWaiting,
-      email: ValueChangedWithErrorVm<String>(
+      email: StringCallback(
         value: email,
         error: emailError,
         onChanged: (email) => dispatch(
           SetEmailAction(email),
         ),
       ),
-      password: ValueChangedWithErrorVm<String>(
+      password: StringCallback(
         value: password,
         error: passwordError,
         onChanged: (password) => dispatch(
@@ -81,7 +78,6 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
 /// The view-model holds the part of the Store state the dumb-widget needs.
 class _Vm extends Vm with EquatableMixin {
   _Vm({
-    required this.isWaiting,
     required this.email,
     required this.password,
     required this.onPressedLogIn,
@@ -89,13 +85,12 @@ class _Vm extends Vm with EquatableMixin {
     required this.onPressedRegister,
   });
 
-  final bool isWaiting;
-  final ValueChangedWithErrorVm<String> email;
-  final ValueChangedWithErrorVm<String> password;
+  final StringCallback email;
+  final StringCallback password;
   final VoidCallback? onPressedLogIn;
   final VoidCallback onPressedForgotPassword;
   final VoidCallback onPressedRegister;
 
   @override
-  List<Object?> get props => [isWaiting, email, password];
+  List<Object?> get props => [email, password];
 }

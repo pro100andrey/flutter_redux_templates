@@ -6,8 +6,8 @@ import 'package:ui/pages/home_page.dart';
 
 class HomePageConnector extends StatelessWidget {
   const HomePageConnector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(

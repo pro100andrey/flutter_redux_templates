@@ -7,8 +7,8 @@ class AuthFormContainer extends StatelessWidget {
     required this.placeholder,
     required this.title,
     required this.children,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final SvgGenImage placeholder;
   final String title;

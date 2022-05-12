@@ -4,8 +4,8 @@ import 'package:localization/localization.dart';
 class HomePage extends StatelessWidget {
   const HomePage({
     required this.isWaiting,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final bool isWaiting;
 

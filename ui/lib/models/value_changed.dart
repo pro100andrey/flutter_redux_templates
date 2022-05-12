@@ -16,20 +16,19 @@ class ValueChangedVm<T> extends Equatable {
   List<Object?> get props => [value, isEnabled];
 }
 
+typedef StringCallback = ValueChangedWithErrorVm<String>;
+
 class ValueChangedWithErrorVm<T> extends ValueChangedVm<T> {
   const ValueChangedWithErrorVm({
     required this.error,
-    required T? value,
-    required ValueChanged<T>? onChanged,
-  }) : super(
-          value: value,
-          onChanged: onChanged,
-        );
+    super.value,
+    super.onChanged,
+  });
 
   final String? error;
 
   bool get isError => error != null;
 
   @override
-  List<Object?> get props => super.props + [error];
+  List<Object?> get props => [...super.props, error];
 }

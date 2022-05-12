@@ -10,10 +10,8 @@ class RoundedButton extends StatelessWidget {
     this.width = 200,
     this.height = 48,
     this.borderRadius = const BorderRadius.all(Radius.circular(25)),
-    
-
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Color? borderColor;
   final Color? foregroundColor;

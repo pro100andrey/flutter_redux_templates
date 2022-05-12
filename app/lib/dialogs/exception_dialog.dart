@@ -26,8 +26,8 @@ class ExceptionDialog<St> extends StatelessWidget {
     required this.child,
     this.onShowUserExceptionDialog,
     this.useLocalContext = false,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Widget child;
   final ShowUserExceptionDialog? onShowUserExceptionDialog;

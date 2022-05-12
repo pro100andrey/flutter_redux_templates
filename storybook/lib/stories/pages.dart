@@ -11,8 +11,8 @@ List<Story> get pages => [
       Story(
         name: 'Pages/LogIn',
         builder: (context) => LogInPage(
-          email: context.newEmailInputVm(),
-          password: context.newPasswordInputVm(),
+          email: context.newInputVm('Email'),
+          password: context.newInputVm('Password'),
           onPressedLogIn: context.knobOnPressedOptional(label: 'Login Button'),
           onPressedForgotPassword:
               context.knobOnPressed(label: 'ForgotPassword Button'),
@@ -22,9 +22,9 @@ List<Story> get pages => [
       Story(
         name: 'Pages/Registration',
         builder: (context) => RegistrationPage(
-          email: context.newEmailInputVm(),
-          password: context.newPasswordInputVm(),
-          confirmPassword: context.newPasswordInputVm(),
+          email: context.newInputVm('Email'),
+          password: context.newInputVm('Password'),
+          confirmPassword: context.newInputVm('Confirm Password'),
           onPressedRegister:
               context.knobOnPressedOptional(label: 'Register Button'),
           onPressedBackToLogin: context.knobOnPressed(label: 'Back to Login'),
@@ -34,7 +34,7 @@ List<Story> get pages => [
         name: 'Pages/ForgotPassword',
         builder: (context) => ForgotPasswordPage(
           isWaiting: context.knobIsWaiting(),
-          email: context.newEmailInputVm(),
+          email: context.newInputVm('Email'),
           onPressedResetPassword:
               context.knobOnPressedOptional(label: 'Register Button'),
           onPressedBackToLogin: context.knobOnPressed(label: 'Back to Login'),
@@ -43,8 +43,8 @@ List<Story> get pages => [
       Story(
         name: 'Pages/ResetPassword',
         builder: (context) => ResetPasswordPage(
-          password: context.newPasswordInputVm(),
-          confirmPassword: context.newPasswordInputVm(),
+          password: context.newInputVm('Password'),
+          confirmPassword: context.newInputVm('Confirm Password'),
           onPressedResetPassword:
               context.knobOnPressedOptional(label: 'ResetPassword Button'),
           onPressedBackToLogin: context.knobOnPressed(label: 'Back to Login'),

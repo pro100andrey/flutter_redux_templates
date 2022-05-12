@@ -6,8 +6,8 @@ import 'package:ui/pages/profile_page.dart';
 
 class ProfilePageConnector extends StatelessWidget {
   const ProfilePageConnector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(

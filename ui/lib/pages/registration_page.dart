@@ -16,8 +16,8 @@ class RegistrationPage extends StatelessWidget {
     required this.confirmPassword,
     required this.onPressedRegister,
     required this.onPressedBackToLogin,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final ValueChangedWithErrorVm<String> email;
   final ValueChangedWithErrorVm<String> password;

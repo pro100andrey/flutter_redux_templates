@@ -3,8 +3,8 @@ import 'package:localization/localization.dart';
 
 class SplashPage extends StatelessWidget {
   const SplashPage({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => Scaffold(
