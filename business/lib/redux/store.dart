@@ -47,6 +47,7 @@ class _MyErrorObserver implements ErrorObserver<AppState> {
     Store store,
   ) {
     _logger.shout('Error thrown during $action: $error');
+
     return false;
   }
 }
@@ -110,6 +111,7 @@ class _DefaultModelObserver<Model> implements ModelObserver<Model> {
   final _logger = Logger('Redux');
 
   @override
+  // ignore: long-parameter-list
   void observe({
     required Model? modelPrevious,
     required Model? modelCurrent,

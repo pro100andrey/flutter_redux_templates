@@ -24,7 +24,6 @@ class InitialPageConnector extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ExceptionDialog<AppState>(
         child: StoreConnector<AppState, _Vm>(
-          onWillChange: (context, store, previousVm, newVm) {},
           debug: this,
           vm: () => _Factory(this),
           builder: (context, vm) {
@@ -50,6 +49,7 @@ class _Factory extends VmFactory<AppState, InitialPageConnector> {
   @override
   _Vm fromStore() {
     final homePage = _homePage(state);
+    
     return _Vm(homePage: homePage);
   }
 

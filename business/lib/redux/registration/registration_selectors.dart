@@ -21,5 +21,6 @@ bool selectRegistrationDataIsSet(AppState state) {
   final email = selectRegistrationEmail(state) ?? '';
   final password = selectRegistrationPassword(state) ?? '';
   final confirmPassword = selectRegistrationConfirmPassword(state) ?? '';
+  
   return email.isNotEmpty && password.isNotEmpty && confirmPassword.isNotEmpty;
 }

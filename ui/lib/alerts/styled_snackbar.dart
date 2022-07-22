@@ -8,11 +8,13 @@ SnackBar styledSnackbar({
 }) {
   final additional = MediaQuery.of(context).size.width - maxWidth;
   final inset = (additional > 0 ? additional / 2 : 32).toDouble();
-
+  final left = inset;
+  final right = inset;
+  
   return SnackBar(
     elevation: 6,
     behavior: SnackBarBehavior.floating,
-    margin: EdgeInsets.fromLTRB(inset, 0, inset, 32),
+    margin: EdgeInsets.fromLTRB(left, 0, right, 32),
     backgroundColor: Colors.blue[900],
     content: Column(
       mainAxisSize: MainAxisSize.min,

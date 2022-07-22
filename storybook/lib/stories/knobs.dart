@@ -44,6 +44,7 @@ extension BuildContextEx on BuildContext {
       initial: initial,
       max: max,
     );
+    
     return _words.take(count).join(' ');
   }
 }

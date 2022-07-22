@@ -27,6 +27,7 @@ dependencies:
       ref: "aa06f69d01d31a2451d39a73a61074cd7d850749"
   
 dev_dependencies:
+  dart_code_metrics: ^4.16.0
   flutter_test:
     sdk: flutter
   lint:
@@ -34,7 +35,5 @@ dev_dependencies:
       url: 'https://github.com/pro100andrey/lint.git'
       href: '0e13a7c'
       
-
 flutter:
   uses-material-design: true
-

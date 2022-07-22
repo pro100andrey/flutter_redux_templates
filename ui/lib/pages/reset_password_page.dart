@@ -44,9 +44,9 @@ class ResetPasswordPage extends StatelessWidget {
                 TextButton(
                   onPressed: onPressedBackToLogin,
                   child: Text(S.current.backToLogIn),
-                )
+                ),
               ],
-            )
+            ),
           ],
         ),
       );

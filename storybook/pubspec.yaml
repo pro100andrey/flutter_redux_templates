@@ -19,6 +19,7 @@ dependencies:
     path: ../ui
 
 dev_dependencies:
+  dart_code_metrics: ^4.16.0
   flutter_test:
     sdk: flutter
   lint:

@@ -59,6 +59,7 @@ class ExceptionDialog<St> extends StatelessWidget {
 
 // ////////////////////////////////////////////////////////////////////////////
 
+// ignore: prefer-single-widget-per-file
 class _ExceptionDialogWidget extends StatefulWidget {
   const _ExceptionDialogWidget(
     this.child,
@@ -91,7 +92,6 @@ class _ExceptionDialogWidget extends StatefulWidget {
 
     showDialogSuper<int>(
       context: resultContext,
-      barrierDismissible: false,
       onDismissed: (result) {
         if (result == 1) {
           userException.onOk?.call();
@@ -108,22 +108,19 @@ class _ExceptionDialogWidget extends StatefulWidget {
       builder: (context) => AlertDialog(
         titleTextStyle: Theme.of(context).textTheme.headline6,
         contentTextStyle: Theme.of(context).textTheme.bodyText1,
+        scrollable: true,
         title: Text(title),
         content: Text(content),
         actions: [
           if (userException.onCancel != null)
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(2);
-              },
+              onPressed: () => Navigator.of(context).pop(2),
               child: Text(S.current.cancel),
             ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(1);
-            },
+            onPressed: () => Navigator.of(context).pop(1),
             child: Text(S.current.ok),
-          )
+          ),
         ],
       ),
     );
@@ -192,22 +189,16 @@ typedef ShowUserExceptionDialog = void Function(
 Future<T?> showDialogSuper<T>({
   required BuildContext context,
   required WidgetBuilder builder,
-  bool barrierDismissible = true,
-  Color? barrierColor = Colors.black54,
-  String? barrierLabel,
-  bool useSafeArea = true,
-  bool useRootNavigator = true,
   RouteSettings? routeSettings,
   void Function(T?)? onDismissed,
 }) async {
   final result = await showDialog<T>(
     context: context,
     builder: builder,
-    barrierDismissible: barrierDismissible,
-    barrierColor: barrierColor,
-    barrierLabel: barrierLabel,
-    useSafeArea: useSafeArea,
-    useRootNavigator: useRootNavigator,
+    barrierDismissible: false,
+    barrierColor: Colors.black54,
+    useSafeArea: true,
+    useRootNavigator: true,
     routeSettings: routeSettings,
   );
 

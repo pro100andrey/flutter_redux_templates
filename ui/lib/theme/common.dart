@@ -13,37 +13,18 @@ ThemeData buildTheme() => ThemeData(
 
 InputDecorationTheme inputDecorationTheme() {
   const borderRadius = BorderRadius.all(Radius.circular(28));
-  return const InputDecorationTheme(
-    focusedBorder: OutlineInputBorder(
+
+  return InputDecorationTheme(
+    errorMaxLines: 10,
+    border: const OutlineInputBorder(borderRadius: borderRadius),
+    enabledBorder: const OutlineInputBorder(
       borderRadius: borderRadius,
-      borderSide: BorderSide(
-        color: ColorName.primary,
-      ),
-    ),
-    focusedErrorBorder: OutlineInputBorder(
-      borderRadius: borderRadius,
-      borderSide: BorderSide(
-        color: ColorName.error,
-      ),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: borderRadius,
-      borderSide: BorderSide(
-        color: ColorName.border,
-      ),
+      borderSide: BorderSide(color: ColorName.border),
     ),
     disabledBorder: OutlineInputBorder(
       borderRadius: borderRadius,
-      borderSide: BorderSide(
-        color: ColorName.shade,
-      ),
+      borderSide: BorderSide(color: Colors.grey.shade200),
     ),
-    errorBorder: OutlineInputBorder(
-      borderRadius: borderRadius,
-      borderSide: BorderSide(
-        color: ColorName.primary,
-      ),
-    ),
-    errorMaxLines: 10,
+    focusColor: ColorName.primary,
   );
 }
