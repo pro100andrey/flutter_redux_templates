@@ -21,7 +21,7 @@ class ProfilePageConnector extends StatelessWidget {
 
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, ProfilePageConnector> {
-  _Factory(ProfilePageConnector widget) : super(widget);
+  _Factory(ProfilePageConnector super.widget);
 
   @override
   _Vm fromStore() => _Vm(

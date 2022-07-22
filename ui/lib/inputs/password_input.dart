@@ -3,7 +3,7 @@ import 'package:localization/localization.dart';
 
 import 'text_input.dart';
 
-class PasswordInput extends TextInput {
+class PasswordInput extends BaseTextInput {
   PasswordInput({
     required super.vm,
     super.key,

@@ -35,9 +35,10 @@ List<Story> get inputs => [
     ];
 
 extension ButtonsKnobsBuildContextEx on BuildContext {
-  StringCallback newInputVm(String label) => StringCallback(
-        value: null,
+  ValueChangedWithErrorVm<String> newInputVm(String label) =>
+      ValueChangedWithErrorVm(
         error: knobInputError('$label error'),
-        onChanged: knobOnValueChanged(label: '$label onChanged'),
+        enabled: knobs.boolean(label: label, initial: true),
+        onChanged: print ,
       );
 }

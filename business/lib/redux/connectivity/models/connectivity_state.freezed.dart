@@ -126,7 +126,7 @@ abstract class _ConnectivityState implements ConnectivityState {
       _$_ConnectivityState;
 
   @override
-  bool get isAvailable => throw _privateConstructorUsedError;
+  bool get isAvailable;
   @override
   @JsonKey(ignore: true)
   _$$_ConnectivityStateCopyWith<_$_ConnectivityState> get copyWith =>

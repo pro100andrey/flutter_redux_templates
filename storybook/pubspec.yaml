@@ -14,11 +14,12 @@ dependencies:
     sdk: flutter
   localization:
     path: ../localization
-  storybook_flutter: ^0.10.1
+  storybook_flutter: ^0.11.1 
   ui:
     path: ../ui
 
 dev_dependencies:
+  dart_code_metrics: ^4.16.0
   flutter_test:
     sdk: flutter
   lint:

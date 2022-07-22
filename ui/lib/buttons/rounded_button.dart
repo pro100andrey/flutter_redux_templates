@@ -23,25 +23,30 @@ class RoundedButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => ConstrainedBox(
-        constraints: BoxConstraints(
-          minWidth: width,
-          maxWidth: width,
-          minHeight: height,
-        ),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            onPrimary: foregroundColor,
-            primary: backgroundColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: borderRadius,
-              side: borderColor != null
-                  ? BorderSide(color: borderColor!)
-                  : BorderSide.none,
-            ),
+  Widget build(BuildContext context) {
+    final minWidth = width;
+    final maxWidth = width;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+        minHeight: height,
+      ),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          onPrimary: foregroundColor,
+          primary: backgroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: borderRadius,
+            side: borderColor != null
+                ? BorderSide(color: borderColor!)
+                : BorderSide.none,
           ),
-          onPressed: onPressed,
-          child: Text(title),
         ),
-      );
+        onPressed: onPressed,
+        child: Text(title),
+      ),
+    );
+  }
 }

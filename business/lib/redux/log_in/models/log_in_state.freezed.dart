@@ -137,9 +137,9 @@ abstract class _LogInState implements LogInState {
       _$_LogInState;
 
   @override
-  String? get email => throw _privateConstructorUsedError;
+  String? get email;
   @override
-  String? get password => throw _privateConstructorUsedError;
+  String? get password;
   @override
   @JsonKey(ignore: true)
   _$$_LogInStateCopyWith<_$_LogInState> get copyWith =>

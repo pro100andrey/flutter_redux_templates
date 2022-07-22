@@ -3,7 +3,7 @@ import 'package:localization/localization.dart';
 
 import 'text_input.dart';
 
-class ConfirmPasswordInput extends TextInput {
+class ConfirmPasswordInput extends BaseTextInput {
   ConfirmPasswordInput({
     required super.vm,
     super.key,
@@ -11,6 +11,6 @@ class ConfirmPasswordInput extends TextInput {
           labelText: S.current.confirmPassword,
           prefixIcon: const Icon(Icons.check_outlined),
           keyboardType: TextInputType.visiblePassword,
-          obscureText: true
+          obscureText: true,
         );
 }
