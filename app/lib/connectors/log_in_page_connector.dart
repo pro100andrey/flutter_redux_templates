@@ -46,14 +46,14 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
         passwordError == null;
 
     return _Vm(
-      email: StringCallback(
+      email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
         onChanged: (email) => dispatch(
           SetEmailAction(email),
         ),
       ),
-      password: StringCallback(
+      password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
         onChanged: (password) => dispatch(
@@ -85,8 +85,8 @@ class _Vm extends Vm with EquatableMixin {
     required this.onPressedRegister,
   });
 
-  final StringCallback email;
-  final StringCallback password;
+  final ValueChangedWithErrorVm<String> email;
+  final ValueChangedWithErrorVm<String> password;
   final VoidCallback? onPressedLogIn;
   final VoidCallback onPressedForgotPassword;
   final VoidCallback onPressedRegister;

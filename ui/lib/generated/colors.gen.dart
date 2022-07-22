@@ -3,6 +3,8 @@
 ///  FlutterGen
 /// *****************************************************
 
+// coverage:ignore-file
+// ignore_for_file: type=lint
 // ignore_for_file: directives_ordering,unnecessary_import
 
 import 'package:flutter/painting.dart';
@@ -10,6 +12,9 @@ import 'package:flutter/material.dart';
 
 class ColorName {
   ColorName._();
+
+  /// Color: #FFFFFF
+  static const Color background = Color(0xFFFFFFFF);
 
   /// Color: #e0e0e0
   static const Color border = Color(0xFFE0E0E0);

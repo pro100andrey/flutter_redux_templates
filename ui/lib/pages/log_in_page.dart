@@ -18,8 +18,8 @@ class LogInPage extends StatelessWidget {
     super.key,
   });
 
-  final StringCallback email;
-  final StringCallback password;
+  final ValueChangedWithErrorVm<String> email;
+  final ValueChangedWithErrorVm<String> password;
   final VoidCallback? onPressedLogIn;
   final VoidCallback onPressedForgotPassword;
   final VoidCallback onPressedRegister;
@@ -30,7 +30,7 @@ class LogInPage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             AuthFormContainer(
-              placeholder: Assets.placeholders.logIn,
+              placeholder: Assets.placeholders.image,
               title: S.current.logIn,
               children: [
                 const SizedBox(height: 24),
@@ -49,6 +49,7 @@ class LogInPage extends StatelessWidget {
                 RoundedButton(
                   title: S.current.logIn,
                   backgroundColor: ColorName.secondary,
+                  foregroundColor: ColorName.background,
                   onPressed: onPressedLogIn,
                 ),
                 const SizedBox(height: 16),

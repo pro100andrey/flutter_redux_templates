@@ -14,7 +14,7 @@ dependencies:
     sdk: flutter
   localization:
     path: ../localization
-  storybook_flutter: ^0.10.1
+  storybook_flutter: ^0.11.1 
   ui:
     path: ../ui
 

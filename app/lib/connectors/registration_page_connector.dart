@@ -34,7 +34,7 @@ class RegistrationPageConnector extends StatelessWidget {
 
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
-  _Factory(RegistrationPageConnector widget) : super(widget);
+  _Factory(RegistrationPageConnector super.widget);
 
   @override
   _Vm fromStore() {
@@ -53,21 +53,21 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
         passwordsMatchError == null;
 
     return _Vm(
-      email: StringCallback(
+      email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
         onChanged: (email) => dispatch(
           SetEmailAction(email),
         ),
       ),
-      password: StringCallback(
+      password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
         onChanged: (password) => dispatch(
           SetPasswordAction(password),
         ),
       ),
-      confirmPassword: StringCallback(
+      confirmPassword: ValueChangedWithErrorVm(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
         onChanged: (confirmPassword) => dispatch(
@@ -94,9 +94,9 @@ class _Vm extends Vm with EquatableMixin {
     required this.onPressedBackToLogin,
   });
 
-  final StringCallback email;
-  final StringCallback password;
-  final StringCallback confirmPassword;
+  final ValueChangedWithErrorVm<String> email;
+  final ValueChangedWithErrorVm<String> password;
+  final ValueChangedWithErrorVm<String> confirmPassword;
   final VoidCallback? onPressedRegister;
   final VoidCallback? onPressedBackToLogin;
 

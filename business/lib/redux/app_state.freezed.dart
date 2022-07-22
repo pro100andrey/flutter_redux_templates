@@ -274,17 +274,17 @@ abstract class _AppState implements AppState {
       required final Wait wait}) = _$_AppState;
 
   @override
-  ConnectivityState get connectivity => throw _privateConstructorUsedError;
+  ConnectivityState get connectivity;
   @override
-  LogInState get logIn => throw _privateConstructorUsedError;
+  LogInState get logIn;
   @override
-  RegistrationState get registration => throw _privateConstructorUsedError;
+  RegistrationState get registration;
   @override
-  ForgotPasswordState get forgotPassword => throw _privateConstructorUsedError;
+  ForgotPasswordState get forgotPassword;
   @override
-  ResetPasswordState get resetPassword => throw _privateConstructorUsedError;
+  ResetPasswordState get resetPassword;
   @override
-  Wait get wait => throw _privateConstructorUsedError;
+  Wait get wait;
   @override
   @JsonKey(ignore: true)
   _$$_AppStateCopyWith<_$_AppState> get copyWith =>

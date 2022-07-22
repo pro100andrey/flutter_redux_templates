@@ -27,7 +27,7 @@ class ForgotPasswordPageConnector extends StatelessWidget {
 
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector> {
-  _Factory(ForgotPasswordPageConnector widget) : super(widget);
+  _Factory(ForgotPasswordPageConnector super.widget);
 
   @override
   _Vm fromStore() {
@@ -35,7 +35,7 @@ class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector> {
     const String? emailError = null;
     return _Vm(
       isWaiting: false,
-      email: StringCallback(
+      email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
         onChanged: (email) {},
@@ -56,7 +56,7 @@ class _Vm extends Vm with EquatableMixin {
   });
 
   final bool isWaiting;
-  final StringCallback email;
+  final ValueChangedWithErrorVm<String> email;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback onPressedBackToLogin;
 

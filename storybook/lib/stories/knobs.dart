@@ -25,14 +25,6 @@ extension BuildContextEx on BuildContext {
             message: 'On Pressed',
           );
 
-  ValueChanged<T>? knobOnValueChanged<T>({
-    bool initial = true,
-    String label = 'Enabled',
-  }) =>
-      knobs.boolean(label: label, initial: initial)
-          // ignore: avoid_print
-          ? (v) => print('$label: $v')
-          : null;
 
   String? knobInputError([
     String label = 'Input Error',

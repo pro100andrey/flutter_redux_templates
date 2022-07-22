@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../assets.dart';
 
 ThemeData buildTheme() => ThemeData(
+      useMaterial3: true,
       colorScheme: const ColorScheme.light(
         primary: ColorName.primary,
         secondary: ColorName.secondary,

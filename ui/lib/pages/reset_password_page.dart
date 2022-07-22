@@ -17,8 +17,8 @@ class ResetPasswordPage extends StatelessWidget {
     super.key,
   });
 
-  final StringCallback password;
-  final StringCallback confirmPassword;
+  final ValueChangedWithErrorVm<String> password;
+  final ValueChangedWithErrorVm<String> confirmPassword;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback? onPressedBackToLogin;
 
@@ -28,7 +28,7 @@ class ResetPasswordPage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             AuthFormContainer(
-              placeholder: Assets.placeholders.signUp,
+              placeholder: Assets.placeholders.image,
               title: S.current.resetPassword,
               children: [
                 const SizedBox(height: 24),

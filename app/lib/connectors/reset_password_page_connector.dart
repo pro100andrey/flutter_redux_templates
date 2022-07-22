@@ -31,7 +31,7 @@ class ResetPasswordPageConnector extends StatelessWidget {
 
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, ResetPasswordPageConnector> {
-  _Factory(ResetPasswordPageConnector widget) : super(widget);
+  _Factory(ResetPasswordPageConnector super.widget);
 
   @override
   _Vm fromStore() {
@@ -47,14 +47,14 @@ class _Factory extends VmFactory<AppState, ResetPasswordPageConnector> {
         passwordsMatchError == null;
 
     return _Vm(
-      password: StringCallback(
+      password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
         onChanged: (password) => dispatch(
           SetPasswordAction(password),
         ),
       ),
-      confirmPassword: StringCallback(
+      confirmPassword: ValueChangedWithErrorVm(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
         onChanged: (confirmPassword) => dispatch(
@@ -80,8 +80,8 @@ class _Vm extends Vm with EquatableMixin {
     required this.onPressedBackToLogin,
   });
 
-  final StringCallback password;
-  final StringCallback confirmPassword;
+  final ValueChangedWithErrorVm<String> password;
+  final ValueChangedWithErrorVm<String> confirmPassword;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback? onPressedBackToLogin;
 

@@ -7,22 +7,22 @@ environment:
   sdk: ">=2.17.0 <3.0.0"
   
 dependencies:
-  async_redux: ^14.1.4
-  connectivity_plus: ^2.3.0
-  fast_immutable_collections: ^7.3.1
+  async_redux: ^15.0.0
+  connectivity_plus: ^2.3.6
+  fast_immutable_collections: ^7.4.1
   flutter:
     sdk: flutter
-  freezed_annotation: ^2.0.3
+  freezed_annotation: ^2.1.0
   get_it: ^7.2.0
-  json_annotation: ^4.5.0
+  json_annotation: ^4.6.0
 
 dev_dependencies:
-  build_runner: ^2.1.10
+  build_runner: ^2.2.0
   flutter_test:
     sdk: flutter
-  freezed: ^2.0.3
-  json_serializable: ^6.2.0 
-  lint:
+  freezed: ^2.1.0+1
+  json_serializable: ^6.3.1 
+  lint: 
     git:
       url: 'https://github.com/pro100andrey/lint.git'
       href: '0e13a7c'

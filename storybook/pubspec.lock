@@ -49,7 +49,7 @@ packages:
       name: device_frame
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.0"
+    version: "1.1.0"
   english_words:
     dependency: "direct main"
     description:
@@ -87,7 +87,7 @@ packages:
       name: flutter_svg
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.3"
+    version: "1.1.1+1"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -99,7 +99,7 @@ packages:
       name: freezed_annotation
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.1.0"
+    version: "2.1.0"
   intl:
     dependency: transitive
     description:
@@ -113,16 +113,16 @@ packages:
       name: json_annotation
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "4.5.0"
+    version: "4.6.0"
   lint:
     dependency: "direct dev"
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "810084a9f02bd453361400702e108fbf0a1cfbc0"
+      resolved-ref: "0e13a7c600c723f53c1ae1433fb0034c9ec9f04d"
       url: "https://github.com/pro100andrey/lint.git"
     source: git
-    version: "1.0.0+1"
+    version: "1.0.0+2"
   localization:
     dependency: "direct main"
     description:
@@ -192,7 +192,7 @@ packages:
       name: provider
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "6.0.2"
+    version: "6.0.3"
   recase:
     dependency: transitive
     description:
@@ -225,7 +225,7 @@ packages:
       name: storybook_flutter
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.10.1"
+    version: "0.11.1"
   stream_channel:
     dependency: transitive
     description:
@@ -274,7 +274,7 @@ packages:
       name: xml
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "5.4.1"
+    version: "6.1.0"
 sdks:
   dart: ">=2.17.0 <3.0.0"
-  flutter: ">=2.4.0-0.0.pre"
+  flutter: ">=2.11.0-0.1.pre"
