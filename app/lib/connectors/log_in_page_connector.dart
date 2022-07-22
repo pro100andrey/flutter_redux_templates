@@ -57,7 +57,7 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
         value: password,
         error: passwordError,
         onChanged: (password) => dispatch(
-          SetPasswordAction(password),
+          SetPasswordAction(password: password),
         ),
       ),
       onPressedLogIn: formIsValid

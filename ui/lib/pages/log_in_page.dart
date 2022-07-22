@@ -48,8 +48,6 @@ class LogInPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 RoundedButton(
                   title: S.current.logIn,
-                  backgroundColor: ColorName.secondary,
-                  foregroundColor: ColorName.background,
                   onPressed: onPressedLogIn,
                 ),
                 const SizedBox(height: 16),

@@ -11,17 +11,17 @@ class LogInWithEmailAction extends ReduxAction<AppState> {
   void before() => dispatch(WaitAction.add(LogInWarning.wait));
 
   @override
-  void after() => dispatch(WaitAction.remove(LogInWarning.wait));
+  void after() => dispatch(WaitAction.remove(LogInWarning.wait), notify: false);
 
   @override
-  Future<AppState?> reduce() async {
+  Future<AppState> reduce() async {
     // ignore: unused_local_variable
     final email = selectLogInEmail(state);
     // ignore: unused_local_variable
     final password = selectLogInPassword(state);
     // async login request ...
-
     await Future<dynamic>.delayed(const Duration(seconds: 2));
-    return null;
+
+    return state.copyWith(logIn: const LogInState());
   }
 }

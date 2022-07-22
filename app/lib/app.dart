@@ -1,6 +1,5 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:localization/localization.dart';
@@ -22,6 +21,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) => StoreProvider(
         store: store,
         child: MaterialApp.router(
+          debugShowCheckedModeBanner: false,
           routerDelegate: routemaster,
           theme: buildTheme(),
           routeInformationParser: const RoutemasterParser(),

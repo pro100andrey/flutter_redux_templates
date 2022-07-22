@@ -86,14 +86,17 @@ class _ReduxActionLogger extends ActionObserver<AppState> {
     int dispatchCount, {
     bool ini = false,
   }) {
-    if (action is WaitAction<AppState>) {
+      if (action is WaitAction<AppState>) {
       final iniString = ini ? 'start' : 'end';
 
       _logger.info(
-        '$action [${action.flag}] '
-        'O: ${action.operation} '
+        'WaitAction '
+        'flag: ${action.flag} '
+        'ref: ${action.ref} '
+        'O: ${action.operation.name} '
         'D: $dispatchCount - $iniString',
       );
+
       return;
     }
 
