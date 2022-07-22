@@ -8,5 +8,5 @@ class Logo extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Assets.images.icLogo.svg();
+  Widget build(BuildContext context) => Assets.placeholders.image.svg();
 }

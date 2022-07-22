@@ -3,6 +3,8 @@
 ///  FlutterGen
 /// *****************************************************
 
+// coverage:ignore-file
+// ignore_for_file: type=lint
 // ignore_for_file: directives_ordering,unnecessary_import
 
 import 'package:flutter/widgets.dart';
@@ -16,45 +18,37 @@ class $AssetsColorsGen {
   String get colors => 'assets/colors/colors.xml';
 }
 
-class $AssetsImagesGen {
-  const $AssetsImagesGen();
-
-  /// File path: assets/images/ic_logo.svg
-  SvgGenImage get icLogo => const SvgGenImage('assets/images/ic_logo.svg');
-}
-
 class $AssetsPlaceholdersGen {
   const $AssetsPlaceholdersGen();
 
-  /// File path: assets/placeholders/log_in.svg
-  SvgGenImage get logIn => const SvgGenImage('assets/placeholders/log_in.svg');
-
-  /// File path: assets/placeholders/sign_up.svg
-  SvgGenImage get signUp =>
-      const SvgGenImage('assets/placeholders/sign_up.svg');
+  /// File path: assets/placeholders/image.svg
+  SvgGenImage get image => const SvgGenImage('assets/placeholders/image.svg');
 }
 
 class Assets {
   Assets._();
 
   static const $AssetsColorsGen colors = $AssetsColorsGen();
-  static const $AssetsImagesGen images = $AssetsImagesGen();
   static const $AssetsPlaceholdersGen placeholders = $AssetsPlaceholdersGen();
 }
 
-class AssetGenImage extends AssetImage {
-  const AssetGenImage(String assetName) : super(assetName, package: 'ui');
+class AssetGenImage {
+  const AssetGenImage(this._assetName);
+
+  final String _assetName;
 
   Image image({
     Key? key,
+    AssetBundle? bundle,
     ImageFrameBuilder? frameBuilder,
-    ImageLoadingBuilder? loadingBuilder,
     ImageErrorWidgetBuilder? errorBuilder,
     String? semanticLabel,
     bool excludeFromSemantics = false,
+    double? scale,
     double? width,
     double? height,
     Color? color,
+    Animation<double>? opacity,
     BlendMode? colorBlendMode,
     BoxFit? fit,
     AlignmentGeometry alignment = Alignment.center,
@@ -63,19 +57,24 @@ class AssetGenImage extends AssetImage {
     bool matchTextDirection = false,
     bool gaplessPlayback = false,
     bool isAntiAlias = false,
+    String? package = 'ui',
     FilterQuality filterQuality = FilterQuality.low,
+    int? cacheWidth,
+    int? cacheHeight,
   }) {
-    return Image(
+    return Image.asset(
+      _assetName,
       key: key,
-      image: this,
+      bundle: bundle,
       frameBuilder: frameBuilder,
-      loadingBuilder: loadingBuilder,
       errorBuilder: errorBuilder,
       semanticLabel: semanticLabel,
       excludeFromSemantics: excludeFromSemantics,
+      scale: scale,
       width: width,
       height: height,
       color: color,
+      opacity: opacity,
       colorBlendMode: colorBlendMode,
       fit: fit,
       alignment: alignment,
@@ -84,11 +83,16 @@ class AssetGenImage extends AssetImage {
       matchTextDirection: matchTextDirection,
       gaplessPlayback: gaplessPlayback,
       isAntiAlias: isAntiAlias,
+      package: package,
       filterQuality: filterQuality,
+      cacheWidth: cacheWidth,
+      cacheHeight: cacheHeight,
     );
   }
 
-  String get path => assetName;
+  String get path => _assetName;
+
+  String get keyName => 'packages/ui/$_assetName';
 }
 
 class SvgGenImage {

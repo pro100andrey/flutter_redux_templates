@@ -31,7 +31,7 @@ class RegistrationPage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             AuthFormContainer(
-              placeholder: Assets.placeholders.signUp,
+              placeholder: Assets.placeholders.image,
               title: S.current.register,
               children: [
                 const SizedBox(height: 24),
@@ -49,9 +49,9 @@ class RegistrationPage extends StatelessWidget {
                 TextButton(
                   onPressed: onPressedBackToLogin,
                   child: Text(S.current.backToLogIn),
-                )
+                ),
               ],
-            )
+            ),
           ],
         ),
       );

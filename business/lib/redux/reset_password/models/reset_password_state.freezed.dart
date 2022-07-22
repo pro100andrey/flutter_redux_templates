@@ -142,9 +142,9 @@ abstract class _ResetPasswordState implements ResetPasswordState {
       final String? confirmPassword}) = _$_ResetPasswordState;
 
   @override
-  String? get password => throw _privateConstructorUsedError;
+  String? get password;
   @override
-  String? get confirmPassword => throw _privateConstructorUsedError;
+  String? get confirmPassword;
   @override
   @JsonKey(ignore: true)
   _$$_ResetPasswordStateCopyWith<_$_ResetPasswordState> get copyWith =>

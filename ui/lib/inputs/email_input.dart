@@ -3,8 +3,8 @@ import 'package:localization/localization.dart';
 
 import 'text_input.dart';
 
-class EmailInput extends TextInput {
-   EmailInput({
+class EmailInput extends BaseTextInput {
+  EmailInput({
     required super.vm,
     super.key,
   }) : super(

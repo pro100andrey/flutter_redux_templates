@@ -158,11 +158,11 @@ abstract class _RegistrationState implements RegistrationState {
       final String? confirmPassword}) = _$_RegistrationState;
 
   @override
-  String? get email => throw _privateConstructorUsedError;
+  String? get email;
   @override
-  String? get password => throw _privateConstructorUsedError;
+  String? get password;
   @override
-  String? get confirmPassword => throw _privateConstructorUsedError;
+  String? get confirmPassword;
   @override
   @JsonKey(ignore: true)
   _$$_RegistrationStateCopyWith<_$_RegistrationState> get copyWith =>

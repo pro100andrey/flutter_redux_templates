@@ -124,7 +124,7 @@ abstract class _ForgotPasswordState implements ForgotPasswordState {
       _$_ForgotPasswordState;
 
   @override
-  String? get email => throw _privateConstructorUsedError;
+  String? get email;
   @override
   @JsonKey(ignore: true)
   _$$_ForgotPasswordStateCopyWith<_$_ForgotPasswordState> get copyWith =>

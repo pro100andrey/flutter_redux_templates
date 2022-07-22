@@ -2,6 +2,7 @@
 <resources>
     <color name="primary">#6A84E4</color>
     <color name="secondary">#8bc34a</color>
+    <color name="background">#FFFFFF</color>
     <color name="error">#FF1744</color>
     <color name="shade">#F0F0F0</color>
     <color name="border">#e0e0e0</color>

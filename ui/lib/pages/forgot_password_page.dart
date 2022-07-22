@@ -27,7 +27,7 @@ class ForgotPasswordPage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             AuthFormContainer(
-              placeholder: Assets.placeholders.logIn,
+              placeholder: Assets.placeholders.image,
               title: S.current.forgotPassword,
               children: [
                 const SizedBox(height: 24),

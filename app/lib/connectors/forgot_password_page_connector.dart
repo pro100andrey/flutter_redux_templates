@@ -1,10 +1,14 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/forgot_password/actions/forgot_password_action.dart';
+import 'package:business/redux/forgot_password/actions/set_email_action.dart';
+import 'package:business/redux/forgot_password/forgot_password_selectors.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/forgot_password_page.dart';
 
+import '../common/validators.dart';
 import '../routes.dart';
 
 class ForgotPasswordPageConnector extends StatelessWidget {
@@ -27,20 +31,21 @@ class ForgotPasswordPageConnector extends StatelessWidget {
 
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector> {
-  _Factory(ForgotPasswordPageConnector widget) : super(widget);
+  _Factory(ForgotPasswordPageConnector super.widget);
 
   @override
   _Vm fromStore() {
-    const String? email = null;
-    const String? emailError = null;
+    final email = selectForgotPasswordEmail(state);
+    final emailError = emailValidator(email);
+
     return _Vm(
       isWaiting: false,
-      email: StringCallback(
+      email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
-        onChanged: (email) {},
+        onChanged: (email) => dispatch(SetEmailAction(email: email)),
       ),
-      onPressedResetPassword: () {},
+      onPressedResetPassword: () => dispatch(ForgotPasswordAction()),
       onPressedBackToLogin: routemaster.pop,
     );
   }
@@ -56,7 +61,7 @@ class _Vm extends Vm with EquatableMixin {
   });
 
   final bool isWaiting;
-  final StringCallback email;
+  final ValueChangedWithErrorVm<String> email;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback onPressedBackToLogin;
 
