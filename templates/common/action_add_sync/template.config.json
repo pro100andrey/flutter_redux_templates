@@ -1,8 +1,8 @@
 {
-    "name": "Freezed (fromJson)",
+    "name": "Action Add (sync)",
     "variables": [
         {
-            "name": "modelName",
+            "name": "actionName",
             "style": {
                 "case": "auto"
             }

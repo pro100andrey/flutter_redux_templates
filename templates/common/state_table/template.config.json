@@ -1,8 +1,8 @@
 {
-    "name": "Freezed (fromJson)",
+    "name": "State (table byId)",
     "variables": [
         {
-            "name": "modelName",
+            "name": "stateName",
             "style": {
                 "case": "auto"
             }

@@ -4,7 +4,7 @@ publish_to: none
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.17.0 <3.0.0"
+  sdk: ">=2.18.0 <3.0.0"
   
 dependencies:
   logging: ^1.0.2
@@ -14,4 +14,4 @@ dev_dependencies:
   lint:
     git:
       url: 'https://github.com/pro100andrey/lint.git'
-      href: '0e13a7c'
+      href: '41b64ec3bb748ec3b0fff7dba1ec31c5ee2db5fc'

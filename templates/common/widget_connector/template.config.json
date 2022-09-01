@@ -1,8 +1,8 @@
 {
-    "name": "Freezed (fromJson)",
+    "name": "Widget Connector",
     "variables": [
         {
-            "name": "modelName",
+            "name": "connectorName",
             "style": {
                 "case": "auto"
             }
