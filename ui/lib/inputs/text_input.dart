@@ -110,7 +110,7 @@ class _BaseTextInputState extends State<BaseTextInput> {
       return;
     }
 
-    widget.vm.onChanged(controller.text);
+    widget.vm.onChangedSync(controller.text);
   };
 
   @override
@@ -127,7 +127,7 @@ class _BaseTextInputState extends State<BaseTextInput> {
         final text = controller.text;
         final skip = widget.vm.value == null && text.isEmpty;
         if (widget.vm.value != text && !skip) {
-          widget.vm.onChanged.call(text);
+          widget.vm.onChangedSync(text);
         }
       });
     }

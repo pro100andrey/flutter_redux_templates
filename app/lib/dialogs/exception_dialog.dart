@@ -196,9 +196,6 @@ Future<T?> showDialogSuper<T>({
     context: context,
     builder: builder,
     barrierDismissible: false,
-    barrierColor: Colors.black54,
-    useSafeArea: true,
-    useRootNavigator: true,
     routeSettings: routeSettings,
   );
 

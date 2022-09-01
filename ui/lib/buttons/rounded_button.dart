@@ -35,8 +35,8 @@ class RoundedButton extends StatelessWidget {
       ),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          onPrimary: foregroundColor,
-          primary: backgroundColor,
+          foregroundColor: foregroundColor,
+          backgroundColor: backgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: borderRadius,
             side: borderColor != null

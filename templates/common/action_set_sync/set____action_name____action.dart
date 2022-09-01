@@ -10,5 +10,6 @@ class Set___ActionName___Action extends ReduxAction<AppState> {
   final String ___actionName___;
 
   @override
-  AppState reduce() => state.copyWith.___stateName___(___actionName___: ___actionName___);
+  AppState reduce() =>
+      state.copyWith.___stateName___(___actionName___: ___actionName___);
 }

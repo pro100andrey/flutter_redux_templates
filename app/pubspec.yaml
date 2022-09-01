@@ -4,10 +4,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.17.0 <3.0.0"
+  sdk: ">=2.18.0 <3.0.0"
   
 dependencies:
-  async_redux: ^15.0.0
+  async_redux: ^16.0.0
   business:
     path: ../business
   flutter:
@@ -24,7 +24,7 @@ dependencies:
   validator:
     git:
       url: https://github.com/pro100andrey/validator.git
-      ref: "aa06f69d01d31a2451d39a73a61074cd7d850749"
+      ref: "03c17977487b087004155e8ab71a604a1eecb9f6"
   
 dev_dependencies:
   dart_code_metrics: ^4.16.0
@@ -33,7 +33,7 @@ dev_dependencies:
   lint:
     git:
       url: 'https://github.com/pro100andrey/lint.git'
-      href: '0e13a7c'
+      href: '41b64ec3bb748ec3b0fff7dba1ec31c5ee2db5fc'
       
 flutter:
   uses-material-design: true

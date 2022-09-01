@@ -3,11 +3,8 @@ import 'package:localization/localization.dart';
 
 class ___PageName___Page extends StatelessWidget {
   const ___PageName___Page({
-    required this.isWaiting,
-    super.key,
-  });
-
-  final bool isWaiting;
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -17,7 +14,7 @@ class ___PageName___Page extends StatelessWidget {
         body: Stack(
           children: const [
             Center(
-              child: Text('___PageName___Page'),
+              child: Text('___PageName___Page Coming soon...'),
             ),
           ],
         ),

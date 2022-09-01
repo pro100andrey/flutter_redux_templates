@@ -5,10 +5,10 @@ import '../models/registration_state.dart';
 
 class RegistrationAction extends ReduxAction<AppState> {
   @override
-  void before() => dispatch(WaitAction.add(RegistrationWaiting.wait));
+  void before() => dispatchSync(WaitAction.add(RegistrationWaiting.wait));
 
   @override
-  void after() => dispatch(WaitAction.remove(RegistrationWaiting.wait));
+  void after() => dispatchSync(WaitAction.remove(RegistrationWaiting.wait));
 
   @override
   AppState? reduce() => null;

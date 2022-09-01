@@ -16,8 +16,8 @@ class ___WidgetName___Vm extends Equatable {
 class ___WidgetName___ extends StatelessWidget {
   const ___WidgetName___({
     required this.vm,
-    super.key,
-  });
+    Key? key,
+  }) : super(key: key);
 
   final ___WidgetName___Vm vm;
 
