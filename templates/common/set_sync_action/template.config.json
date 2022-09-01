@@ -1,5 +1,5 @@
 {
-  "name": "Action Set (sync)",
+  "name": "SetAction (sync)",
   "variables": [
     {
       "name": "actionName",

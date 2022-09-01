@@ -43,9 +43,9 @@ class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector> {
       email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
-        onChanged: (email) => dispatch(SetEmailAction(email: email)),
+        onChanged: (email) => dispatchSync(SetEmailAction(email: email)),
       ),
-      onPressedResetPassword: () => dispatch(ForgotPasswordAction()),
+      onPressedResetPassword: () => dispatchSync(ForgotPasswordAction()),
       onPressedBackToLogin: routemaster.pop,
     );
   }
