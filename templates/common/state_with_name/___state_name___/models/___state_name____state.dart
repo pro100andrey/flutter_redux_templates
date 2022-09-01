@@ -8,3 +8,7 @@ class ___StateName___State with _$___StateName___State {
     @Default('') String value,
   }) = ____StateName___State;
 }
+
+enum ___StateName___Waiting {
+  wait,
+}

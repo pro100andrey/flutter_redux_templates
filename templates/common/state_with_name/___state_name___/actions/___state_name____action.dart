@@ -11,5 +11,11 @@ class ___StateName___Action extends ReduxAction<AppState> {
   final String value;
 
   @override
+  void before() => dispatch(WaitAction.add(___StateName___Waiting.wait));
+
+  @override
+  void after() => dispatch(WaitAction.remove(___StateName___Waiting.wait));
+
+  @override
   AppState? reduce() => null;
 }

@@ -1,8 +1,8 @@
 {
-    "name": "Retrofit service",
+    "name": "Freezed enum",
     "variables": [
         {
-            "name": "serviceName",
+            "name": "modelName",
             "style": {
                 "case": "auto"
             }
