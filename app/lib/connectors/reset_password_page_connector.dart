@@ -51,19 +51,19 @@ class _Factory extends VmFactory<AppState, ResetPasswordPageConnector> {
       password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
-        onChanged: (password) => dispatch(
+        onChanged: (password) => dispatchSync(
           SetPasswordAction(password),
         ),
       ),
       confirmPassword: ValueChangedWithErrorVm(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
-        onChanged: (confirmPassword) => dispatch(
+        onChanged: (confirmPassword) => dispatchSync(
           SetConfirmPasswordAction(confirmPassword),
         ),
       ),
       onPressedResetPassword: formIsValid
-          ? () => dispatch(
+          ? () => dispatchSync(
                 ResetPasswordAction(),
               )
           : null,
