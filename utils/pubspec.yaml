@@ -10,8 +10,7 @@ dependencies:
   logging: ^1.0.2
   
 dev_dependencies:
-  dart_code_metrics: ^4.16.0
+  dart_code_metrics: ^4.18.3
   lint:
     git:
       url: 'https://github.com/pro100andrey/lint.git'
-      href: '41b64ec3bb748ec3b0fff7dba1ec31c5ee2db5fc'
