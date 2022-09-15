@@ -49,19 +49,19 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
       email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
-        onChanged: (email) => dispatch(
+        onChanged: (email) => dispatchSync(
           SetEmailAction(email),
         ),
       ),
       password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
-        onChanged: (password) => dispatch(
+        onChanged: (password) => dispatchSync(
           SetPasswordAction(password: password),
         ),
       ),
       onPressedLogIn: formIsValid
-          ? () => dispatch(
+          ? () async => dispatchAsync(
                 LogInWithEmailAction(),
               )
           : null,

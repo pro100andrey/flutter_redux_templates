@@ -14,7 +14,7 @@ class ConnectivityDriver implements ConnectivityServiceDriverInterface {
   void onStatusChange({required bool isAvailable}) {
     final previousState = selectNetworkConnectionIsAvailable(_store.state);
     if (previousState != isAvailable) {
-      _store.dispatch(
+      _store.dispatchSync(
         SetConnectivityStatusAction(value: isAvailable),
       );
     }

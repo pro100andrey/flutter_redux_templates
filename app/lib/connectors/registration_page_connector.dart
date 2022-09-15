@@ -56,26 +56,26 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector> {
       email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
-        onChanged: (email) => dispatch(
+        onChanged: (email) => dispatchSync(
           SetEmailAction(email),
         ),
       ),
       password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
-        onChanged: (password) => dispatch(
+        onChanged: (password) => dispatchSync(
           SetPasswordAction(password),
         ),
       ),
       confirmPassword: ValueChangedWithErrorVm(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
-        onChanged: (confirmPassword) => dispatch(
+        onChanged: (confirmPassword) => dispatchSync(
           SetConfirmPasswordAction(confirmPassword),
         ),
       ),
       onPressedRegister: formIsValid
-          ? () => dispatch(
+          ? () async => dispatchAsync(
                 RegistrationAction(),
               )
           : null,

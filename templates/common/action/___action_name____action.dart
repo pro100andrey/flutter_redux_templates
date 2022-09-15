@@ -7,11 +7,8 @@ class ___ActionName___Action extends ReduxAction<AppState> {
     required this.value,
   });
 
-  final String ___actionName___;
+  final String value;
 
   @override
-  AppState? reduce() {
-    //state.copyWith();
-    return null;
-  }
+  AppState? reduce() => null;
 }

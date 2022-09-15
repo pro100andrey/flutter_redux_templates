@@ -33,8 +33,40 @@ class ValueChangedVm<T> extends Equatable {
   final T? value;
   final FutureOr Function(T) onChanged;
 
+  void onChangedSync(T value) {
+    if (!_ifActionIsSync(onChanged)) {
+      throw Exception(
+        "Can't onChangedSync(${value.runtimeType}) "
+        'because ${value.runtimeType} is async.',
+      );
+    }
+
+    // ignore: discarded_futures
+    onChanged(value);
+  }
+
+  Future<void> onChangedAsync(T value) async {
+    if (_ifActionIsSync(onChanged)) {
+      throw Exception(
+        "Can't onChangedAsync(${value.runtimeType}) "
+        'because ${value.runtimeType} is async.',
+      );
+    }
+
+    await onChanged(value);
+  }
+
   @override
   List<Object?> get props => [value, enabled];
+}
+
+bool _ifActionIsSync<T>(FutureOr Function(T) action) {
+  //
+  /// Note: action MUST check that it's NOT Future<void> Function(),
+  /// because checking if it's void Function() doesn't work.
+  final isSync = action is! Future<void> Function();
+
+  return isSync;
 }
 
 class ValueChangedWithItemsVm<T> extends ValueChangedVm<T> {

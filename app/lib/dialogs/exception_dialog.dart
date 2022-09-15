@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
 import 'package:flutter/material.dart';
@@ -90,38 +92,40 @@ class _ExceptionDialogWidget extends StatefulWidget {
     final title = userException.dialogTitle();
     final content = userException.dialogContent();
 
-    showDialogSuper<int>(
-      context: resultContext,
-      onDismissed: (result) {
-        if (result == 1) {
-          userException.onOk?.call();
-        } else if (result == 2) {
-          userException.onCancel?.call();
-        } else {
-          if (userException.onCancel == null) {
+    unawaited(
+      showDialogSuper<int>(
+        context: resultContext,
+        onDismissed: (result) {
+          if (result == 1) {
             userException.onOk?.call();
-          } else {
+          } else if (result == 2) {
             userException.onCancel?.call();
+          } else {
+            if (userException.onCancel == null) {
+              userException.onOk?.call();
+            } else {
+              userException.onCancel?.call();
+            }
           }
-        }
-      },
-      builder: (context) => AlertDialog(
-        titleTextStyle: Theme.of(context).textTheme.headline6,
-        contentTextStyle: Theme.of(context).textTheme.bodyText1,
-        scrollable: true,
-        title: Text(title),
-        content: Text(content),
-        actions: [
-          if (userException.onCancel != null)
+        },
+        builder: (context) => AlertDialog(
+          titleTextStyle: Theme.of(context).textTheme.headline6,
+          contentTextStyle: Theme.of(context).textTheme.bodyText1,
+          scrollable: true,
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            if (userException.onCancel != null)
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(2),
+                child: Text(S.current.cancel),
+              ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(2),
-              child: Text(S.current.cancel),
+              onPressed: () => Navigator.of(context).pop(1),
+              child: Text(S.current.ok),
             ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(1),
-            child: Text(S.current.ok),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -196,9 +200,6 @@ Future<T?> showDialogSuper<T>({
     context: context,
     builder: builder,
     barrierDismissible: false,
-    barrierColor: Colors.black54,
-    useSafeArea: true,
-    useRootNavigator: true,
     routeSettings: routeSettings,
   );
 

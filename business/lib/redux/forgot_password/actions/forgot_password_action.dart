@@ -5,10 +5,10 @@ import '../models/forgot_password_state.dart';
 
 class ForgotPasswordAction extends ReduxAction<AppState> {
   @override
-  void before() => dispatch(WaitAction.add(ForgotPasswordWaiting.wait));
+  void before() => dispatchSync(WaitAction.add(ForgotPasswordWaiting.wait));
 
   @override
-  void after() => dispatch(WaitAction.remove(ForgotPasswordWaiting.wait));
+  void after() => dispatchSync(WaitAction.remove(ForgotPasswordWaiting.wait));
 
   @override
   AppState? reduce() => null;
