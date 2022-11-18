@@ -5,8 +5,8 @@ part 'reset_password_state.freezed.dart';
 @freezed
 class ResetPasswordState with _$ResetPasswordState {
   const factory ResetPasswordState({
-     String? password,
-     String? confirmPassword,
+    String? password,
+    String? confirmPassword,
   }) = _ResetPasswordState;
 }
 

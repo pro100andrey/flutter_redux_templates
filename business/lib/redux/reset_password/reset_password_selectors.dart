@@ -5,7 +5,6 @@ import 'models/reset_password_state.dart';
 bool selectResetPasswordIsWaiting(AppState state) =>
     state.wait.isWaitingFor(ResetPasswordWaiting.wait);
 
-
 /// Returns password value
 String? selectResetPasswordPassword(AppState state) =>
     state.registration.password;
@@ -18,6 +17,6 @@ String? selectResetPasswordConfirmPassword(AppState state) =>
 bool selectResetPasswordDataIsSet(AppState state) {
   final password = selectResetPasswordPassword(state) ?? '';
   final confirmPassword = selectResetPasswordConfirmPassword(state) ?? '';
-  
+
   return password.isNotEmpty && confirmPassword.isNotEmpty;
 }

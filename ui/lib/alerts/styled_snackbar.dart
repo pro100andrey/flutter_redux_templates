@@ -1,52 +1,61 @@
 import 'package:flutter/material.dart';
 
-SnackBar styledSnackbar({
-  required BuildContext context,
-  required String? title,
-  required String message,
-  required double maxWidth,
-}) {
-  final additional = MediaQuery.of(context).size.width - maxWidth;
-  final inset = (additional > 0 ? additional / 2 : 32).toDouble();
-  final left = inset;
-  final right = inset;
-  
-  return SnackBar(
-    elevation: 6,
-    behavior: SnackBarBehavior.floating,
-    margin: EdgeInsets.fromLTRB(left, 0, right, 32),
-    backgroundColor: Colors.blue[900],
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null) ...[
-          Text(
-            title,
-            style: Theme.of(context).textTheme.headline6,
-          ),
-          const SizedBox(height: 22),
-        ],
-        Text(
-          message,
-          style: Theme.of(context).textTheme.bodyText1,
-        ),
-      ],
-    ),
-  );
-}
+typedef ContextGetter = BuildContext? Function();
 
-void showStyledSnackbar({
-  required BuildContext context,
-  required String message,
-  String? title,
-  double maxWidth = 600,
-}) =>
-    ScaffoldMessenger.of(context).showSnackBar(
-      styledSnackbar(
-        context: context,
-        title: title,
-        message: message,
-        maxWidth: maxWidth,
+class StyledSnackbar {
+  StyledSnackbar._();
+
+  static final StyledSnackbar instance = StyledSnackbar._();
+
+  ContextGetter? contextGetter;
+
+  void show({
+    required String message,
+    BuildContext? context,
+    String? title,
+    double maxWidth = 400,
+  }) {
+    final ctx = context ?? contextGetter?.call();
+
+    if (ctx == null) {
+      return;
+    }
+
+    final additional = MediaQuery.of(ctx).size.width - maxWidth;
+    final inset = (additional > 0 ? additional / 2 : 32).toDouble();
+    final left = inset;
+    final right = inset;
+
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        elevation: 6,
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.fromLTRB(left, 0, right, 32),
+        backgroundColor: Colors.black26,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title != null) ...[
+              Text(
+                title,
+                style: Theme.of(ctx)
+                    .textTheme
+                    .headline6!
+                    .copyWith(color: Colors.white),
+              ),
+              const SizedBox(height: 22),
+            ],
+            Text(
+              message,
+              style: Theme.of(ctx)
+                  .textTheme
+                  .bodyText1!
+                  .copyWith(color: Colors.white),
+            ),
+          ],
+        ),
       ),
     );
+  }
+}

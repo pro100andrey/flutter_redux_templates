@@ -39,6 +39,6 @@ extension ButtonsKnobsBuildContextEx on BuildContext {
       ValueChangedWithErrorVm(
         error: knobInputError('$label error'),
         enabled: knobs.boolean(label: label, initial: true),
-        onChanged: print ,
+        onChanged: print,
       );
 }
