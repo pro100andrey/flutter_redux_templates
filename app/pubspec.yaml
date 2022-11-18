@@ -7,7 +7,7 @@ environment:
   sdk: ">=2.18.0 <3.0.0"
   
 dependencies:
-  async_redux: ^16.1.0
+  async_redux: ^18.0.2
   business:
     path: ../business
   flutter:
@@ -16,17 +16,14 @@ dependencies:
     sdk: flutter
   localization:
     path: ../localization
+  pro_validator: 1.0.0+1
   routemaster: ^1.0.1
   ui:
     path: ../ui
   utils:
     path: ../utils
-  validator:
-    git:
-      url: https://github.com/pro100andrey/validator.git
   
 dev_dependencies:
-  dart_code_metrics: ^4.18.3
   flutter_test:
     sdk: flutter
   lint:

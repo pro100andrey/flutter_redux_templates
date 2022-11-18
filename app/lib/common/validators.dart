@@ -1,5 +1,5 @@
 import 'package:localization/localization.dart';
-import 'package:validator/validator.dart';
+import 'package:pro_validator/pro_validator.dart';
 
 final emailValidator = MultiValidator(
   validators: [
