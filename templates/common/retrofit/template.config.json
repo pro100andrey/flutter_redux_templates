@@ -1,8 +1,8 @@
 {
-    "name": "State (with name)",
+    "name": "Retrofit service",
     "variables": [
         {
-            "name": "stateName",
+            "name": "serviceName",
             "style": {
                 "case": "auto"
             }

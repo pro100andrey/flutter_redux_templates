@@ -3,12 +3,8 @@ import 'package:async_redux/async_redux.dart';
 import '../../app_state.dart';
 
 class ___ActionName___Action extends ReduxAction<AppState> {
-  ___ActionName___Action({
-    required this.value,
-  });
-
-  final String value;
+  ___ActionName___Action();
 
   @override
-  AppState? reduce() => null;
+  AppState reduce() => state.copyWith();
 }
