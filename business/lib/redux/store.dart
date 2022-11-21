@@ -3,12 +3,15 @@ import 'package:logging/logging.dart';
 import 'app_state.dart';
 import 'models/localized_message.dart';
 
+
+late Store<AppState>? _store;
+
 Store<AppState> newStore({
   UserErrorWrapperHandler? userErrorWrapper,
 }) {
   WaitAction.reducer = _waitReducer;
 
-  return Store<AppState>(
+  _store = Store<AppState>(
     initialState: AppState.initial(),
     errorObserver: _MyErrorObserver(),
     wrapError: _MyWrapError(customErrorWrapper: userErrorWrapper),
@@ -17,6 +20,8 @@ Store<AppState> newStore({
     ],
     modelObserver: _DefaultModelObserver<dynamic>(),
   );
+
+  return _store!;
 }
 
 void _waitReducer(

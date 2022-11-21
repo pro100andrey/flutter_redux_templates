@@ -43,8 +43,7 @@ class RoutersMap {
 
     if (flow is AuthFlow) {
       _currentRouterMap = _authRouter;
-    }
-    if (flow is SplashFlow) {
+    } else if (flow is SplashFlow) {
       _currentRouterMap = _splashRouter;
     } else {
       throw Exception('Unknown flow');

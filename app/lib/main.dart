@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/store.dart';
 import 'package:business/service_locator.dart';
 import 'package:flutter/foundation.dart';
@@ -14,8 +15,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initHiveStorage();
 
-  WidgetsFlutterBinding.ensureInitialized();
-
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     setWindowTitle('App');
     setWindowMinSize(const Size(320, 568));
@@ -26,5 +25,10 @@ Future<void> main() async {
   final store = newStore();
   await initLocator(store);
 
-  runApp(AppConnector(store: store));
+  runApp(
+    StoreProvider(
+      store: store,
+      child: AppConnector(store: store),
+    ),
+  );
 }
