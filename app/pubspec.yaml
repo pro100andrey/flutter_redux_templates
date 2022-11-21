@@ -10,18 +10,24 @@ dependencies:
   async_redux: ^18.0.2
   business:
     path: ../business
+  equatable: ^2.0.5
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  go_router: ^5.1.10
   localization:
     path: ../localization
   pro_validator: 1.0.0+1
-  routemaster: ^1.0.1
+  
   ui:
     path: ../ui
   utils:
     path: ../utils
+  window_size:
+    git:
+      url: https://github.com/google/flutter-desktop-embedding
+      path: plugins/window_size
   
 dev_dependencies:
   flutter_test:

@@ -10,7 +10,7 @@ import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/log_in_page.dart';
 
 import '../common/validators.dart';
-import '../routes.dart';
+import '../navigation/routes.dart';
 
 class LogInPageConnector extends StatelessWidget {
   const LogInPageConnector({
@@ -65,11 +65,11 @@ class _Factory extends VmFactory<AppState, LogInPageConnector> {
                 LogInWithEmailAction(),
               )
           : null,
-      onPressedForgotPassword: () => routemaster.push(
+      onPressedForgotPassword: () => router.pushNamed(
         Routes.forgotPassword,
       ),
-      onPressedRegister: () => routemaster.push(
-        Routes.register,
+      onPressedRegister: () => router.pushNamed(
+        Routes.registration,
       ),
     );
   }
