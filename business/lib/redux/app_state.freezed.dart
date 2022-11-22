@@ -31,7 +31,8 @@ mixin _$AppState {
 /// @nodoc
 abstract class $AppStateCopyWith<$Res> {
   factory $AppStateCopyWith(AppState value, $Res Function(AppState) then) =
-      _$AppStateCopyWithImpl<$Res>;
+      _$AppStateCopyWithImpl<$Res, AppState>;
+  @useResult
   $Res call(
       {ConnectivityState connectivity,
       LogInState logIn,
@@ -48,82 +49,90 @@ abstract class $AppStateCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$AppStateCopyWithImpl<$Res> implements $AppStateCopyWith<$Res> {
+class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
+    implements $AppStateCopyWith<$Res> {
   _$AppStateCopyWithImpl(this._value, this._then);
 
-  final AppState _value;
   // ignore: unused_field
-  final $Res Function(AppState) _then;
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
 
+  @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? connectivity = freezed,
-    Object? logIn = freezed,
-    Object? registration = freezed,
-    Object? forgotPassword = freezed,
-    Object? resetPassword = freezed,
-    Object? wait = freezed,
+    Object? connectivity = null,
+    Object? logIn = null,
+    Object? registration = null,
+    Object? forgotPassword = null,
+    Object? resetPassword = null,
+    Object? wait = null,
   }) {
     return _then(_value.copyWith(
-      connectivity: connectivity == freezed
+      connectivity: null == connectivity
           ? _value.connectivity
           : connectivity // ignore: cast_nullable_to_non_nullable
               as ConnectivityState,
-      logIn: logIn == freezed
+      logIn: null == logIn
           ? _value.logIn
           : logIn // ignore: cast_nullable_to_non_nullable
               as LogInState,
-      registration: registration == freezed
+      registration: null == registration
           ? _value.registration
           : registration // ignore: cast_nullable_to_non_nullable
               as RegistrationState,
-      forgotPassword: forgotPassword == freezed
+      forgotPassword: null == forgotPassword
           ? _value.forgotPassword
           : forgotPassword // ignore: cast_nullable_to_non_nullable
               as ForgotPasswordState,
-      resetPassword: resetPassword == freezed
+      resetPassword: null == resetPassword
           ? _value.resetPassword
           : resetPassword // ignore: cast_nullable_to_non_nullable
               as ResetPasswordState,
-      wait: wait == freezed
+      wait: null == wait
           ? _value.wait
           : wait // ignore: cast_nullable_to_non_nullable
               as Wait,
-    ));
+    ) as $Val);
   }
 
   @override
+  @pragma('vm:prefer-inline')
   $ConnectivityStateCopyWith<$Res> get connectivity {
     return $ConnectivityStateCopyWith<$Res>(_value.connectivity, (value) {
-      return _then(_value.copyWith(connectivity: value));
+      return _then(_value.copyWith(connectivity: value) as $Val);
     });
   }
 
   @override
+  @pragma('vm:prefer-inline')
   $LogInStateCopyWith<$Res> get logIn {
     return $LogInStateCopyWith<$Res>(_value.logIn, (value) {
-      return _then(_value.copyWith(logIn: value));
+      return _then(_value.copyWith(logIn: value) as $Val);
     });
   }
 
   @override
+  @pragma('vm:prefer-inline')
   $RegistrationStateCopyWith<$Res> get registration {
     return $RegistrationStateCopyWith<$Res>(_value.registration, (value) {
-      return _then(_value.copyWith(registration: value));
+      return _then(_value.copyWith(registration: value) as $Val);
     });
   }
 
   @override
+  @pragma('vm:prefer-inline')
   $ForgotPasswordStateCopyWith<$Res> get forgotPassword {
     return $ForgotPasswordStateCopyWith<$Res>(_value.forgotPassword, (value) {
-      return _then(_value.copyWith(forgotPassword: value));
+      return _then(_value.copyWith(forgotPassword: value) as $Val);
     });
   }
 
   @override
+  @pragma('vm:prefer-inline')
   $ResetPasswordStateCopyWith<$Res> get resetPassword {
     return $ResetPasswordStateCopyWith<$Res>(_value.resetPassword, (value) {
-      return _then(_value.copyWith(resetPassword: value));
+      return _then(_value.copyWith(resetPassword: value) as $Val);
     });
   }
 }
@@ -134,6 +143,7 @@ abstract class _$$_AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
           _$_AppState value, $Res Function(_$_AppState) then) =
       __$$_AppStateCopyWithImpl<$Res>;
   @override
+  @useResult
   $Res call(
       {ConnectivityState connectivity,
       LogInState logIn,
@@ -155,46 +165,45 @@ abstract class _$$_AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$_AppStateCopyWithImpl<$Res> extends _$AppStateCopyWithImpl<$Res>
+class __$$_AppStateCopyWithImpl<$Res>
+    extends _$AppStateCopyWithImpl<$Res, _$_AppState>
     implements _$$_AppStateCopyWith<$Res> {
   __$$_AppStateCopyWithImpl(
       _$_AppState _value, $Res Function(_$_AppState) _then)
-      : super(_value, (v) => _then(v as _$_AppState));
+      : super(_value, _then);
 
-  @override
-  _$_AppState get _value => super._value as _$_AppState;
-
+  @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? connectivity = freezed,
-    Object? logIn = freezed,
-    Object? registration = freezed,
-    Object? forgotPassword = freezed,
-    Object? resetPassword = freezed,
-    Object? wait = freezed,
+    Object? connectivity = null,
+    Object? logIn = null,
+    Object? registration = null,
+    Object? forgotPassword = null,
+    Object? resetPassword = null,
+    Object? wait = null,
   }) {
     return _then(_$_AppState(
-      connectivity: connectivity == freezed
+      connectivity: null == connectivity
           ? _value.connectivity
           : connectivity // ignore: cast_nullable_to_non_nullable
               as ConnectivityState,
-      logIn: logIn == freezed
+      logIn: null == logIn
           ? _value.logIn
           : logIn // ignore: cast_nullable_to_non_nullable
               as LogInState,
-      registration: registration == freezed
+      registration: null == registration
           ? _value.registration
           : registration // ignore: cast_nullable_to_non_nullable
               as RegistrationState,
-      forgotPassword: forgotPassword == freezed
+      forgotPassword: null == forgotPassword
           ? _value.forgotPassword
           : forgotPassword // ignore: cast_nullable_to_non_nullable
               as ForgotPasswordState,
-      resetPassword: resetPassword == freezed
+      resetPassword: null == resetPassword
           ? _value.resetPassword
           : resetPassword // ignore: cast_nullable_to_non_nullable
               as ResetPasswordState,
-      wait: wait == freezed
+      wait: null == wait
           ? _value.wait
           : wait // ignore: cast_nullable_to_non_nullable
               as Wait,
@@ -236,30 +245,25 @@ class _$_AppState implements _AppState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$_AppState &&
-            const DeepCollectionEquality()
-                .equals(other.connectivity, connectivity) &&
-            const DeepCollectionEquality().equals(other.logIn, logIn) &&
-            const DeepCollectionEquality()
-                .equals(other.registration, registration) &&
-            const DeepCollectionEquality()
-                .equals(other.forgotPassword, forgotPassword) &&
-            const DeepCollectionEquality()
-                .equals(other.resetPassword, resetPassword) &&
-            const DeepCollectionEquality().equals(other.wait, wait));
+            (identical(other.connectivity, connectivity) ||
+                other.connectivity == connectivity) &&
+            (identical(other.logIn, logIn) || other.logIn == logIn) &&
+            (identical(other.registration, registration) ||
+                other.registration == registration) &&
+            (identical(other.forgotPassword, forgotPassword) ||
+                other.forgotPassword == forgotPassword) &&
+            (identical(other.resetPassword, resetPassword) ||
+                other.resetPassword == resetPassword) &&
+            (identical(other.wait, wait) || other.wait == wait));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      const DeepCollectionEquality().hash(connectivity),
-      const DeepCollectionEquality().hash(logIn),
-      const DeepCollectionEquality().hash(registration),
-      const DeepCollectionEquality().hash(forgotPassword),
-      const DeepCollectionEquality().hash(resetPassword),
-      const DeepCollectionEquality().hash(wait));
+  int get hashCode => Object.hash(runtimeType, connectivity, logIn,
+      registration, forgotPassword, resetPassword, wait);
 
   @JsonKey(ignore: true)
   @override
+  @pragma('vm:prefer-inline')
   _$$_AppStateCopyWith<_$_AppState> get copyWith =>
       __$$_AppStateCopyWithImpl<_$_AppState>(this, _$identity);
 }

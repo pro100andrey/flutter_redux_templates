@@ -9,7 +9,7 @@ extension BuildContextEx on BuildContext {
     bool initial = true,
   }) =>
       knobs.boolean(label: label, initial: initial)
-          ? () => showStyledSnackbar(
+          ? () => StyledSnackbar.instance.show(
                 context: this,
                 title: label,
                 message: 'On Pressed',
@@ -19,12 +19,11 @@ extension BuildContextEx on BuildContext {
   VoidCallback knobOnPressed({
     String label = 'Some pressed',
   }) =>
-      () => showStyledSnackbar(
+      () => StyledSnackbar.instance.show(
             context: this,
             title: label,
             message: 'On Pressed',
           );
-
 
   String? knobInputError([
     String label = 'Input Error',
@@ -44,7 +43,7 @@ extension BuildContextEx on BuildContext {
       initial: initial,
       max: max,
     );
-    
+
     return _words.take(count).join(' ');
   }
 }

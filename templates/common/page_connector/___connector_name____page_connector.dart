@@ -13,30 +13,22 @@ class ___ConnectorName___PageConnector extends StatelessWidget {
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
         vm: () => _Factory(this),
-        builder: (context, vm) => ___ConnectorName___Page(
-          isWaiting: vm.isWaiting,
-        ),
+        builder: (context, vm) => const ___ConnectorName___Page(),
       );
 }
 
 /// Factory that creates a view-model for the StoreConnector.
 class _Factory extends VmFactory<AppState, ___ConnectorName___PageConnector> {
-  _Factory(super.widget);
+  _Factory(___ConnectorName___PageConnector super.widget);
 
   @override
-  _Vm fromStore() => _Vm(
-        isWaiting: false,
-      );
+  _Vm fromStore() => _Vm();
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
 class _Vm extends Vm with EquatableMixin {
-  _Vm({
-    required this.isWaiting,
-  });
-
-  final bool isWaiting;
+  _Vm();
 
   @override
-  List<Object?> get props => [isWaiting];
+  List<Object?> get props => [];
 }

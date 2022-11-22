@@ -27,29 +27,32 @@ mixin _$ForgotPasswordState {
 abstract class $ForgotPasswordStateCopyWith<$Res> {
   factory $ForgotPasswordStateCopyWith(
           ForgotPasswordState value, $Res Function(ForgotPasswordState) then) =
-      _$ForgotPasswordStateCopyWithImpl<$Res>;
+      _$ForgotPasswordStateCopyWithImpl<$Res, ForgotPasswordState>;
+  @useResult
   $Res call({String? email});
 }
 
 /// @nodoc
-class _$ForgotPasswordStateCopyWithImpl<$Res>
+class _$ForgotPasswordStateCopyWithImpl<$Res, $Val extends ForgotPasswordState>
     implements $ForgotPasswordStateCopyWith<$Res> {
   _$ForgotPasswordStateCopyWithImpl(this._value, this._then);
 
-  final ForgotPasswordState _value;
   // ignore: unused_field
-  final $Res Function(ForgotPasswordState) _then;
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
 
+  @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? email = freezed,
   }) {
     return _then(_value.copyWith(
-      email: email == freezed
+      email: freezed == email
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
               as String?,
-    ));
+    ) as $Val);
   }
 }
 
@@ -60,26 +63,25 @@ abstract class _$$_ForgotPasswordStateCopyWith<$Res>
           $Res Function(_$_ForgotPasswordState) then) =
       __$$_ForgotPasswordStateCopyWithImpl<$Res>;
   @override
+  @useResult
   $Res call({String? email});
 }
 
 /// @nodoc
 class __$$_ForgotPasswordStateCopyWithImpl<$Res>
-    extends _$ForgotPasswordStateCopyWithImpl<$Res>
+    extends _$ForgotPasswordStateCopyWithImpl<$Res, _$_ForgotPasswordState>
     implements _$$_ForgotPasswordStateCopyWith<$Res> {
   __$$_ForgotPasswordStateCopyWithImpl(_$_ForgotPasswordState _value,
       $Res Function(_$_ForgotPasswordState) _then)
-      : super(_value, (v) => _then(v as _$_ForgotPasswordState));
+      : super(_value, _then);
 
-  @override
-  _$_ForgotPasswordState get _value => super._value as _$_ForgotPasswordState;
-
+  @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? email = freezed,
   }) {
     return _then(_$_ForgotPasswordState(
-      email: email == freezed
+      email: freezed == email
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
               as String?,
@@ -105,15 +107,15 @@ class _$_ForgotPasswordState implements _ForgotPasswordState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$_ForgotPasswordState &&
-            const DeepCollectionEquality().equals(other.email, email));
+            (identical(other.email, email) || other.email == email));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, const DeepCollectionEquality().hash(email));
+  int get hashCode => Object.hash(runtimeType, email);
 
   @JsonKey(ignore: true)
   @override
+  @pragma('vm:prefer-inline')
   _$$_ForgotPasswordStateCopyWith<_$_ForgotPasswordState> get copyWith =>
       __$$_ForgotPasswordStateCopyWithImpl<_$_ForgotPasswordState>(
           this, _$identity);

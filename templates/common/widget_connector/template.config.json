@@ -1,0 +1,11 @@
+{
+    "name": "Widget Connector",
+    "variables": [
+        {
+            "name": "connectorName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}

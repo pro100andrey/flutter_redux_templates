@@ -15,6 +15,6 @@ String? selectLogInPassword(AppState state) => state.logIn.password;
 bool selectLogInDataIsSet(AppState state) {
   final email = selectLogInEmail(state) ?? '';
   final password = selectLogInPassword(state) ?? '';
-  
-  return  email.isNotEmpty && password.isNotEmpty;
+
+  return email.isNotEmpty && password.isNotEmpty;
 }

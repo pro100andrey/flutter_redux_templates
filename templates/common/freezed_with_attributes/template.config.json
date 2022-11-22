@@ -1,0 +1,11 @@
+{
+    "name": "Freezed (with attributes)",
+    "variables": [
+        {
+            "name": "modelName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}

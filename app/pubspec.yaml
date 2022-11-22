@@ -1,32 +1,35 @@
 name: app
-description: App project.
+description: The App project.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-version: 1.0.0+1
+version: 1.0.0
 
 environment:
   sdk: ">=2.18.0 <3.0.0"
   
 dependencies:
-  async_redux: ^16.1.0
+  async_redux: ^18.0.2
   business:
     path: ../business
+  equatable: ^2.0.5
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  go_router: ^5.1.10
   localization:
     path: ../localization
-  routemaster: ^1.0.1
+  pro_validator: 1.0.0+1
+  
   ui:
     path: ../ui
   utils:
     path: ../utils
-  validator:
+  window_size:
     git:
-      url: https://github.com/pro100andrey/validator.git
+      url: https://github.com/google/flutter-desktop-embedding
+      path: plugins/window_size
   
 dev_dependencies:
-  dart_code_metrics: ^4.18.3
   flutter_test:
     sdk: flutter
   lint:

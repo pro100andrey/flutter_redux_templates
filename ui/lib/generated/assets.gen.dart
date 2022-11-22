@@ -5,7 +5,7 @@
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
-// ignore_for_file: directives_ordering,unnecessary_import
+// ignore_for_file: directives_ordering,unnecessary_import,implicit_dynamic_list_literal
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -16,6 +16,9 @@ class $AssetsColorsGen {
 
   /// File path: assets/colors/colors.xml
   String get colors => 'assets/colors/colors.xml';
+
+  /// List of all assets
+  List<String> get values => [colors];
 }
 
 class $AssetsPlaceholdersGen {
@@ -23,6 +26,9 @@ class $AssetsPlaceholdersGen {
 
   /// File path: assets/placeholders/image.svg
   SvgGenImage get image => const SvgGenImage('assets/placeholders/image.svg');
+
+  /// List of all assets
+  List<SvgGenImage> get values => [image];
 }
 
 class Assets {
@@ -90,6 +96,8 @@ class AssetGenImage {
     );
   }
 
+  ImageProvider provider() => AssetImage(_assetName);
+
   String get path => _assetName;
 
   String get keyName => 'packages/ui/$_assetName';
@@ -142,4 +150,6 @@ class SvgGenImage {
   }
 
   String get path => _assetName;
+
+  String get keyName => 'packages/ui/$_assetName';
 }

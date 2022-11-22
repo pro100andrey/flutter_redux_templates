@@ -5,9 +5,9 @@ part 'registration_state.freezed.dart';
 @freezed
 class RegistrationState with _$RegistrationState {
   const factory RegistrationState({
-     String? email,
-     String? password,
-     String? confirmPassword,
+    String? email,
+    String? password,
+    String? confirmPassword,
   }) = _RegistrationState;
 }
 

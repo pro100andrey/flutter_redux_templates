@@ -49,7 +49,7 @@ class _Factory extends VmFactory<AppState, InitialPageConnector> {
   @override
   _Vm fromStore() {
     final homePage = _homePage(state);
-    
+
     return _Vm(homePage: homePage);
   }
 

@@ -1,0 +1,8 @@
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.chopper.dart"
+    - "**/*.freezed.dart"
+    - "**/**/*.g.dart"
+    - "**/**/*.chopper.dart"
+    - "**/**/*.freezed.dart"

@@ -1,0 +1,11 @@
+{
+    "name": "Theme Extension",
+    "variables": [
+        {
+            "name": "extensionName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}

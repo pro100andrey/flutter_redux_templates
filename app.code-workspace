@@ -1,43 +1,16 @@
 {
 	"folders": [
 		{
-			"name": "templates",
-			"path": "templates"
-		},
-		{
-			"name": "app",
-			"path": "app"
-		},
-		{
-			"name": "utils",
-			"path": "utils"
-		},
-		{
-			"name": "dao",
-			"path": "dao"
-		},
-		{
-			"name": "business",
-			"path": "business"
-		},
-		{
-			"name": "ui",
-			"path": "ui"
-		},
-		{
-			"name": "storybook",
-			"path": "storybook"
-		},
-		{
-			"name": "localization",
-			"path": "localization"
-		},
-		{
-			"name": "doc",
-			"path": "doc"
+			"path": "."
 		}
 	],
 	"settings": {
 		"codeTemplateTool.templatesPath": "{workspace}/common",
+		"search.exclude": {
+			"templates": true,
+		},
+		"rest-client.logLevel": "verbose",
+		"rest-client.previewOption": "exchange",
+		"rest-client.formParamEncodingStrategy": "always",
 	}
 }
