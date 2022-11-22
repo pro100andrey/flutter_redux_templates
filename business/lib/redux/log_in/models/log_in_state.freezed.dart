@@ -28,33 +28,37 @@ mixin _$LogInState {
 abstract class $LogInStateCopyWith<$Res> {
   factory $LogInStateCopyWith(
           LogInState value, $Res Function(LogInState) then) =
-      _$LogInStateCopyWithImpl<$Res>;
+      _$LogInStateCopyWithImpl<$Res, LogInState>;
+  @useResult
   $Res call({String? email, String? password});
 }
 
 /// @nodoc
-class _$LogInStateCopyWithImpl<$Res> implements $LogInStateCopyWith<$Res> {
+class _$LogInStateCopyWithImpl<$Res, $Val extends LogInState>
+    implements $LogInStateCopyWith<$Res> {
   _$LogInStateCopyWithImpl(this._value, this._then);
 
-  final LogInState _value;
   // ignore: unused_field
-  final $Res Function(LogInState) _then;
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
 
+  @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? email = freezed,
     Object? password = freezed,
   }) {
     return _then(_value.copyWith(
-      email: email == freezed
+      email: freezed == email
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
               as String?,
-      password: password == freezed
+      password: freezed == password
           ? _value.password
           : password // ignore: cast_nullable_to_non_nullable
               as String?,
-    ));
+    ) as $Val);
   }
 }
 
@@ -65,30 +69,30 @@ abstract class _$$_LogInStateCopyWith<$Res>
           _$_LogInState value, $Res Function(_$_LogInState) then) =
       __$$_LogInStateCopyWithImpl<$Res>;
   @override
+  @useResult
   $Res call({String? email, String? password});
 }
 
 /// @nodoc
-class __$$_LogInStateCopyWithImpl<$Res> extends _$LogInStateCopyWithImpl<$Res>
+class __$$_LogInStateCopyWithImpl<$Res>
+    extends _$LogInStateCopyWithImpl<$Res, _$_LogInState>
     implements _$$_LogInStateCopyWith<$Res> {
   __$$_LogInStateCopyWithImpl(
       _$_LogInState _value, $Res Function(_$_LogInState) _then)
-      : super(_value, (v) => _then(v as _$_LogInState));
+      : super(_value, _then);
 
-  @override
-  _$_LogInState get _value => super._value as _$_LogInState;
-
+  @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? email = freezed,
     Object? password = freezed,
   }) {
     return _then(_$_LogInState(
-      email: email == freezed
+      email: freezed == email
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
               as String?,
-      password: password == freezed
+      password: freezed == password
           ? _value.password
           : password // ignore: cast_nullable_to_non_nullable
               as String?,
@@ -116,18 +120,17 @@ class _$_LogInState implements _LogInState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$_LogInState &&
-            const DeepCollectionEquality().equals(other.email, email) &&
-            const DeepCollectionEquality().equals(other.password, password));
+            (identical(other.email, email) || other.email == email) &&
+            (identical(other.password, password) ||
+                other.password == password));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      const DeepCollectionEquality().hash(email),
-      const DeepCollectionEquality().hash(password));
+  int get hashCode => Object.hash(runtimeType, email, password);
 
   @JsonKey(ignore: true)
   @override
+  @pragma('vm:prefer-inline')
   _$$_LogInStateCopyWith<_$_LogInState> get copyWith =>
       __$$_LogInStateCopyWithImpl<_$_LogInState>(this, _$identity);
 }

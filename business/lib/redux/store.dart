@@ -3,7 +3,6 @@ import 'package:logging/logging.dart';
 import 'app_state.dart';
 import 'models/localized_message.dart';
 
-
 late Store<AppState>? _store;
 
 Store<AppState> newStore({

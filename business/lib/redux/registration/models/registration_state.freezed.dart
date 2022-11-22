@@ -29,19 +29,22 @@ mixin _$RegistrationState {
 abstract class $RegistrationStateCopyWith<$Res> {
   factory $RegistrationStateCopyWith(
           RegistrationState value, $Res Function(RegistrationState) then) =
-      _$RegistrationStateCopyWithImpl<$Res>;
+      _$RegistrationStateCopyWithImpl<$Res, RegistrationState>;
+  @useResult
   $Res call({String? email, String? password, String? confirmPassword});
 }
 
 /// @nodoc
-class _$RegistrationStateCopyWithImpl<$Res>
+class _$RegistrationStateCopyWithImpl<$Res, $Val extends RegistrationState>
     implements $RegistrationStateCopyWith<$Res> {
   _$RegistrationStateCopyWithImpl(this._value, this._then);
 
-  final RegistrationState _value;
   // ignore: unused_field
-  final $Res Function(RegistrationState) _then;
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
 
+  @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? email = freezed,
@@ -49,19 +52,19 @@ class _$RegistrationStateCopyWithImpl<$Res>
     Object? confirmPassword = freezed,
   }) {
     return _then(_value.copyWith(
-      email: email == freezed
+      email: freezed == email
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
               as String?,
-      password: password == freezed
+      password: freezed == password
           ? _value.password
           : password // ignore: cast_nullable_to_non_nullable
               as String?,
-      confirmPassword: confirmPassword == freezed
+      confirmPassword: freezed == confirmPassword
           ? _value.confirmPassword
           : confirmPassword // ignore: cast_nullable_to_non_nullable
               as String?,
-    ));
+    ) as $Val);
   }
 }
 
@@ -72,20 +75,19 @@ abstract class _$$_RegistrationStateCopyWith<$Res>
           $Res Function(_$_RegistrationState) then) =
       __$$_RegistrationStateCopyWithImpl<$Res>;
   @override
+  @useResult
   $Res call({String? email, String? password, String? confirmPassword});
 }
 
 /// @nodoc
 class __$$_RegistrationStateCopyWithImpl<$Res>
-    extends _$RegistrationStateCopyWithImpl<$Res>
+    extends _$RegistrationStateCopyWithImpl<$Res, _$_RegistrationState>
     implements _$$_RegistrationStateCopyWith<$Res> {
   __$$_RegistrationStateCopyWithImpl(
       _$_RegistrationState _value, $Res Function(_$_RegistrationState) _then)
-      : super(_value, (v) => _then(v as _$_RegistrationState));
+      : super(_value, _then);
 
-  @override
-  _$_RegistrationState get _value => super._value as _$_RegistrationState;
-
+  @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? email = freezed,
@@ -93,15 +95,15 @@ class __$$_RegistrationStateCopyWithImpl<$Res>
     Object? confirmPassword = freezed,
   }) {
     return _then(_$_RegistrationState(
-      email: email == freezed
+      email: freezed == email
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
               as String?,
-      password: password == freezed
+      password: freezed == password
           ? _value.password
           : password // ignore: cast_nullable_to_non_nullable
               as String?,
-      confirmPassword: confirmPassword == freezed
+      confirmPassword: freezed == confirmPassword
           ? _value.confirmPassword
           : confirmPassword // ignore: cast_nullable_to_non_nullable
               as String?,
@@ -131,21 +133,20 @@ class _$_RegistrationState implements _RegistrationState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$_RegistrationState &&
-            const DeepCollectionEquality().equals(other.email, email) &&
-            const DeepCollectionEquality().equals(other.password, password) &&
-            const DeepCollectionEquality()
-                .equals(other.confirmPassword, confirmPassword));
+            (identical(other.email, email) || other.email == email) &&
+            (identical(other.password, password) ||
+                other.password == password) &&
+            (identical(other.confirmPassword, confirmPassword) ||
+                other.confirmPassword == confirmPassword));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      const DeepCollectionEquality().hash(email),
-      const DeepCollectionEquality().hash(password),
-      const DeepCollectionEquality().hash(confirmPassword));
+  int get hashCode =>
+      Object.hash(runtimeType, email, password, confirmPassword);
 
   @JsonKey(ignore: true)
   @override
+  @pragma('vm:prefer-inline')
   _$$_RegistrationStateCopyWith<_$_RegistrationState> get copyWith =>
       __$$_RegistrationStateCopyWithImpl<_$_RegistrationState>(
           this, _$identity);
