@@ -1,7 +1,7 @@
 name: app
-description: App project.
+description: The App project.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-version: 1.0.0+1
+version: 1.0.0
 
 environment:
   sdk: ">=2.18.0 <3.0.0"

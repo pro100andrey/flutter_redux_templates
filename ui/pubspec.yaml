@@ -1,5 +1,5 @@
 name: ui
-description: UI package
+description: The UI package.
 publish_to: 'none'
 version: 1.0.0
 

@@ -1,6 +1,7 @@
 name: models
 description: The models package.
 publish_to: none
+version: 1.0.0
 
 environment:
   sdk: ">=2.18.1 <3.0.0"

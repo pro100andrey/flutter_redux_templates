@@ -1,6 +1,6 @@
 name: storybook
-description: A new Flutter project.
-version: 1.0.0+1
+description: The Storybook project.
+version: 1.0.0
 publish_to: 'none'
 
 environment:
