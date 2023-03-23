@@ -41,7 +41,7 @@ class StyledSnackbar {
                 title,
                 style: Theme.of(ctx)
                     .textTheme
-                    .headline6!
+                    .bodyLarge!
                     .copyWith(color: Colors.white),
               ),
               const SizedBox(height: 22),
@@ -50,7 +50,7 @@ class StyledSnackbar {
               message,
               style: Theme.of(ctx)
                   .textTheme
-                  .bodyText1!
+                  .bodyMedium!
                   .copyWith(color: Colors.white),
             ),
           ],

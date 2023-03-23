@@ -35,8 +35,8 @@ class TopLevelPageConnector extends StatelessWidget {
       );
 }
 
-class _Factory extends VmFactory<AppState, TopLevelPageConnector> {
-  _Factory(TopLevelPageConnector super.widget);
+class _Factory extends BaseFactory<TopLevelPageConnector, _Vm> {
+  _Factory(super.connector);
 
   @override
   _Vm fromStore() {

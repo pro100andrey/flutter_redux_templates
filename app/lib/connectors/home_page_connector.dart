@@ -20,8 +20,8 @@ class HomePageConnector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, HomePageConnector> {
-  _Factory(HomePageConnector super.widget);
+class _Factory extends BaseFactory<HomePageConnector, _Vm> {
+  _Factory(super.connector);
 
   @override
   _Vm fromStore() => _Vm(

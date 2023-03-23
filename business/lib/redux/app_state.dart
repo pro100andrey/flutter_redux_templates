@@ -7,6 +7,8 @@ import 'log_in/models/log_in_state.dart';
 import 'registration/models/registration_state.dart';
 import 'reset_password/models/reset_password_state.dart';
 
+export 'base_factory.dart';
+
 part 'app_state.freezed.dart';
 
 @freezed

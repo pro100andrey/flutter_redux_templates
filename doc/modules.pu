@@ -20,7 +20,7 @@ package "Localization" {
 }
 
 package "ApiDAO" {
-    [AuthAPIServcie]
+    [AuthAPIService]
     [OhterAPIService]
 }
 

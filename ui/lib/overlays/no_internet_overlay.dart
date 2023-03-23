@@ -14,13 +14,13 @@ class NoInternetOverlay extends StatelessWidget {
             children: [
               Text(
                 S.current.couldNotConnectToInternet,
-                style: Theme.of(context).textTheme.headline6,
+                style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               Text(
                 S.current.pleaseCheckYorNetworkSettings,
-                style: Theme.of(context).textTheme.bodyText1,
+                style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center,
               ),
             ],
