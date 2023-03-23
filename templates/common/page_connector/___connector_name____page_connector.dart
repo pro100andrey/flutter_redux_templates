@@ -18,8 +18,9 @@ class ___ConnectorName___PageConnector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, ___ConnectorName___PageConnector> {
-  _Factory(___ConnectorName___PageConnector super.widget);
+class _Factory
+    extends BaseFactory<___ConnectorName___PageConnector, _Vm> {
+  _Factory(super.connector);
 
   @override
   _Vm fromStore() => _Vm();
