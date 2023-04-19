@@ -3,6 +3,7 @@
 
 package "App" {
     [Connectors]
+    [Navigation]
     Connectors ..> Business: use
     Connectors ..> UI: use
     App ..> Localization: use
@@ -11,27 +12,33 @@ package "App" {
 package "UI" {
     UI ..> Localization: use
     [Pages]
+    [Buttons]
+    [Inputs]
     [OtherUIElements]
 }
 
 package "Localization" {
-    [En]
-    [OtherLangugages]
+    [en]
+    [uk]
 }
 
-package "ApiDAO" {
+package "HTTPClient" {
     [AuthAPIService]
-    [OtherAPIService]
+    [OtherAPIServices]
 }
 
 package "Storage" {
     [KeyValueStorage]
+    [HiveKeyValueStorage]
+    [HiveKeyValueSecurityStorage]
+    [Models]
 }
 
 package "Business" {
     [Redux]
+    [Services]
     Redux ..> Storage: use
-    Redux ..> ApiDAO: use
+    Redux ..> HTTPClient: use
 }
 
 @enduml
