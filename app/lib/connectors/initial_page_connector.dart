@@ -43,8 +43,8 @@ class InitialPageConnector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, InitialPageConnector> {
-  _Factory(InitialPageConnector super.widget);
+class _Factory extends BaseFactory<InitialPageConnector, _Vm> {
+  _Factory(super.connector);
 
   @override
   _Vm fromStore() {

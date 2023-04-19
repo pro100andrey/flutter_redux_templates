@@ -1,8 +1,50 @@
 {
 	"folders": [
 		{
-			"path": "."
-		}
+			"name": "templates",
+			"path": "templates"
+		},
+		{
+			"name": "app",
+			"path": "app"
+		},
+		{
+			"name": "ui",
+			"path": "ui"
+		},
+		{
+			"name": "storybook",
+			"path": "storybook"
+		},
+		{
+			"name": "business",
+			"path": "business"
+		},
+		{
+			"name": "http_client",
+			"path": "http_client"
+		},
+		{
+			"name": "models",
+			"path": "models"
+		},
+		{
+			"name": "storage",
+			"path": "storage"
+		},
+		{
+			"name": "utils",
+			"path": "utils"
+		},
+		{
+			"name": "localization",
+			"path": "localization"
+		},
+		{
+			"name": "doc",
+			"path": "doc"
+		},
+	
 	],
 	"settings": {
 		"codeTemplateTool.templatesPath": "{workspace}/common",

@@ -85,7 +85,7 @@ class _BaseTextInputState extends State<BaseTextInput> {
               : widget.vm.error != null
                   ? Icon(
                       Icons.error,
-                      color: Theme.of(context).errorColor,
+                      color: Theme.of(context).colorScheme.error,
                     )
                   : null,
           filled: widget.filled,

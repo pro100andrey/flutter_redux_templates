@@ -109,8 +109,8 @@ class _ExceptionDialogWidget extends StatefulWidget {
           }
         },
         builder: (context) => AlertDialog(
-          titleTextStyle: Theme.of(context).textTheme.headline6,
-          contentTextStyle: Theme.of(context).textTheme.bodyText1,
+          titleTextStyle: Theme.of(context).textTheme.bodyLarge,
+          contentTextStyle: Theme.of(context).textTheme.bodyMedium,
           scrollable: true,
           title: Text(title),
           content: Text(content),

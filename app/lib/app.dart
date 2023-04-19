@@ -27,7 +27,7 @@ class _AppConnectorState extends State<AppConnector> {
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
         debug: this,
-        vm: () => _Factory(this),
+        vm: () => _Factory(widget),
         builder: (context, vm) {
           final routersMap = RoutersMap.instance;
 
@@ -56,8 +56,8 @@ class _AppConnectorState extends State<AppConnector> {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, _AppConnectorState> {
-  _Factory(super.widget);
+class _Factory extends BaseFactory<AppConnector, _Vm> {
+  _Factory(super.connector);
 
   @override
   _Vm fromStore() => _Vm(

@@ -112,7 +112,7 @@ class LoggerInterceptor extends Interceptor {
     msg.addKV('uri', response.requestOptions.uri);
     if (responseHeader) {
       msg.addKV('statusCode', response.statusCode);
-      if (response.isRedirect ?? false) {
+      if (response.isRedirect) {
         msg.addKV('redirect', response.realUri);
       }
 
