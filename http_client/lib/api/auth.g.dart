@@ -37,7 +37,6 @@ class _AuthService implements AuthService {
           data: _data,
         )
         .copyWith(baseUrl: baseUrl ?? _dio.options.baseUrl)));
-    return null;
   }
 
   RequestOptions _setStreamType<T>(RequestOptions requestOptions) {

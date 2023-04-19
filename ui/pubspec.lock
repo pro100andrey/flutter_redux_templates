@@ -5,18 +5,18 @@ packages:
     dependency: transitive
     description:
       name: _fe_analyzer_shared
-      sha256: "503361166f4a100e0d7eb7fb5a62c6f0322512f2bcb48d6922caf98f24b0ab90"
+      sha256: a36ec4843dc30ea6bf652bf25e3448db6c5e8bcf4aa55f063a5d1dad216d8214
       url: "https://pub.dev"
     source: hosted
-    version: "56.0.0"
+    version: "58.0.0"
   analyzer:
     dependency: transitive
     description:
       name: analyzer
-      sha256: "93fcd81a6716e69864516750590cf1e699420615046bda19100238aa7b429785"
+      sha256: cc4242565347e98424ce9945c819c192ec0838cb9d1f6aa4a97cc96becbc5b27
       url: "https://pub.dev"
     source: hosted
-    version: "5.8.0"
+    version: "5.10.0"
   analyzer_plugin:
     dependency: transitive
     description:
@@ -49,6 +49,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.11.0"
+  boolean_selector:
+    dependency: transitive
+    description:
+      name: boolean_selector
+      sha256: "6cfb5af12253eaf2b368f07bacc5a80d1301a071c73360d746b7f2e32d762c66"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.1"
   build:
     dependency: transitive
     description:
@@ -189,18 +197,18 @@ packages:
     dependency: transitive
     description:
       name: dart_code_metrics
-      sha256: "728b1835a8c5b994ae8111148b427236f2f89954eebcb62baf4c476909b3d02d"
+      sha256: "873890861a3d7e06fd5a6cd17d802e215ee1301dfb7cbcc7aeab9576e69330d0"
       url: "https://pub.dev"
     source: hosted
-    version: "5.7.0"
+    version: "5.7.2"
   dart_code_metrics_presets:
     dependency: transitive
     description:
       name: dart_code_metrics_presets
-      sha256: "1b841b3ab3e7b942683a706cfbcef55fe9f38e7d01b690dbcd2e9f3c8e268525"
+      sha256: "9c9b0ecc5e23937a4b62c1fe3b3edb72d3c1b08563a1eac69fb75f1306bb57c4"
       url: "https://pub.dev"
     source: hosted
-    version: "1.5.0"
+    version: "1.6.0"
   dart_style:
     dependency: transitive
     description:
@@ -250,18 +258,18 @@ packages:
     dependency: transitive
     description:
       name: flutter_gen_core
-      sha256: e74db9fc706ce43ef0dfd4b296fcfa10f84c4d862b9b68a087e7c703f97c7a0a
+      sha256: "41ed478d2c1b77cb899b859c3705be02a76a3f03171c17b1d82af98068788763"
       url: "https://pub.dev"
     source: hosted
-    version: "5.2.0"
+    version: "5.3.0"
   flutter_gen_runner:
     dependency: "direct dev"
     description:
       name: flutter_gen_runner
-      sha256: "434511d7c3f7bb5c67d89a16451056093953bebf7afa8336baeceddfc6fe2a21"
+      sha256: a32f596f5c4f0d03ef950db2ec03b5d05f944d215accfd3e0494cf47113139fa
       url: "https://pub.dev"
     source: hosted
-    version: "5.2.0"
+    version: "5.3.0"
   flutter_localizations:
     dependency: transitive
     description: flutter
@@ -271,10 +279,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_svg
-      sha256: "12006889e2987c549c4c1ec1a5ba4ec4b24d34d2469ee5f9476c926dcecff266"
+      sha256: f991fdb1533c3caeee0cdc14b04f50f0c3916f0dbcbc05237ccbe4e3c6b93f3f
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.4"
+    version: "2.0.5"
   frontend_server_client:
     dependency: transitive
     description:
@@ -391,10 +399,10 @@ packages:
     dependency: transitive
     description:
       name: matcher
-      sha256: c94db23593b89766cda57aab9ac311e3616cf87c6fa4e9749df032f66f30dcb8
+      sha256: "6501fbd55da300384b768785b83e5ce66991266cec21af89ab9ae7f5ce1c4cbb"
       url: "https://pub.dev"
     source: hosted
-    version: "0.12.14"
+    version: "0.12.15"
   material_color_utilities:
     dependency: transitive
     description:
@@ -524,10 +532,10 @@ packages:
     dependency: transitive
     description:
       name: source_span
-      sha256: dd904f795d4b4f3b870833847c461801f6750a9fa8e61ea5ac53f9422b31f250
+      sha256: "53e943d4206a5e30df338fd4c6e7a077e02254531b138a15aec3bd143c1a8b3c"
       url: "https://pub.dev"
     source: hosted
-    version: "1.9.1"
+    version: "1.10.0"
   stack_trace:
     dependency: transitive
     description:
@@ -568,6 +576,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
+  test_api:
+    dependency: transitive
+    description:
+      name: test_api
+      sha256: daadc9baabec998b062c9091525aa95786508b1c48e9c30f1f891b8bf6ff2e64
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.2"
   time:
     dependency: transitive
     description:
@@ -604,26 +620,26 @@ packages:
     dependency: transitive
     description:
       name: vector_graphics
-      sha256: "4cf8e60dbe4d3a693d37dff11255a172594c0793da542183cbfe7fe978ae4aaa"
+      sha256: ea8d3fc7b2e0f35de38a7465063ecfcf03d8217f7962aa2a6717132cb5d43a79
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.4"
+    version: "1.1.5"
   vector_graphics_codec:
     dependency: transitive
     description:
       name: vector_graphics_codec
-      sha256: "278ad5f816f58b1967396d1f78ced470e3e58c9fe4b27010102c0a595c764468"
+      sha256: a5eaa5d19e123ad4f61c3718ca1ed921c4e6254238d9145f82aa214955d9aced
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.4"
+    version: "1.1.5"
   vector_graphics_compiler:
     dependency: transitive
     description:
       name: vector_graphics_compiler
-      sha256: "0bf61ad56e6fd6688a2865d3ceaea396bc6a0a90ea0d7ad5049b1b76c09d6163"
+      sha256: "15edc42f7eaa478ce854eaf1fbb9062a899c0e4e56e775dd73b7f4709c97c4ca"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.4"
+    version: "1.1.5"
   vector_math:
     dependency: transitive
     description:
@@ -644,10 +660,10 @@ packages:
     dependency: transitive
     description:
       name: web_socket_channel
-      sha256: ca49c0bc209c687b887f30527fb6a9d80040b072cc2990f34b9bec3e7663101b
+      sha256: d88238e5eac9a42bb43ca4e721edba3c08c6354d4a53063afaa568516217621b
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.0"
+    version: "2.4.0"
   xml:
     dependency: transitive
     description:

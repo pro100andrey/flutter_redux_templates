@@ -5,18 +5,18 @@ packages:
     dependency: transitive
     description:
       name: _fe_analyzer_shared
-      sha256: "503361166f4a100e0d7eb7fb5a62c6f0322512f2bcb48d6922caf98f24b0ab90"
+      sha256: a36ec4843dc30ea6bf652bf25e3448db6c5e8bcf4aa55f063a5d1dad216d8214
       url: "https://pub.dev"
     source: hosted
-    version: "56.0.0"
+    version: "58.0.0"
   analyzer:
     dependency: transitive
     description:
       name: analyzer
-      sha256: "93fcd81a6716e69864516750590cf1e699420615046bda19100238aa7b429785"
+      sha256: cc4242565347e98424ce9945c819c192ec0838cb9d1f6aa4a97cc96becbc5b27
       url: "https://pub.dev"
     source: hosted
-    version: "5.8.0"
+    version: "5.10.0"
   analyzer_plugin:
     dependency: transitive
     description:
@@ -49,6 +49,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.11.0"
+  boolean_selector:
+    dependency: transitive
+    description:
+      name: boolean_selector
+      sha256: "6cfb5af12253eaf2b368f07bacc5a80d1301a071c73360d746b7f2e32d762c66"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.1"
   build:
     dependency: transitive
     description:
@@ -165,18 +173,18 @@ packages:
     dependency: transitive
     description:
       name: dart_code_metrics
-      sha256: "728b1835a8c5b994ae8111148b427236f2f89954eebcb62baf4c476909b3d02d"
+      sha256: "873890861a3d7e06fd5a6cd17d802e215ee1301dfb7cbcc7aeab9576e69330d0"
       url: "https://pub.dev"
     source: hosted
-    version: "5.7.0"
+    version: "5.7.2"
   dart_code_metrics_presets:
     dependency: transitive
     description:
       name: dart_code_metrics_presets
-      sha256: "1b841b3ab3e7b942683a706cfbcef55fe9f38e7d01b690dbcd2e9f3c8e268525"
+      sha256: "9c9b0ecc5e23937a4b62c1fe3b3edb72d3c1b08563a1eac69fb75f1306bb57c4"
       url: "https://pub.dev"
     source: hosted
-    version: "1.5.0"
+    version: "1.6.0"
   dart_style:
     dependency: transitive
     description:
@@ -189,10 +197,10 @@ packages:
     dependency: "direct main"
     description:
       name: dio
-      sha256: "3e5c4a94d112540d0c9a6b7f3969832e1604eb8cde0f88d0808382f9f632100b"
+      sha256: "0894a098594263fe1caaba3520e3016d8a855caeb010a882273189cca10f11e9"
       url: "https://pub.dev"
     source: hosted
-    version: "5.0.3"
+    version: "5.1.1"
   fast_immutable_collections:
     dependency: "direct main"
     description:
@@ -342,10 +350,10 @@ packages:
     dependency: transitive
     description:
       name: matcher
-      sha256: c94db23593b89766cda57aab9ac311e3616cf87c6fa4e9749df032f66f30dcb8
+      sha256: "6501fbd55da300384b768785b83e5ce66991266cec21af89ab9ae7f5ce1c4cbb"
       url: "https://pub.dev"
     source: hosted
-    version: "0.12.14"
+    version: "0.12.15"
   meta:
     dependency: transitive
     description:
@@ -453,10 +461,10 @@ packages:
     dependency: "direct dev"
     description:
       name: retrofit_generator
-      sha256: "8f7edc6c8d6cbb5ad6064110a29ad8ce063b7177a39b373861e830349bae8ed2"
+      sha256: "6d3b1b98a476a66af4adf27d87b0a03ee375c97e43208dc5c350f01280242359"
       url: "https://pub.dev"
     source: hosted
-    version: "6.0.0+1"
+    version: "6.0.0+2"
   shelf:
     dependency: transitive
     description:
@@ -493,10 +501,10 @@ packages:
     dependency: transitive
     description:
       name: source_span
-      sha256: dd904f795d4b4f3b870833847c461801f6750a9fa8e61ea5ac53f9422b31f250
+      sha256: "53e943d4206a5e30df338fd4c6e7a077e02254531b138a15aec3bd143c1a8b3c"
       url: "https://pub.dev"
     source: hosted
-    version: "1.9.1"
+    version: "1.10.0"
   stack_trace:
     dependency: transitive
     description:
@@ -537,6 +545,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
+  test_api:
+    dependency: transitive
+    description:
+      name: test_api
+      sha256: daadc9baabec998b062c9091525aa95786508b1c48e9c30f1f891b8bf6ff2e64
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.2"
   timing:
     dependency: transitive
     description:
@@ -581,10 +597,10 @@ packages:
     dependency: transitive
     description:
       name: web_socket_channel
-      sha256: ca49c0bc209c687b887f30527fb6a9d80040b072cc2990f34b9bec3e7663101b
+      sha256: d88238e5eac9a42bb43ca4e721edba3c08c6354d4a53063afaa568516217621b
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.0"
+    version: "2.4.0"
   xml:
     dependency: transitive
     description:

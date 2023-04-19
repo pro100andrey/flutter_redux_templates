@@ -7,11 +7,11 @@ environment:
   sdk: ">=2.18.0 <3.0.0"
 
 dependencies:
-  dio: ^5.0.3
+  dio: ^5.1.1
   fast_immutable_collections: ^9.0.0
   freezed_annotation: ^2.2.0
   json_annotation: ^4.8.0
-  logging: ^1.1.0
+  logging: ^1.1.1
   models:
     path: ../models
   retrofit: ^4.0.1
@@ -23,4 +23,4 @@ dev_dependencies:
   lint:
     git:
       url: "https://github.com/pro100andrey/lint.git"
-  retrofit_generator: ^6.0.0+1
+  retrofit_generator: ^6.0.0+2
