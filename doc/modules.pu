@@ -6,7 +6,7 @@ package "App" {
     [Navigation]
     Connectors ..> Business: use
     Connectors ..> UI: use
-    App ..> Localization: use
+    App .left.> Localization: use
 }
 
 package "UI" {
@@ -37,7 +37,7 @@ package "Storage" {
 package "Business" {
     [Redux]
     [Services]
-    Redux ..> Storage: use
+    Redux .left.> Storage: use
     Redux ..> HTTPClient: use
 }
 
