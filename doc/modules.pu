@@ -11,12 +11,12 @@ package "App" {
 package "UI" {
     UI ..> Localization: use
     [Pages]
-    [OhterUIElements]
+    [OtherUIElements]
 }
 
 package "Localization" {
     [En]
-    [OhterLangugages]
+    [OtherLangugages]
 }
 
 package "ApiDAO" {
