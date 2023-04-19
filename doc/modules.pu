@@ -21,7 +21,7 @@ package "Localization" {
 
 package "ApiDAO" {
     [AuthAPIService]
-    [OhterAPIService]
+    [OtherAPIService]
 }
 
 package "Storage" {
