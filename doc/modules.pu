@@ -25,20 +25,24 @@ package "Localization" {
 package "HTTPClient" {
     [AuthAPIService]
     [OtherAPIServices]
+    HTTPClient ..> Models: use
 }
 
 package "Storage" {
-    [KeyValueStorage]
     [HiveKeyValueStorage]
-    [HiveKeyValueSecurityStorage]
-    [Models]
+}
+
+package "Models" {
+    [User]
+    [Session]
 }
 
 package "Business" {
     [Redux]
     [Services]
-    Redux .left.> Storage: use
-    Redux ..> HTTPClient: use
+    Redux ..> Storage: use
+    Redux .right.> HTTPClient: use
+    Redux .right.> Models: use
 }
 
 @enduml
