@@ -32,10 +32,7 @@ class _AppConnectorState extends State<AppConnector> {
           final routersMap = RoutersMap.instance;
 
           final router = routersMap.routerForFlow(vm.flow);
-          // final data = vm.gender == null || vm.gender == GenderType.girl
-          //     ? primaryTheme()
-          //     : secondaryTheme();
-
+  
           return MaterialApp.router(
             debugShowCheckedModeBanner: false,
             routerDelegate: router.routerDelegate,
