@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide BoxDecoration, BoxShadow;
 import 'package:flutter/services.dart';
 
 import '../models/value_changed.dart';
@@ -7,6 +7,9 @@ class BaseTextInput extends StatefulWidget {
   const BaseTextInput({
     required this.vm,
     this.obscureText = false,
+    this.autofocus = false,
+    this.showCounterText = true,
+    this.expands = false,
     this.minLines,
     this.maxLines = 1,
     this.labelText,
@@ -16,17 +19,22 @@ class BaseTextInput extends StatefulWidget {
     this.prefixIcon,
     this.suffix,
     this.keyboardType,
-    this.autofillHints,
+    this.textAlignVertical,
     this.filled,
     this.maxLength,
     this.focusNode,
-    this.changeWhenFocusEnd,
     this.inputFormatters,
-    this.showCounterText = true,
+    this.autofillHints,
+    this.floatingLabelBehavior,
+    this.onSubmitted,
     super.key,
   });
 
+  final ValueChangedWithErrorVm<String?> vm;
   final bool obscureText;
+  final bool autofocus;
+  final bool showCounterText;
+  final bool expands;
   final int? minLines;
   final int? maxLines;
   final String? labelText;
@@ -37,14 +45,13 @@ class BaseTextInput extends StatefulWidget {
   final Widget? prefixIcon;
   final int? maxLength;
   final bool? filled;
+  final TextAlignVertical? textAlignVertical;
   final TextInputType? keyboardType;
-  final List<String>? autofillHints;
-  final bool? changeWhenFocusEnd;
-  final bool showCounterText;
   final FocusNode? focusNode;
-  final ValueChangedWithErrorVm<String> vm;
-
   final List<TextInputFormatter>? inputFormatters;
+  final List<String>? autofillHints;
+  final FloatingLabelBehavior? floatingLabelBehavior;
+  final void Function(String value)? onSubmitted;
 
   @override
   _BaseTextInputState createState() => _BaseTextInputState();
@@ -53,20 +60,67 @@ class BaseTextInput extends StatefulWidget {
 class _BaseTextInputState extends State<BaseTextInput> {
   bool _isVisible = true;
 
-  FocusNode? _focusNode;
+  final _controller = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller.addListener(_controllerChangeListener);
+
+    if (widget.vm.value != null) {
+      _controller.text = widget.vm.value!;
+    }
+  }
+
+  void _controllerChangeListener() {
+    final text = _controller.text;
+    final skip = widget.vm.value == null && text.isEmpty;
+    if (widget.vm.value != text && !skip) {
+      widget.vm.onChangedSync(text);
+    }
+  }
+
+  @override
+  void didUpdateWidget(BaseTextInput oldWidget) {
+    final text = widget.vm.value ?? '';
+    if (_controller.text != text) {
+      _controller.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.fromPosition(
+          TextPosition(offset: text.length),
+        ),
+      );
+    }
+
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => TextField(
-        controller: controller,
-        focusNode: _focusNode,
-        autofillHints: widget.autofillHints,
+        controller: _controller,
+        focusNode: widget.focusNode,
         keyboardType: widget.keyboardType,
+        expands: widget.expands,
         minLines: widget.minLines,
         maxLength: widget.maxLength,
         maxLines: widget.maxLines,
         obscureText: _isVisible && widget.obscureText,
+        autofocus: widget.autofocus,
         inputFormatters: widget.inputFormatters,
+        onSubmitted: widget.onSubmitted,
+        autofillHints: widget.autofillHints,
+        textAlignVertical: widget.textAlignVertical,
         decoration: InputDecoration(
+          floatingLabelBehavior: widget.floatingLabelBehavior,
+          fillColor: Colors.transparent,
           counterText: widget.showCounterText ? null : '',
           enabled: widget.vm.enabled,
           labelText: widget.labelText,
@@ -82,12 +136,7 @@ class _BaseTextInputState extends State<BaseTextInput> {
                     _isVisible ? Icons.visibility_off : Icons.visibility,
                   ),
                 )
-              : widget.vm.error != null
-                  ? Icon(
-                      Icons.error,
-                      color: Theme.of(context).colorScheme.error,
-                    )
-                  : null,
+              : null,
           filled: widget.filled,
           errorText: widget.vm.error,
         ),
@@ -97,64 +146,5 @@ class _BaseTextInputState extends State<BaseTextInput> {
     setState(() {
       _isVisible = !_isVisible;
     });
-  }
-
-  final controller = TextEditingController();
-
-  // ignore: prefer_function_declarations_over_variables
-  late final _changeWhenFocusEndListener = () {
-    final focusNode = _focusNode!;
-    if (focusNode.hasFocus) {
-      return;
-    }
-
-    widget.vm.onChangedSync(controller.text);
-  };
-
-  @override
-  void initState() {
-    super.initState();
-
-    final changeWhenFocusEnd = widget.changeWhenFocusEnd ?? false;
-    _focusNode = widget.focusNode ?? (changeWhenFocusEnd ? FocusNode() : null);
-
-    if (changeWhenFocusEnd && _focusNode != null) {
-      _focusNode?.addListener(_changeWhenFocusEndListener);
-    } else {
-      controller.addListener(() {
-        final text = controller.text;
-        final skip = widget.vm.value == null && text.isEmpty;
-        if (widget.vm.value != text && !skip) {
-          widget.vm.onChangedSync(text);
-        }
-      });
-    }
-
-    if (widget.vm.value != null) {
-      controller.text = widget.vm.value!;
-    }
-  }
-
-  @override
-  void didUpdateWidget(BaseTextInput oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final text = widget.vm.value ?? '';
-    if (controller.text != widget.vm.value) {
-      controller.value = TextEditingValue(
-        text: text,
-        selection: TextSelection.fromPosition(
-          TextPosition(offset: text.length),
-        ),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-
-    _focusNode?.removeListener(_changeWhenFocusEndListener);
-
-    super.dispose();
   }
 }
