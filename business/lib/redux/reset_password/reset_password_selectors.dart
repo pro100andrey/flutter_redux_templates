@@ -7,11 +7,11 @@ bool selectResetPasswordIsWaiting(AppState state) =>
 
 /// Returns password value
 String? selectResetPasswordPassword(AppState state) =>
-    state.registration.password;
+    state.resetPassword.password;
 
 /// Returns confirm password value
 String? selectResetPasswordConfirmPassword(AppState state) =>
-    state.registration.confirmPassword;
+    state.resetPassword.confirmPassword;
 
 /// Returns true if email, password, confirmPassword is setted
 bool selectResetPasswordDataIsSet(AppState state) {
