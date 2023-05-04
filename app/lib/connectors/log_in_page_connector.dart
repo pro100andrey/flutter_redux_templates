@@ -65,10 +65,10 @@ class _Factory extends BaseFactory<LogInPageConnector, _Vm> {
                 LogInWithEmailAction(),
               )
           : null,
-      onPressedForgotPassword: () => router.pushNamed(
+      onPressedForgotPassword: () async => router.pushNamed(
         Routes.forgotPassword,
       ),
-      onPressedRegister: () => router.pushNamed(
+      onPressedRegister: () async => router.pushNamed(
         Routes.registration,
       ),
     );
