@@ -1,0 +1,11 @@
+{
+    "name": "State (search)",
+    "variables": [
+        {
+            "name": "stateName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}
