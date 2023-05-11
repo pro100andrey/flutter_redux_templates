@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
+import '../indicators/base_circle_indicator.dart';
+
 class SplashPage extends StatelessWidget {
   const SplashPage({
     super.key,
@@ -11,12 +13,6 @@ class SplashPage extends StatelessWidget {
         appBar: AppBar(
           title: Text(S.current.title),
         ),
-        body: Stack(
-          children: const [
-            Center(
-              child: Text('SplashPage'),
-            ),
-          ],
-        ),
+        body: const BaseCircleIndicator(),
       );
 }
