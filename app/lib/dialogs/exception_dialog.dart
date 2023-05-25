@@ -76,11 +76,11 @@ class _ExceptionDialogWidget extends StatefulWidget {
   final ShowUserExceptionDialog onShowUserExceptionDialog;
   final bool useLocalContext;
 
-  static void _defaultUserExceptionDialog(
-    BuildContext context,
-    UserException userException,
-    bool useLocalContext,
-  ) {
+  static void _defaultUserExceptionDialog({
+    required BuildContext context,
+    required UserException userException,
+    required bool useLocalContext,
+  }) {
     var resultContext = context;
     if (!useLocalContext) {
       final navigatorContext = NavigateAction.navigatorKey?.currentContext;
@@ -146,9 +146,9 @@ class _UserExceptionDialogState extends State<_ExceptionDialogWidget> {
     if (userException != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onShowUserExceptionDialog(
-          context,
-          userException,
-          widget.useLocalContext,
+          context: context,
+          userException: userException,
+          useLocalContext: widget.useLocalContext,
         );
       });
     }
@@ -184,11 +184,11 @@ class _Vm extends BaseModel<AppState> {
 
 // ////////////////////////////////////////////////////////////////////////////
 
-typedef ShowUserExceptionDialog = void Function(
-  BuildContext context,
-  UserException userException,
-  bool useLocalContext,
-);
+typedef ShowUserExceptionDialog = void Function({
+  required BuildContext context,
+  required UserException userException,
+  required bool useLocalContext,
+});
 
 Future<T?> showDialogSuper<T>({
   required BuildContext context,

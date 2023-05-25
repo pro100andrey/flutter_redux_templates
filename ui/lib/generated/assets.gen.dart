@@ -15,7 +15,7 @@ class $AssetsColorsGen {
   const $AssetsColorsGen();
 
   /// File path: assets/colors/colors.xml
-  String get colors => 'assets/colors/colors.xml';
+  String get colors => 'packages/ui/assets/colors/colors.xml';
 
   /// List of all assets
   List<String> get values => [colors];

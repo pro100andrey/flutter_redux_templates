@@ -25,16 +25,12 @@ void setupRootLogger({bool isDebugMode = false}) {
     switch (rec.level.name) {
       case 'INFO':
         startColor = infoColor;
-        break;
       case 'WARNING':
         startColor = warningColor;
-        break;
       case 'SEVERE':
         startColor = severeColor;
-        break;
       case 'SHOUT':
         startColor = shoutColor;
-        break;
     }
 
     final time = rec.time;
