@@ -6,4 +6,4 @@ bool selectForgotPasswordIsWaiting(AppState state) =>
     state.wait.isWaitingFor(ForgotPasswordWaiting.wait);
 
 /// Returns email value
-String? selectForgotPasswordEmail(AppState state) => state.logIn.email;
+String? selectForgotPasswordEmail(AppState state) => state.forgotPassword.email;

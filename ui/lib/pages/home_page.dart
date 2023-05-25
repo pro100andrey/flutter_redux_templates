@@ -14,8 +14,8 @@ class HomePage extends StatelessWidget {
         appBar: AppBar(
           title: Text(S.current.title),
         ),
-        body: Stack(
-          children: const [
+        body: const Stack(
+          children: [
             Center(
               child: Text('HomePage'),
             ),

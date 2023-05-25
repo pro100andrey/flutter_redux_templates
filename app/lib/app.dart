@@ -32,7 +32,7 @@ class _AppConnectorState extends State<AppConnector> {
           final routersMap = RoutersMap.instance;
 
           final router = routersMap.routerForFlow(vm.flow);
-  
+
           return MaterialApp.router(
             debugShowCheckedModeBanner: false,
             routerDelegate: router.routerDelegate,
