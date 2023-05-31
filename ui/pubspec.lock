@@ -376,10 +376,10 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "97c7cd85f1287b0dad1af27fecc263038ae8ea5f"
+      resolved-ref: "3834ac09d563689d186f9e66ee82c1f6fd515781"
       url: "https://github.com/pro100andrey/lint.git"
     source: git
-    version: "1.1.0"
+    version: "2.0.0"
   localization:
     dependency: "direct main"
     description:
@@ -681,5 +681,5 @@ packages:
     source: hosted
     version: "3.1.2"
 sdks:
-  dart: ">=3.0.0 <4.0.0"
+  dart: ">=3.0.2 <4.0.0"
   flutter: ">=3.7.0-0"

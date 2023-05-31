@@ -205,10 +205,10 @@ packages:
     dependency: "direct main"
     description:
       name: fast_immutable_collections
-      sha256: d1b97845a823572e5390383b93f23b7e8afb87234e03fed4c115a776fc72331f
+      sha256: "85dd4aae8fc7643e0d3f95d96f1577add7b62c42508983a54c34115b9776fae1"
       url: "https://pub.dev"
     source: hosted
-    version: "9.1.1"
+    version: "9.1.3"
   file:
     dependency: transitive
     description:
@@ -334,10 +334,10 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "97c7cd85f1287b0dad1af27fecc263038ae8ea5f"
+      resolved-ref: "3834ac09d563689d186f9e66ee82c1f6fd515781"
       url: "https://github.com/pro100andrey/lint.git"
     source: git
-    version: "1.1.0"
+    version: "2.0.0"
   logging:
     dependency: "direct main"
     description:
@@ -618,4 +618,4 @@ packages:
     source: hosted
     version: "3.1.2"
 sdks:
-  dart: ">=3.0.0 <4.0.0"
+  dart: ">=3.0.2 <4.0.0"
