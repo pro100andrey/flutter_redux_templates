@@ -10,6 +10,4 @@ dependencies:
   logging: ^1.2.0
   
 dev_dependencies:
-  lint:
-    git:
-      url: 'https://github.com/pro100andrey/lint.git'
+  pro_lints: ^2.0.1

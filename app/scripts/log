@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Function for logging info
+log() {
+	local message="$1" # Message to be logged
+
+	# Formatting current date and time
+	local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+
+	# Green color
+	local green='\033[1;32m'
+	# Reset color
+	local reset='\033[0m'
+
+	# Output the step log in the format: [Date and time] Step: Step name
+	echo -e "${green}[$timestamp]${reset}: $message"
+}

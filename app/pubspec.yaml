@@ -7,7 +7,7 @@ environment:
    sdk: ^3.0.0
   
 dependencies:
-  async_redux: ^20.0.1
+  async_redux: ^20.0.2
   business:
     path: ../business
   equatable: ^2.0.5
@@ -15,10 +15,10 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  go_router: ^7.1.1
+  go_router: ^9.0.0
   localization:
     path: ../localization
-  pro_validator: ^1.1.1
+  pro_validator: ^2.0.1
   
   ui:
     path: ../ui
@@ -32,9 +32,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  lint:
-    git:
-      url: 'https://github.com/pro100andrey/lint.git'
+  pro_lints: ^2.0.1
       
 flutter:
   uses-material-design: true

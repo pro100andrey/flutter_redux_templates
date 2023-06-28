@@ -1,4 +1,4 @@
-include: package:lint/common.yaml
+include: package:pro_lints/common.yaml
 
 analyzer:
   exclude:
