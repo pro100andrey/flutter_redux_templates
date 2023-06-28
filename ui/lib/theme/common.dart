@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../assets.dart';
+import '../generated/colors.gen.dart';
 
 ThemeData buildTheme() => ThemeData(
       useMaterial3: true,

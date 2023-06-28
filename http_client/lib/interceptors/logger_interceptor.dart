@@ -90,7 +90,10 @@ class LoggerInterceptor extends Interceptor {
   }
 
   @override
-  Future<void> onError(DioError err, ErrorInterceptorHandler handler) async {
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     if (error) {
       final msg = StringBuffer()
         ..add('*** DioError ***:')

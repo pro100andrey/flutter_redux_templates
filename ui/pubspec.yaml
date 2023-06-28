@@ -10,16 +10,14 @@ dependencies:
   equatable: ^2.0.5
   flutter:
     sdk: flutter
-  flutter_svg: ^2.0.6
+  flutter_svg: ^2.0.7
   localization:
     path: ../localization
   
 dev_dependencies:
-  build_runner: ^2.4.4
+  build_runner: ^2.4.5
   flutter_gen_runner: ^5.3.1
-  lint:
-    git:
-      url: 'https://github.com/pro100andrey/lint.git'
+  pro_lints: ^2.0.1
   
 flutter:
   uses-material-design: true

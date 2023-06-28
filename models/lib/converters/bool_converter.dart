@@ -21,9 +21,9 @@ class OptionalBoolConverter implements JsonConverter<bool?, Object?> {
 
   @override
   bool? fromJson(Object? value) =>
-      value == null ? null : BoolConverter().fromJson(value);
+      value == null ? null : const BoolConverter().fromJson(value);
 
   @override
   Object? toJson(bool? value) =>
-      value == null ? null : BoolConverter().toJson(value);
+      value == null ? null : const BoolConverter().toJson(value);
 }

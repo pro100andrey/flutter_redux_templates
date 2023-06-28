@@ -11,7 +11,10 @@ class ServerErrorInterceptor extends Interceptor {
   final HttpSettings httpSettings;
 
   @override
-  void onError(DioError err, ErrorInterceptorHandler handler) {
+  void onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) {
     final response = err.response;
 
     if (response != null) {

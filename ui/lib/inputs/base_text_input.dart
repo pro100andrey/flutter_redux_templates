@@ -54,10 +54,10 @@ class BaseTextInput extends StatefulWidget {
   final void Function(String value)? onSubmitted;
 
   @override
-  _BaseTextInputState createState() => _BaseTextInputState();
+  BaseTextInputState createState() => BaseTextInputState();
 }
 
-class _BaseTextInputState extends State<BaseTextInput> {
+class BaseTextInputState extends State<BaseTextInput> {
   bool _isVisible = true;
 
   final _controller = TextEditingController();

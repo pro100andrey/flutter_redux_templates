@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
-import '../assets.dart';
 import '../buttons/rounded_button.dart';
 import '../containers/auth_from_container.dart';
+import '../generated/assets.gen.dart';
 import '../inputs/email_input.dart';
 import '../models/value_changed.dart';
 

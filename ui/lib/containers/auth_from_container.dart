@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../assets.dart';
+import '../generated/assets.gen.dart';
 
 class AuthFormContainer extends StatelessWidget {
   const AuthFormContainer({
