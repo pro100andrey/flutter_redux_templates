@@ -47,12 +47,9 @@ class _Factory extends BaseFactory<TopLevelPageConnector, _Vm> {
       overlay = _Overlay.noInternetConnection;
     }
 
-    if (!selectNetworkConnectionIsAvailable(state) ||
-        selectLogInWaiting(state) ||
-        selectRegistrationIsWaiting(state)) {
-      overlay = _Overlay.noInternetConnection;
+    if (selectLogInWaiting(state) || selectRegistrationIsWaiting(state)) {
+      overlay = _Overlay.barrier;
     }
-
     return _Vm(overlay: overlay);
   }
 }
