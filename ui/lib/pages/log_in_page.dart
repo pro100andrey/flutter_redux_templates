@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
-import '../buttons/rounded_button.dart';
+import '../buttons/styled_elevated_button.dart';
 import '../containers/auth_from_container.dart';
-import '../generated/assets.gen.dart';
 import '../inputs/email_input.dart';
 import '../inputs/password_input.dart';
 import '../models/value_changed.dart';
@@ -30,7 +29,6 @@ class LogInPage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             AuthFormContainer(
-              placeholder: Assets.placeholders.image,
               title: S.current.logIn,
               children: [
                 const SizedBox(height: 24),
@@ -46,12 +44,12 @@ class LogInPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                RoundedButton(
+                StyledElevatedButton(
                   title: S.current.logIn,
                   onPressed: onPressedLogIn,
                 ),
                 const SizedBox(height: 16),
-                RoundedButton(
+                StyledElevatedButton(
                   title: S.current.register,
                   onPressed: onPressedRegister,
                 ),

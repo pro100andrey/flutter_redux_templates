@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:storybook_flutter/storybook_flutter.dart';
-import 'package:ui/buttons/rounded_button.dart';
+import 'package:ui/buttons/styled_elevated_button.dart';
 
 import 'knobs.dart';
 
 List<Story> get buttons => [
       Story(
-        name: 'Buttons/RoundedButton',
+        name: 'Buttons/StyledElevatedButton',
         builder: (context) => Center(
-          child: RoundedButton(
+          child: StyledElevatedButton(
             title: context.knobs.text(
               label: 'Rounded button',
               initial: 'Button',

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
-import '../buttons/rounded_button.dart';
+import '../buttons/styled_elevated_button.dart';
 import '../containers/auth_from_container.dart';
-import '../generated/assets.gen.dart';
 import '../inputs/email_input.dart';
 import '../models/value_changed.dart';
 
@@ -27,13 +26,12 @@ class ForgotPasswordPage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             AuthFormContainer(
-              placeholder: Assets.placeholders.image,
               title: S.current.forgotPassword,
               children: [
                 const SizedBox(height: 24),
                 EmailInput(vm: email),
                 const SizedBox(height: 16),
-                RoundedButton(
+                StyledElevatedButton(
                   title: S.current.resetPassword,
                   onPressed: onPressedResetPassword,
                 ),

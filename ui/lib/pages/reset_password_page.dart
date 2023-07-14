@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
-import '../buttons/rounded_button.dart';
+import '../buttons/styled_elevated_button.dart';
 import '../containers/auth_from_container.dart';
-import '../generated/assets.gen.dart';
 import '../inputs/confirm_password_input.dart';
 import '../inputs/password_input.dart';
 import '../models/value_changed.dart';
@@ -28,7 +27,6 @@ class ResetPasswordPage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             AuthFormContainer(
-              placeholder: Assets.placeholders.image,
               title: S.current.resetPassword,
               children: [
                 const SizedBox(height: 24),
@@ -36,7 +34,7 @@ class ResetPasswordPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 ConfirmPasswordInput(vm: confirmPassword),
                 const SizedBox(height: 16),
-                RoundedButton(
+                StyledElevatedButton(
                   title: S.current.resetPassword,
                   onPressed: onPressedResetPassword,
                 ),

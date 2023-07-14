@@ -2,19 +2,27 @@ import 'package:flutter/material.dart';
 
 import '../generated/colors.gen.dart';
 
-ThemeData buildTheme() => ThemeData(
-      useMaterial3: true,
-      colorScheme: const ColorScheme.light(
-        primary: ColorName.primary,
-        secondary: ColorName.secondary,
-      ),
+ThemeData _base = ThemeData(
+  useMaterial3: true,
+);
+
+ThemeData buildTheme() => _base.copyWith(
       inputDecorationTheme: inputDecorationTheme(),
+      dialogTheme: dialogTheme(),
+      elevatedButtonTheme: elevatedButtonTheme(),
     );
+
+ElevatedButtonThemeData elevatedButtonTheme() => ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(),
+    );
+
+DialogTheme dialogTheme() => _base.dialogTheme.copyWith();
 
 InputDecorationTheme inputDecorationTheme() {
   const borderRadius = BorderRadius.all(Radius.circular(28));
 
-  return InputDecorationTheme(
+  return _base.inputDecorationTheme.copyWith(
+    isDense: true,
     errorMaxLines: 10,
     border: const OutlineInputBorder(borderRadius: borderRadius),
     enabledBorder: const OutlineInputBorder(
