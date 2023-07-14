@@ -75,9 +75,12 @@ class _Factory extends BaseFactory<RegistrationPageConnector, _Vm> {
         ),
       ),
       onPressedRegister: formIsValid
-          ? () async => dispatchAsync(
+          ? () async {
+              await dispatchAsync(
                 RegistrationAction(),
-              )
+              );
+              router.pop();
+            }
           : null,
       onPressedBackToLogin: router.pop,
     );
