@@ -93,7 +93,7 @@ class _ExceptionDialogWidget extends StatefulWidget {
     final content = userException.dialogContent();
 
     unawaited(
-      showDialogSuper<int>(
+      _showDialogSuper<int>(
         context: resultContext,
         onDismissed: (result) {
           if (result == 1) {
@@ -109,11 +109,9 @@ class _ExceptionDialogWidget extends StatefulWidget {
           }
         },
         builder: (context) => AlertDialog(
-          titleTextStyle: Theme.of(context).textTheme.bodyLarge,
-          contentTextStyle: Theme.of(context).textTheme.bodyMedium,
           scrollable: true,
-          title: Text(title),
-          content: Text(content),
+          title: title.isEmpty ? null : Text(title),
+          content: content.isEmpty ? null : Text(content),
           actions: [
             if (userException.onCancel != null)
               TextButton(
@@ -190,7 +188,7 @@ typedef ShowUserExceptionDialog = void Function({
   required bool useLocalContext,
 });
 
-Future<T?> showDialogSuper<T>({
+Future<T?> _showDialogSuper<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   RouteSettings? routeSettings,
