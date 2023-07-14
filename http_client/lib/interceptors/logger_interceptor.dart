@@ -3,17 +3,20 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:logging/logging.dart';
 
-final _logger = Logger('Retrofit');
+final _logger = Logger('Http');
 
 class LoggerInterceptor extends Interceptor {
   LoggerInterceptor({
+    this.enableLogging = true,
     this.request = true,
     this.requestHeader = true,
-    this.requestBody = false,
+    this.requestBody = true,
     this.responseHeader = true,
-    this.responseBody = false,
+    this.responseBody = true,
     this.error = true,
   });
+
+  bool enableLogging;
 
   /// Print request
   bool request;
@@ -38,6 +41,11 @@ class LoggerInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
+    if (!enableLogging) {
+      handler.next(options);
+      return;
+    }
+
     final msg = StringBuffer()
       ..add('*** Request ***')
       ..addKV('uri', options.uri);
@@ -56,26 +64,32 @@ class LoggerInterceptor extends Interceptor {
         )
         ..addKV('extra', options.extra);
     }
+
     if (requestHeader) {
       msg.add('headers:');
       options.headers.forEach(msg.addHeader);
     }
+
     if (requestBody) {
       final dynamic data = options.data;
 
       if (data is FormData) {
-        msg.add('formDataFields:');
-        Map.fromEntries(data.fields).forEach(msg.addHeader);
-        msg.add('formDataFiles:');
-        Map.fromEntries(data.files).forEach(msg.addHeader);
+        if (data.fields.isNotEmpty) {
+          msg.add('formDataFields:');
+          Map.fromEntries(data.fields).forEach(msg.addHeader);
+        }
+
+        if (data.files.isNotEmpty) {
+          msg.add('formDataFiles:');
+          Map.fromEntries(data.files).forEach(msg.addHeader);
+        }
       } else {
         msg
           ..add('body:')
-          ..addAsJson(options.data);
+          ..addAsJson(data);
       }
     }
     _logger.fine(msg);
-
     handler.next(options);
   }
 
@@ -84,8 +98,11 @@ class LoggerInterceptor extends Interceptor {
     Response response,
     ResponseInterceptorHandler handler,
   ) async {
-    final msg = StringBuffer()..add('*** Response ***');
-    _printResponse(msg, response);
+    if (enableLogging) {
+      final msg = StringBuffer()..add('*** Response ***');
+      _printResponse(msg, response);
+    }
+
     handler.next(response);
   }
 
@@ -94,7 +111,7 @@ class LoggerInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (error) {
+    if (error && enableLogging) {
       final msg = StringBuffer()
         ..add('*** DioError ***:')
         ..add('uri: ${err.requestOptions.uri}')
@@ -141,30 +158,30 @@ extension _StringBufferExt on StringBuffer {
   }
 
   void addAsJson(Object? data) {
-    final json = data;
-    if (json == null) {
-      writeln('$json');
+    final dynamic objectData = data;
+    if (objectData == null) {
+      writeln('$objectData');
 
       return;
     }
 
     const encoder = JsonEncoder.withIndent('  ');
-    String result;
-    if (json is Map) {
-      result = encoder.convert(json);
-    } else if (json is String) {
-      try {
-        final dynamic object =
-            json.isEmpty ? <String, dynamic>{} : jsonDecode(json);
-        result = encoder.convert(object);
-      } on Exception {
-        result = json;
-      }
-    } else {
-      result = json.toString();
-    }
 
-    writeln(result);
+    final stringData = switch (objectData) {
+      Map() => encoder.convert(objectData),
+      String() => encoder.convert(jsonDecode(objectData)),
+      _ => () {
+          try {
+            // ignore: avoid_dynamic_calls
+            final dynamic jsonString = objectData.toJson();
+            return encoder.convert(jsonString);
+          } on Exception catch (_) {
+            return json.toString();
+          }
+        }()
+    };
+
+    writeln(stringData);
   }
 
   void add(Object? v) {

@@ -1,0 +1,11 @@
+{
+    "name": "Redux service",
+    "variables": [
+        {
+            "name": "ServiceName",
+            "style": {
+                "case": "auto"
+            }
+        }
+    ]
+}
