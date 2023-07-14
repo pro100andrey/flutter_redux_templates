@@ -54,5 +54,11 @@
 		"rest-client.logLevel": "verbose",
 		"rest-client.previewOption": "exchange",
 		"rest-client.formParamEncodingStrategy": "always",
+		"cSpell.enableFiletypes": [
+			"json"
+		],
+		"files.associations": {
+			"*.arb": "json",
+		}
 	}
 }
