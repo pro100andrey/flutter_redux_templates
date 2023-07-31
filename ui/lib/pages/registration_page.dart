@@ -18,9 +18,9 @@ class RegistrationPage extends StatelessWidget {
     super.key,
   });
 
-  final ValueChangedWithErrorVm<String> email;
-  final ValueChangedWithErrorVm<String> password;
-  final ValueChangedWithErrorVm<String> confirmPassword;
+  final ValueChangedWithErrorVm<String?> email;
+  final ValueChangedWithErrorVm<String?> password;
+  final ValueChangedWithErrorVm<String?> confirmPassword;
   final VoidCallback? onPressedRegister;
   final VoidCallback? onPressedBackToLogin;
 

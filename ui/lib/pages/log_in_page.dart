@@ -17,8 +17,8 @@ class LogInPage extends StatelessWidget {
     super.key,
   });
 
-  final ValueChangedWithErrorVm<String> email;
-  final ValueChangedWithErrorVm<String> password;
+  final ValueChangedWithErrorVm<String?> email;
+  final ValueChangedWithErrorVm<String?> password;
   final VoidCallback? onPressedLogIn;
   final VoidCallback onPressedForgotPassword;
   final VoidCallback onPressedRegister;

@@ -3,7 +3,7 @@ import 'models/log_in_state.dart';
 
 /// Returns waiting value
 bool selectLogInWaiting(AppState state) =>
-    state.wait.isWaitingFor(LogInWarning.wait);
+    state.wait.isWaitingFor(LogInWaiting.wait);
 
 /// Returns email value
 String? selectLogInEmail(AppState state) => state.logIn.email;

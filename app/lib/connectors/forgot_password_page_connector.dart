@@ -43,7 +43,7 @@ class _Factory extends BaseFactory<ForgotPasswordPageConnector, _Vm> {
       email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
-        onChanged: (email) => dispatchSync(SetEmailAction(email: email)),
+        onChanged: (value) => dispatchSync(SetEmailAction(email: value!)),
       ),
       onPressedResetPassword: () => dispatchSync(ForgotPasswordAction()),
       onPressedBackToLogin: router.pop,
@@ -61,7 +61,7 @@ class _Vm extends Vm with EquatableMixin {
   });
 
   final bool isWaiting;
-  final ValueChangedWithErrorVm<String> email;
+  final ValueChangedWithErrorVm<String?> email;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback onPressedBackToLogin;
 
