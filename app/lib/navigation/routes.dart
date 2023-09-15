@@ -29,7 +29,8 @@ class RoutersMap {
   static final RoutersMap instance = RoutersMap._();
 
   late GoRouter _currentRouterMap;
-  RoutersFlow? _currentFlow;
+
+  RoutersFlow _currentFlow = const SplashFlow();
 
   BuildContext? get currentContext =>
       _currentRouterMap.routerDelegate.navigatorKey.currentContext;
@@ -68,15 +69,15 @@ class RoutersMap {
   GoRouter get _authRouter => GoRouter(
         initialLocation: '/login',
         redirect: (context, state) {
-          final flow = _currentFlow! as AuthFlow;
-
-          switch (flow.redirection) {
-            case AuthFlowRedirection.login:
-              return null;
-            case AuthFlowRedirection.resetPassword:
+          switch (_currentFlow) {
+            case AuthFlow(:final redirection)
+                when redirection == AuthFlowRedirection.resetPassword:
               return '/login/reset-password';
-            case AuthFlowRedirection.createPassword:
+            case AuthFlow(:final redirection)
+                when redirection == AuthFlowRedirection.createPassword:
               return '/login/create-password';
+            case _:
+              return null;
           }
         },
         routes: [

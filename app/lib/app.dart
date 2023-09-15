@@ -58,7 +58,7 @@ class _Factory extends BaseFactory<AppConnector, _Vm> {
 
   @override
   _Vm fromStore() => _Vm(
-        flow: AuthFlow(
+        flow: const AuthFlow(
           redirection: AuthFlowRedirection.login,
         ),
       );
