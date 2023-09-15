@@ -29,9 +29,7 @@ class _AppConnectorState extends State<AppConnector> {
         debug: this,
         vm: () => _Factory(widget),
         builder: (context, vm) {
-          final routersMap = RoutersMap.instance;
-
-          final router = routersMap.routerForFlow(vm.flow);
+          final router = RoutersMap.instance.routerWithFlow(vm.flow);
 
           return MaterialApp.router(
             debugShowCheckedModeBanner: false,
