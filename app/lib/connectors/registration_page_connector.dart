@@ -56,22 +56,22 @@ class _Factory extends BaseFactory<RegistrationPageConnector, _Vm> {
       email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
-        onChanged: (email) => dispatchSync(
-          SetEmailAction(email),
+        onChanged: (value) => dispatchSync(
+          SetEmailAction(value!),
         ),
       ),
       password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
-        onChanged: (password) => dispatchSync(
-          SetPasswordAction(password),
+        onChanged: (value) => dispatchSync(
+          SetPasswordAction(value!),
         ),
       ),
       confirmPassword: ValueChangedWithErrorVm(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
-        onChanged: (confirmPassword) => dispatchSync(
-          SetConfirmPasswordAction(confirmPassword),
+        onChanged: (value) => dispatchSync(
+          SetConfirmPasswordAction(value!),
         ),
       ),
       onPressedRegister: formIsValid
@@ -97,9 +97,9 @@ class _Vm extends Vm with EquatableMixin {
     required this.onPressedBackToLogin,
   });
 
-  final ValueChangedWithErrorVm<String> email;
-  final ValueChangedWithErrorVm<String> password;
-  final ValueChangedWithErrorVm<String> confirmPassword;
+  final ValueChangedWithErrorVm<String?> email;
+  final ValueChangedWithErrorVm<String?> password;
+  final ValueChangedWithErrorVm<String?> confirmPassword;
   final VoidCallback? onPressedRegister;
   final VoidCallback? onPressedBackToLogin;
 

@@ -16,8 +16,8 @@ class ResetPasswordPage extends StatelessWidget {
     super.key,
   });
 
-  final ValueChangedWithErrorVm<String> password;
-  final ValueChangedWithErrorVm<String> confirmPassword;
+  final ValueChangedWithErrorVm<String?> password;
+  final ValueChangedWithErrorVm<String?> confirmPassword;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback? onPressedBackToLogin;
 

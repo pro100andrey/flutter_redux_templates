@@ -10,4 +10,4 @@ dependencies:
   logging: ^1.2.0
   
 dev_dependencies:
-  pro_lints: ^2.0.1
+  pro_lints: ^2.0.2

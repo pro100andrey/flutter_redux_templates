@@ -14,12 +14,12 @@ dependencies:
     sdk: flutter
   localization:
     path: ../localization
-  storybook_flutter: ^0.12.0
+  storybook_flutter: ^0.14.0
   ui:
     path: ../ui
 
 dev_dependencies:
-  pro_lints: ^2.0.1
+  pro_lints: ^2.0.2
 
 flutter:
   uses-material-design: true

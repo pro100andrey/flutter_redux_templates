@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ui/pages/splash_page.dart';
 
 import '../connectors/forgot_password_page_connector.dart';
+import '../connectors/home_page_connector.dart';
 import '../connectors/log_in_page_connector.dart';
 import '../connectors/registration_page_connector.dart';
 import '../connectors/reset_password_page_connector.dart';
@@ -21,35 +22,36 @@ class Routes {
   static const forgotPassword = 'forgotPassword';
 }
 
-GoRouter get router => RoutersMap.instance._currentRouterMap;
+GoRouter get router => RoutersMap.instance._currentRouter;
 
 class RoutersMap {
   RoutersMap._();
 
   static final RoutersMap instance = RoutersMap._();
 
-  late GoRouter _currentRouterMap;
-  RoutersFlow? _currentFlow;
+  late GoRouter _currentRouter;
 
-  BuildContext? get currentContext =>
-      _currentRouterMap.routerDelegate.navigatorKey.currentContext;
+  RoutersFlow _currentFlow = const SplashFlow();
 
-  GoRouter routerForFlow(RoutersFlow flow) {
+  GoRouter routerWithFlow(RoutersFlow flow) {
     if (_currentFlow == flow) {
-      return _currentRouterMap;
+      return _currentRouter;
     }
 
     _currentFlow = flow;
 
-    if (flow is AuthFlow) {
-      _currentRouterMap = _authRouter;
-    } else if (flow is SplashFlow) {
-      _currentRouterMap = _splashRouter;
-    } else {
-      throw Exception('Unknown flow');
+    switch (flow) {
+      case AuthFlow():
+        _currentRouter = _authRouter;
+
+      case SplashFlow():
+        _currentRouter = _splashRouter;
+
+      case HomeFlow():
+        _currentRouter = _homeRouter;
     }
 
-    return _currentRouterMap;
+    return _currentRouter;
   }
 
   GoRouter get _splashRouter => GoRouter(
@@ -65,24 +67,38 @@ class RoutersMap {
         ],
       );
 
-  GoRouter get _authRouter => GoRouter(
-        initialLocation: '/login',
-        redirect: (context, state) {
-          final flow = _currentFlow! as AuthFlow;
+  GoRouter get _homeRouter => GoRouter(
+        initialLocation: '/home',
+        routes: [
+          GoRoute(
+            path: '/home',
+            pageBuilder: (context, state) => MaterialPage<void>(
+              key: state.pageKey,
+              child:
+                  const ExceptionDialog<AppState>(child: HomePageConnector()),
+            ),
+          ),
+        ],
+      );
 
-          switch (flow.redirection) {
-            case AuthFlowRedirection.login:
+  GoRouter get _authRouter => GoRouter(
+        initialLocation: '/',
+        redirect: (context, state) {
+          switch (_currentFlow) {
+            case AuthFlow(:final redirection)
+                when redirection == AuthFlowRedirection.resetPassword:
+              return '/reset-password';
+            case AuthFlow(:final redirection)
+                when redirection == AuthFlowRedirection.createPassword:
+              return '/create-password';
+            case _:
               return null;
-            case AuthFlowRedirection.resetPassword:
-              return '/login/reset-password';
-            case AuthFlowRedirection.createPassword:
-              return '/login/create-password';
           }
         },
         routes: [
           GoRoute(
             name: Routes.login,
-            path: '/login',
+            path: '/',
             builder: (context, state) => const ExceptionDialog<AppState>(
               child: LogInPageConnector(),
             ),

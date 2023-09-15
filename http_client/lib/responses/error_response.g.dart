@@ -28,8 +28,16 @@ _$_ErrorItem _$$_ErrorItemFromJson(Map<String, dynamic> json) => _$_ErrorItem(
       detail: json['detail'] as String,
     );
 
-Map<String, dynamic> _$$_ErrorItemToJson(_$_ErrorItem instance) =>
-    <String, dynamic>{
-      'source': instance.source,
-      'detail': instance.detail,
-    };
+Map<String, dynamic> _$$_ErrorItemToJson(_$_ErrorItem instance) {
+  final val = <String, dynamic>{};
+
+  void writeNotNull(String key, dynamic value) {
+    if (value != null) {
+      val[key] = value;
+    }
+  }
+
+  writeNotNull('source', instance.source);
+  val['detail'] = instance.detail;
+  return val;
+}

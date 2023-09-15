@@ -8,11 +8,11 @@ import '../models/log_in_state.dart';
 
 class LogInWithEmailAction extends ReduxAction<AppState> {
   @override
-  void before() => dispatchSync(WaitAction.add(LogInWarning.wait));
+  void before() => dispatchSync(WaitAction.add(LogInWaiting.wait));
 
   @override
   void after() =>
-      dispatchSync(WaitAction.remove(LogInWarning.wait), notify: false);
+      dispatchSync(WaitAction.remove(LogInWaiting.wait), notify: false);
 
   @override
   Future<AppState> reduce() async {

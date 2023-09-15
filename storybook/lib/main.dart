@@ -27,13 +27,7 @@ class StoryBookApp extends StatelessWidget {
         home: Storybook(
           wrapperBuilder: (context, child) => Container(child: child),
           plugins: initializePlugins(
-            contentsSidePanel: true,
-            knobsSidePanel: true,
             enableThemeMode: false,
-            initialDeviceFrameData: DeviceFrameData(
-              isFrameVisible: false,
-              device: Devices.android.bigPhone,
-            ),
           ),
           stories: [
             ...logos,

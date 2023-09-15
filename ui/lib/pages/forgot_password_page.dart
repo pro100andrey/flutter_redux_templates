@@ -16,7 +16,7 @@ class ForgotPasswordPage extends StatelessWidget {
   });
 
   final bool isWaiting;
-  final ValueChangedWithErrorVm<String> email;
+  final ValueChangedWithErrorVm<String?> email;
   final VoidCallback? onPressedResetPassword;
   final VoidCallback onPressedBackToLogin;
 

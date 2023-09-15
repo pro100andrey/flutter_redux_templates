@@ -1,37 +1,19 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
-
-class ValuesChangedVm<T> extends Equatable {
-  const ValuesChangedVm({
-    this.onChanged = print,
-    this.values = const [],
-    this.items = const [],
-    this.enabled = true,
-  });
-
-  final bool enabled;
-  final List<T> values;
-  final List<T> items;
-  final ValueChanged<List<T>> onChanged;
-
-  @override
-  List<Object?> get props => [values, items, enabled];
-}
 
 void printD(Object? v) => print;
 
-class ValueChangedVm<T> extends Equatable {
-  const ValueChangedVm({
+typedef VoidCallbackVm = FutureOr Function();
+
+class BaseValueChangedVm<T> extends Equatable {
+  const BaseValueChangedVm({
     this.onChanged = printD,
-    this.value,
     this.enabled = true,
   });
 
   final bool enabled;
-  final T? value;
-  final FutureOr Function(T) onChanged;
+  final FutureOr Function(T value) onChanged;
 
   void onChangedSync(T value) {
     if (!_ifActionIsSync(onChanged)) {
@@ -57,7 +39,7 @@ class ValueChangedVm<T> extends Equatable {
   }
 
   @override
-  List<Object?> get props => [value, enabled];
+  List<Object?> get props => [enabled];
 }
 
 bool _ifActionIsSync<T>(FutureOr Function(T) action) {
@@ -69,32 +51,47 @@ bool _ifActionIsSync<T>(FutureOr Function(T) action) {
   return isSync;
 }
 
-class ValueChangedWithItemsVm<T> extends ValueChangedVm<T> {
-  const ValueChangedWithItemsVm({
-    super.onChanged,
-    super.value,
-    this.items = const [],
-    super.enabled = true,
+class ValueChangedVm<T> extends BaseValueChangedVm<T> {
+  const ValueChangedVm({
+    required this.value,
+    super.onChanged = printD,
+    super.enabled,
   });
 
+  final T value;
+
+  @override
+  List<Object?> get props => [value, enabled];
+}
+
+class ValueChangedWithItemsVm<T> extends BaseValueChangedVm<T> {
+  const ValueChangedWithItemsVm({
+    super.onChanged,
+    super.enabled = true,
+    this.value,
+    this.items = const [],
+  });
+
+  final T? value;
   final List<T> items;
 
   @override
-  List<Object?> get props => super.props + items;
+  List<Object?> get props => super.props + items + [value];
 }
 
-class ValueChangedWithErrorVm<T> extends ValueChangedVm<T> {
+class ValueChangedWithErrorVm<T> extends BaseValueChangedVm<T> {
   const ValueChangedWithErrorVm({
+    required this.value,
     super.onChanged,
-    super.value,
-    this.error,
     super.enabled = true,
+    this.error,
   });
 
+  final T value;
   final String? error;
 
   bool get isError => error != null;
 
   @override
-  List<Object?> get props => super.props + [error];
+  List<Object?> get props => super.props + [error, value];
 }

@@ -1,6 +1,9 @@
 import 'package:equatable/equatable.dart';
 
-class RoutersFlow extends Equatable {
+///
+sealed class RoutersFlow extends Equatable {
+  const RoutersFlow();
+
   @override
   List<Object?> get props => [];
 }
@@ -11,8 +14,8 @@ enum AuthFlowRedirection {
   createPassword;
 }
 
-class AuthFlow extends RoutersFlow {
-  AuthFlow({
+final class AuthFlow extends RoutersFlow {
+  const AuthFlow({
     required this.redirection,
   });
 
@@ -22,6 +25,10 @@ class AuthFlow extends RoutersFlow {
   List<Object?> get props => [redirection];
 }
 
-class SplashFlow extends RoutersFlow {}
+final class SplashFlow extends RoutersFlow {
+  const SplashFlow();
+}
 
-class HomeFlow extends RoutersFlow {}
+final class HomeFlow extends RoutersFlow {
+  const HomeFlow();
+}
