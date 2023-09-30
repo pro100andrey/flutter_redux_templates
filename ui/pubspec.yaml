@@ -16,18 +16,18 @@ dependencies:
   image_picker: ^1.0.4
   localization:
     path: ../localization
-  
+
 dev_dependencies:
   build_runner: ^2.4.6
-  flutter_gen_runner: ^5.3.1
+  flutter_gen_runner: ^5.3.2
   pro_lints: ^2.0.2
-  
+
 flutter:
   uses-material-design: true
   assets:
     - assets/placeholders/
     - assets/colors/
-    
+
 flutter_gen:
   colors:
     inputs:
