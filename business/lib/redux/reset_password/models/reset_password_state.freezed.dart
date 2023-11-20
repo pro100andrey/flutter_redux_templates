@@ -63,22 +63,22 @@ class _$ResetPasswordStateCopyWithImpl<$Res, $Val extends ResetPasswordState>
 }
 
 /// @nodoc
-abstract class _$$_ResetPasswordStateCopyWith<$Res>
+abstract class _$$ResetPasswordStateImplCopyWith<$Res>
     implements $ResetPasswordStateCopyWith<$Res> {
-  factory _$$_ResetPasswordStateCopyWith(_$_ResetPasswordState value,
-          $Res Function(_$_ResetPasswordState) then) =
-      __$$_ResetPasswordStateCopyWithImpl<$Res>;
+  factory _$$ResetPasswordStateImplCopyWith(_$ResetPasswordStateImpl value,
+          $Res Function(_$ResetPasswordStateImpl) then) =
+      __$$ResetPasswordStateImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({String? password, String? confirmPassword});
 }
 
 /// @nodoc
-class __$$_ResetPasswordStateCopyWithImpl<$Res>
-    extends _$ResetPasswordStateCopyWithImpl<$Res, _$_ResetPasswordState>
-    implements _$$_ResetPasswordStateCopyWith<$Res> {
-  __$$_ResetPasswordStateCopyWithImpl(
-      _$_ResetPasswordState _value, $Res Function(_$_ResetPasswordState) _then)
+class __$$ResetPasswordStateImplCopyWithImpl<$Res>
+    extends _$ResetPasswordStateCopyWithImpl<$Res, _$ResetPasswordStateImpl>
+    implements _$$ResetPasswordStateImplCopyWith<$Res> {
+  __$$ResetPasswordStateImplCopyWithImpl(_$ResetPasswordStateImpl _value,
+      $Res Function(_$ResetPasswordStateImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -87,7 +87,7 @@ class __$$_ResetPasswordStateCopyWithImpl<$Res>
     Object? password = freezed,
     Object? confirmPassword = freezed,
   }) {
-    return _then(_$_ResetPasswordState(
+    return _then(_$ResetPasswordStateImpl(
       password: freezed == password
           ? _value.password
           : password // ignore: cast_nullable_to_non_nullable
@@ -102,8 +102,8 @@ class __$$_ResetPasswordStateCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$_ResetPasswordState implements _ResetPasswordState {
-  const _$_ResetPasswordState({this.password, this.confirmPassword});
+class _$ResetPasswordStateImpl implements _ResetPasswordState {
+  const _$ResetPasswordStateImpl({this.password, this.confirmPassword});
 
   @override
   final String? password;
@@ -119,7 +119,7 @@ class _$_ResetPasswordState implements _ResetPasswordState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_ResetPasswordState &&
+            other is _$ResetPasswordStateImpl &&
             (identical(other.password, password) ||
                 other.password == password) &&
             (identical(other.confirmPassword, confirmPassword) ||
@@ -132,15 +132,15 @@ class _$_ResetPasswordState implements _ResetPasswordState {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_ResetPasswordStateCopyWith<_$_ResetPasswordState> get copyWith =>
-      __$$_ResetPasswordStateCopyWithImpl<_$_ResetPasswordState>(
+  _$$ResetPasswordStateImplCopyWith<_$ResetPasswordStateImpl> get copyWith =>
+      __$$ResetPasswordStateImplCopyWithImpl<_$ResetPasswordStateImpl>(
           this, _$identity);
 }
 
 abstract class _ResetPasswordState implements ResetPasswordState {
   const factory _ResetPasswordState(
       {final String? password,
-      final String? confirmPassword}) = _$_ResetPasswordState;
+      final String? confirmPassword}) = _$ResetPasswordStateImpl;
 
   @override
   String? get password;
@@ -148,6 +148,6 @@ abstract class _ResetPasswordState implements ResetPasswordState {
   String? get confirmPassword;
   @override
   @JsonKey(ignore: true)
-  _$$_ResetPasswordStateCopyWith<_$_ResetPasswordState> get copyWith =>
+  _$$ResetPasswordStateImplCopyWith<_$ResetPasswordStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

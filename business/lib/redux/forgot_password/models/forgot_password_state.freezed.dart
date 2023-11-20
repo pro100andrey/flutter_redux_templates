@@ -57,22 +57,22 @@ class _$ForgotPasswordStateCopyWithImpl<$Res, $Val extends ForgotPasswordState>
 }
 
 /// @nodoc
-abstract class _$$_ForgotPasswordStateCopyWith<$Res>
+abstract class _$$ForgotPasswordStateImplCopyWith<$Res>
     implements $ForgotPasswordStateCopyWith<$Res> {
-  factory _$$_ForgotPasswordStateCopyWith(_$_ForgotPasswordState value,
-          $Res Function(_$_ForgotPasswordState) then) =
-      __$$_ForgotPasswordStateCopyWithImpl<$Res>;
+  factory _$$ForgotPasswordStateImplCopyWith(_$ForgotPasswordStateImpl value,
+          $Res Function(_$ForgotPasswordStateImpl) then) =
+      __$$ForgotPasswordStateImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({String? email});
 }
 
 /// @nodoc
-class __$$_ForgotPasswordStateCopyWithImpl<$Res>
-    extends _$ForgotPasswordStateCopyWithImpl<$Res, _$_ForgotPasswordState>
-    implements _$$_ForgotPasswordStateCopyWith<$Res> {
-  __$$_ForgotPasswordStateCopyWithImpl(_$_ForgotPasswordState _value,
-      $Res Function(_$_ForgotPasswordState) _then)
+class __$$ForgotPasswordStateImplCopyWithImpl<$Res>
+    extends _$ForgotPasswordStateCopyWithImpl<$Res, _$ForgotPasswordStateImpl>
+    implements _$$ForgotPasswordStateImplCopyWith<$Res> {
+  __$$ForgotPasswordStateImplCopyWithImpl(_$ForgotPasswordStateImpl _value,
+      $Res Function(_$ForgotPasswordStateImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -80,7 +80,7 @@ class __$$_ForgotPasswordStateCopyWithImpl<$Res>
   $Res call({
     Object? email = freezed,
   }) {
-    return _then(_$_ForgotPasswordState(
+    return _then(_$ForgotPasswordStateImpl(
       email: freezed == email
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
@@ -91,8 +91,8 @@ class __$$_ForgotPasswordStateCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$_ForgotPasswordState implements _ForgotPasswordState {
-  const _$_ForgotPasswordState({this.email});
+class _$ForgotPasswordStateImpl implements _ForgotPasswordState {
+  const _$ForgotPasswordStateImpl({this.email});
 
   @override
   final String? email;
@@ -106,7 +106,7 @@ class _$_ForgotPasswordState implements _ForgotPasswordState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_ForgotPasswordState &&
+            other is _$ForgotPasswordStateImpl &&
             (identical(other.email, email) || other.email == email));
   }
 
@@ -116,19 +116,19 @@ class _$_ForgotPasswordState implements _ForgotPasswordState {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_ForgotPasswordStateCopyWith<_$_ForgotPasswordState> get copyWith =>
-      __$$_ForgotPasswordStateCopyWithImpl<_$_ForgotPasswordState>(
+  _$$ForgotPasswordStateImplCopyWith<_$ForgotPasswordStateImpl> get copyWith =>
+      __$$ForgotPasswordStateImplCopyWithImpl<_$ForgotPasswordStateImpl>(
           this, _$identity);
 }
 
 abstract class _ForgotPasswordState implements ForgotPasswordState {
   const factory _ForgotPasswordState({final String? email}) =
-      _$_ForgotPasswordState;
+      _$ForgotPasswordStateImpl;
 
   @override
   String? get email;
   @override
   @JsonKey(ignore: true)
-  _$$_ForgotPasswordStateCopyWith<_$_ForgotPasswordState> get copyWith =>
+  _$$ForgotPasswordStateImplCopyWith<_$ForgotPasswordStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

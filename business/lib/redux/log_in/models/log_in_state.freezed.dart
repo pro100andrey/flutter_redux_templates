@@ -63,22 +63,22 @@ class _$LogInStateCopyWithImpl<$Res, $Val extends LogInState>
 }
 
 /// @nodoc
-abstract class _$$_LogInStateCopyWith<$Res>
+abstract class _$$LogInStateImplCopyWith<$Res>
     implements $LogInStateCopyWith<$Res> {
-  factory _$$_LogInStateCopyWith(
-          _$_LogInState value, $Res Function(_$_LogInState) then) =
-      __$$_LogInStateCopyWithImpl<$Res>;
+  factory _$$LogInStateImplCopyWith(
+          _$LogInStateImpl value, $Res Function(_$LogInStateImpl) then) =
+      __$$LogInStateImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({String? email, String? password});
 }
 
 /// @nodoc
-class __$$_LogInStateCopyWithImpl<$Res>
-    extends _$LogInStateCopyWithImpl<$Res, _$_LogInState>
-    implements _$$_LogInStateCopyWith<$Res> {
-  __$$_LogInStateCopyWithImpl(
-      _$_LogInState _value, $Res Function(_$_LogInState) _then)
+class __$$LogInStateImplCopyWithImpl<$Res>
+    extends _$LogInStateCopyWithImpl<$Res, _$LogInStateImpl>
+    implements _$$LogInStateImplCopyWith<$Res> {
+  __$$LogInStateImplCopyWithImpl(
+      _$LogInStateImpl _value, $Res Function(_$LogInStateImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -87,7 +87,7 @@ class __$$_LogInStateCopyWithImpl<$Res>
     Object? email = freezed,
     Object? password = freezed,
   }) {
-    return _then(_$_LogInState(
+    return _then(_$LogInStateImpl(
       email: freezed == email
           ? _value.email
           : email // ignore: cast_nullable_to_non_nullable
@@ -102,8 +102,8 @@ class __$$_LogInStateCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$_LogInState implements _LogInState {
-  const _$_LogInState({this.email, this.password});
+class _$LogInStateImpl implements _LogInState {
+  const _$LogInStateImpl({this.email, this.password});
 
   @override
   final String? email;
@@ -119,7 +119,7 @@ class _$_LogInState implements _LogInState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_LogInState &&
+            other is _$LogInStateImpl &&
             (identical(other.email, email) || other.email == email) &&
             (identical(other.password, password) ||
                 other.password == password));
@@ -131,13 +131,13 @@ class _$_LogInState implements _LogInState {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_LogInStateCopyWith<_$_LogInState> get copyWith =>
-      __$$_LogInStateCopyWithImpl<_$_LogInState>(this, _$identity);
+  _$$LogInStateImplCopyWith<_$LogInStateImpl> get copyWith =>
+      __$$LogInStateImplCopyWithImpl<_$LogInStateImpl>(this, _$identity);
 }
 
 abstract class _LogInState implements LogInState {
   const factory _LogInState({final String? email, final String? password}) =
-      _$_LogInState;
+      _$LogInStateImpl;
 
   @override
   String? get email;
@@ -145,6 +145,6 @@ abstract class _LogInState implements LogInState {
   String? get password;
   @override
   @JsonKey(ignore: true)
-  _$$_LogInStateCopyWith<_$_LogInState> get copyWith =>
+  _$$LogInStateImplCopyWith<_$LogInStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

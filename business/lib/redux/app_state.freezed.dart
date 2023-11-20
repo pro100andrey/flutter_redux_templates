@@ -138,10 +138,11 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
 }
 
 /// @nodoc
-abstract class _$$_AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
-  factory _$$_AppStateCopyWith(
-          _$_AppState value, $Res Function(_$_AppState) then) =
-      __$$_AppStateCopyWithImpl<$Res>;
+abstract class _$$AppStateImplCopyWith<$Res>
+    implements $AppStateCopyWith<$Res> {
+  factory _$$AppStateImplCopyWith(
+          _$AppStateImpl value, $Res Function(_$AppStateImpl) then) =
+      __$$AppStateImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -165,11 +166,11 @@ abstract class _$$_AppStateCopyWith<$Res> implements $AppStateCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$_AppStateCopyWithImpl<$Res>
-    extends _$AppStateCopyWithImpl<$Res, _$_AppState>
-    implements _$$_AppStateCopyWith<$Res> {
-  __$$_AppStateCopyWithImpl(
-      _$_AppState _value, $Res Function(_$_AppState) _then)
+class __$$AppStateImplCopyWithImpl<$Res>
+    extends _$AppStateCopyWithImpl<$Res, _$AppStateImpl>
+    implements _$$AppStateImplCopyWith<$Res> {
+  __$$AppStateImplCopyWithImpl(
+      _$AppStateImpl _value, $Res Function(_$AppStateImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -182,7 +183,7 @@ class __$$_AppStateCopyWithImpl<$Res>
     Object? resetPassword = null,
     Object? wait = null,
   }) {
-    return _then(_$_AppState(
+    return _then(_$AppStateImpl(
       connectivity: null == connectivity
           ? _value.connectivity
           : connectivity // ignore: cast_nullable_to_non_nullable
@@ -213,8 +214,8 @@ class __$$_AppStateCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$_AppState implements _AppState {
-  const _$_AppState(
+class _$AppStateImpl implements _AppState {
+  const _$AppStateImpl(
       {required this.connectivity,
       required this.logIn,
       required this.registration,
@@ -244,7 +245,7 @@ class _$_AppState implements _AppState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_AppState &&
+            other is _$AppStateImpl &&
             (identical(other.connectivity, connectivity) ||
                 other.connectivity == connectivity) &&
             (identical(other.logIn, logIn) || other.logIn == logIn) &&
@@ -264,8 +265,8 @@ class _$_AppState implements _AppState {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_AppStateCopyWith<_$_AppState> get copyWith =>
-      __$$_AppStateCopyWithImpl<_$_AppState>(this, _$identity);
+  _$$AppStateImplCopyWith<_$AppStateImpl> get copyWith =>
+      __$$AppStateImplCopyWithImpl<_$AppStateImpl>(this, _$identity);
 }
 
 abstract class _AppState implements AppState {
@@ -275,7 +276,7 @@ abstract class _AppState implements AppState {
       required final RegistrationState registration,
       required final ForgotPasswordState forgotPassword,
       required final ResetPasswordState resetPassword,
-      required final Wait wait}) = _$_AppState;
+      required final Wait wait}) = _$AppStateImpl;
 
   @override
   ConnectivityState get connectivity;
@@ -291,6 +292,6 @@ abstract class _AppState implements AppState {
   Wait get wait;
   @override
   @JsonKey(ignore: true)
-  _$$_AppStateCopyWith<_$_AppState> get copyWith =>
+  _$$AppStateImplCopyWith<_$AppStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
