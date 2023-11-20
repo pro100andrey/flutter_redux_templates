@@ -57,22 +57,22 @@ class _$ConnectivityStateCopyWithImpl<$Res, $Val extends ConnectivityState>
 }
 
 /// @nodoc
-abstract class _$$_ConnectivityStateCopyWith<$Res>
+abstract class _$$ConnectivityStateImplCopyWith<$Res>
     implements $ConnectivityStateCopyWith<$Res> {
-  factory _$$_ConnectivityStateCopyWith(_$_ConnectivityState value,
-          $Res Function(_$_ConnectivityState) then) =
-      __$$_ConnectivityStateCopyWithImpl<$Res>;
+  factory _$$ConnectivityStateImplCopyWith(_$ConnectivityStateImpl value,
+          $Res Function(_$ConnectivityStateImpl) then) =
+      __$$ConnectivityStateImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({bool isAvailable});
 }
 
 /// @nodoc
-class __$$_ConnectivityStateCopyWithImpl<$Res>
-    extends _$ConnectivityStateCopyWithImpl<$Res, _$_ConnectivityState>
-    implements _$$_ConnectivityStateCopyWith<$Res> {
-  __$$_ConnectivityStateCopyWithImpl(
-      _$_ConnectivityState _value, $Res Function(_$_ConnectivityState) _then)
+class __$$ConnectivityStateImplCopyWithImpl<$Res>
+    extends _$ConnectivityStateCopyWithImpl<$Res, _$ConnectivityStateImpl>
+    implements _$$ConnectivityStateImplCopyWith<$Res> {
+  __$$ConnectivityStateImplCopyWithImpl(_$ConnectivityStateImpl _value,
+      $Res Function(_$ConnectivityStateImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -80,7 +80,7 @@ class __$$_ConnectivityStateCopyWithImpl<$Res>
   $Res call({
     Object? isAvailable = null,
   }) {
-    return _then(_$_ConnectivityState(
+    return _then(_$ConnectivityStateImpl(
       isAvailable: null == isAvailable
           ? _value.isAvailable
           : isAvailable // ignore: cast_nullable_to_non_nullable
@@ -91,8 +91,8 @@ class __$$_ConnectivityStateCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$_ConnectivityState implements _ConnectivityState {
-  const _$_ConnectivityState({this.isAvailable = true});
+class _$ConnectivityStateImpl implements _ConnectivityState {
+  const _$ConnectivityStateImpl({this.isAvailable = true});
 
   @override
   @JsonKey()
@@ -107,7 +107,7 @@ class _$_ConnectivityState implements _ConnectivityState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_ConnectivityState &&
+            other is _$ConnectivityStateImpl &&
             (identical(other.isAvailable, isAvailable) ||
                 other.isAvailable == isAvailable));
   }
@@ -118,19 +118,19 @@ class _$_ConnectivityState implements _ConnectivityState {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_ConnectivityStateCopyWith<_$_ConnectivityState> get copyWith =>
-      __$$_ConnectivityStateCopyWithImpl<_$_ConnectivityState>(
+  _$$ConnectivityStateImplCopyWith<_$ConnectivityStateImpl> get copyWith =>
+      __$$ConnectivityStateImplCopyWithImpl<_$ConnectivityStateImpl>(
           this, _$identity);
 }
 
 abstract class _ConnectivityState implements ConnectivityState {
   const factory _ConnectivityState({final bool isAvailable}) =
-      _$_ConnectivityState;
+      _$ConnectivityStateImpl;
 
   @override
   bool get isAvailable;
   @override
   @JsonKey(ignore: true)
-  _$$_ConnectivityStateCopyWith<_$_ConnectivityState> get copyWith =>
+  _$$ConnectivityStateImplCopyWith<_$ConnectivityStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

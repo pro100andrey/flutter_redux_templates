@@ -6,12 +6,13 @@ part of 'login_body.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$_LoginBody _$$_LoginBodyFromJson(Map<String, dynamic> json) => _$_LoginBody(
+_$LoginBodyImpl _$$LoginBodyImplFromJson(Map<String, dynamic> json) =>
+    _$LoginBodyImpl(
       email: json['email'] as String,
       password: json['password'] as String,
     );
 
-Map<String, dynamic> _$$_LoginBodyToJson(_$_LoginBody instance) =>
+Map<String, dynamic> _$$LoginBodyImplToJson(_$LoginBodyImpl instance) =>
     <String, dynamic>{
       'email': instance.email,
       'password': instance.password,

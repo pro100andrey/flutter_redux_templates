@@ -6,15 +6,15 @@ part of 'error_response.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$_ServerError _$$_ServerErrorFromJson(Map<String, dynamic> json) =>
-    _$_ServerError(
+_$ServerErrorImpl _$$ServerErrorImplFromJson(Map<String, dynamic> json) =>
+    _$ServerErrorImpl(
       type: json['type'] as String,
       errors: IList<ErrorItem>.fromJson(json['errors'],
           (value) => ErrorItem.fromJson(value as Map<String, dynamic>)),
       code: json['code'] as int,
     );
 
-Map<String, dynamic> _$$_ServerErrorToJson(_$_ServerError instance) =>
+Map<String, dynamic> _$$ServerErrorImplToJson(_$ServerErrorImpl instance) =>
     <String, dynamic>{
       'type': instance.type,
       'errors': instance.errors.toJson(
@@ -23,12 +23,13 @@ Map<String, dynamic> _$$_ServerErrorToJson(_$_ServerError instance) =>
       'code': instance.code,
     };
 
-_$_ErrorItem _$$_ErrorItemFromJson(Map<String, dynamic> json) => _$_ErrorItem(
+_$ErrorItemImpl _$$ErrorItemImplFromJson(Map<String, dynamic> json) =>
+    _$ErrorItemImpl(
       source: json['source'] as String?,
       detail: json['detail'] as String,
     );
 
-Map<String, dynamic> _$$_ErrorItemToJson(_$_ErrorItem instance) {
+Map<String, dynamic> _$$ErrorItemImplToJson(_$ErrorItemImpl instance) {
   final val = <String, dynamic>{};
 
   void writeNotNull(String key, dynamic value) {
