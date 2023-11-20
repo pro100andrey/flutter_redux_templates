@@ -7,7 +7,7 @@ environment:
    sdk: ^3.0.0
 
 dependencies:
-  async_redux: ^20.0.2
+  async_redux: ^21.0.0
   business:
     path: ../business
   equatable: ^2.0.5
@@ -15,7 +15,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  go_router: ^11.1.2
+  go_router: ^12.1.1
   localization:
     path: ../localization
   pro_validator: ^2.0.1
@@ -32,7 +32,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  pro_lints: ^2.0.1
+  pro_lints: ^2.0.2
 
 flutter:
   uses-material-design: true
