@@ -1,13 +1,22 @@
 import 'dart:developer';
+
 import 'package:logging/logging.dart';
 
-void setupRootLogger({bool isDebugMode = false}) {
+void setupRootLogger({bool isDebugMode = false, List<String>? ignoredLoggers}) {
+  if (!isDebugMode) {
+    return;
+  }
+
   // only enable logging for debug mode
   Logger.root.level = isDebugMode ? Level.ALL : Level.OFF;
   hierarchicalLoggingEnabled = true;
 
   Logger.root.onRecord.listen((rec) {
     if (!isDebugMode) {
+      return;
+    }
+
+    if (ignoredLoggers?.toSet().contains(rec.loggerName) ?? false) {
       return;
     }
 
@@ -22,37 +31,40 @@ void setupRootLogger({bool isDebugMode = false}) {
 
     var startColor = grayColor;
 
-    switch (rec.level.name) {
-      case 'INFO':
+    switch (rec.level) {
+      case Level.INFO:
         startColor = infoColor;
-      case 'WARNING':
+
+      case Level.WARNING:
         startColor = warningColor;
-      case 'SEVERE':
+
+      case Level.SEVERE:
         startColor = severeColor;
-      case 'SHOUT':
+
+      case Level.SHOUT:
         startColor = shoutColor;
     }
 
-    final time = rec.time;
-    final level = rec.level.name;
-    final message = rec.message;
-    final logger = rec.loggerName;
-
-    final fullMessage = '$whiteColor$time$endColor '
-        '$levelColor$level$endColor '
-        '$startColor$message$endColor';
+    final fullMessage = '$whiteColor${rec.time}$endColor '
+        '$levelColor${rec.level.name}$endColor '
+        '$startColor${rec.message}$endColor';
 
     const kIsWeb = identical(0, 0.0);
 
     if (!kIsWeb) {
       log(
         fullMessage,
-        time: time,
-        name: logger,
+        time: rec.time,
+        name: rec.loggerName,
+        sequenceNumber: rec.sequenceNumber,
+        zone: rec.zone,
+        level: rec.level.value,
+        error: rec.error,
+        stackTrace: rec.stackTrace,
       );
     } else {
       // ignore: avoid_print
-      print('[$logger] $fullMessage');
+      print('[${rec.loggerName}] $fullMessage');
     }
   });
 }
