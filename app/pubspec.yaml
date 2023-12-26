@@ -36,3 +36,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    # BASE_URL="http://localhost:8080"
+    - .env

@@ -16,13 +16,23 @@ class LogInWithEmailAction extends ReduxAction<AppState> {
 
   @override
   Future<AppState> reduce() async {
-    // ignore: unused_local_variable
-    final email = selectLogInEmail(state);
-    // ignore: unused_local_variable
-    final password = selectLogInPassword(state);
-    // async login request ...
-    await Future<dynamic>.delayed(const Duration(seconds: 2));
+    final email = selectLogInEmail(state)!;
+    final password = selectLogInPassword(state)!;
+
+    await _logInWithEmailRequest(
+      email: email,
+      password: password,
+    );
 
     return state.copyWith(logIn: const LogInState());
   }
+}
+
+Future<void> _logInWithEmailRequest({
+  required String email,
+  required String password,
+}) async {
+  await Future<dynamic>.delayed(const Duration(seconds: 2));
+
+  throw const UserException('Not implemented yet.');
 }

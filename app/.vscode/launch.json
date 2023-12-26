@@ -5,7 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "App Debug",
+            "name": "App dev (debug)",
+            "request": "launch",
+            "program": "lib/dev.dart",
+            "type": "dart",
+            "flutterMode": "debug",
+        },
+        {
+            "name": "App prod (debug)",
             "request": "launch",
             "program": "lib/main.dart",
             "type": "dart",

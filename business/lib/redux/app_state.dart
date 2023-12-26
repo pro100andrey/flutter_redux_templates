@@ -6,6 +6,7 @@ import 'forgot_password/models/forgot_password_state.dart';
 import 'log_in/models/log_in_state.dart';
 import 'registration/models/registration_state.dart';
 import 'reset_password/models/reset_password_state.dart';
+import 'session/models/session_state.dart';
 
 export 'base_factory.dart';
 
@@ -19,6 +20,7 @@ class AppState with _$AppState {
     required RegistrationState registration,
     required ForgotPasswordState forgotPassword,
     required ResetPasswordState resetPassword,
+    required SessionState session,
     required Wait wait,
   }) = _AppState;
 
@@ -28,6 +30,7 @@ class AppState with _$AppState {
         registration: RegistrationState(),
         forgotPassword: ForgotPasswordState(),
         resetPassword: ResetPasswordState(),
+        session: SessionState(),
         wait: Wait.empty,
       );
 }
