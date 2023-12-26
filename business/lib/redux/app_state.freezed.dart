@@ -21,6 +21,7 @@ mixin _$AppState {
   RegistrationState get registration => throw _privateConstructorUsedError;
   ForgotPasswordState get forgotPassword => throw _privateConstructorUsedError;
   ResetPasswordState get resetPassword => throw _privateConstructorUsedError;
+  SessionState get session => throw _privateConstructorUsedError;
   Wait get wait => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
@@ -39,6 +40,7 @@ abstract class $AppStateCopyWith<$Res> {
       RegistrationState registration,
       ForgotPasswordState forgotPassword,
       ResetPasswordState resetPassword,
+      SessionState session,
       Wait wait});
 
   $ConnectivityStateCopyWith<$Res> get connectivity;
@@ -46,6 +48,7 @@ abstract class $AppStateCopyWith<$Res> {
   $RegistrationStateCopyWith<$Res> get registration;
   $ForgotPasswordStateCopyWith<$Res> get forgotPassword;
   $ResetPasswordStateCopyWith<$Res> get resetPassword;
+  $SessionStateCopyWith<$Res> get session;
 }
 
 /// @nodoc
@@ -66,6 +69,7 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
     Object? registration = null,
     Object? forgotPassword = null,
     Object? resetPassword = null,
+    Object? session = null,
     Object? wait = null,
   }) {
     return _then(_value.copyWith(
@@ -89,6 +93,10 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
           ? _value.resetPassword
           : resetPassword // ignore: cast_nullable_to_non_nullable
               as ResetPasswordState,
+      session: null == session
+          ? _value.session
+          : session // ignore: cast_nullable_to_non_nullable
+              as SessionState,
       wait: null == wait
           ? _value.wait
           : wait // ignore: cast_nullable_to_non_nullable
@@ -135,6 +143,14 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
       return _then(_value.copyWith(resetPassword: value) as $Val);
     });
   }
+
+  @override
+  @pragma('vm:prefer-inline')
+  $SessionStateCopyWith<$Res> get session {
+    return $SessionStateCopyWith<$Res>(_value.session, (value) {
+      return _then(_value.copyWith(session: value) as $Val);
+    });
+  }
 }
 
 /// @nodoc
@@ -151,6 +167,7 @@ abstract class _$$AppStateImplCopyWith<$Res>
       RegistrationState registration,
       ForgotPasswordState forgotPassword,
       ResetPasswordState resetPassword,
+      SessionState session,
       Wait wait});
 
   @override
@@ -163,6 +180,8 @@ abstract class _$$AppStateImplCopyWith<$Res>
   $ForgotPasswordStateCopyWith<$Res> get forgotPassword;
   @override
   $ResetPasswordStateCopyWith<$Res> get resetPassword;
+  @override
+  $SessionStateCopyWith<$Res> get session;
 }
 
 /// @nodoc
@@ -181,6 +200,7 @@ class __$$AppStateImplCopyWithImpl<$Res>
     Object? registration = null,
     Object? forgotPassword = null,
     Object? resetPassword = null,
+    Object? session = null,
     Object? wait = null,
   }) {
     return _then(_$AppStateImpl(
@@ -204,6 +224,10 @@ class __$$AppStateImplCopyWithImpl<$Res>
           ? _value.resetPassword
           : resetPassword // ignore: cast_nullable_to_non_nullable
               as ResetPasswordState,
+      session: null == session
+          ? _value.session
+          : session // ignore: cast_nullable_to_non_nullable
+              as SessionState,
       wait: null == wait
           ? _value.wait
           : wait // ignore: cast_nullable_to_non_nullable
@@ -221,6 +245,7 @@ class _$AppStateImpl implements _AppState {
       required this.registration,
       required this.forgotPassword,
       required this.resetPassword,
+      required this.session,
       required this.wait});
 
   @override
@@ -234,11 +259,13 @@ class _$AppStateImpl implements _AppState {
   @override
   final ResetPasswordState resetPassword;
   @override
+  final SessionState session;
+  @override
   final Wait wait;
 
   @override
   String toString() {
-    return 'AppState(connectivity: $connectivity, logIn: $logIn, registration: $registration, forgotPassword: $forgotPassword, resetPassword: $resetPassword, wait: $wait)';
+    return 'AppState(connectivity: $connectivity, logIn: $logIn, registration: $registration, forgotPassword: $forgotPassword, resetPassword: $resetPassword, session: $session, wait: $wait)';
   }
 
   @override
@@ -255,12 +282,13 @@ class _$AppStateImpl implements _AppState {
                 other.forgotPassword == forgotPassword) &&
             (identical(other.resetPassword, resetPassword) ||
                 other.resetPassword == resetPassword) &&
+            (identical(other.session, session) || other.session == session) &&
             (identical(other.wait, wait) || other.wait == wait));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, connectivity, logIn,
-      registration, forgotPassword, resetPassword, wait);
+      registration, forgotPassword, resetPassword, session, wait);
 
   @JsonKey(ignore: true)
   @override
@@ -276,6 +304,7 @@ abstract class _AppState implements AppState {
       required final RegistrationState registration,
       required final ForgotPasswordState forgotPassword,
       required final ResetPasswordState resetPassword,
+      required final SessionState session,
       required final Wait wait}) = _$AppStateImpl;
 
   @override
@@ -288,6 +317,8 @@ abstract class _AppState implements AppState {
   ForgotPasswordState get forgotPassword;
   @override
   ResetPasswordState get resetPassword;
+  @override
+  SessionState get session;
   @override
   Wait get wait;
   @override

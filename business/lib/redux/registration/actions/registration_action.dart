@@ -13,13 +13,20 @@ class RegistrationAction extends ReduxAction<AppState> {
 
   @override
   Future<AppState?> reduce() async {
-    // ignore: unused_local_variable
     final email = selectRegistrationEmail(state)!;
-    // ignore: unused_local_variable
     final password = selectRegistrationPassword(state)!;
-    // async registration request ...
-    await Future<dynamic>.delayed(const Duration(seconds: 2));
+
+    await _signUpRequest(email: email, password: password);
 
     return state.copyWith(registration: const RegistrationState());
   }
+}
+
+Future<void> _signUpRequest({
+  required String email,
+  required String password,
+}) async {
+  await Future<dynamic>.delayed(const Duration(seconds: 2));
+
+  throw const UserException('Not implemented yet.');
 }
