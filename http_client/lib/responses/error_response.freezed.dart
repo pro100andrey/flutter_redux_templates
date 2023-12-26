@@ -138,7 +138,7 @@ class _$ServerErrorImpl implements _ServerError {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ServerErrorImpl &&
@@ -296,7 +296,7 @@ class _$ErrorItemImpl implements _ErrorItem {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ErrorItemImpl &&

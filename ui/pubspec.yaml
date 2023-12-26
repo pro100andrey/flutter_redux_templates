@@ -13,7 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_svg: ^2.0.9
-  image_picker: ^1.0.4
+  image_picker: ^1.0.5
   localization:
     path: ../localization
 
