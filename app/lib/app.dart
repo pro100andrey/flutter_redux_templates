@@ -1,5 +1,6 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/session/session_selectors.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -55,11 +56,17 @@ class _Factory extends BaseFactory<AppConnector, _Vm> {
   _Factory(super.connector);
 
   @override
-  _Vm fromStore() => _Vm(
-        flow: const AuthFlow(
-          redirection: AuthFlowRedirection.login,
-        ),
-      );
+  _Vm fromStore() {
+    if (selectIsSessionAvailable(state)) {
+      return _Vm(flow: const HomeFlow());
+    }
+
+    return _Vm(
+      flow: const AuthFlow(
+        redirection: AuthFlowRedirection.login,
+      ),
+    );
+  }
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
