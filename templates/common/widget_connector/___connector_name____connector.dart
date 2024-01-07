@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 
 class ___ConnectorName___Connector extends StatelessWidget {
   const ___ConnectorName___Connector({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  }) ;
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
@@ -17,8 +17,8 @@ class ___ConnectorName___Connector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, ___ConnectorName___Connector> {
-  _Factory(___ConnectorName___Connector widget) : super(widget);
+class _Factory extends VmFactory<AppState, ___ConnectorName___Connector, _Vm> {
+  _Factory(super._connector);
 
   @override
   _Vm fromStore() => _Vm();

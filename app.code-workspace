@@ -33,10 +33,6 @@
 			"path": "storage"
 		},
 		{
-			"name": "utils",
-			"path": "utils"
-		},
-		{
 			"name": "localization",
 			"path": "localization"
 		},
