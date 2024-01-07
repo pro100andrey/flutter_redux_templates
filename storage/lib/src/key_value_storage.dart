@@ -1,11 +1,3 @@
-import 'package:hive/hive.dart';
-import 'package:path_provider/path_provider.dart';
-
-Future<void> initHiveStorage() async {
-  final dir = await getApplicationDocumentsDirectory();
-  Hive.init(dir.path);
-}
-
 abstract class KeyValueStorage {
   KeyValueStorage({
     required this.storageName,

@@ -14,21 +14,20 @@ class KeyValueSecurityStorageImpl extends KeyValueStorage {
 
   late final encryptionCipher = HiveAesCipher(base64Url.decode(key));
 
-  Future<Box<dynamic>> get _box => Hive.openBox<dynamic>(
+  Future<Box<dynamic>> get box => Hive.openBox<dynamic>(
         storageName,
         encryptionCipher: encryptionCipher,
       );
 
   @override
-  Future<T?> get<T>(String key) async => (await _box).get(key) as T;
+  Future<T?> get<T>(String key) async => (await box).get(key) as T;
 
   @override
-  Future<void> put<T>(String key, T value) async =>
-      (await _box).put(key, value);
+  Future<void> put<T>(String key, T value) async => (await box).put(key, value);
 
   @override
-  Future<void> clear() async => (await _box).clear();
+  Future<void> clear() async => (await box).clear();
 
   @override
-  Future<void> delete(String key) async => (await _box).delete(key);
+  Future<void> delete(String key) async => (await box).delete(key);
 }

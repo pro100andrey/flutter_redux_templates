@@ -29,7 +29,7 @@ class RoutersMap {
 
   static final RoutersMap instance = RoutersMap._();
 
-  late GoRouter _currentRouter;
+  late GoRouter _currentRouter = _splashRouter;
 
   RoutersFlow _currentFlow = const SplashFlow();
 
@@ -40,18 +40,15 @@ class RoutersMap {
 
     _currentFlow = flow;
 
-    switch (flow) {
-      case AuthFlow():
-        _currentRouter = _authRouter;
+    final newRouter = switch (flow) {
+      AuthFlow() => _authRouter,
+      SplashFlow() => _splashRouter,
+      HomeFlow() => _homeRouter,
+    };
 
-      case SplashFlow():
-        _currentRouter = _splashRouter;
+    _currentRouter = newRouter;
 
-      case HomeFlow():
-        _currentRouter = _homeRouter;
-    }
-
-    return _currentRouter;
+    return newRouter;
   }
 
   GoRouter get _splashRouter => GoRouter(

@@ -8,8 +8,6 @@ import 'registration/models/registration_state.dart';
 import 'reset_password/models/reset_password_state.dart';
 import 'session/models/session_state.dart';
 
-export 'base_factory.dart';
-
 part 'app_state.freezed.dart';
 
 @freezed

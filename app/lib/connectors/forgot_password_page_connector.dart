@@ -30,8 +30,8 @@ class ForgotPasswordPageConnector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends BaseFactory<ForgotPasswordPageConnector, _Vm> {
-  _Factory(super.connector);
+class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector, _Vm> {
+  _Factory(super._connector);
 
   @override
   _Vm fromStore() {

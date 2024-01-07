@@ -29,7 +29,7 @@ function cleanup() {
 
     if [  "$format" = true ]; then
         log "dart format ."
-        dart format --fix .    
+        dart format --fix .
     fi
 
     cleanup_podfile "$(pwd)/ios"
@@ -46,27 +46,26 @@ function cleanup() {
 function cleanup_podfile() {
     local dir=$1
     local file="$dir/Podfile.lock"
-    
+
     if [ -f "$file" ]; then
-        
+
         pushd $dir
-        
+
         log "remove podfile: $file"
         rm $file
 
         log "pod install --repo-update"
-        pod install --repo-update 
-        
+        pod install --repo-update
+
         popd
     fi
 }
 
-# clenup ags: 1 dir, 2 rebuild, 3 format
+# clenup args: 1 dir, 2 rebuild, 3 format
 cleanup "../localization" false false
-cleanup "../models" true true
-cleanup "../utils" false true
-cleanup "../http_client" true true
 cleanup "../storage" false true
+cleanup "../models" true true
+cleanup "../http_client" true true
 cleanup "../business" true true
 cleanup "../ui" true true
 cleanup "../storybook" false true
