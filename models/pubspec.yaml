@@ -9,7 +9,7 @@ environment:
 dependencies:
   fast_immutable_collections: ^9.2.0
   freezed_annotation: ^2.4.1
-  intl: ^0.18.0
+  intl: ^0.18.1
   json_annotation: ^4.8.1
 
 dev_dependencies:

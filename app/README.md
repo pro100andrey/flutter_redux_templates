@@ -2,15 +2,17 @@
 
 A new Flutter project.
 
-## Getting Started
+## .env
 
-This project is a starting point for a Flutter application.
+Create a `.env` file in the root of the project (`app/.env`) with the following content:
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+BASE_URL=https://api.example.com
+```
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Cleanup
+
+```bash
+./scripts/cleanup
+```
