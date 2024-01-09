@@ -15,13 +15,3 @@ It has four characteristics:
 ## Modules UML
 
 ![Image](doc/out/modules/modules.png)
-
-## VSCode plugins
-
-- Dart [GitHub](https://github.com/Dart-Code/Dart-Code) | [Marketplace](https://marketplace.visualstudio.com/items?itemName=Dart-Code.dart-code)
-
-- Flutter [GitHub](https://github.com/Dart-Code/Flutter) | [Marketplace](https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter)
-
-- Flutter Intl [GitHub](https://github.com/localizely/flutter-intl-vscode) | [Marketplace](https://marketplace.visualstudio.com/items?itemName=localizely.flutter-intl)
-
-- Code Template Tool [GitHub](https://github.com/yuanhjty/code-template-tool) | [Marketplace](https://marketplace.visualstudio.com/items?itemName=yuanhjty.code-template-tool)
