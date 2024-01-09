@@ -7,6 +7,7 @@
     "gaetschwartz.build-runner",
     "usernamehw.errorlens",
     "humao.rest-client",
-    "yuanhjty.code-template-tool"
+    "yuanhjty.code-template-tool",
+    "pflannery.vscode-versionlens"
   ]
 }

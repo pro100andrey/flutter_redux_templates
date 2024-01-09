@@ -1,3 +1,11 @@
+global_options:
+  freezed:
+    runs_before:
+      - json_serializable
+  json_serializable:
+    runs_before:
+      - retrofit_generator
+
 targets:
   $default:
     builders:
@@ -7,7 +15,7 @@ targets:
       freezed:
         options:
           map: false
-          when: 
+          when:
             when: false
             maybe_when: false
             when_or_null: false
