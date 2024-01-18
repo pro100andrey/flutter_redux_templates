@@ -3,7 +3,7 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import '../app_state.dart';
 import 'models/___state_name____state.dart';
 
-/// returns waiting value
+/// Returns waiting value
 bool select___StateName___IsWaiting(AppState state) =>
     state.wait.isWaitingFor(___StateName___Waiting.wait);
 
