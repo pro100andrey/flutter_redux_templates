@@ -1,9 +1,8 @@
-import 'dart:async';
+import 'dart:collection';
 
 import 'package:async_redux/async_redux.dart';
-import 'package:business/redux/app_state.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:localization/localization.dart';
 
 /// Use it like this:
 ///
@@ -14,7 +13,7 @@ import 'package:localization/localization.dart';
 ///     => StoreProvider<AppState>(
 ///       store: store,
 ///       child: MaterialApp(
-///           home: ExceptionDialog<AppState>(
+///           home: UserExceptionDialog<AppState>(
 ///             child: MyHomePage(),
 ///           )));
 /// }
@@ -26,11 +25,10 @@ import 'package:localization/localization.dart';
 class ExceptionDialog<St> extends StatelessWidget {
   const ExceptionDialog({
     required this.child,
+    super.key,
     this.onShowUserExceptionDialog,
     this.useLocalContext = false,
-    super.key,
   });
-
   final Widget child;
   final ShowUserExceptionDialog? onShowUserExceptionDialog;
 
@@ -48,83 +46,87 @@ class ExceptionDialog<St> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => StoreConnector<St, _Vm>(
-        model: _Vm(),
-        debug: this,
-        builder: (context, vm) => _ExceptionDialogWidget(
-          child,
-          vm.error,
-          onShowUserExceptionDialog,
-          useLocalContext: useLocalContext,
-        ),
+        vm: _Factory<St>.new,
+        builder: (context, vm) {
+          //
+          final errorEvent = //
+              (_Factory._errorEvents.isEmpty) //
+                  ? null
+                  : _Factory._errorEvents.removeFirst();
+
+          return _UserExceptionDialogWidget(
+            errorEvent: errorEvent,
+            useLocalContext: useLocalContext,
+            onShowUserExceptionDialog: onShowUserExceptionDialog,
+            child: child,
+          );
+        },
       );
 }
 
-// ////////////////////////////////////////////////////////////////////////////
-
-// ignore: prefer-single-widget-per-file
-class _ExceptionDialogWidget extends StatefulWidget {
-  const _ExceptionDialogWidget(
-    this.child,
-    this.error,
-    ShowUserExceptionDialog? onShowUserExceptionDialog, {
+class _UserExceptionDialogWidget extends StatefulWidget {
+  const _UserExceptionDialogWidget({
+    required this.child,
+    required this.errorEvent,
     required this.useLocalContext,
+    ShowUserExceptionDialog? onShowUserExceptionDialog,
   }) : onShowUserExceptionDialog = //
             onShowUserExceptionDialog ?? _defaultUserExceptionDialog;
-
   final Widget child;
-  final Event<UserException>? error;
+  final Event<UserException>? errorEvent;
   final ShowUserExceptionDialog onShowUserExceptionDialog;
   final bool useLocalContext;
 
-  static void _defaultUserExceptionDialog({
+  static Future<void> _defaultUserExceptionDialog({
     required BuildContext context,
     required UserException userException,
     required bool useLocalContext,
-  }) {
-    var resultContext = context;
+  }) async {
+    var ctx = context;
     if (!useLocalContext) {
       final navigatorContext = NavigateAction.navigatorKey?.currentContext;
       if (navigatorContext != null) {
-        resultContext = navigatorContext;
+        ctx = navigatorContext;
       }
     }
 
-    final title = userException.dialogTitle();
-    final content = userException.dialogContent();
-
-    unawaited(
-      _showDialogSuper<int>(
-        context: resultContext,
-        onDismissed: (result) {
-          if (result == 1) {
+    await showDialogSuper<int>(
+      context: ctx,
+      onDismissed: (result) {
+        if (result == 1) {
+          userException.onOk?.call();
+        } else if (result == 2) {
+          userException.onCancel?.call();
+        } else {
+          if (userException.onCancel == null) {
             userException.onOk?.call();
-          } else if (result == 2) {
-            userException.onCancel?.call();
           } else {
-            if (userException.onCancel == null) {
-              userException.onOk?.call();
-            } else {
-              userException.onCancel?.call();
-            }
+            userException.onCancel?.call();
           }
-        },
-        builder: (context) => AlertDialog(
-          scrollable: true,
-          title: title.isEmpty ? null : Text(title),
-          content: content.isEmpty ? null : Text(content),
+        }
+      },
+      builder: (context) {
+        final (title, content) = userException.titleAndContent();
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
           actions: [
             if (userException.onCancel != null)
               TextButton(
-                onPressed: () => Navigator.of(context).pop(2),
-                child: Text(S.current.cancel),
+                child: const Text('CANCEL'),
+                onPressed: () {
+                  Navigator.of(context).pop(2);
+                },
               ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(1),
-              child: Text(S.current.ok),
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop(1);
+              },
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -132,14 +134,12 @@ class _ExceptionDialogWidget extends StatefulWidget {
   _UserExceptionDialogState createState() => _UserExceptionDialogState();
 }
 
-// ////////////////////////////////////////////////////////////////////////////
-
-class _UserExceptionDialogState extends State<_ExceptionDialogWidget> {
+class _UserExceptionDialogState extends State<_UserExceptionDialogWidget> {
   @override
-  void didUpdateWidget(_ExceptionDialogWidget oldWidget) {
+  void didUpdateWidget(_UserExceptionDialogWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final userException = widget.error!.consume();
+    final userException = widget.errorEvent?.consume();
 
     if (userException != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -156,31 +156,36 @@ class _UserExceptionDialogState extends State<_ExceptionDialogWidget> {
   Widget build(BuildContext context) => widget.child;
 }
 
-// ////////////////////////////////////////////////////////////////////////////
-
-class _Vm extends BaseModel<AppState> {
-  _Vm();
-  _Vm.build({required this.error});
-
-  Event<UserException>? error;
+class _Factory<St> extends VmFactory<St, UserExceptionDialog, _Vm> {
+  static final Queue<Event<UserException>> _errorEvents = Queue();
 
   @override
-  _Vm fromStore() => _Vm.build(
-        error: Event(getAndRemoveFirstError()),
-      );
+  _Vm fromStore() {
+    final error = getAndRemoveFirstError();
 
-  /// Does not respect equals contract:
-  /// A==B ➜ true only if B.error.state is not null.
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  bool operator ==(Object other) => error!.state == null;
+    if (error != null) {
+      _errorEvents.add(Event(error));
+    }
 
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => error.hashCode;
+    return _Vm(
+      rebuild: error != null,
+    );
+  }
 }
 
-// ////////////////////////////////////////////////////////////////////////////
+class _Vm extends Vm {
+  _Vm({required this.rebuild});
+  //
+  final bool rebuild;
+
+  /// Does not respect equals contract:
+  /// Is not equal when it should rebuild.
+  @override
+  bool operator ==(Object other) => !rebuild;
+
+  @override
+  int get hashCode => rebuild.hashCode;
+}
 
 typedef ShowUserExceptionDialog = void Function({
   required BuildContext context,
@@ -188,20 +193,58 @@ typedef ShowUserExceptionDialog = void Function({
   required bool useLocalContext,
 });
 
-Future<T?> _showDialogSuper<T>({
+Future<T?> showDialogSuper<T>({
   required BuildContext context,
   required WidgetBuilder builder,
+  bool barrierDismissible = true,
+  Color? barrierColor = Colors.black54,
+  String? barrierLabel,
+  bool useSafeArea = true,
+  bool useRootNavigator = true,
   RouteSettings? routeSettings,
   void Function(T?)? onDismissed,
 }) async {
   final result = await showDialog<T>(
     context: context,
     builder: builder,
-    barrierDismissible: false,
+    barrierDismissible: barrierDismissible,
+    barrierColor: barrierColor,
+    barrierLabel: barrierLabel,
+    useSafeArea: useSafeArea,
+    useRootNavigator: useRootNavigator,
     routeSettings: routeSettings,
   );
 
-  onDismissed?.call(result);
+  if (onDismissed != null) {
+    onDismissed(result);
+  }
+
+  return result;
+}
+
+Future<T?> showCupertinoDialogSuper<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool barrierDismissible = true,
+  Color? barrierColor = Colors.black54,
+  String? barrierLabel,
+  bool useSafeArea = true,
+  bool useRootNavigator = true,
+  RouteSettings? routeSettings,
+  void Function(T?)? onDismissed,
+}) async {
+  final result = await showCupertinoDialog<T>(
+    context: context,
+    builder: builder,
+    barrierDismissible: barrierDismissible,
+    barrierLabel: barrierLabel,
+    useRootNavigator: useRootNavigator,
+    routeSettings: routeSettings,
+  );
+
+  if (onDismissed != null) {
+    onDismissed(result);
+  }
 
   return result;
 }

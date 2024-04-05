@@ -3,7 +3,7 @@ import 'models/reset_password_state.dart';
 
 /// returns waiting value
 bool selectResetPasswordIsWaiting(AppState state) =>
-    state.wait.isWaitingFor(ResetPasswordWaiting.wait);
+    state.wait.isWaiting(ResetPasswordWaiting.wait);
 
 /// Returns password value
 String? selectResetPasswordPassword(AppState state) =>

@@ -13,7 +13,7 @@ Store<AppState> newStore({
   _store = Store<AppState>(
     initialState: AppState.initial(),
     errorObserver: _MyErrorObserver(),
-    wrapError: _MyWrapError(customErrorWrapper: userErrorWrapper),
+    globalWrapError: _MyWrapError(customErrorWrapper: userErrorWrapper),
     actionObservers: [
       _ReduxActionLogger(),
     ],
@@ -58,7 +58,7 @@ class _MyErrorObserver implements ErrorObserver<AppState> {
 
 typedef UserErrorWrapperHandler = LocalizedMessage? Function(Object? error);
 
-class _MyWrapError extends WrapError<AppState> {
+class _MyWrapError extends GlobalWrapError<AppState> {
   _MyWrapError({this.customErrorWrapper});
   final UserErrorWrapperHandler? customErrorWrapper;
 
@@ -69,7 +69,7 @@ class _MyWrapError extends WrapError<AppState> {
       if (message != null) {
         return UserException(
           message.message,
-          cause: message.title,
+          reason: message.title,
         );
       }
     }
@@ -78,7 +78,7 @@ class _MyWrapError extends WrapError<AppState> {
       return error;
     }
 
-    return UserException('$error', cause: error);
+    return UserException('$error', reason: error.toString());
   }
 }
 

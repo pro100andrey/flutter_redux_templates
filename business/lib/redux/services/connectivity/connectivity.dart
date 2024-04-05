@@ -23,7 +23,7 @@ class ConnectivityService extends DisposableServiceInterface {
 
   bool get isNetworkAvailable => _isNetworkAvailable;
 
-  StreamSubscription<ConnectivityResult?>? _subscription;
+  StreamSubscription? _subscription;
 
   @override
   Future<void> start() async {
@@ -31,13 +31,14 @@ class ConnectivityService extends DisposableServiceInterface {
 
     if (!kIsWeb) {
       final status = await Connectivity().checkConnectivity();
-      if (status == ConnectivityResult.none) {
-        await _setNetworkStatus(status);
+      if (status.contains(ConnectivityResult.none)) {
+        _setNetworkStatus(false);
       }
 
-      _subscription = Connectivity()
-          .onConnectivityChanged
-          .listen((result) async => _setNetworkStatus(result));
+      _subscription = Connectivity().onConnectivityChanged.listen(
+            (result) async =>
+                _setNetworkStatus(!result.contains(ConnectivityResult.none)),
+          );
     } else {
       _driver.onStatusChange(isAvailable: true);
     }
@@ -50,8 +51,7 @@ class ConnectivityService extends DisposableServiceInterface {
     _subscription = null;
   }
 
-  Future<void> _setNetworkStatus(ConnectivityResult status) async {
-    final isAvailable = status != ConnectivityResult.none;
+  void _setNetworkStatus(bool isAvailable) {
     _isNetworkAvailable = isAvailable;
     _driver.onStatusChange(isAvailable: isAvailable);
   }

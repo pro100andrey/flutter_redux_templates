@@ -50,6 +50,16 @@ class S {
     return Localizations.of<S>(context, S);
   }
 
+  /// `en`
+  String get _locale {
+    return Intl.message(
+      'en',
+      name: '_locale',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `title`
   String get title {
     return Intl.message(

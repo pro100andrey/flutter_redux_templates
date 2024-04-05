@@ -76,9 +76,7 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector, _Vm> {
       ),
       onPressedRegister: formIsValid
           ? () async {
-              await dispatchAsync(
-                RegistrationAction(),
-              );
+              await dispatchAndWait(RegistrationAction());
               router.pop();
             }
           : null,
