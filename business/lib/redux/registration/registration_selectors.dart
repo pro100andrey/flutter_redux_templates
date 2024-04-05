@@ -3,7 +3,7 @@ import 'models/registration_state.dart';
 
 /// returns waiting value
 bool selectRegistrationIsWaiting(AppState state) =>
-    state.wait.isWaitingFor(RegistrationWaiting.wait);
+    state.wait.isWaiting(RegistrationWaiting.wait);
 
 /// Returns email value
 String? selectRegistrationEmail(AppState state) => state.registration.email;

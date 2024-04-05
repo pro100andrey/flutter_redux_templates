@@ -20,7 +20,7 @@ class _AuthService implements AuthService {
 
   @override
   Future<void> logIn({required LoginBody body}) async {
-    const _extra = <String, dynamic>{};
+    final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     final _data = <String, dynamic>{};
