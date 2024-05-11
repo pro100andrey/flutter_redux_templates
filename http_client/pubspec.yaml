@@ -4,13 +4,13 @@ publish_to: none
 version: 1.0.0
 
 environment:
-   sdk: ^3.3.3
+   sdk: ^3.3.4
 
 dependencies:
-  dio: ^5.4.2+1
+  dio: ^5.4.3
   fast_immutable_collections: ^10.2.2
   freezed_annotation: ^2.4.1
-  json_annotation: ^4.8.1
+  json_annotation: ^4.9.0
   logging: ^1.2.0
   models:
     path: ../models
@@ -18,7 +18,7 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.4.9
-  freezed: ^2.4.8
-  json_serializable: ^6.7.1
-  pro_lints: ^2.0.2
+  freezed: ^2.5.2
+  json_serializable: ^6.8.0
+  pro_lints: ^2.0.3
   retrofit_generator: ^8.1.0
