@@ -8,10 +8,6 @@ import 'registration/registration_state.dart';
 import 'reset_password/reset_password_state.dart';
 import 'session/session_state.dart';
 
-
-
-
-
 part 'app_state.freezed.dart';
 
 @freezed
