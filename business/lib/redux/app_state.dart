@@ -32,3 +32,31 @@ class AppState with _$AppState {
         wait: Wait.empty,
       );
 }
+
+extension type AppStateGraph(AppState state) {
+  /// Returns connectivity graph
+  ConnectivityGraph get connectivity => ConnectivityGraph(state);
+
+  /// Returns log in graph
+  LogInGraph get logIn => LogInGraph(state);
+
+  /// Returns registration graph
+  RegistrationGraph get registration => RegistrationGraph(state);
+
+  /// Returns forgot password graph
+  ForgotPasswordGraph get forgotPassword => ForgotPasswordGraph(state);
+}
+
+extension type BarrierGraph(AppState state) {
+  /// Returns root graph
+  AppStateGraph get root => AppStateGraph(state);
+
+  /// Returns true if need to show barrier
+  ///
+  bool get needToShowBarrier =>
+      root.logIn.isWaiting || root.registration.isWaiting;
+
+  /// Returns true if need to show no internet connection
+  bool get needToShowNoInternetConnection =>
+      !root.connectivity.connectionIsAvailable;
+}

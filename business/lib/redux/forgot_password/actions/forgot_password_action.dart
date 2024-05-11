@@ -1,7 +1,6 @@
 import 'package:async_redux/async_redux.dart';
 
 import '../../app_state.dart';
-import '../forgot_password_selectors.dart';
 import '../models/forgot_password_state.dart';
 
 class ForgotPasswordAction extends ReduxAction<AppState> {
@@ -13,9 +12,9 @@ class ForgotPasswordAction extends ReduxAction<AppState> {
 
   @override
   Future<AppState> reduce() async {
-    final email = selectForgotPasswordEmail(state)!;
+    final graph = ForgotPasswordGraph(state);
 
-    await _forgotPasswordRequest(email: email);
+    await _forgotPasswordRequest(email: graph.email!);
 
     return state.copyWith(forgotPassword: const ForgotPasswordState());
   }

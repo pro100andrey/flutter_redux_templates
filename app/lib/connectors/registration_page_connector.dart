@@ -4,7 +4,7 @@ import 'package:business/redux/registration/actions/registration_action.dart';
 import 'package:business/redux/registration/actions/set_confirm_password_action.dart';
 import 'package:business/redux/registration/actions/set_email_action.dart';
 import 'package:business/redux/registration/actions/set_password_action.dart';
-import 'package:business/redux/registration/registration_selectors.dart';
+import 'package:business/redux/registration/models/registration_state.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
@@ -38,15 +38,14 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector, _Vm> {
 
   @override
   _Vm fromStore() {
-    final email = selectRegistrationEmail(state);
-    final emailError = emailValidator(email);
-    final password = selectRegistrationPassword(state);
-    final passwordError = passwordValidator(password);
-    final confirmPassword = selectRegistrationConfirmPassword(state);
-    final confirmPasswordError = passwordValidator(confirmPassword);
+    final graph = RegistrationGraph(state);
+
+    final emailError = emailValidator(graph.email);
+    final passwordError = passwordValidator(graph.password);
+    final confirmPasswordError = passwordValidator(graph.confirmPassword);
     final passwordsMatchError =
-        passwordsMatchValidator(password, confirmPassword);
-    final formIsValid = selectRegistrationDataIsSet(state) &&
+        passwordsMatchValidator(graph.password, graph.confirmPassword);
+    final formIsValid = graph.allDataIsSet &&
         emailError == null &&
         passwordError == null &&
         confirmPasswordError == null &&
@@ -54,21 +53,21 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector, _Vm> {
 
     return _Vm(
       email: ValueChangedWithErrorVm(
-        value: email,
+        value: graph.email,
         error: emailError,
         onChanged: (value) => dispatchSync(
           SetEmailAction(value!),
         ),
       ),
       password: ValueChangedWithErrorVm(
-        value: password,
+        value: graph.password,
         error: passwordError,
         onChanged: (value) => dispatchSync(
           SetPasswordAction(value!),
         ),
       ),
       confirmPassword: ValueChangedWithErrorVm(
-        value: confirmPassword,
+        value: graph.confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
         onChanged: (value) => dispatchSync(
           SetConfirmPasswordAction(value!),

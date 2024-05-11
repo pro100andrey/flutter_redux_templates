@@ -3,7 +3,7 @@ import 'package:business/redux/app_state.dart';
 import 'package:business/redux/log_in/actions/log_in_with_email_action.dart';
 import 'package:business/redux/log_in/actions/set_email_action.dart';
 import 'package:business/redux/log_in/actions/set_password_action.dart';
-import 'package:business/redux/log_in/log_in_selectors.dart';
+import 'package:business/redux/log_in/models/log_in_state.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
@@ -37,24 +37,23 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm> {
 
   @override
   _Vm fromStore() {
-    final email = selectLogInEmail(state);
-    final password = selectLogInPassword(state);
-    final emailError = emailValidator(email);
-    final passwordError = passwordValidator(password);
-    final formIsValid = selectLogInDataIsSet(state) &&
-        emailError == null &&
-        passwordError == null;
+    final graph = LogInGraph(state);
+
+    final emailError = emailValidator(graph.email);
+    final passwordError = passwordValidator(graph.password);
+    final formIsValid =
+        graph.allDataIsSet && emailError == null && passwordError == null;
 
     return _Vm(
       email: ValueChangedWithErrorVm(
-        value: email,
+        value: graph.email,
         error: emailError,
         onChanged: (value) => dispatchSync(
           SetEmailAction(value!),
         ),
       ),
       password: ValueChangedWithErrorVm(
-        value: password,
+        value: graph.password,
         error: passwordError,
         onChanged: (value) => dispatchSync(
           SetPasswordAction(password: value!),

@@ -2,7 +2,7 @@ import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
 import 'package:business/redux/forgot_password/actions/forgot_password_action.dart';
 import 'package:business/redux/forgot_password/actions/set_email_action.dart';
-import 'package:business/redux/forgot_password/forgot_password_selectors.dart';
+import 'package:business/redux/forgot_password/models/forgot_password_state.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
@@ -35,13 +35,14 @@ class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector, _Vm> {
 
   @override
   _Vm fromStore() {
-    final email = selectForgotPasswordEmail(state);
-    final emailError = emailValidator(email);
+    final graph = ForgotPasswordGraph(state);
+
+    final emailError = emailValidator(graph.email);
 
     return _Vm(
       isWaiting: false,
       email: ValueChangedWithErrorVm(
-        value: email,
+        value: graph.email,
         error: emailError,
         onChanged: (value) => dispatchSync(SetEmailAction(email: value!)),
       ),

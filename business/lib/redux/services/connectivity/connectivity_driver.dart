@@ -2,7 +2,6 @@ import 'package:async_redux/async_redux.dart';
 
 import '../../app_state.dart';
 import '../../connectivity/actions/set_connectivity_status_action.dart';
-import '../../connectivity/connectivity_selectors.dart';
 import 'connectivity.dart';
 
 class ConnectivityDriver implements ConnectivityServiceDriverInterface {
@@ -12,11 +11,8 @@ class ConnectivityDriver implements ConnectivityServiceDriverInterface {
 
   @override
   void onStatusChange({required bool isAvailable}) {
-    final previousState = selectNetworkConnectionIsAvailable(_store.state);
-    if (previousState != isAvailable) {
-      _store.dispatchSync(
-        SetConnectivityStatusAction(value: isAvailable),
-      );
-    }
+    _store.dispatchSync(
+      SetConnectivityStatusAction(value: isAvailable),
+    );
   }
 }
