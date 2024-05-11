@@ -11,7 +11,7 @@ _$ServerErrorImpl _$$ServerErrorImplFromJson(Map<String, dynamic> json) =>
       type: json['type'] as String,
       errors: IList<ErrorItem>.fromJson(json['errors'],
           (value) => ErrorItem.fromJson(value as Map<String, dynamic>)),
-      code: json['code'] as int,
+      code: (json['code'] as num).toInt(),
     );
 
 Map<String, dynamic> _$$ServerErrorImplToJson(_$ServerErrorImpl instance) =>
