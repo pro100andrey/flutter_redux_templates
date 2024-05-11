@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../app_state.dart';
+import '../app_state.dart';
 
 part 'connectivity_state.freezed.dart';
 

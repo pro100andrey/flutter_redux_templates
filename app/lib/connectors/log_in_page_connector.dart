@@ -1,9 +1,6 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
-import 'package:business/redux/log_in/actions/log_in_with_email_action.dart';
-import 'package:business/redux/log_in/actions/set_email_action.dart';
-import 'package:business/redux/log_in/actions/set_password_action.dart';
-import 'package:business/redux/log_in/models/log_in_state.dart';
+import 'package:business/redux/log_in/log_in.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';

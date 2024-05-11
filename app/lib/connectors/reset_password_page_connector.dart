@@ -1,9 +1,6 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
-import 'package:business/redux/reset_password/actions/reset_password_action.dart';
-import 'package:business/redux/reset_password/actions/set_confirm_password_action.dart';
-import 'package:business/redux/reset_password/actions/set_password_action.dart';
-import 'package:business/redux/reset_password/reset_password_selectors.dart';
+import 'package:business/redux/reset_password/reset_password.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
@@ -36,27 +33,28 @@ class _Factory extends VmFactory<AppState, ResetPasswordPageConnector, _Vm> {
 
   @override
   _Vm fromStore() {
-    final password = selectResetPasswordPassword(state);
-    final passwordError = passwordValidator(password);
-    final confirmPassword = selectResetPasswordConfirmPassword(state);
-    final confirmPasswordError = passwordValidator(confirmPassword);
+    final graph = ResetPasswordGraph(state);
+
+    final passwordError = passwordValidator(graph.password);
+    final confirmPasswordError = passwordValidator(graph.confirmPassword);
     final passwordsMatchError =
-        passwordsMatchValidator(password, confirmPassword);
-    final formIsValid = selectResetPasswordDataIsSet(state) &&
+        passwordsMatchValidator(graph.password, graph.confirmPassword);
+
+    final formIsValid = graph.allDataIsSet &&
         passwordError == null &&
         confirmPasswordError == null &&
         passwordsMatchError == null;
 
     return _Vm(
       password: ValueChangedWithErrorVm(
-        value: password,
+        value: graph.password,
         error: passwordError,
         onChanged: (value) => dispatchSync(
           SetPasswordAction(value!),
         ),
       ),
       confirmPassword: ValueChangedWithErrorVm(
-        value: confirmPassword,
+        value: graph.confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
         onChanged: (value) => dispatchSync(
           SetConfirmPasswordAction(value!),

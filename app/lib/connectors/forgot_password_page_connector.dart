@@ -2,7 +2,7 @@ import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
 import 'package:business/redux/forgot_password/actions/forgot_password_action.dart';
 import 'package:business/redux/forgot_password/actions/set_email_action.dart';
-import 'package:business/redux/forgot_password/models/forgot_password_state.dart';
+import 'package:business/redux/forgot_password/forgot_password_state.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';

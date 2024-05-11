@@ -1,10 +1,6 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
-import 'package:business/redux/registration/actions/registration_action.dart';
-import 'package:business/redux/registration/actions/set_confirm_password_action.dart';
-import 'package:business/redux/registration/actions/set_email_action.dart';
-import 'package:business/redux/registration/actions/set_password_action.dart';
-import 'package:business/redux/registration/models/registration_state.dart';
+import 'package:business/redux/registration/registration.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
