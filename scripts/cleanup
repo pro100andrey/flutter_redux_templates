@@ -35,7 +35,7 @@ function cleanup() {
     cleanup_podfile "$(pwd)/ios"
     cleanup_podfile "$(pwd)/macos"
 
-    if [  "$rebuild" = true ]; then
+    if [ "$rebuild" = true ]; then
         log "dart run build_runner build --delete-conflicting-outputs"
         dart run build_runner build --delete-conflicting-outputs
     fi

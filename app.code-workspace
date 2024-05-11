@@ -1,46 +1,50 @@
 {
 	"folders": [
-		{
-			"name": "templates",
-			"path": "templates"
-		},
-		{
-			"name": "app",
-			"path": "app"
-		},
-		{
-			"name": "ui",
-			"path": "ui"
-		},
-		{
-			"name": "storybook",
-			"path": "storybook"
-		},
-		{
-			"name": "business",
-			"path": "business"
-		},
-		{
-			"name": "http_client",
-			"path": "http_client"
-		},
-		{
-			"name": "models",
-			"path": "models"
-		},
-		{
-			"name": "storage",
-			"path": "storage"
-		},
-		{
-			"name": "localization",
-			"path": "localization"
-		},
-		{
-			"name": "doc",
-			"path": "doc"
-		},
-	],
+        {
+            "name": "templates",
+            "path": "templates"
+        },
+        {
+            "name": "app",
+            "path": "app"
+        },
+        {
+            "name": "ui",
+            "path": "ui"
+        },
+        {
+            "name": "storybook",
+            "path": "storybook"
+        },
+        {
+            "name": "business",
+            "path": "business"
+        },
+        {
+            "name": "http_client",
+            "path": "http_client"
+        },
+        {
+            "name": "models",
+            "path": "models"
+        },
+        {
+            "name": "storage",
+            "path": "storage"
+        },
+        {
+            "name": "localization",
+            "path": "localization"
+        },
+        {
+            "name": "scripts",
+            "path": "scripts"
+        },
+        {
+            "name": "doc",
+            "path": "doc"
+        }
+    ],
 	"settings": {
 		"codeTemplateTool.templatesPath": "{workspace}/common",
 		"search.exclude": {

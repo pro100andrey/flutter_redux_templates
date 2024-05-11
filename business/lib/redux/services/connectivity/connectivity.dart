@@ -30,15 +30,11 @@ class ConnectivityService extends DisposableServiceInterface {
     super.start();
 
     if (!kIsWeb) {
-      final status = await Connectivity().checkConnectivity();
-      if (status.contains(ConnectivityResult.none)) {
-        _setNetworkStatus(false);
-      }
-
       _subscription = Connectivity().onConnectivityChanged.listen(
-            (result) async =>
-                _setNetworkStatus(!result.contains(ConnectivityResult.none)),
+            (status) async => _setNetworkStatus(status),
           );
+      final status = await Connectivity().checkConnectivity();
+      _setNetworkStatus(status);
     } else {
       _driver.onStatusChange(isAvailable: true);
     }
@@ -51,8 +47,12 @@ class ConnectivityService extends DisposableServiceInterface {
     _subscription = null;
   }
 
-  void _setNetworkStatus(bool isAvailable) {
-    _isNetworkAvailable = isAvailable;
-    _driver.onStatusChange(isAvailable: isAvailable);
+  void _setNetworkStatus(List<ConnectivityResult> status) {
+    final isNetworkAvailable = status.contains(ConnectivityResult.none);
+
+    if (_isNetworkAvailable != isNetworkAvailable) {
+      _isNetworkAvailable = isNetworkAvailable;
+      _driver.onStatusChange(isAvailable: _isNetworkAvailable);
+    }
   }
 }
