@@ -14,20 +14,38 @@ class ColorName {
   ColorName._();
 
   /// Color: #FFFFFF
-  static const Color background = Color(0xFFFFFFFF);
+  static const Color darkBackground = Color(0xFFFFFFFF);
 
   /// Color: #e0e0e0
-  static const Color border = Color(0xFFE0E0E0);
+  static const Color darkBorder = Color(0xFFE0E0E0);
 
   /// Color: #FF1744
-  static const Color error = Color(0xFFFF1744);
+  static const Color darkError = Color(0xFFFF1744);
 
   /// Color: #6A84E4
-  static const Color primary = Color(0xFF6A84E4);
+  static const Color darkPrimary = Color(0xFF6A84E4);
 
   /// Color: #8bc34a
-  static const Color secondary = Color(0xFF8BC34A);
+  static const Color darkSecondary = Color(0xFF8BC34A);
 
   /// Color: #F0F0F0
-  static const Color shade = Color(0xFFF0F0F0);
+  static const Color darkShade = Color(0xFFF0F0F0);
+
+  /// Color: #FFFFFF
+  static const Color lightBackground = Color(0xFFFFFFFF);
+
+  /// Color: #e0e0e0
+  static const Color lightBorder = Color(0xFFE0E0E0);
+
+  /// Color: #FF1744
+  static const Color lightError = Color(0xFFFF1744);
+
+  /// Color: #6A84E4
+  static const Color lightPrimary = Color(0xFF6A84E4);
+
+  /// Color: #8bc34a
+  static const Color lightSecondary = Color(0xFF8BC34A);
+
+  /// Color: #F0F0F0
+  static const Color lightShade = Color(0xFFF0F0F0);
 }

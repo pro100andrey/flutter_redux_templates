@@ -36,7 +36,9 @@ class _AppConnectorState extends State<AppConnector> {
             debugShowCheckedModeBanner: false,
             routerDelegate: router.routerDelegate,
             routeInformationProvider: router.routeInformationProvider,
-            theme: buildTheme(),
+            theme: lightTheme(),
+            darkTheme: darkTheme(),
+            themeMode: ThemeMode.dark,
             routeInformationParser: router.routeInformationParser,
             localizationsDelegates: const [
               S.delegate,

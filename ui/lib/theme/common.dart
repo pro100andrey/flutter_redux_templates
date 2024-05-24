@@ -1,38 +1,72 @@
 import 'package:flutter/material.dart';
 
 import '../generated/colors.gen.dart';
+import 'extensions/colors.dart';
 
-ThemeData _base = ThemeData(
-  useMaterial3: true,
+ColorsThemeExtension _lightColors = const ColorsThemeExtension(
+  primary: ColorName.lightPrimary,
+  secondary: ColorName.lightSecondary,
+  background: ColorName.lightBackground,
+  error: ColorName.lightError,
+  shade: ColorName.lightShade,
+  border: ColorName.lightBorder,
 );
 
-ThemeData buildTheme() => _base.copyWith(
-      inputDecorationTheme: inputDecorationTheme(),
-      dialogTheme: dialogTheme(),
-      elevatedButtonTheme: elevatedButtonTheme(),
-    );
+ColorsThemeExtension _darkColors = const ColorsThemeExtension(
+  primary: ColorName.darkPrimary,
+  secondary: ColorName.darkSecondary,
+  background: ColorName.darkBackground,
+  error: ColorName.darkError,
+  shade: ColorName.darkShade,
+  border: ColorName.darkBorder,
+);
 
-ElevatedButtonThemeData elevatedButtonTheme() => ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(),
-    );
+ThemeData lightTheme() {
+  final theme = ThemeData.light(
+    useMaterial3: true,
+  );
 
-DialogTheme dialogTheme() => _base.dialogTheme.copyWith();
+  return theme.copyWith(
+    inputDecorationTheme: inputDecorationTheme(
+      theme.inputDecorationTheme,
+      _lightColors,
+    ),
+    extensions: [_lightColors],
+  );
+}
 
-InputDecorationTheme inputDecorationTheme() {
+ThemeData darkTheme() {
+  final theme = ThemeData.dark(
+    useMaterial3: true,
+  );
+
+  return theme.copyWith(
+    inputDecorationTheme: inputDecorationTheme(
+      theme.inputDecorationTheme,
+      _darkColors,
+    ),
+    extensions: [_darkColors],
+  );
+}
+
+InputDecorationTheme inputDecorationTheme(
+  InputDecorationTheme theme,
+  ColorsThemeExtension colors,
+) {
   const borderRadius = BorderRadius.all(Radius.circular(28));
 
-  return _base.inputDecorationTheme.copyWith(
+  return theme.copyWith(
     isDense: true,
     errorMaxLines: 10,
     border: const OutlineInputBorder(borderRadius: borderRadius),
-    enabledBorder: const OutlineInputBorder(
+    enabledBorder: OutlineInputBorder(
       borderRadius: borderRadius,
-      borderSide: BorderSide(color: ColorName.border),
+      borderSide: BorderSide(color: colors.border),
     ),
     disabledBorder: OutlineInputBorder(
       borderRadius: borderRadius,
-      borderSide: BorderSide(color: Colors.grey.shade200),
+      borderSide: BorderSide(color: colors.border),
     ),
-    focusColor: ColorName.primary,
+    focusColor: colors.primary,
   );
 }
