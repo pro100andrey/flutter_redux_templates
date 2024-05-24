@@ -12,11 +12,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vector_graphics/vector_graphics.dart';
 
-class $AssetsPlaceholdersGen {
-  const $AssetsPlaceholdersGen();
+class $AssetsVecGen {
+  const $AssetsVecGen();
 
-  /// File path: assets/placeholders/image.svg
-  SvgGenImage get image => const SvgGenImage('assets/placeholders/image.svg');
+  /// Directory path: assets/vec/placeholders
+  $AssetsVecPlaceholdersGen get placeholders =>
+      const $AssetsVecPlaceholdersGen();
+}
+
+class $AssetsVecPlaceholdersGen {
+  const $AssetsVecPlaceholdersGen();
+
+  /// File path: assets/vec/placeholders/image.vec
+  SvgGenImage get image =>
+      const SvgGenImage.vec('assets/vec/placeholders/image.vec');
 
   /// List of all assets
   List<SvgGenImage> get values => [image];
@@ -27,7 +36,7 @@ class Assets {
 
   static const String package = 'ui';
 
-  static const $AssetsPlaceholdersGen placeholders = $AssetsPlaceholdersGen();
+  static const $AssetsVecGen vec = $AssetsVecGen();
 }
 
 class SvgGenImage {

@@ -24,6 +24,13 @@ ColorsThemeExtension _darkColors = const ColorsThemeExtension(
 ThemeData lightTheme() {
   final theme = ThemeData.light(
     useMaterial3: true,
+  ).copyWith(
+    primaryColor: _lightColors.primary,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.pink,
+      primary: _lightColors.primary,
+      secondary: _lightColors.secondary,
+    ),
   );
 
   return theme.copyWith(
@@ -38,6 +45,13 @@ ThemeData lightTheme() {
 ThemeData darkTheme() {
   final theme = ThemeData.dark(
     useMaterial3: true,
+  ).copyWith(
+    primaryColor: _lightColors.primary,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.pink,
+      primary: _lightColors.primary,
+      secondary: _lightColors.secondary,
+    ),
   );
 
   return theme.copyWith(
