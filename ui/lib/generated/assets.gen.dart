@@ -12,16 +12,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vector_graphics/vector_graphics.dart';
 
-class $AssetsColorsGen {
-  const $AssetsColorsGen();
-
-  /// File path: assets/colors/colors.xml
-  String get colors => 'packages/ui/assets/colors/colors.xml';
-
-  /// List of all assets
-  List<String> get values => [colors];
-}
-
 class $AssetsPlaceholdersGen {
   const $AssetsPlaceholdersGen();
 
@@ -37,7 +27,6 @@ class Assets {
 
   static const String package = 'ui';
 
-  static const $AssetsColorsGen colors = $AssetsColorsGen();
   static const $AssetsPlaceholdersGen placeholders = $AssetsPlaceholdersGen();
 }
 

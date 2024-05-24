@@ -23,7 +23,7 @@ class StoryBookApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         scrollBehavior: CustomScrollBehavior(),
-        theme: buildTheme(),
+        theme: lightTheme(),
         home: Storybook(
           wrapperBuilder: (context, child) => Container(child: child),
           plugins: initializePlugins(

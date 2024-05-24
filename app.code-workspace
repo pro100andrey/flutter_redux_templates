@@ -46,21 +46,20 @@
         }
     ],
 	"settings": {
-		"codeTemplateTool.templatesPath": "{workspace}/common",
-		"search.exclude": {
-			"templates": true,
-		},
-		"rest-client.logLevel": "verbose",
-		"rest-client.previewOption": "exchange",
-		"rest-client.formParamEncodingStrategy": "always",
-		"cSpell.enableFiletypes": [
-			"json"
-		],
-		"files.associations": {
-			"*.arb": "json",
-		},
-		"cSpell.words": [
-			"dotenv"
-		]
-	}
+        "codeTemplateTool.templatesPath": "{workspace}/common",
+        "search.exclude": {
+            "templates": true
+        },
+        "rest-client.logLevel": "verbose",
+        "rest-client.previewOption": "exchange",
+        "rest-client.formParamEncodingStrategy": "always",
+        "cSpell.enableFiletypes": ["json"],
+        "files.associations": {
+            "*.arb": "json"
+        },
+        "cSpell.words": ["dotenv"],
+        "explorer.fileNesting.patterns": {
+            "*.dart": "${capture}.g.theme.dart"
+        }
+    }
 }
