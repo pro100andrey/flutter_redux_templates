@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../app_state.dart';
+import 'actions/forgot_password_action.dart';
 
 part 'forgot_password_state.freezed.dart';
 
@@ -11,10 +12,6 @@ class ForgotPasswordState with _$ForgotPasswordState {
   }) = _ForgotPasswordState;
 }
 
-enum ForgotPasswordWaiting {
-  wait,
-}
-
 extension type ForgotPasswordGraph(AppState state) {
   /// Returns root graph
   AppStateGraph get root => AppStateGraph(state);
@@ -23,5 +20,5 @@ extension type ForgotPasswordGraph(AppState state) {
   String? get email => state.forgotPassword.email;
 
   /// Returns waiting value
-  bool get isWaiting => state.wait.isWaiting(ForgotPasswordWaiting.wait);
+  bool get isWaiting => state.wait.isWaitingForType<ForgotPasswordAction>();
 }

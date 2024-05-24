@@ -3,13 +3,7 @@ import 'package:async_redux/async_redux.dart';
 import '../../app_state.dart';
 import '../reset_password_state.dart';
 
-class ResetPasswordAction extends ReduxAction<AppState> {
-  @override
-  void before() => dispatchSync(WaitAction.add(ResetPasswordWaiting.wait));
-
-  @override
-  void after() => dispatchSync(WaitAction.remove(ResetPasswordWaiting.wait));
-
+class ResetPasswordAction extends ReduxAction<AppState> with WithWaitState {
   @override
   Future<AppState> reduce() async {
     final graph = ResetPasswordGraph(state);

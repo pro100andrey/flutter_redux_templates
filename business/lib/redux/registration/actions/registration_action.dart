@@ -3,13 +3,7 @@ import 'package:async_redux/async_redux.dart';
 import '../../app_state.dart';
 import '../registration_state.dart';
 
-class RegistrationAction extends ReduxAction<AppState> {
-  @override
-  void before() => dispatchSync(WaitAction.add(RegistrationWaiting.wait));
-
-  @override
-  void after() => dispatchSync(WaitAction.remove(RegistrationWaiting.wait));
-
+class RegistrationAction extends ReduxAction<AppState> with WithWaitState {
   @override
   Future<AppState?> reduce() async {
     final graph = RegistrationGraph(state);

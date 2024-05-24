@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../app_state.dart';
+import 'actions/registration_action.dart';
 
 part 'registration_state.freezed.dart';
 
@@ -11,10 +12,6 @@ class RegistrationState with _$RegistrationState {
     String? password,
     String? confirmPassword,
   }) = _RegistrationState;
-}
-
-enum RegistrationWaiting {
-  wait,
 }
 
 extension type RegistrationGraph(AppState state) {
@@ -31,7 +28,7 @@ extension type RegistrationGraph(AppState state) {
   String? get confirmPassword => state.registration.confirmPassword;
 
   /// Returns waiting value
-  bool get isWaiting => state.wait.isWaiting(RegistrationWaiting.wait);
+  bool get isWaiting => state.wait.isWaitingForType<RegistrationAction>();
 
   /// Returns true if email, password, confirmPassword is set
   bool get allDataIsSet =>

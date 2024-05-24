@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../app_state.dart';
+import 'actions/reset_password_action.dart';
 
 part 'reset_password_state.freezed.dart';
 
@@ -10,10 +11,6 @@ class ResetPasswordState with _$ResetPasswordState {
     String? password,
     String? confirmPassword,
   }) = _ResetPasswordState;
-}
-
-enum ResetPasswordWaiting {
-  wait,
 }
 
 extension type ResetPasswordGraph(AppState state) {
@@ -27,7 +24,7 @@ extension type ResetPasswordGraph(AppState state) {
   String? get confirmPassword => state.resetPassword.confirmPassword;
 
   /// Returns waiting value
-  bool get isWaiting => state.wait.isWaiting(ResetPasswordWaiting.wait);
+  bool get isWaiting => state.wait.isWaitingForType<ResetPasswordAction>();
 
   /// Returns true if email, password, confirmPassword is set
   bool get allDataIsSet =>

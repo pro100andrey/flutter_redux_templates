@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../app_state.dart';
+import 'actions/log_in_with_email_action.dart';
 
 part 'log_in_state.freezed.dart';
 
@@ -11,8 +12,6 @@ class LogInState with _$LogInState {
     String? password,
   }) = _LogInState;
 }
-
-enum LogInWaiting { wait }
 
 extension type LogInGraph(AppState state) {
   /// Returns root graph
@@ -25,7 +24,7 @@ extension type LogInGraph(AppState state) {
   String? get password => state.logIn.password;
 
   /// Returns waiting value
-  bool get isWaiting => state.wait.isWaiting(LogInWaiting.wait);
+  bool get isWaiting => state.wait.isWaitingForType<LogInWithEmailAction>();
 
   /// Returns true login data is set
   bool get allDataIsSet =>

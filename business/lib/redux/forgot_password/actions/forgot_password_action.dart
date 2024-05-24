@@ -3,17 +3,10 @@ import 'package:async_redux/async_redux.dart';
 import '../../app_state.dart';
 import '../forgot_password_state.dart';
 
-class ForgotPasswordAction extends ReduxAction<AppState> {
-  @override
-  void before() => dispatchSync(WaitAction.add(ForgotPasswordWaiting.wait));
-
-  @override
-  void after() => dispatchSync(WaitAction.remove(ForgotPasswordWaiting.wait));
-
+class ForgotPasswordAction extends ReduxAction<AppState> with WithWaitState {
   @override
   Future<AppState> reduce() async {
     final graph = ForgotPasswordGraph(state);
-
     await _forgotPasswordRequest(email: graph.email!);
 
     return state.copyWith(forgotPassword: const ForgotPasswordState());
