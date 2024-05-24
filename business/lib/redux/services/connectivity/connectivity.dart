@@ -48,7 +48,7 @@ class ConnectivityService extends DisposableServiceInterface {
   }
 
   void _setNetworkStatus(List<ConnectivityResult> status) {
-    final isNetworkAvailable = status.contains(ConnectivityResult.none);
+    final isNetworkAvailable = !status.contains(ConnectivityResult.none);
 
     if (_isNetworkAvailable != isNetworkAvailable) {
       _isNetworkAvailable = isNetworkAvailable;

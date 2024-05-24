@@ -6,7 +6,7 @@ List<Story> get logos => [
       Story(
         name: 'Logos/Base',
         builder: (context) => Center(
-          child: Assets.placeholders.image.svg(),
+          child: Assets.vec.placeholders.image.svg(),
         ),
       ),
     ];
