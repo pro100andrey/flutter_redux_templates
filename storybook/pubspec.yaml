@@ -4,7 +4,7 @@ version: 1.0.0
 publish_to: 'none'
 
 environment:
-   sdk: ^3.3.4
+   sdk: ^3.4.1
 
 dependencies:
   english_words: ^4.0.0
@@ -19,7 +19,7 @@ dependencies:
     path: ../ui
 
 dev_dependencies:
-  pro_lints: ^2.0.3
+  pro_lints: ^2.0.4
 
 flutter:
   uses-material-design: true
