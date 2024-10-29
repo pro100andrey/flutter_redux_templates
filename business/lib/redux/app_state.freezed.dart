@@ -24,7 +24,9 @@ mixin _$AppState {
   SessionState get session => throw _privateConstructorUsedError;
   Wait get wait => throw _privateConstructorUsedError;
 
-  @JsonKey(ignore: true)
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $AppStateCopyWith<AppState> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -61,6 +63,8 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -104,6 +108,8 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
     ) as $Val);
   }
 
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $ConnectivityStateCopyWith<$Res> get connectivity {
@@ -112,6 +118,8 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
     });
   }
 
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $LogInStateCopyWith<$Res> get logIn {
@@ -120,6 +128,8 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
     });
   }
 
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $RegistrationStateCopyWith<$Res> get registration {
@@ -128,6 +138,8 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
     });
   }
 
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $ForgotPasswordStateCopyWith<$Res> get forgotPassword {
@@ -136,6 +148,8 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
     });
   }
 
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $ResetPasswordStateCopyWith<$Res> get resetPassword {
@@ -144,6 +158,8 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
     });
   }
 
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $SessionStateCopyWith<$Res> get session {
@@ -192,6 +208,8 @@ class __$$AppStateImplCopyWithImpl<$Res>
       _$AppStateImpl _value, $Res Function(_$AppStateImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -290,7 +308,9 @@ class _$AppStateImpl implements _AppState {
   int get hashCode => Object.hash(runtimeType, connectivity, logIn,
       registration, forgotPassword, resetPassword, session, wait);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$AppStateImplCopyWith<_$AppStateImpl> get copyWith =>
@@ -321,8 +341,11 @@ abstract class _AppState implements AppState {
   SessionState get session;
   @override
   Wait get wait;
+
+  /// Create a copy of AppState
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$AppStateImplCopyWith<_$AppStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
