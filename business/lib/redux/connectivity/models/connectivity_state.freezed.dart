@@ -18,7 +18,9 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$ConnectivityState {
   bool get isAvailable => throw _privateConstructorUsedError;
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ConnectivityState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $ConnectivityStateCopyWith<ConnectivityState> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -42,6 +44,8 @@ class _$ConnectivityStateCopyWithImpl<$Res, $Val extends ConnectivityState>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of ConnectivityState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -75,6 +79,8 @@ class __$$ConnectivityStateImplCopyWithImpl<$Res>
       $Res Function(_$ConnectivityStateImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of ConnectivityState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -115,7 +121,9 @@ class _$ConnectivityStateImpl implements _ConnectivityState {
   @override
   int get hashCode => Object.hash(runtimeType, isAvailable);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ConnectivityState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ConnectivityStateImplCopyWith<_$ConnectivityStateImpl> get copyWith =>
@@ -129,8 +137,11 @@ abstract class _ConnectivityState implements ConnectivityState {
 
   @override
   bool get isAvailable;
+
+  /// Create a copy of ConnectivityState
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ConnectivityStateImplCopyWith<_$ConnectivityStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

@@ -24,8 +24,12 @@ mixin _$ServerError {
   IList<ErrorItem> get errors => throw _privateConstructorUsedError;
   int get code => throw _privateConstructorUsedError;
 
+  /// Serializes this ServerError to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of ServerError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $ServerErrorCopyWith<ServerError> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -49,6 +53,8 @@ class _$ServerErrorCopyWithImpl<$Res, $Val extends ServerError>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of ServerError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -92,6 +98,8 @@ class __$$ServerErrorImplCopyWithImpl<$Res>
       _$ServerErrorImpl _value, $Res Function(_$ServerErrorImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of ServerError
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -147,12 +155,14 @@ class _$ServerErrorImpl implements _ServerError {
             (identical(other.code, code) || other.code == code));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, type, const DeepCollectionEquality().hash(errors), code);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ServerError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ServerErrorImplCopyWith<_$ServerErrorImpl> get copyWith =>
@@ -181,8 +191,11 @@ abstract class _ServerError implements ServerError {
   IList<ErrorItem> get errors;
   @override
   int get code;
+
+  /// Create a copy of ServerError
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ServerErrorImplCopyWith<_$ServerErrorImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -196,8 +209,12 @@ mixin _$ErrorItem {
   String? get source => throw _privateConstructorUsedError;
   String get detail => throw _privateConstructorUsedError;
 
+  /// Serializes this ErrorItem to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of ErrorItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $ErrorItemCopyWith<ErrorItem> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -220,6 +237,8 @@ class _$ErrorItemCopyWithImpl<$Res, $Val extends ErrorItem>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of ErrorItem
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -258,6 +277,8 @@ class __$$ErrorItemImplCopyWithImpl<$Res>
       _$ErrorItemImpl _value, $Res Function(_$ErrorItemImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of ErrorItem
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -304,11 +325,13 @@ class _$ErrorItemImpl implements _ErrorItem {
             (identical(other.detail, detail) || other.detail == detail));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, source, detail);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of ErrorItem
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ErrorItemImplCopyWith<_$ErrorItemImpl> get copyWith =>
@@ -334,8 +357,11 @@ abstract class _ErrorItem implements ErrorItem {
   String? get source;
   @override
   String get detail;
+
+  /// Create a copy of ErrorItem
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ErrorItemImplCopyWith<_$ErrorItemImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

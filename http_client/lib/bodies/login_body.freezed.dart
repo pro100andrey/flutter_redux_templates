@@ -23,8 +23,12 @@ mixin _$LoginBody {
   String get email => throw _privateConstructorUsedError;
   String get password => throw _privateConstructorUsedError;
 
+  /// Serializes this LoginBody to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of LoginBody
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $LoginBodyCopyWith<LoginBody> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -47,6 +51,8 @@ class _$LoginBodyCopyWithImpl<$Res, $Val extends LoginBody>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of LoginBody
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -85,6 +91,8 @@ class __$$LoginBodyImplCopyWithImpl<$Res>
       _$LoginBodyImpl _value, $Res Function(_$LoginBodyImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of LoginBody
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -132,11 +140,13 @@ class _$LoginBodyImpl implements _LoginBody {
                 other.password == password));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, email, password);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of LoginBody
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$LoginBodyImplCopyWith<_$LoginBodyImpl> get copyWith =>
@@ -162,8 +172,11 @@ abstract class _LoginBody implements LoginBody {
   String get email;
   @override
   String get password;
+
+  /// Create a copy of LoginBody
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LoginBodyImplCopyWith<_$LoginBodyImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

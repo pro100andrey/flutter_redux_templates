@@ -18,7 +18,9 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$SessionState {
   String? get token => throw _privateConstructorUsedError;
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SessionState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $SessionStateCopyWith<SessionState> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -42,6 +44,8 @@ class _$SessionStateCopyWithImpl<$Res, $Val extends SessionState>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of SessionState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -75,6 +79,8 @@ class __$$SessionStateImplCopyWithImpl<$Res>
       _$SessionStateImpl _value, $Res Function(_$SessionStateImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of SessionState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -113,7 +119,9 @@ class _$SessionStateImpl implements _SessionState {
   @override
   int get hashCode => Object.hash(runtimeType, token);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of SessionState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$SessionStateImplCopyWith<_$SessionStateImpl> get copyWith =>
@@ -125,8 +133,11 @@ abstract class _SessionState implements SessionState {
 
   @override
   String? get token;
+
+  /// Create a copy of SessionState
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$SessionStateImplCopyWith<_$SessionStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
