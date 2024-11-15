@@ -7,7 +7,7 @@ environment:
    sdk: ^3.5.4
 
 dependencies:
-  async_redux: ^23.2.0
+  async_redux: ^24.0.2
   business:
     path: ../business
   equatable: ^2.0.5
