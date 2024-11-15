@@ -41,8 +41,8 @@
             "path": "scripts"
         },
         {
-            "name": "doc",
-            "path": "doc"
+            "name": "docs",
+            "path": "docs"
         }
     ],
     "settings": {
