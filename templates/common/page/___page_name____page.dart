@@ -11,8 +11,8 @@ class ___PageName___Page extends StatelessWidget {
         appBar: AppBar(
           title: Text(S.current.title),
         ),
-        body: Stack(
-          children: const [
+        body: const Stack(
+          children: [
             Center(
               child: Text('___PageName___Page Coming soon...'),
             ),

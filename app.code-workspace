@@ -1,5 +1,5 @@
 {
-	"folders": [
+    "folders": [
         {
             "name": "templates",
             "path": "templates"
@@ -45,7 +45,7 @@
             "path": "doc"
         }
     ],
-	"settings": {
+    "settings": {
         "codeTemplateTool.templatesPath": "{workspace}/common",
         "search.exclude": {
             "templates": true
@@ -57,7 +57,7 @@
         "files.associations": {
             "*.arb": "json"
         },
-        "cSpell.words": ["dotenv"],
+        "cSpell.words": ["dotenv", "unawaited"],
         "explorer.fileNesting.patterns": {
             "*.dart": "${capture}.g.theme.dart"
         }
