@@ -224,6 +224,7 @@ Once you have created the state, the page, and the connector, the final step is 
          debug: this,
          vm: () => _Factory(this),
          builder: (context, vm) => MyProfilePage(
+          // Pass the data to the page
            value: vm.value,
            onChangeValue: vm.onChangeValue,
          ),
@@ -236,10 +237,12 @@ Once you have created the state, the page, and the connector, the final step is 
 
    @override
    _Vm fromStore() {
+    // Select the data from the state
      final value = selectMyProfileValue(state);
 
      return _Vm(
        value: value,
+       // Dispatch the action to update the state
        onChangeValue: (newValue) =>
            dispatchSync(SetValueAction(value: newValue)),
      );
@@ -258,6 +261,7 @@ Once you have created the state, the page, and the connector, the final step is 
 
    @override
    List<Object?> get props => [
+        // Add the properties to the props list
          value,
        ];
    }
@@ -291,6 +295,7 @@ Once you have created the state, the page, and the connector, the final step is 
              Center(
                child: Column(
                  children: [
+                  // Display the value and provide a text field to update it
                    Text('Value: $value'),
                    TextField(
                      onChanged: onChangeValue,
@@ -319,6 +324,7 @@ Once you have created the state, the page, and the connector, the final step is 
                const ExceptionDialog<AppState>(child: HomePageConnector()),
          ),
          routes: [
+          // Add the new page route here
            GoRoute(
              name: Routes.myProfile,
              path: 'my-profile',
