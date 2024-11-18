@@ -14,9 +14,11 @@ This repository provides a structured Flutter application framework based on [As
 
 ## Modules UML
 
----
+![Modules UML](docs/out/modules/modules.png)
 
 ## How to Use
+
+Check VSCODE plugin [here](https://marketplace.visualstudio.com/items?itemName=yuanhjty.code-template-tool) install it and follow the instructions.
 
 ### Creating State
 
@@ -86,8 +88,6 @@ dart run build_runner build --delete-conflicting-outputs
 
 For more information on creating state, refer to the [AsyncRedux documentation](https://asyncredux.com/flutter/basics/state).
 
----
-
 ### Creating a New Page
 
 To add a new page to the application:
@@ -125,8 +125,6 @@ class MyProfilePage extends StatelessWidget {
       );
 }
 ```
-
----
 
 ### Creating a Connector
 
@@ -206,61 +204,61 @@ Once you have created the state, the page, and the connector, the final step is 
    Update the `my_profile_page_connector.dart` file to retrieve and pass the necessary data from the state to the page. Below is an example:
 
    ```dart
-    import 'package:async_redux/async_redux.dart';
-    import 'package:business/redux/app_state.dart';
-    import 'package:business/redux/my_profile/actions/set_value_action.dart';
-    import 'package:business/redux/my_profile/my_profile_selectors.dart';
-    import 'package:equatable/equatable.dart';
-    import 'package:flutter/material.dart';
-    import 'package:ui/pages/my_profile_page.dart';
+   import 'package:async_redux/async_redux.dart';
+   import 'package:business/redux/app_state.dart';
+   import 'package:business/redux/my_profile/actions/set_value_action.dart';
+   import 'package:business/redux/my_profile/my_profile_selectors.dart';
+   import 'package:equatable/equatable.dart';
+   import 'package:flutter/material.dart';
+   import 'package:ui/pages/my_profile_page.dart';
 
-    class MyProfilePageConnector extends StatelessWidget {
-      const MyProfilePageConnector({
-        super.key,
-      });
+   class MyProfilePageConnector extends StatelessWidget {
+   const MyProfilePageConnector({
+     super.key,
+   });
 
-      @override
-      Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-            debug: this,
-            vm: () => _Factory(this),
-            builder: (context, vm) => MyProfilePage(
-              value: vm.value,
-              onChangeValue: vm.onChangeValue,
-            ),
-          );
-    }
+   @override
+   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+         debug: this,
+         vm: () => _Factory(this),
+         builder: (context, vm) => MyProfilePage(
+           value: vm.value,
+           onChangeValue: vm.onChangeValue,
+         ),
+       );
+   }
 
-    /// Factory that creates a view-model for the StoreConnector.
-    class _Factory extends VmFactory<AppState, MyProfilePageConnector, _Vm> {
-      _Factory(super._connector);
+   /// Factory that creates a view-model for the StoreConnector.
+   class _Factory extends VmFactory<AppState, MyProfilePageConnector, _Vm> {
+   _Factory(super._connector);
 
-      @override
-      _Vm fromStore() {
-        final value = selectMyProfileValue(state);
+   @override
+   _Vm fromStore() {
+     final value = selectMyProfileValue(state);
 
-        return _Vm(
-          value: value,
-          onChangeValue: (newValue) =>
-              dispatchSync(SetValueAction(value: newValue)),
-        );
-      }
-    }
+     return _Vm(
+       value: value,
+       onChangeValue: (newValue) =>
+           dispatchSync(SetValueAction(value: newValue)),
+     );
+   }
+   }
 
-    /// The view-model holds the part of the Store state the dumb-widget needs.
-    class _Vm extends Vm with EquatableMixin {
-      _Vm({
-        required this.value,
-        required this.onChangeValue,
-      });
+   /// The view-model holds the part of the Store state the dumb-widget needs.
+   class _Vm extends Vm with EquatableMixin {
+   _Vm({
+     required this.value,
+     required this.onChangeValue,
+   });
 
-      final String? value;
-      final ValueChanged<String> onChangeValue;
+   final String? value;
+   final ValueChanged<String> onChangeValue;
 
-      @override
-      List<Object?> get props => [
-            value,
-          ];
-    }
+   @override
+   List<Object?> get props => [
+         value,
+       ];
+   }
 
    ```
 
@@ -268,40 +266,40 @@ Once you have created the state, the page, and the connector, the final step is 
    Update the `my_profile_page.dart` file to accept the data passed through the connector and display it in the UI:
 
    ```dart
-    import 'package:flutter/material.dart';
-    import 'package:localization/localization.dart';
+   import 'package:flutter/material.dart';
+   import 'package:localization/localization.dart';
 
-    class MyProfilePage extends StatelessWidget {
-      const MyProfilePage({
-        required this.value,
-        required this.onChangeValue,
-        super.key,
-      });
+   class MyProfilePage extends StatelessWidget {
+   const MyProfilePage({
+     required this.value,
+     required this.onChangeValue,
+     super.key,
+   });
 
-      final String? value;
-      final ValueChanged<String> onChangeValue;
+   final String? value;
+   final ValueChanged<String> onChangeValue;
 
-      @override
-      Widget build(BuildContext context) => Scaffold(
-            appBar: AppBar(
-              title: Text(S.current.title),
-            ),
-            body: Stack(
-              children: [
-                Center(
-                  child: Column(
-                    children: [
-                      Text('Value: $value'),
-                      TextField(
-                        onChanged: onChangeValue,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-    }
+   @override
+   Widget build(BuildContext context) => Scaffold(
+         appBar: AppBar(
+           title: Text(S.current.title),
+         ),
+         body: Stack(
+           children: [
+             Center(
+               child: Column(
+                 children: [
+                   Text('Value: $value'),
+                   TextField(
+                     onChanged: onChangeValue,
+                   ),
+                 ],
+               ),
+             ),
+           ],
+         ),
+       );
+   }
    ```
 
 3. **Add the Page to Navigation**
@@ -309,26 +307,26 @@ Once you have created the state, the page, and the connector, the final step is 
 
    ```dart
    GoRouter get _homeRouter => GoRouter(
-        initialLocation: '/home',
-        routes: [
-          GoRoute(
-            path: '/home',
-            pageBuilder: (context, state) => MaterialPage<void>(
-              key: state.pageKey,
-              child:
-                  const ExceptionDialog<AppState>(child: HomePageConnector()),
-            ),
-            routes: [
-              GoRoute(
-                name: Routes.myProfile,
-                path: 'my-profile',
-                pageBuilder: (context, state) => MaterialPage<void>(
-                  key: state.pageKey,
-                  child: const MyProfilePageConnector(),
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
+     initialLocation: '/home',
+     routes: [
+       GoRoute(
+         path: '/home',
+         pageBuilder: (context, state) => MaterialPage<void>(
+           key: state.pageKey,
+           child:
+               const ExceptionDialog<AppState>(child: HomePageConnector()),
+         ),
+         routes: [
+           GoRoute(
+             name: Routes.myProfile,
+             path: 'my-profile',
+             pageBuilder: (context, state) => MaterialPage<void>(
+               key: state.pageKey,
+               child: const MyProfilePageConnector(),
+             ),
+           ),
+         ],
+       ),
+     ],
+   );
    ```
