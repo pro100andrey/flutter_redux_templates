@@ -16,6 +16,22 @@ This repository provides a structured Flutter application framework based on [As
 
 ![Modules UML](docs/out/modules/modules.png)
 
+## Project Structure
+
+The project is organized into the following folders to ensure a clean separation of concerns and modular development:
+
+- **`templates`**: Contains code generation templates for creating states, pages, and connectors. Supports VSCode integration for quick scaffolding.
+- **`app`**: Handles app-wide configurations such as navigation, connectors, and entry points.
+- **`ui`**: Manages the user interface, including pages, widgets, and design-related components.
+- **`storybook`**: Provides a visual testing environment for UI components, ensuring they work as expected in isolation.
+- **`business`**: Contains the core business logic, including Redux actions, reducers, and state management.
+- **`http_client`**: Encapsulates HTTP-related logic, including API clients and network configurations.
+- **`models`**: Defines reusable data models shared across the application.
+- **`storage`**: Manages local storage solutions, such as caching and persistence layers.
+- **`localization`**: Handles multi-language support, translations, and locale-specific logic.
+- **`scripts`**: Includes utility scripts for automation, build configurations, and maintenance tasks.
+- **`docs`**: Provides project documentation, guidelines, and resources for developers.
+
 ## How to Use
 
 Check VSCODE plugin [here](https://marketplace.visualstudio.com/items?itemName=yuanhjty.code-template-tool) install it and follow the instructions.
