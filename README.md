@@ -194,6 +194,8 @@ class _Vm extends Vm with EquatableMixin {
 }
 ```
 
+For more information on creating a connector, refer to the [AsyncRedux documentation](https://asyncredux.com/flutter/category/connector).
+
 ### Connecting State to a Page
 
 Once you have created the state, the page, and the connector, the final step is to wire everything together. This ensures that your page can access and update the state managed by AsyncRedux.
