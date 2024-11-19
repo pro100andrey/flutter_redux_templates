@@ -1,48 +1,49 @@
+// spell: disable
 @startuml "modules"
 !theme vibrant
 
 package "App" {
     [Connectors]
     [Navigation]
-    Connectors ..> Business: use
-    Connectors ..> UI: use
-    App .left.> Localization: use
 }
 
 package "UI" {
-    UI ..> Localization: use
     [Pages]
-    [Buttons]
-    [Inputs]
-    [OtherUIElements]
+    [Widgets]
 }
 
 package "Localization" {
-    [en]
-    [uk]
+    [En]
+    [Uk]
 }
 
 package "HTTPClient" {
-    [AuthAPIService]
-    [OtherAPIServices]
-    HTTPClient ..> Models: use
+    [API] <<Retrofit>>
+    [Interseptors] <<request/response>>
 }
 
 package "Storage" {
-    [HiveKeyValueStorage]
+    [Settings]
+    [Session]
 }
 
 package "Models" {
     [User]
-    [Session]
+    [Product]
 }
 
 package "Business" {
-    [Redux]
-    [Services]
-    Redux ..> Storage: use
-    Redux .right.> HTTPClient: use
-    Redux .right.> Models: use
+    [Redux] <<state management>>
+    [Services] <<core logic>>
 }
+
+App .down.> UI
+App .down.> Business
+App .left.> Localization
+UI .left.> Localization
+HTTPClient ..> Models
+Business ..> HTTPClient
+Business ..> Storage
+Business ..> Models
 
 @enduml
