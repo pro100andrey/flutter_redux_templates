@@ -1,6 +1,6 @@
 # Flutter Async Redux App Templates
 
-This repository provides a structured Flutter application framework based on [AsyncRedux](https://pub.dev/packages/async_redux) state management. It is designed for building medium to large-scale applications efficiently.
+This repository provides a structured Flutter application framework based on [AsyncRedux](https://asyncredux.com/flutter/intro) state management. It is designed for building medium to large-scale applications efficiently.
 
 ## Key Features
 
