@@ -4,17 +4,17 @@ This repository provides a structured Flutter application framework based on [As
 
 ## Key Features
 
-- Easy to learn
-- Easy to use
-- Easy to test
-- Minimal boilerplate
-- Multi-package structure: `App`, `UI`, `Business`, `Localization`, `Http`
-- Code generation (`source_gen`) for Http, Models, and Localization
-- Code generation templates (VSCode plugin support)
-
-## Modules UML
-
-![Modules UML](docs/out/modules/modules.png)
+- **User-Friendly**: Easy to learn, use, and test.
+- **Efficient Development**: Minimal boilerplate to streamline coding.
+- **Modular Architecture**: Multi-package structure for clear separation of concerns:
+  - **`App`**: Core application logic and navigation.
+  - **`UI`**: User interface components and design.
+  - **`Business`**: State management and core business logic.
+  - **`Localization`**: Multi-language support.
+  - **`Http`**: Network operations and API integration.
+- **Automated Code Generation**:
+  - Supports `source_gen` for Http clients, Models, and Localization.
+  - Includes ready-to-use templates compatible with VSCode plugins.
 
 ## Project Structure
 
@@ -31,6 +31,10 @@ The project is organized into the following folders to ensure a clean separation
 - **`localization`**: Handles multi-language support, translations, and locale-specific logic.
 - **`scripts`**: Includes utility scripts for automation, build configurations, and maintenance tasks.
 - **`docs`**: Provides project documentation, guidelines, and resources for developers.
+
+## Modules UML
+
+![Modules UML](docs/out/modules/modules.png)
 
 ## How to Use
 
