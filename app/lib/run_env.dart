@@ -13,10 +13,10 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 
 bool get isDesktop => [
-      TargetPlatform.windows,
-      TargetPlatform.macOS,
-      TargetPlatform.linux,
-    ].contains(defaultTargetPlatform);
+  TargetPlatform.windows,
+  TargetPlatform.macOS,
+  TargetPlatform.linux,
+].contains(defaultTargetPlatform);
 
 Future<void> runEnv(Environment env) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,10 +28,7 @@ Future<void> runEnv(Environment env) async {
     ),
   );
 
-  prettyLogging(
-    enable: kDebugMode,
-    ignoredLoggers: ['GoRouter'],
-  );
+  prettyLogging(enable: kDebugMode, ignoredLoggers: ['GoRouter']);
 
   final store = newStore();
 
@@ -54,10 +51,5 @@ Future<void> runEnv(Environment env) async {
     );
   }
 
-  runApp(
-    StoreProvider(
-      store: store,
-      child: AppConnector(store: store),
-    ),
-  );
+  runApp(StoreProvider(store: store, child: AppConnector(store: store)));
 }

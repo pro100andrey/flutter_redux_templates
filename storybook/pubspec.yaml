@@ -1,10 +1,10 @@
 name: storybook
 description: The Storybook project.
 version: 1.0.0
-publish_to: 'none'
+publish_to: "none"
 
 environment:
-   sdk: ^3.5.4
+  sdk: ^3.7.2
 
 dependencies:
   english_words: ^4.0.0

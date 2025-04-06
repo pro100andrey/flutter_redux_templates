@@ -13,22 +13,21 @@ import '../common/validators.dart';
 import '../navigation/routes.dart';
 
 class LogInPageConnector extends StatelessWidget {
-  const LogInPageConnector({
-    super.key,
-  });
+  const LogInPageConnector({super.key});
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-        debug: this,
-        vm: () => _Factory(this),
-        builder: (context, vm) => LogInPage(
+    debug: this,
+    vm: () => _Factory(this),
+    builder:
+        (context, vm) => LogInPage(
           email: vm.email,
           password: vm.password,
           onPressedForgotPassword: vm.onPressedForgotPassword,
           onPressedLogIn: vm.onPressedLogIn,
           onPressedRegister: vm.onPressedRegister,
         ),
-      );
+  );
 }
 
 /// Factory that creates a view-model  for the StoreConnector.
@@ -41,7 +40,8 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm> {
     final password = selectLogInPassword(state);
     final emailError = emailValidator(email);
     final passwordError = passwordValidator(password);
-    final formIsValid = selectLogInDataIsSet(state) &&
+    final formIsValid =
+        selectLogInDataIsSet(state) &&
         emailError == null &&
         passwordError == null;
 
@@ -49,26 +49,20 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm> {
       email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
-        onChanged: (value) => dispatchSync(
-          SetEmailAction(value!),
-        ),
+        onChanged: (value) => dispatchSync(SetEmailAction(value!)),
       ),
       password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
-        onChanged: (value) => dispatchSync(
-          SetPasswordAction(password: value!),
-        ),
+        onChanged: (value) => dispatchSync(SetPasswordAction(password: value!)),
       ),
-      onPressedLogIn: formIsValid
-          ? () async => dispatchAndWait(LogInWithEmailAction())
-          : null,
-      onPressedForgotPassword: () async => router.pushNamed(
-        Routes.forgotPassword,
-      ),
-      onPressedRegister: () async => router.pushNamed(
-        Routes.registration,
-      ),
+      onPressedLogIn:
+          formIsValid
+              ? () async => dispatchAndWait(LogInWithEmailAction())
+              : null,
+      onPressedForgotPassword:
+          () async => router.pushNamed(Routes.forgotPassword),
+      onPressedRegister: () async => router.pushNamed(Routes.registration),
     );
   }
 }

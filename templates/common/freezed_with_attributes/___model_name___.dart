@@ -4,7 +4,7 @@ part '___model_name___.freezed.dart';
 part '___model_name___.g.dart';
 
 @freezed
-class ___ModelName___ with _$___ModelName___ {
+abstract class ___ModelName___ with _$___ModelName___ {
   factory ___ModelName___({
     required String type,
     required int id,
@@ -16,10 +16,9 @@ class ___ModelName___ with _$___ModelName___ {
 }
 
 @freezed
-class ___ModelName___Attributes with _$___ModelName___Attributes {
-  factory ___ModelName___Attributes({
-    required String name,
-  }) = ____ModelName___Attributes;
+abstract class ___ModelName___Attributes with _$___ModelName___Attributes {
+  factory ___ModelName___Attributes({required String name}) =
+      ____ModelName___Attributes;
 
   factory ___ModelName___Attributes.fromJson(Map<String, dynamic> json) =>
       _$___ModelName___AttributesFromJson(json);

@@ -1,3 +1,4 @@
+// dart format width=80
 // coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
@@ -9,153 +10,136 @@ part of 'log_in_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
 /// @nodoc
 mixin _$LogInState {
-  String? get email => throw _privateConstructorUsedError;
-  String? get password => throw _privateConstructorUsedError;
 
-  /// Create a copy of LogInState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $LogInStateCopyWith<LogInState> get copyWith =>
-      throw _privateConstructorUsedError;
+ String? get email; String? get password;
+/// Create a copy of LogInState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LogInStateCopyWith<LogInState> get copyWith => _$LogInStateCopyWithImpl<LogInState>(this as LogInState, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LogInState&&(identical(other.email, email) || other.email == email)&&(identical(other.password, password) || other.password == password));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,email,password);
+
+@override
+String toString() {
+  return 'LogInState(email: $email, password: $password)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $LogInStateCopyWith<$Res> {
-  factory $LogInStateCopyWith(
-          LogInState value, $Res Function(LogInState) then) =
-      _$LogInStateCopyWithImpl<$Res, LogInState>;
-  @useResult
-  $Res call({String? email, String? password});
-}
+abstract mixin class $LogInStateCopyWith<$Res>  {
+  factory $LogInStateCopyWith(LogInState value, $Res Function(LogInState) _then) = _$LogInStateCopyWithImpl;
+@useResult
+$Res call({
+ String? email, String? password
+});
 
+
+
+
+}
 /// @nodoc
-class _$LogInStateCopyWithImpl<$Res, $Val extends LogInState>
+class _$LogInStateCopyWithImpl<$Res>
     implements $LogInStateCopyWith<$Res> {
-  _$LogInStateCopyWithImpl(this._value, this._then);
+  _$LogInStateCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final LogInState _self;
+  final $Res Function(LogInState) _then;
 
-  /// Create a copy of LogInState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? email = freezed,
-    Object? password = freezed,
-  }) {
-    return _then(_value.copyWith(
-      email: freezed == email
-          ? _value.email
-          : email // ignore: cast_nullable_to_non_nullable
-              as String?,
-      password: freezed == password
-          ? _value.password
-          : password // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ) as $Val);
-  }
+/// Create a copy of LogInState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? email = freezed,Object? password = freezed,}) {
+  return _then(_self.copyWith(
+email: freezed == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String?,password: freezed == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
 }
 
-/// @nodoc
-abstract class _$$LogInStateImplCopyWith<$Res>
-    implements $LogInStateCopyWith<$Res> {
-  factory _$$LogInStateImplCopyWith(
-          _$LogInStateImpl value, $Res Function(_$LogInStateImpl) then) =
-      __$$LogInStateImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({String? email, String? password});
 }
 
-/// @nodoc
-class __$$LogInStateImplCopyWithImpl<$Res>
-    extends _$LogInStateCopyWithImpl<$Res, _$LogInStateImpl>
-    implements _$$LogInStateImplCopyWith<$Res> {
-  __$$LogInStateImplCopyWithImpl(
-      _$LogInStateImpl _value, $Res Function(_$LogInStateImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of LogInState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? email = freezed,
-    Object? password = freezed,
-  }) {
-    return _then(_$LogInStateImpl(
-      email: freezed == email
-          ? _value.email
-          : email // ignore: cast_nullable_to_non_nullable
-              as String?,
-      password: freezed == password
-          ? _value.password
-          : password // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ));
-  }
-}
 
 /// @nodoc
 
-class _$LogInStateImpl implements _LogInState {
-  const _$LogInStateImpl({this.email, this.password});
 
-  @override
-  final String? email;
-  @override
-  final String? password;
+class _LogInState implements LogInState {
+  const _LogInState({this.email, this.password});
+  
 
-  @override
-  String toString() {
-    return 'LogInState(email: $email, password: $password)';
-  }
+@override final  String? email;
+@override final  String? password;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$LogInStateImpl &&
-            (identical(other.email, email) || other.email == email) &&
-            (identical(other.password, password) ||
-                other.password == password));
-  }
+/// Create a copy of LogInState
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LogInStateCopyWith<_LogInState> get copyWith => __$LogInStateCopyWithImpl<_LogInState>(this, _$identity);
 
-  @override
-  int get hashCode => Object.hash(runtimeType, email, password);
 
-  /// Create a copy of LogInState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$LogInStateImplCopyWith<_$LogInStateImpl> get copyWith =>
-      __$$LogInStateImplCopyWithImpl<_$LogInStateImpl>(this, _$identity);
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LogInState&&(identical(other.email, email) || other.email == email)&&(identical(other.password, password) || other.password == password));
 }
 
-abstract class _LogInState implements LogInState {
-  const factory _LogInState({final String? email, final String? password}) =
-      _$LogInStateImpl;
 
-  @override
-  String? get email;
-  @override
-  String? get password;
+@override
+int get hashCode => Object.hash(runtimeType,email,password);
 
-  /// Create a copy of LogInState
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$LogInStateImplCopyWith<_$LogInStateImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+@override
+String toString() {
+  return 'LogInState(email: $email, password: $password)';
 }
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LogInStateCopyWith<$Res> implements $LogInStateCopyWith<$Res> {
+  factory _$LogInStateCopyWith(_LogInState value, $Res Function(_LogInState) _then) = __$LogInStateCopyWithImpl;
+@override @useResult
+$Res call({
+ String? email, String? password
+});
+
+
+
+
+}
+/// @nodoc
+class __$LogInStateCopyWithImpl<$Res>
+    implements _$LogInStateCopyWith<$Res> {
+  __$LogInStateCopyWithImpl(this._self, this._then);
+
+  final _LogInState _self;
+  final $Res Function(_LogInState) _then;
+
+/// Create a copy of LogInState
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? email = freezed,Object? password = freezed,}) {
+  return _then(_LogInState(
+email: freezed == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String?,password: freezed == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+// dart format on

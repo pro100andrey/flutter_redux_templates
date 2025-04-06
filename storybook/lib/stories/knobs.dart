@@ -10,33 +10,25 @@ extension BuildContextEx on BuildContext {
   }) =>
       knobs.boolean(label: label, initial: initial)
           ? () => StyledSnackbar.instance.show(
-                context: this,
-                title: label,
-                message: 'On Pressed',
-              )
-          : null;
-
-  VoidCallback knobOnPressed({
-    String label = 'Some pressed',
-  }) =>
-      () => StyledSnackbar.instance.show(
             context: this,
             title: label,
             message: 'On Pressed',
-          );
+          )
+          : null;
 
-  String? knobInputError([
-    String label = 'Input Error',
-  ]) =>
+  VoidCallback knobOnPressed({String label = 'Some pressed'}) =>
+      () => StyledSnackbar.instance.show(
+        context: this,
+        title: label,
+        message: 'On Pressed',
+      );
+
+  String? knobInputError([String label = 'Input Error']) =>
       knobs.boolean(label: label) ? label : null;
 
   bool knobIsWaiting() => knobs.boolean(label: 'isWaiting');
 
-  String knobWords({
-    required String label,
-    int initial = 1,
-    int max = 500,
-  }) {
+  String knobWords({required String label, int initial = 1, int max = 500}) {
     final count = knobs.sliderInt(
       label: label,
       min: 1,

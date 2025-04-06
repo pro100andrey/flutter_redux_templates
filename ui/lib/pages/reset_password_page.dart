@@ -23,29 +23,29 @@ class ResetPasswordPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Stack(
-          fit: StackFit.expand,
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        AuthFormContainer(
+          title: S.current.resetPassword,
           children: [
-            AuthFormContainer(
+            const SizedBox(height: 24),
+            PasswordInput(vm: password),
+            const SizedBox(height: 16),
+            ConfirmPasswordInput(vm: confirmPassword),
+            const SizedBox(height: 16),
+            StyledElevatedButton(
               title: S.current.resetPassword,
-              children: [
-                const SizedBox(height: 24),
-                PasswordInput(vm: password),
-                const SizedBox(height: 16),
-                ConfirmPasswordInput(vm: confirmPassword),
-                const SizedBox(height: 16),
-                StyledElevatedButton(
-                  title: S.current.resetPassword,
-                  onPressed: onPressedResetPassword,
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: onPressedBackToLogin,
-                  child: Text(S.current.backToLogIn),
-                ),
-              ],
+              onPressed: onPressedResetPassword,
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: onPressedBackToLogin,
+              child: Text(S.current.backToLogIn),
             ),
           ],
         ),
-      );
+      ],
+    ),
+  );
 }

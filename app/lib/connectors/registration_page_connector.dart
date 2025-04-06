@@ -14,22 +14,21 @@ import '../common/validators.dart';
 import '../navigation/routes.dart';
 
 class RegistrationPageConnector extends StatelessWidget {
-  const RegistrationPageConnector({
-    super.key,
-  });
+  const RegistrationPageConnector({super.key});
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-        debug: this,
-        vm: () => _Factory(this),
-        builder: (context, vm) => RegistrationPage(
+    debug: this,
+    vm: () => _Factory(this),
+    builder:
+        (context, vm) => RegistrationPage(
           email: vm.email,
           password: vm.password,
           confirmPassword: vm.confirmPassword,
           onPressedRegister: vm.onPressedRegister,
           onPressedBackToLogin: vm.onPressedBackToLogin,
         ),
-      );
+  );
 }
 
 /// Factory that creates a view-model for the StoreConnector.
@@ -44,9 +43,12 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector, _Vm> {
     final passwordError = passwordValidator(password);
     final confirmPassword = selectRegistrationConfirmPassword(state);
     final confirmPasswordError = passwordValidator(confirmPassword);
-    final passwordsMatchError =
-        passwordsMatchValidator(password, confirmPassword);
-    final formIsValid = selectRegistrationDataIsSet(state) &&
+    final passwordsMatchError = passwordsMatchValidator(
+      password,
+      confirmPassword,
+    );
+    final formIsValid =
+        selectRegistrationDataIsSet(state) &&
         emailError == null &&
         passwordError == null &&
         confirmPasswordError == null &&
@@ -56,30 +58,25 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector, _Vm> {
       email: ValueChangedWithErrorVm(
         value: email,
         error: emailError,
-        onChanged: (value) => dispatchSync(
-          SetEmailAction(value!),
-        ),
+        onChanged: (value) => dispatchSync(SetEmailAction(value!)),
       ),
       password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
-        onChanged: (value) => dispatchSync(
-          SetPasswordAction(value!),
-        ),
+        onChanged: (value) => dispatchSync(SetPasswordAction(value!)),
       ),
       confirmPassword: ValueChangedWithErrorVm(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
-        onChanged: (value) => dispatchSync(
-          SetConfirmPasswordAction(value!),
-        ),
+        onChanged: (value) => dispatchSync(SetConfirmPasswordAction(value!)),
       ),
-      onPressedRegister: formIsValid
-          ? () async {
-              await dispatchAndWait(RegistrationAction());
-              router.pop();
-            }
-          : null,
+      onPressedRegister:
+          formIsValid
+              ? () async {
+                await dispatchAndWait(RegistrationAction());
+                router.pop();
+              }
+              : null,
       onPressedBackToLogin: router.pop,
     );
   }

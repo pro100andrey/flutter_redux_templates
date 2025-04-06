@@ -26,31 +26,31 @@ class RegistrationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Stack(
-          fit: StackFit.expand,
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        AuthFormContainer(
+          title: S.current.register,
           children: [
-            AuthFormContainer(
+            const SizedBox(height: 24),
+            EmailInput(vm: email),
+            const SizedBox(height: 16),
+            PasswordInput(vm: password),
+            const SizedBox(height: 16),
+            ConfirmPasswordInput(vm: confirmPassword),
+            const SizedBox(height: 16),
+            StyledElevatedButton(
               title: S.current.register,
-              children: [
-                const SizedBox(height: 24),
-                EmailInput(vm: email),
-                const SizedBox(height: 16),
-                PasswordInput(vm: password),
-                const SizedBox(height: 16),
-                ConfirmPasswordInput(vm: confirmPassword),
-                const SizedBox(height: 16),
-                StyledElevatedButton(
-                  title: S.current.register,
-                  onPressed: onPressedRegister,
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: onPressedBackToLogin,
-                  child: Text(S.current.backToLogIn),
-                ),
-              ],
+              onPressed: onPressedRegister,
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: onPressedBackToLogin,
+              child: Text(S.current.backToLogIn),
             ),
           ],
         ),
-      );
+      ],
+    ),
+  );
 }

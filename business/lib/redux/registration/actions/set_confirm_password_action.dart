@@ -8,7 +8,6 @@ class SetConfirmPasswordAction extends ReduxAction<AppState> {
   final String confirmPassword;
 
   @override
-  AppState reduce() => state.copyWith.registration(
-        confirmPassword: confirmPassword,
-      );
+  AppState reduce() =>
+      state.copyWith.registration(confirmPassword: confirmPassword);
 }

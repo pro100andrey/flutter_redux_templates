@@ -10,18 +10,12 @@ enum EnvironmentType {
 }
 
 final class Environment {
-  const Environment._({
-    required this.baseUrl,
-    required this.type,
-  });
+  const Environment._({required this.baseUrl, required this.type});
   static Future<Environment> prod() async {
     const baseUrl = 'https://prod.com';
     const type = EnvironmentType.production;
 
-    return const Environment._(
-      baseUrl: baseUrl,
-      type: type,
-    );
+    return const Environment._(baseUrl: baseUrl, type: type);
   }
 
   static Future<Environment> dev() async {
@@ -37,10 +31,7 @@ final class Environment {
       );
     }
 
-    return const Environment._(
-      baseUrl: baseUrl,
-      type: type,
-    );
+    return const Environment._(baseUrl: baseUrl, type: type);
   }
 
   final String baseUrl;

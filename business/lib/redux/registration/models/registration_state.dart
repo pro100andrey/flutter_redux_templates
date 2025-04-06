@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'registration_state.freezed.dart';
 
 @freezed
-class RegistrationState with _$RegistrationState {
+abstract class RegistrationState with _$RegistrationState {
   const factory RegistrationState({
     String? email,
     String? password,
@@ -11,6 +11,4 @@ class RegistrationState with _$RegistrationState {
   }) = _RegistrationState;
 }
 
-enum RegistrationWaiting {
-  wait,
-}
+enum RegistrationWaiting { wait }

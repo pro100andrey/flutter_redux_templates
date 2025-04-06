@@ -46,9 +46,10 @@ class LoggerInterceptor extends Interceptor {
       return;
     }
 
-    final msg = StringBuffer()
-      ..add('*** Request ***')
-      ..addKV('uri', options.uri);
+    final msg =
+        StringBuffer()
+          ..add('*** Request ***')
+          ..addKV('uri', options.uri);
 
     if (request) {
       msg
@@ -112,10 +113,11 @@ class LoggerInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     if (error && enableLogging) {
-      final msg = StringBuffer()
-        ..add('*** DioError ***:')
-        ..add('uri: ${err.requestOptions.uri}')
-        ..add('$err');
+      final msg =
+          StringBuffer()
+            ..add('*** DioError ***:')
+            ..add('uri: ${err.requestOptions.uri}')
+            ..add('$err');
       if (err.response != null) {
         _printResponse(msg, err.response!, isError: true);
       }
@@ -171,14 +173,14 @@ extension _StringBufferExt on StringBuffer {
       Map() => encoder.convert(objectData),
       String() => encoder.convert(jsonDecode(objectData)),
       _ => () {
-          try {
-            // ignore: avoid_dynamic_calls
-            final dynamic jsonString = objectData.toJson();
-            return encoder.convert(jsonString);
-          } on Exception catch (_) {
-            return json.toString();
-          }
-        }()
+        try {
+          // ignore: avoid_dynamic_calls
+          final dynamic jsonString = objectData.toJson();
+          return encoder.convert(jsonString);
+        } on Exception catch (_) {
+          return json.toString();
+        }
+      }(),
     };
 
     writeln(stringData);

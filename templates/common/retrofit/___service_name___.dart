@@ -10,9 +10,7 @@ abstract class ___ServiceName___Service {
       ____ServiceName___Service;
 
   @GET('/api/___service-name___')
-  Future<void> list({
-    @Queries() required Object query,
-  });
+  Future<void> list({@Queries() required Object query});
 
   // @POST('/api/___service-name___')
   // Future<void> update({

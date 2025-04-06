@@ -5,18 +5,14 @@ import 'models/localized_message.dart';
 
 late Store<AppState>? _store;
 
-Store<AppState> newStore({
-  UserErrorWrapperHandler? userErrorWrapper,
-}) {
+Store<AppState> newStore({UserErrorWrapperHandler? userErrorWrapper}) {
   WaitAction.reducer = _waitReducer;
 
   _store = Store<AppState>(
     initialState: AppState.initial(),
     errorObserver: _MyErrorObserver(),
     globalWrapError: _MyWrapError(customErrorWrapper: userErrorWrapper),
-    actionObservers: [
-      _ReduxActionLogger(),
-    ],
+    actionObservers: [_ReduxActionLogger()],
     modelObserver: _DefaultModelObserver<dynamic>(),
   );
 
@@ -31,14 +27,10 @@ void _waitReducer(
   Object? ref,
 ) =>
 // ignore: avoid_dynamic_calls
-    state.copyWith(
-      // ignore: avoid_dynamic_calls
-      wait: state.wait.process(
-        operation,
-        flag: flag,
-        ref: ref,
-      ),
-    );
+state.copyWith(
+  // ignore: avoid_dynamic_calls
+  wait: state.wait.process(operation, flag: flag, ref: ref),
+);
 
 class _MyErrorObserver implements ErrorObserver<AppState> {
   final _logger = Logger('Redux');
@@ -67,10 +59,7 @@ class _MyWrapError extends GlobalWrapError<AppState> {
     if (customErrorWrapper != null) {
       final message = customErrorWrapper!(error);
       if (message != null) {
-        return UserException(
-          message.message,
-          reason: message.title,
-        );
+        return UserException(message.message, reason: message.title);
       }
     }
 
@@ -105,9 +94,7 @@ class _ReduxActionLogger extends ActionObserver<AppState> {
       return;
     }
 
-    _logger.info(
-      '$action D: $dispatchCount - ${ini ? 'start' : 'end'}',
-    );
+    _logger.info('$action D: $dispatchCount - ${ini ? 'start' : 'end'}');
   }
 }
 
@@ -127,7 +114,8 @@ class _DefaultModelObserver<Model> implements ModelObserver<Model> {
     final debug =
         (storeConnector?.debug == null ? storeConnector : storeConnector!.debug)
             .runtimeType;
-    _logger
-        .info('$debug D: $dispatchCount R: $reduceCount Rebuild: $isDistinct');
+    _logger.info(
+      '$debug D: $dispatchCount R: $reduceCount Rebuild: $isDistinct',
+    );
   }
 }

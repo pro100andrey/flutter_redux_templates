@@ -7,15 +7,12 @@ import '../../../common/services/interface.dart';
 
 // ignore: one_member_abstracts
 abstract class ConnectivityServiceDriverInterface {
-  void onStatusChange({
-    required bool isAvailable,
-  });
+  void onStatusChange({required bool isAvailable});
 }
 
 class ConnectivityService extends DisposableServiceInterface {
-  ConnectivityService({
-    required ConnectivityServiceDriverInterface driver,
-  }) : _driver = driver;
+  ConnectivityService({required ConnectivityServiceDriverInterface driver})
+    : _driver = driver;
 
   final ConnectivityServiceDriverInterface _driver;
 
@@ -31,8 +28,8 @@ class ConnectivityService extends DisposableServiceInterface {
 
     if (!kIsWeb) {
       _subscription = Connectivity().onConnectivityChanged.listen(
-            (status) async => _setNetworkStatus(status),
-          );
+        (status) async => _setNetworkStatus(status),
+      );
       final status = await Connectivity().checkConnectivity();
       _setNetworkStatus(status);
     } else {

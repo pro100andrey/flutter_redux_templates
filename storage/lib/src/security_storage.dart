@@ -7,11 +7,11 @@ class _SecurityStorageKeys {
 
 class SecurityStorage extends KeyValueSecurityStorageImpl {
   SecurityStorage()
-      : super(
-          storageName: 'security_storage',
-          //openssl rand -base64 32
-          key: 'set your key here',
-        );
+    : super(
+        storageName: 'security_storage',
+        //openssl rand -base64 32
+        key: 'set your key here',
+      );
 }
 
 // BiometricData

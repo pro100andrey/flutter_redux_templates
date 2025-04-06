@@ -39,19 +39,17 @@ class StyledSnackbar {
             if (title != null) ...[
               Text(
                 title,
-                style: Theme.of(ctx)
-                    .textTheme
-                    .bodyLarge!
-                    .copyWith(color: Colors.white),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.bodyLarge!.copyWith(color: Colors.white),
               ),
               const SizedBox(height: 22),
             ],
             Text(
               message,
-              style: Theme.of(ctx)
-                  .textTheme
-                  .bodyMedium!
-                  .copyWith(color: Colors.white),
+              style: Theme.of(
+                ctx,
+              ).textTheme.bodyMedium!.copyWith(color: Colors.white),
             ),
           ],
         ),

@@ -19,10 +19,7 @@ class LogInWithEmailAction extends ReduxAction<AppState> {
     final email = selectLogInEmail(state)!;
     final password = selectLogInPassword(state)!;
 
-    await _logInWithEmailRequest(
-      email: email,
-      password: password,
-    );
+    await _logInWithEmailRequest(email: email, password: password);
 
     return state.copyWith(logIn: const LogInState());
   }

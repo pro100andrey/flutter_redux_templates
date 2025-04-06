@@ -12,21 +12,20 @@ import '../common/validators.dart';
 import '../navigation/routes.dart';
 
 class ForgotPasswordPageConnector extends StatelessWidget {
-  const ForgotPasswordPageConnector({
-    super.key,
-  });
+  const ForgotPasswordPageConnector({super.key});
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-        debug: this,
-        vm: () => _Factory(this),
-        builder: (context, vm) => ForgotPasswordPage(
+    debug: this,
+    vm: () => _Factory(this),
+    builder:
+        (context, vm) => ForgotPasswordPage(
           isWaiting: vm.isWaiting,
           email: vm.email,
           onPressedResetPassword: vm.onPressedResetPassword,
           onPressedBackToLogin: vm.onPressedBackToLogin,
         ),
-      );
+  );
 }
 
 /// Factory that creates a view-model for the StoreConnector.

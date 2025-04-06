@@ -5,16 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:ui/pages/___connector_name____page.dart';
 
 class ___ConnectorName___PageConnector extends StatelessWidget {
-  const ___ConnectorName___PageConnector({
-    super.key,
-  });
+  const ___ConnectorName___PageConnector({super.key});
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-        debug: this,
-        vm: () => _Factory(this),
-        builder: (context, vm) => const ___ConnectorName___Page(),
-      );
+    debug: this,
+    vm: () => _Factory(this),
+    builder: (context, vm) => const ___ConnectorName___Page(),
+  );
 }
 
 /// Factory that creates a view-model for the StoreConnector.

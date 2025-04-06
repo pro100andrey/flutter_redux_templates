@@ -12,8 +12,5 @@ IMap<int, Object> select___StateName___Table(AppState state) =>
     state.___stateName___.table;
 
 /// Returns [Object] value by id
-Object select___StateName___ById(
-  AppState state, {
-  required int id,
-}) =>
+Object select___StateName___ById(AppState state, {required int id}) =>
     select___StateName___Table(state)[id]!;

@@ -3,9 +3,7 @@ import 'package:hive/hive.dart';
 import 'key_value_storage.dart';
 
 class HiveKeyValueStorageImpl extends KeyValueStorage {
-  HiveKeyValueStorageImpl({
-    required super.storageName,
-  });
+  HiveKeyValueStorageImpl({required super.storageName});
 
   Future<Box<dynamic>> get _box => Hive.openBox<dynamic>(storageName);
 

@@ -3,9 +3,7 @@ import 'package:dio/dio.dart';
 import '../http_settings.dart';
 
 class AuthInterceptor extends Interceptor {
-  AuthInterceptor({
-    required this.httpSettings,
-  });
+  AuthInterceptor({required this.httpSettings});
 
   final HttpSettings httpSettings;
 

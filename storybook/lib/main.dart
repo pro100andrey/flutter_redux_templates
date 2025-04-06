@@ -15,33 +15,24 @@ void main() {
 }
 
 class StoryBookApp extends StatelessWidget {
-  const StoryBookApp({
-    super.key,
-  });
+  const StoryBookApp({super.key});
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        scrollBehavior: CustomScrollBehavior(),
-        theme: lightTheme(),
-        home: Storybook(
-          wrapperBuilder: (context, child) => Container(child: child),
-          plugins: initializePlugins(
-            enableThemeMode: false,
-          ),
-          stories: [
-            ...logos,
-            ...buttons,
-            ...inputs,
-            ...pages,
-          ],
-        ),
-        localizationsDelegates: const [
-          S.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: S.delegate.supportedLocales,
-      );
+    debugShowCheckedModeBanner: false,
+    scrollBehavior: CustomScrollBehavior(),
+    theme: lightTheme(),
+    home: Storybook(
+      wrapperBuilder: (context, child) => Container(child: child),
+      plugins: initializePlugins(enableThemeMode: false),
+      stories: [...logos, ...buttons, ...inputs, ...pages],
+    ),
+    localizationsDelegates: const [
+      S.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    supportedLocales: S.delegate.supportedLocales,
+  );
 }

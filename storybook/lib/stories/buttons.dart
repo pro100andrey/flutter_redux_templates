@@ -5,9 +5,10 @@ import 'package:ui/buttons/styled_elevated_button.dart';
 import 'knobs.dart';
 
 List<Story> get buttons => [
-      Story(
-        name: 'Buttons/StyledElevatedButton',
-        builder: (context) => Center(
+  Story(
+    name: 'Buttons/StyledElevatedButton',
+    builder:
+        (context) => Center(
           child: StyledElevatedButton(
             title: context.knobs.text(
               label: 'Rounded button',
@@ -16,10 +17,11 @@ List<Story> get buttons => [
             onPressed: context.knobOnPressedOptional(),
           ),
         ),
-      ),
-      Story(
-        name: 'Buttons/TextButton',
-        builder: (context) => Center(
+  ),
+  Story(
+    name: 'Buttons/TextButton',
+    builder:
+        (context) => Center(
           child: TextButton(
             onPressed: context.knobOnPressedOptional(),
             child: Text(
@@ -27,5 +29,5 @@ List<Story> get buttons => [
             ),
           ),
         ),
-      ),
-    ];
+  ),
+];

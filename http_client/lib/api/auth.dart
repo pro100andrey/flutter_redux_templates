@@ -11,7 +11,5 @@ abstract class AuthService {
   factory AuthService(Dio dio, {required String baseUrl}) = _AuthService;
 
   @POST('/api/account/login')
-  Future<void> logIn({
-    @Body() required LoginBody body,
-  });
+  Future<void> logIn({@Body() required LoginBody body});
 }

@@ -12,9 +12,9 @@ class Retrieve___StateName___Action extends ReduxAction<AppState> {
 
   @override
   void after() => dispatchSync(
-        WaitAction.remove(___StateName___Waiting.wait, ref: this),
-        notify: false,
-      );
+    WaitAction.remove(___StateName___Waiting.wait, ref: this),
+    notify: false,
+  );
 
   Future<AppState?> reduce() async => Future.value(state);
 }
