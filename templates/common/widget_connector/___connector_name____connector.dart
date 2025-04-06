@@ -4,16 +4,14 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
 class ___ConnectorName___Connector extends StatelessWidget {
-  const ___ConnectorName___Connector({
-    super.key,
-  }) ;
+  const ___ConnectorName___Connector({super.key});
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-        debug: this,
-        vm: () => _Factory(this),
-        builder: (context, vm) => ___ConnectorName___(),
-      );
+    debug: this,
+    vm: () => _Factory(this),
+    builder: (context, vm) => ___ConnectorName___(),
+  );
 }
 
 /// Factory that creates a view-model for the StoreConnector.

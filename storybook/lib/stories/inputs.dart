@@ -8,31 +8,27 @@ import 'package:ui/models/value_changed.dart';
 import 'knobs.dart';
 
 List<Story> get inputs => [
-      Story(
-        name: 'Inputs/Email',
-        builder: (context) => Center(
-          child: EmailInput(
-            vm: context.newInputVm('Email'),
-          ),
-        ),
-      ),
-      Story(
-        name: 'Inputs/Password',
-        builder: (context) => Center(
-          child: PasswordInput(
-            vm: context.newInputVm('Password'),
-          ),
-        ),
-      ),
-      Story(
-        name: 'Inputs/ConfirmPassword',
-        builder: (context) => Center(
+  Story(
+    name: 'Inputs/Email',
+    builder:
+        (context) => Center(child: EmailInput(vm: context.newInputVm('Email'))),
+  ),
+  Story(
+    name: 'Inputs/Password',
+    builder:
+        (context) =>
+            Center(child: PasswordInput(vm: context.newInputVm('Password'))),
+  ),
+  Story(
+    name: 'Inputs/ConfirmPassword',
+    builder:
+        (context) => Center(
           child: ConfirmPasswordInput(
             vm: context.newInputVm('ConfirmPassword'),
           ),
         ),
-      ),
-    ];
+  ),
+];
 
 extension ButtonsKnobsBuildContextEx on BuildContext {
   ValueChangedWithErrorVm<String?> newInputVm(String label) =>

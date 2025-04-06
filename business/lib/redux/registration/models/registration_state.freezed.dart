@@ -1,3 +1,4 @@
+// dart format width=80
 // coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
@@ -9,175 +10,139 @@ part of 'registration_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
 /// @nodoc
 mixin _$RegistrationState {
-  String? get email => throw _privateConstructorUsedError;
-  String? get password => throw _privateConstructorUsedError;
-  String? get confirmPassword => throw _privateConstructorUsedError;
 
-  /// Create a copy of RegistrationState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $RegistrationStateCopyWith<RegistrationState> get copyWith =>
-      throw _privateConstructorUsedError;
+ String? get email; String? get password; String? get confirmPassword;
+/// Create a copy of RegistrationState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$RegistrationStateCopyWith<RegistrationState> get copyWith => _$RegistrationStateCopyWithImpl<RegistrationState>(this as RegistrationState, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegistrationState&&(identical(other.email, email) || other.email == email)&&(identical(other.password, password) || other.password == password)&&(identical(other.confirmPassword, confirmPassword) || other.confirmPassword == confirmPassword));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,email,password,confirmPassword);
+
+@override
+String toString() {
+  return 'RegistrationState(email: $email, password: $password, confirmPassword: $confirmPassword)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $RegistrationStateCopyWith<$Res> {
-  factory $RegistrationStateCopyWith(
-          RegistrationState value, $Res Function(RegistrationState) then) =
-      _$RegistrationStateCopyWithImpl<$Res, RegistrationState>;
-  @useResult
-  $Res call({String? email, String? password, String? confirmPassword});
-}
+abstract mixin class $RegistrationStateCopyWith<$Res>  {
+  factory $RegistrationStateCopyWith(RegistrationState value, $Res Function(RegistrationState) _then) = _$RegistrationStateCopyWithImpl;
+@useResult
+$Res call({
+ String? email, String? password, String? confirmPassword
+});
 
+
+
+
+}
 /// @nodoc
-class _$RegistrationStateCopyWithImpl<$Res, $Val extends RegistrationState>
+class _$RegistrationStateCopyWithImpl<$Res>
     implements $RegistrationStateCopyWith<$Res> {
-  _$RegistrationStateCopyWithImpl(this._value, this._then);
+  _$RegistrationStateCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final RegistrationState _self;
+  final $Res Function(RegistrationState) _then;
 
-  /// Create a copy of RegistrationState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? email = freezed,
-    Object? password = freezed,
-    Object? confirmPassword = freezed,
-  }) {
-    return _then(_value.copyWith(
-      email: freezed == email
-          ? _value.email
-          : email // ignore: cast_nullable_to_non_nullable
-              as String?,
-      password: freezed == password
-          ? _value.password
-          : password // ignore: cast_nullable_to_non_nullable
-              as String?,
-      confirmPassword: freezed == confirmPassword
-          ? _value.confirmPassword
-          : confirmPassword // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ) as $Val);
-  }
+/// Create a copy of RegistrationState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? email = freezed,Object? password = freezed,Object? confirmPassword = freezed,}) {
+  return _then(_self.copyWith(
+email: freezed == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String?,password: freezed == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
+as String?,confirmPassword: freezed == confirmPassword ? _self.confirmPassword : confirmPassword // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
 }
 
-/// @nodoc
-abstract class _$$RegistrationStateImplCopyWith<$Res>
-    implements $RegistrationStateCopyWith<$Res> {
-  factory _$$RegistrationStateImplCopyWith(_$RegistrationStateImpl value,
-          $Res Function(_$RegistrationStateImpl) then) =
-      __$$RegistrationStateImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({String? email, String? password, String? confirmPassword});
 }
 
-/// @nodoc
-class __$$RegistrationStateImplCopyWithImpl<$Res>
-    extends _$RegistrationStateCopyWithImpl<$Res, _$RegistrationStateImpl>
-    implements _$$RegistrationStateImplCopyWith<$Res> {
-  __$$RegistrationStateImplCopyWithImpl(_$RegistrationStateImpl _value,
-      $Res Function(_$RegistrationStateImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of RegistrationState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? email = freezed,
-    Object? password = freezed,
-    Object? confirmPassword = freezed,
-  }) {
-    return _then(_$RegistrationStateImpl(
-      email: freezed == email
-          ? _value.email
-          : email // ignore: cast_nullable_to_non_nullable
-              as String?,
-      password: freezed == password
-          ? _value.password
-          : password // ignore: cast_nullable_to_non_nullable
-              as String?,
-      confirmPassword: freezed == confirmPassword
-          ? _value.confirmPassword
-          : confirmPassword // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ));
-  }
-}
 
 /// @nodoc
 
-class _$RegistrationStateImpl implements _RegistrationState {
-  const _$RegistrationStateImpl(
-      {this.email, this.password, this.confirmPassword});
 
-  @override
-  final String? email;
-  @override
-  final String? password;
-  @override
-  final String? confirmPassword;
+class _RegistrationState implements RegistrationState {
+  const _RegistrationState({this.email, this.password, this.confirmPassword});
+  
 
-  @override
-  String toString() {
-    return 'RegistrationState(email: $email, password: $password, confirmPassword: $confirmPassword)';
-  }
+@override final  String? email;
+@override final  String? password;
+@override final  String? confirmPassword;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$RegistrationStateImpl &&
-            (identical(other.email, email) || other.email == email) &&
-            (identical(other.password, password) ||
-                other.password == password) &&
-            (identical(other.confirmPassword, confirmPassword) ||
-                other.confirmPassword == confirmPassword));
-  }
+/// Create a copy of RegistrationState
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$RegistrationStateCopyWith<_RegistrationState> get copyWith => __$RegistrationStateCopyWithImpl<_RegistrationState>(this, _$identity);
 
-  @override
-  int get hashCode =>
-      Object.hash(runtimeType, email, password, confirmPassword);
 
-  /// Create a copy of RegistrationState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$RegistrationStateImplCopyWith<_$RegistrationStateImpl> get copyWith =>
-      __$$RegistrationStateImplCopyWithImpl<_$RegistrationStateImpl>(
-          this, _$identity);
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegistrationState&&(identical(other.email, email) || other.email == email)&&(identical(other.password, password) || other.password == password)&&(identical(other.confirmPassword, confirmPassword) || other.confirmPassword == confirmPassword));
 }
 
-abstract class _RegistrationState implements RegistrationState {
-  const factory _RegistrationState(
-      {final String? email,
-      final String? password,
-      final String? confirmPassword}) = _$RegistrationStateImpl;
 
-  @override
-  String? get email;
-  @override
-  String? get password;
-  @override
-  String? get confirmPassword;
+@override
+int get hashCode => Object.hash(runtimeType,email,password,confirmPassword);
 
-  /// Create a copy of RegistrationState
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$RegistrationStateImplCopyWith<_$RegistrationStateImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+@override
+String toString() {
+  return 'RegistrationState(email: $email, password: $password, confirmPassword: $confirmPassword)';
 }
+
+
+}
+
+/// @nodoc
+abstract mixin class _$RegistrationStateCopyWith<$Res> implements $RegistrationStateCopyWith<$Res> {
+  factory _$RegistrationStateCopyWith(_RegistrationState value, $Res Function(_RegistrationState) _then) = __$RegistrationStateCopyWithImpl;
+@override @useResult
+$Res call({
+ String? email, String? password, String? confirmPassword
+});
+
+
+
+
+}
+/// @nodoc
+class __$RegistrationStateCopyWithImpl<$Res>
+    implements _$RegistrationStateCopyWith<$Res> {
+  __$RegistrationStateCopyWithImpl(this._self, this._then);
+
+  final _RegistrationState _self;
+  final $Res Function(_RegistrationState) _then;
+
+/// Create a copy of RegistrationState
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? email = freezed,Object? password = freezed,Object? confirmPassword = freezed,}) {
+  return _then(_RegistrationState(
+email: freezed == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String?,password: freezed == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
+as String?,confirmPassword: freezed == confirmPassword ? _self.confirmPassword : confirmPassword // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+// dart format on

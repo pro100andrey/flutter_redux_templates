@@ -26,41 +26,39 @@ class LogInPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Stack(
-          fit: StackFit.expand,
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        AuthFormContainer(
+          title: S.current.logIn,
           children: [
-            AuthFormContainer(
+            const SizedBox(height: 24),
+            Assets.vec.placeholders.image.svg(height: 100),
+            const SizedBox(height: 16),
+            EmailInput(vm: email),
+            const SizedBox(height: 16),
+            PasswordInput(vm: password),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onPressedForgotPassword,
+                child: Text(S.current.forgotPassword),
+              ),
+            ),
+            const SizedBox(height: 16),
+            StyledElevatedButton(
               title: S.current.logIn,
-              children: [
-                const SizedBox(height: 24),
-                Assets.vec.placeholders.image.svg(
-                  height: 100,
-                ),
-                const SizedBox(height: 16),
-                EmailInput(vm: email),
-                const SizedBox(height: 16),
-                PasswordInput(vm: password),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: onPressedForgotPassword,
-                    child: Text(S.current.forgotPassword),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                StyledElevatedButton(
-                  title: S.current.logIn,
-                  onPressed: onPressedLogIn,
-                ),
-                const SizedBox(height: 16),
-                StyledElevatedButton(
-                  title: S.current.register,
-                  onPressed: onPressedRegister,
-                ),
-              ],
+              onPressed: onPressedLogIn,
+            ),
+            const SizedBox(height: 16),
+            StyledElevatedButton(
+              title: S.current.register,
+              onPressed: onPressedRegister,
             ),
           ],
         ),
-      );
+      ],
+    ),
+  );
 }

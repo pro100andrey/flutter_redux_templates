@@ -6,10 +6,7 @@ part 'biometric_data.g.dart';
 
 @HiveType(typeId: HiveTypes.biometricData)
 class BiometricData extends HiveObject {
-  BiometricData({
-    required this.email,
-    required this.password,
-  });
+  BiometricData({required this.email, required this.password});
 
   @HiveField(0)
   String email;

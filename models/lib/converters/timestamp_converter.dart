@@ -27,6 +27,9 @@ class YYYYMMDDTHISConverter implements JsonConverter<DateTime, String> {
   DateTime fromJson(String value) => DateFormat('yyyy-MM-dd').parse(value);
 
   @override
-  String toJson(DateTime value) =>
-      DateFormat('yyyy-MM-dd' 'T' 'HH:mm:ss').format(value);
+  String toJson(DateTime value) => DateFormat(
+    'yyyy-MM-dd'
+    'T'
+    'HH:mm:ss',
+  ).format(value);
 }

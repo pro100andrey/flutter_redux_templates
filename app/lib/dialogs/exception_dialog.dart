@@ -46,22 +46,22 @@ class ExceptionDialog<St> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => StoreConnector<St, _Vm>(
-        vm: _Factory<St>.new,
-        builder: (context, vm) {
-          //
-          final errorEvent = //
-              (_Factory._errorEvents.isEmpty) //
-                  ? null
-                  : _Factory._errorEvents.removeFirst();
+    vm: _Factory<St>.new,
+    builder: (context, vm) {
+      //
+      final errorEvent = //
+          (_Factory._errorEvents.isEmpty) //
+              ? null
+              : _Factory._errorEvents.removeFirst();
 
-          return _UserExceptionDialogWidget(
-            errorEvent: errorEvent,
-            useLocalContext: useLocalContext,
-            onShowUserExceptionDialog: onShowUserExceptionDialog,
-            child: child,
-          );
-        },
+      return _UserExceptionDialogWidget(
+        errorEvent: errorEvent,
+        useLocalContext: useLocalContext,
+        onShowUserExceptionDialog: onShowUserExceptionDialog,
+        child: child,
       );
+    },
+  );
 }
 
 class _UserExceptionDialogWidget extends StatefulWidget {
@@ -71,7 +71,7 @@ class _UserExceptionDialogWidget extends StatefulWidget {
     required this.useLocalContext,
     ShowUserExceptionDialog? onShowUserExceptionDialog,
   }) : onShowUserExceptionDialog = //
-            onShowUserExceptionDialog ?? _defaultUserExceptionDialog;
+           onShowUserExceptionDialog ?? _defaultUserExceptionDialog;
   final Widget child;
   final Event<UserException>? errorEvent;
   final ShowUserExceptionDialog onShowUserExceptionDialog;
@@ -167,9 +167,7 @@ class _Factory<St> extends VmFactory<St, UserExceptionDialog, _Vm> {
       _errorEvents.add(Event(error));
     }
 
-    return _Vm(
-      rebuild: error != null,
-    );
+    return _Vm(rebuild: error != null);
   }
 }
 
@@ -187,11 +185,12 @@ class _Vm extends Vm {
   int get hashCode => rebuild.hashCode;
 }
 
-typedef ShowUserExceptionDialog = void Function({
-  required BuildContext context,
-  required UserException userException,
-  required bool useLocalContext,
-});
+typedef ShowUserExceptionDialog =
+    void Function({
+      required BuildContext context,
+      required UserException userException,
+      required bool useLocalContext,
+    });
 
 Future<T?> showDialogSuper<T>({
   required BuildContext context,

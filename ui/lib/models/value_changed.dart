@@ -7,10 +7,7 @@ void printD(Object? v) => print;
 typedef VoidCallbackVm = FutureOr Function();
 
 class BaseValueChangedVm<T> extends Equatable {
-  const BaseValueChangedVm({
-    this.onChanged = printD,
-    this.enabled = true,
-  });
+  const BaseValueChangedVm({this.onChanged = printD, this.enabled = true});
 
   final bool enabled;
   final FutureOr Function(T value) onChanged;

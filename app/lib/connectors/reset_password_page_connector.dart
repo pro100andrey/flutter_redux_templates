@@ -13,21 +13,20 @@ import '../common/validators.dart';
 import '../navigation/routes.dart';
 
 class ResetPasswordPageConnector extends StatelessWidget {
-  const ResetPasswordPageConnector({
-    super.key,
-  });
+  const ResetPasswordPageConnector({super.key});
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-        debug: this,
-        vm: () => _Factory(this),
-        builder: (context, vm) => ResetPasswordPage(
+    debug: this,
+    vm: () => _Factory(this),
+    builder:
+        (context, vm) => ResetPasswordPage(
           password: vm.password,
           confirmPassword: vm.confirmPassword,
           onPressedResetPassword: vm.onPressedResetPassword,
           onPressedBackToLogin: vm.onPressedBackToLogin,
         ),
-      );
+  );
 }
 
 /// Factory that creates a view-model for the StoreConnector.
@@ -40,9 +39,12 @@ class _Factory extends VmFactory<AppState, ResetPasswordPageConnector, _Vm> {
     final passwordError = passwordValidator(password);
     final confirmPassword = selectResetPasswordConfirmPassword(state);
     final confirmPasswordError = passwordValidator(confirmPassword);
-    final passwordsMatchError =
-        passwordsMatchValidator(password, confirmPassword);
-    final formIsValid = selectResetPasswordDataIsSet(state) &&
+    final passwordsMatchError = passwordsMatchValidator(
+      password,
+      confirmPassword,
+    );
+    final formIsValid =
+        selectResetPasswordDataIsSet(state) &&
         passwordError == null &&
         confirmPasswordError == null &&
         passwordsMatchError == null;
@@ -51,22 +53,15 @@ class _Factory extends VmFactory<AppState, ResetPasswordPageConnector, _Vm> {
       password: ValueChangedWithErrorVm(
         value: password,
         error: passwordError,
-        onChanged: (value) => dispatchSync(
-          SetPasswordAction(value!),
-        ),
+        onChanged: (value) => dispatchSync(SetPasswordAction(value!)),
       ),
       confirmPassword: ValueChangedWithErrorVm(
         value: confirmPassword,
         error: confirmPasswordError ?? passwordsMatchError,
-        onChanged: (value) => dispatchSync(
-          SetConfirmPasswordAction(value!),
-        ),
+        onChanged: (value) => dispatchSync(SetConfirmPasswordAction(value!)),
       ),
-      onPressedResetPassword: formIsValid
-          ? () => dispatchSync(
-                ResetPasswordAction(),
-              )
-          : null,
+      onPressedResetPassword:
+          formIsValid ? () => dispatchSync(ResetPasswordAction()) : null,
       onPressedBackToLogin: router.pop,
     );
   }

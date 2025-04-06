@@ -1,7 +1,5 @@
 abstract class KeyValueStorage {
-  KeyValueStorage({
-    required this.storageName,
-  });
+  KeyValueStorage({required this.storageName});
 
   /// Storage name
   final String storageName;

@@ -1,3 +1,4 @@
+// dart format width=80
 // coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
@@ -9,137 +10,133 @@ part of 'forgot_password_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
 /// @nodoc
 mixin _$ForgotPasswordState {
-  String? get email => throw _privateConstructorUsedError;
 
-  /// Create a copy of ForgotPasswordState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $ForgotPasswordStateCopyWith<ForgotPasswordState> get copyWith =>
-      throw _privateConstructorUsedError;
+ String? get email;
+/// Create a copy of ForgotPasswordState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ForgotPasswordStateCopyWith<ForgotPasswordState> get copyWith => _$ForgotPasswordStateCopyWithImpl<ForgotPasswordState>(this as ForgotPasswordState, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ForgotPasswordState&&(identical(other.email, email) || other.email == email));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,email);
+
+@override
+String toString() {
+  return 'ForgotPasswordState(email: $email)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $ForgotPasswordStateCopyWith<$Res> {
-  factory $ForgotPasswordStateCopyWith(
-          ForgotPasswordState value, $Res Function(ForgotPasswordState) then) =
-      _$ForgotPasswordStateCopyWithImpl<$Res, ForgotPasswordState>;
-  @useResult
-  $Res call({String? email});
-}
+abstract mixin class $ForgotPasswordStateCopyWith<$Res>  {
+  factory $ForgotPasswordStateCopyWith(ForgotPasswordState value, $Res Function(ForgotPasswordState) _then) = _$ForgotPasswordStateCopyWithImpl;
+@useResult
+$Res call({
+ String? email
+});
 
+
+
+
+}
 /// @nodoc
-class _$ForgotPasswordStateCopyWithImpl<$Res, $Val extends ForgotPasswordState>
+class _$ForgotPasswordStateCopyWithImpl<$Res>
     implements $ForgotPasswordStateCopyWith<$Res> {
-  _$ForgotPasswordStateCopyWithImpl(this._value, this._then);
+  _$ForgotPasswordStateCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final ForgotPasswordState _self;
+  final $Res Function(ForgotPasswordState) _then;
 
-  /// Create a copy of ForgotPasswordState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? email = freezed,
-  }) {
-    return _then(_value.copyWith(
-      email: freezed == email
-          ? _value.email
-          : email // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ) as $Val);
-  }
+/// Create a copy of ForgotPasswordState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? email = freezed,}) {
+  return _then(_self.copyWith(
+email: freezed == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
 }
 
-/// @nodoc
-abstract class _$$ForgotPasswordStateImplCopyWith<$Res>
-    implements $ForgotPasswordStateCopyWith<$Res> {
-  factory _$$ForgotPasswordStateImplCopyWith(_$ForgotPasswordStateImpl value,
-          $Res Function(_$ForgotPasswordStateImpl) then) =
-      __$$ForgotPasswordStateImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({String? email});
 }
 
-/// @nodoc
-class __$$ForgotPasswordStateImplCopyWithImpl<$Res>
-    extends _$ForgotPasswordStateCopyWithImpl<$Res, _$ForgotPasswordStateImpl>
-    implements _$$ForgotPasswordStateImplCopyWith<$Res> {
-  __$$ForgotPasswordStateImplCopyWithImpl(_$ForgotPasswordStateImpl _value,
-      $Res Function(_$ForgotPasswordStateImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of ForgotPasswordState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? email = freezed,
-  }) {
-    return _then(_$ForgotPasswordStateImpl(
-      email: freezed == email
-          ? _value.email
-          : email // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ));
-  }
-}
 
 /// @nodoc
 
-class _$ForgotPasswordStateImpl implements _ForgotPasswordState {
-  const _$ForgotPasswordStateImpl({this.email});
 
-  @override
-  final String? email;
+class _ForgotPasswordState implements ForgotPasswordState {
+  const _ForgotPasswordState({this.email});
+  
 
-  @override
-  String toString() {
-    return 'ForgotPasswordState(email: $email)';
-  }
+@override final  String? email;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$ForgotPasswordStateImpl &&
-            (identical(other.email, email) || other.email == email));
-  }
+/// Create a copy of ForgotPasswordState
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ForgotPasswordStateCopyWith<_ForgotPasswordState> get copyWith => __$ForgotPasswordStateCopyWithImpl<_ForgotPasswordState>(this, _$identity);
 
-  @override
-  int get hashCode => Object.hash(runtimeType, email);
 
-  /// Create a copy of ForgotPasswordState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$ForgotPasswordStateImplCopyWith<_$ForgotPasswordStateImpl> get copyWith =>
-      __$$ForgotPasswordStateImplCopyWithImpl<_$ForgotPasswordStateImpl>(
-          this, _$identity);
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ForgotPasswordState&&(identical(other.email, email) || other.email == email));
 }
 
-abstract class _ForgotPasswordState implements ForgotPasswordState {
-  const factory _ForgotPasswordState({final String? email}) =
-      _$ForgotPasswordStateImpl;
 
-  @override
-  String? get email;
+@override
+int get hashCode => Object.hash(runtimeType,email);
 
-  /// Create a copy of ForgotPasswordState
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$ForgotPasswordStateImplCopyWith<_$ForgotPasswordStateImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+@override
+String toString() {
+  return 'ForgotPasswordState(email: $email)';
 }
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ForgotPasswordStateCopyWith<$Res> implements $ForgotPasswordStateCopyWith<$Res> {
+  factory _$ForgotPasswordStateCopyWith(_ForgotPasswordState value, $Res Function(_ForgotPasswordState) _then) = __$ForgotPasswordStateCopyWithImpl;
+@override @useResult
+$Res call({
+ String? email
+});
+
+
+
+
+}
+/// @nodoc
+class __$ForgotPasswordStateCopyWithImpl<$Res>
+    implements _$ForgotPasswordStateCopyWith<$Res> {
+  __$ForgotPasswordStateCopyWithImpl(this._self, this._then);
+
+  final _ForgotPasswordState _self;
+  final $Res Function(_ForgotPasswordState) _then;
+
+/// Create a copy of ForgotPasswordState
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? email = freezed,}) {
+  return _then(_ForgotPasswordState(
+email: freezed == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+// dart format on

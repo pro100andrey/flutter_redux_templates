@@ -11,7 +11,7 @@ import 'session/models/session_state.dart';
 part 'app_state.freezed.dart';
 
 @freezed
-class AppState with _$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required ConnectivityState connectivity,
     required LogInState logIn,
@@ -23,12 +23,12 @@ class AppState with _$AppState {
   }) = _AppState;
 
   factory AppState.initial() => const AppState(
-        connectivity: ConnectivityState(),
-        logIn: LogInState(),
-        registration: RegistrationState(),
-        forgotPassword: ForgotPasswordState(),
-        resetPassword: ResetPasswordState(),
-        session: SessionState(),
-        wait: Wait.empty,
-      );
+    connectivity: ConnectivityState(),
+    logIn: LogInState(),
+    registration: RegistrationState(),
+    forgotPassword: ForgotPasswordState(),
+    resetPassword: ResetPasswordState(),
+    session: SessionState(),
+    wait: Wait.empty,
+  );
 }

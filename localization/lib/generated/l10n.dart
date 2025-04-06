@@ -18,17 +18,20 @@ class S {
   static S? _current;
 
   static S get current {
-    assert(_current != null,
-        'No instance of S was loaded. Try to initialize the S delegate before accessing S.current.');
+    assert(
+      _current != null,
+      'No instance of S was loaded. Try to initialize the S delegate before accessing S.current.',
+    );
     return _current!;
   }
 
   static const AppLocalizationDelegate delegate = AppLocalizationDelegate();
 
   static Future<S> load(Locale locale) {
-    final name = (locale.countryCode?.isEmpty ?? false)
-        ? locale.languageCode
-        : locale.toString();
+    final name =
+        (locale.countryCode?.isEmpty ?? false)
+            ? locale.languageCode
+            : locale.toString();
     final localeName = Intl.canonicalizedLocale(name);
     return initializeMessages(localeName).then((_) {
       Intl.defaultLocale = localeName;
@@ -41,8 +44,10 @@ class S {
 
   static S of(BuildContext context) {
     final instance = S.maybeOf(context);
-    assert(instance != null,
-        'No instance of S present in the widget tree. Did you add S.delegate in localizationsDelegates?');
+    assert(
+      instance != null,
+      'No instance of S present in the widget tree. Did you add S.delegate in localizationsDelegates?',
+    );
     return instance!;
   }
 
@@ -52,52 +57,27 @@ class S {
 
   /// `en`
   String get _locale {
-    return Intl.message(
-      'en',
-      name: '_locale',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('en', name: '_locale', desc: '', args: []);
   }
 
   /// `title`
   String get title {
-    return Intl.message(
-      'title',
-      name: 'title',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('title', name: 'title', desc: '', args: []);
   }
 
   /// `OK`
   String get ok {
-    return Intl.message(
-      'OK',
-      name: 'ok',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('OK', name: 'ok', desc: '', args: []);
   }
 
   /// `Cancel`
   String get cancel {
-    return Intl.message(
-      'Cancel',
-      name: 'cancel',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('Cancel', name: 'cancel', desc: '', args: []);
   }
 
   /// `Log in`
   String get logIn {
-    return Intl.message(
-      'Log in',
-      name: 'logIn',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('Log in', name: 'logIn', desc: '', args: []);
   }
 
   /// `Back to logIn`
@@ -112,12 +92,7 @@ class S {
 
   /// `Register`
   String get register {
-    return Intl.message(
-      'Register',
-      name: 'register',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('Register', name: 'register', desc: '', args: []);
   }
 
   /// `Reset password`
@@ -132,12 +107,7 @@ class S {
 
   /// `Email`
   String get email {
-    return Intl.message(
-      'Email',
-      name: 'email',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('Email', name: 'email', desc: '', args: []);
   }
 
   /// `Email is invalid`
@@ -152,12 +122,7 @@ class S {
 
   /// `Password`
   String get password {
-    return Intl.message(
-      'Password',
-      name: 'password',
-      desc: '',
-      args: [],
-    );
+    return Intl.message('Password', name: 'password', desc: '', args: []);
   }
 
   /// `Confirm Password`
@@ -275,9 +240,7 @@ class AppLocalizationDelegate extends LocalizationsDelegate<S> {
   const AppLocalizationDelegate();
 
   List<Locale> get supportedLocales {
-    return const <Locale>[
-      Locale.fromSubtags(languageCode: 'en'),
-    ];
+    return const <Locale>[Locale.fromSubtags(languageCode: 'en')];
   }
 
   @override

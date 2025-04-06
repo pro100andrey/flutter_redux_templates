@@ -29,7 +29,7 @@ function cleanup() {
 
     if [  "$format" = true ]; then
         log "dart format ."
-        dart format --fix .
+        dart format .
     fi
 
     cleanup_podfile "$(pwd)/ios"
@@ -44,6 +44,15 @@ function cleanup() {
 }
 
 function cleanup_podfile() {
+
+    # Check if pod is installed
+    if ! command -v pod &> /dev/null
+    then
+        log "pod could not be found"
+        return
+    fi
+    
+
     local dir=$1
     local file="$dir/Podfile.lock"
 

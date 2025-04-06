@@ -5,7 +5,7 @@ class BaseLinearIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const LinearProgressIndicator(
-        minHeight: 2,
-        backgroundColor: Colors.transparent,
-      );
+    minHeight: 2,
+    backgroundColor: Colors.transparent,
+  );
 }

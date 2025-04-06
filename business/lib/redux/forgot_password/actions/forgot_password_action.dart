@@ -21,9 +21,7 @@ class ForgotPasswordAction extends ReduxAction<AppState> {
   }
 }
 
-Future<void> _forgotPasswordRequest({
-  required String email,
-}) async {
+Future<void> _forgotPasswordRequest({required String email}) async {
   await Future<dynamic>.delayed(const Duration(seconds: 2));
 
   throw const UserException('Not implemented yet.');

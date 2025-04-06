@@ -1,3 +1,4 @@
+// dart format width=80
 // coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, unused_element
@@ -44,36 +45,12 @@ mixin _$ThemeExtensionMixin on ThemeExtension<ColorsThemeExtension> {
     final value = this as ColorsThemeExtension;
 
     return ColorsThemeExtension(
-      primary: Color.lerp(
-        value.primary,
-        otherValue.primary,
-        t,
-      )!,
-      secondary: Color.lerp(
-        value.secondary,
-        otherValue.secondary,
-        t,
-      )!,
-      background: Color.lerp(
-        value.background,
-        otherValue.background,
-        t,
-      )!,
-      error: Color.lerp(
-        value.error,
-        otherValue.error,
-        t,
-      )!,
-      shade: Color.lerp(
-        value.shade,
-        otherValue.shade,
-        t,
-      )!,
-      border: Color.lerp(
-        value.border,
-        otherValue.border,
-        t,
-      )!,
+      primary: Color.lerp(value.primary, otherValue.primary, t)!,
+      secondary: Color.lerp(value.secondary, otherValue.secondary, t)!,
+      background: Color.lerp(value.background, otherValue.background, t)!,
+      error: Color.lerp(value.error, otherValue.error, t)!,
+      shade: Color.lerp(value.shade, otherValue.shade, t)!,
+      border: Color.lerp(value.border, otherValue.border, t)!,
     );
   }
 

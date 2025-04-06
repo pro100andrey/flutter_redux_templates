@@ -8,24 +8,19 @@ import 'package:flutter/material.dart';
 import 'package:ui/overlays/barrier_overlay.dart';
 import 'package:ui/overlays/no_internet_overlay.dart';
 
-enum _Overlay {
-  barrier,
-  noInternetConnection,
-}
+enum _Overlay { barrier, noInternetConnection }
 
 class TopLevelPageConnector extends StatelessWidget {
-  const TopLevelPageConnector({
-    required this.child,
-    super.key,
-  });
+  const TopLevelPageConnector({required this.child, super.key});
 
   final Widget? child;
 
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-        debug: this,
-        vm: () => _Factory(this),
-        builder: (context, vm) => Stack(
+    debug: this,
+    vm: () => _Factory(this),
+    builder:
+        (context, vm) => Stack(
           children: [
             child!,
             if (vm.overlay == _Overlay.barrier) const BarrierOverlay(),
@@ -33,7 +28,7 @@ class TopLevelPageConnector extends StatelessWidget {
               const NoInternetOverlay(),
           ],
         ),
-      );
+  );
 }
 
 class _Factory extends VmFactory<AppState, TopLevelPageConnector, _Vm> {
@@ -55,9 +50,7 @@ class _Factory extends VmFactory<AppState, TopLevelPageConnector, _Vm> {
 }
 
 class _Vm extends Vm with EquatableMixin {
-  _Vm({
-    this.overlay,
-  });
+  _Vm({this.overlay});
 
   final _Overlay? overlay;
 

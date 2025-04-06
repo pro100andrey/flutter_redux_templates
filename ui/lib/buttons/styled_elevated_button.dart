@@ -30,12 +30,13 @@ class StyledElevatedButton extends StatelessWidget {
       minimumSize: Size(width, height),
       foregroundColor: foregroundColor,
       backgroundColor: backgroundColor,
-      shape: borderColor != null
-          ? RoundedRectangleBorder(
-              borderRadius: borderRadius,
-              side: BorderSide(color: borderColor!),
-            )
-          : null,
+      shape:
+          borderColor != null
+              ? RoundedRectangleBorder(
+                borderRadius: borderRadius,
+                side: BorderSide(color: borderColor!),
+              )
+              : null,
     );
 
     return ElevatedButton(

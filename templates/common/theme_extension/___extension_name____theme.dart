@@ -7,9 +7,7 @@ part '../../theme_extension/___extension_name____theme.g.dart';
 @themeExtensions
 class ___ExtensionName___Theme extends ThemeExtension<___ExtensionName___Theme>
     with _$ThemeExtensionMixin {
-  const ___ExtensionName___Theme({    
-    this.color = Colors.red,
-  });
+  const ___ExtensionName___Theme({this.color = Colors.red});
 
   final Color? color;
 }

@@ -105,42 +105,43 @@ class BaseTextInputState extends State<BaseTextInput> {
 
   @override
   Widget build(BuildContext context) => TextField(
-        controller: _controller,
-        focusNode: widget.focusNode,
-        keyboardType: widget.keyboardType,
-        expands: widget.expands,
-        minLines: widget.minLines,
-        maxLength: widget.maxLength,
-        maxLines: widget.maxLines,
-        obscureText: _isVisible && widget.obscureText,
-        autofocus: widget.autofocus,
-        inputFormatters: widget.inputFormatters,
-        onSubmitted: widget.onSubmitted,
-        autofillHints: widget.autofillHints,
-        textAlignVertical: widget.textAlignVertical,
-        decoration: InputDecoration(
-          floatingLabelBehavior: widget.floatingLabelBehavior,
-          fillColor: Colors.transparent,
-          counterText: widget.showCounterText ? null : '',
-          enabled: widget.vm.enabled,
-          labelText: widget.labelText,
-          hintText: widget.hintText,
-          helperText: widget.helperText,
-          prefixText: widget.prefixText,
-          prefixIcon: widget.prefixIcon,
-          suffix: widget.suffix,
-          suffixIcon: widget.obscureText
+    controller: _controller,
+    focusNode: widget.focusNode,
+    keyboardType: widget.keyboardType,
+    expands: widget.expands,
+    minLines: widget.minLines,
+    maxLength: widget.maxLength,
+    maxLines: widget.maxLines,
+    obscureText: _isVisible && widget.obscureText,
+    autofocus: widget.autofocus,
+    inputFormatters: widget.inputFormatters,
+    onSubmitted: widget.onSubmitted,
+    autofillHints: widget.autofillHints,
+    textAlignVertical: widget.textAlignVertical,
+    decoration: InputDecoration(
+      floatingLabelBehavior: widget.floatingLabelBehavior,
+      fillColor: Colors.transparent,
+      counterText: widget.showCounterText ? null : '',
+      enabled: widget.vm.enabled,
+      labelText: widget.labelText,
+      hintText: widget.hintText,
+      helperText: widget.helperText,
+      prefixText: widget.prefixText,
+      prefixIcon: widget.prefixIcon,
+      suffix: widget.suffix,
+      suffixIcon:
+          widget.obscureText
               ? IconButton(
-                  onPressed: _invertVisible,
-                  icon: Icon(
-                    _isVisible ? Icons.visibility_off : Icons.visibility,
-                  ),
-                )
+                onPressed: _invertVisible,
+                icon: Icon(
+                  _isVisible ? Icons.visibility_off : Icons.visibility,
+                ),
+              )
               : null,
-          filled: widget.filled,
-          errorText: widget.vm.error,
-        ),
-      );
+      filled: widget.filled,
+      errorText: widget.vm.error,
+    ),
+  );
 
   void _invertVisible() {
     setState(() {

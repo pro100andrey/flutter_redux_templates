@@ -4,7 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part '___state_name____state.freezed.dart';
 
 @freezed
-class ___StateName___State with _$___StateName___State {
+abstract class ___StateName___State with _$___StateName___State {
   const factory ___StateName___State({
     String? query,
     @Default(IListConst<int>([])) IList<int> view,

@@ -1,3 +1,4 @@
+// dart format width=80
 // coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
@@ -9,135 +10,133 @@ part of 'session_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
 /// @nodoc
 mixin _$SessionState {
-  String? get token => throw _privateConstructorUsedError;
 
-  /// Create a copy of SessionState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $SessionStateCopyWith<SessionState> get copyWith =>
-      throw _privateConstructorUsedError;
+ String? get token;
+/// Create a copy of SessionState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SessionStateCopyWith<SessionState> get copyWith => _$SessionStateCopyWithImpl<SessionState>(this as SessionState, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionState&&(identical(other.token, token) || other.token == token));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,token);
+
+@override
+String toString() {
+  return 'SessionState(token: $token)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $SessionStateCopyWith<$Res> {
-  factory $SessionStateCopyWith(
-          SessionState value, $Res Function(SessionState) then) =
-      _$SessionStateCopyWithImpl<$Res, SessionState>;
-  @useResult
-  $Res call({String? token});
-}
+abstract mixin class $SessionStateCopyWith<$Res>  {
+  factory $SessionStateCopyWith(SessionState value, $Res Function(SessionState) _then) = _$SessionStateCopyWithImpl;
+@useResult
+$Res call({
+ String? token
+});
 
+
+
+
+}
 /// @nodoc
-class _$SessionStateCopyWithImpl<$Res, $Val extends SessionState>
+class _$SessionStateCopyWithImpl<$Res>
     implements $SessionStateCopyWith<$Res> {
-  _$SessionStateCopyWithImpl(this._value, this._then);
+  _$SessionStateCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final SessionState _self;
+  final $Res Function(SessionState) _then;
 
-  /// Create a copy of SessionState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? token = freezed,
-  }) {
-    return _then(_value.copyWith(
-      token: freezed == token
-          ? _value.token
-          : token // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ) as $Val);
-  }
+/// Create a copy of SessionState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? token = freezed,}) {
+  return _then(_self.copyWith(
+token: freezed == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
 }
 
-/// @nodoc
-abstract class _$$SessionStateImplCopyWith<$Res>
-    implements $SessionStateCopyWith<$Res> {
-  factory _$$SessionStateImplCopyWith(
-          _$SessionStateImpl value, $Res Function(_$SessionStateImpl) then) =
-      __$$SessionStateImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({String? token});
 }
 
-/// @nodoc
-class __$$SessionStateImplCopyWithImpl<$Res>
-    extends _$SessionStateCopyWithImpl<$Res, _$SessionStateImpl>
-    implements _$$SessionStateImplCopyWith<$Res> {
-  __$$SessionStateImplCopyWithImpl(
-      _$SessionStateImpl _value, $Res Function(_$SessionStateImpl) _then)
-      : super(_value, _then);
-
-  /// Create a copy of SessionState
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? token = freezed,
-  }) {
-    return _then(_$SessionStateImpl(
-      token: freezed == token
-          ? _value.token
-          : token // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ));
-  }
-}
 
 /// @nodoc
 
-class _$SessionStateImpl implements _SessionState {
-  const _$SessionStateImpl({this.token});
 
-  @override
-  final String? token;
+class _SessionState implements SessionState {
+  const _SessionState({this.token});
+  
 
-  @override
-  String toString() {
-    return 'SessionState(token: $token)';
-  }
+@override final  String? token;
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$SessionStateImpl &&
-            (identical(other.token, token) || other.token == token));
-  }
+/// Create a copy of SessionState
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$SessionStateCopyWith<_SessionState> get copyWith => __$SessionStateCopyWithImpl<_SessionState>(this, _$identity);
 
-  @override
-  int get hashCode => Object.hash(runtimeType, token);
 
-  /// Create a copy of SessionState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$SessionStateImplCopyWith<_$SessionStateImpl> get copyWith =>
-      __$$SessionStateImplCopyWithImpl<_$SessionStateImpl>(this, _$identity);
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SessionState&&(identical(other.token, token) || other.token == token));
 }
 
-abstract class _SessionState implements SessionState {
-  const factory _SessionState({final String? token}) = _$SessionStateImpl;
 
-  @override
-  String? get token;
+@override
+int get hashCode => Object.hash(runtimeType,token);
 
-  /// Create a copy of SessionState
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$SessionStateImplCopyWith<_$SessionStateImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+@override
+String toString() {
+  return 'SessionState(token: $token)';
 }
+
+
+}
+
+/// @nodoc
+abstract mixin class _$SessionStateCopyWith<$Res> implements $SessionStateCopyWith<$Res> {
+  factory _$SessionStateCopyWith(_SessionState value, $Res Function(_SessionState) _then) = __$SessionStateCopyWithImpl;
+@override @useResult
+$Res call({
+ String? token
+});
+
+
+
+
+}
+/// @nodoc
+class __$SessionStateCopyWithImpl<$Res>
+    implements _$SessionStateCopyWith<$Res> {
+  __$SessionStateCopyWithImpl(this._self, this._then);
+
+  final _SessionState _self;
+  final $Res Function(_SessionState) _then;
+
+/// Create a copy of SessionState
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? token = freezed,}) {
+  return _then(_SessionState(
+token: freezed == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+// dart format on

@@ -5,9 +5,7 @@ import '../../app_state.dart';
 import '../___state_name____selectors.dart';
 
 class Add___StateName___Action extends ReduxAction<AppState> {
-  Add___StateName___Action({
-    required this.___stateName___,
-  });
+  Add___StateName___Action({required this.___stateName___});
 
   final IList<Object> ___stateName___;
 

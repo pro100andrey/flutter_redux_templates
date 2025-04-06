@@ -24,36 +24,39 @@ class MessageLookup extends MessageLookupByLibrary {
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
-        "_locale": MessageLookupByLibrary.simpleMessage("en"),
-        "backToLogIn": MessageLookupByLibrary.simpleMessage("Back to logIn"),
-        "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
-        "confirmPassword":
-            MessageLookupByLibrary.simpleMessage("Confirm Password"),
-        "couldNotConnectToInternet": MessageLookupByLibrary.simpleMessage(
-            "Couldn\'t connect to internet."),
-        "email": MessageLookupByLibrary.simpleMessage("Email"),
-        "emailInvalid":
-            MessageLookupByLibrary.simpleMessage("Email is invalid"),
-        "forgotPassword":
-            MessageLookupByLibrary.simpleMessage("Forgot password ?"),
-        "invalidEmail": MessageLookupByLibrary.simpleMessage("Invalid email"),
-        "logIn": MessageLookupByLibrary.simpleMessage("Log in"),
-        "minimumLengthSymbols": m0,
-        "mustContainAtLeastOneLowercase": MessageLookupByLibrary.simpleMessage(
-            "Must contain at least one lowercase"),
-        "mustContainAtLeastOneUppercase": MessageLookupByLibrary.simpleMessage(
-            "Must contain at least one uppercase"),
-        "ok": MessageLookupByLibrary.simpleMessage("OK"),
-        "password": MessageLookupByLibrary.simpleMessage("Password"),
-        "passwordsDoNotMatch":
-            MessageLookupByLibrary.simpleMessage("Passwords do not match"),
-        "pleaseCheckYorNetworkSettings": MessageLookupByLibrary.simpleMessage(
-            "Please check yor network settings."),
-        "register": MessageLookupByLibrary.simpleMessage("Register"),
-        "requiredField": MessageLookupByLibrary.simpleMessage("Required field"),
-        "resetPassword": MessageLookupByLibrary.simpleMessage("Reset password"),
-        "thisFieldIsRequired":
-            MessageLookupByLibrary.simpleMessage("This field is required"),
-        "title": MessageLookupByLibrary.simpleMessage("title")
-      };
+    "_locale": MessageLookupByLibrary.simpleMessage("en"),
+    "backToLogIn": MessageLookupByLibrary.simpleMessage("Back to logIn"),
+    "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
+    "confirmPassword": MessageLookupByLibrary.simpleMessage("Confirm Password"),
+    "couldNotConnectToInternet": MessageLookupByLibrary.simpleMessage(
+      "Couldn\'t connect to internet.",
+    ),
+    "email": MessageLookupByLibrary.simpleMessage("Email"),
+    "emailInvalid": MessageLookupByLibrary.simpleMessage("Email is invalid"),
+    "forgotPassword": MessageLookupByLibrary.simpleMessage("Forgot password ?"),
+    "invalidEmail": MessageLookupByLibrary.simpleMessage("Invalid email"),
+    "logIn": MessageLookupByLibrary.simpleMessage("Log in"),
+    "minimumLengthSymbols": m0,
+    "mustContainAtLeastOneLowercase": MessageLookupByLibrary.simpleMessage(
+      "Must contain at least one lowercase",
+    ),
+    "mustContainAtLeastOneUppercase": MessageLookupByLibrary.simpleMessage(
+      "Must contain at least one uppercase",
+    ),
+    "ok": MessageLookupByLibrary.simpleMessage("OK"),
+    "password": MessageLookupByLibrary.simpleMessage("Password"),
+    "passwordsDoNotMatch": MessageLookupByLibrary.simpleMessage(
+      "Passwords do not match",
+    ),
+    "pleaseCheckYorNetworkSettings": MessageLookupByLibrary.simpleMessage(
+      "Please check yor network settings.",
+    ),
+    "register": MessageLookupByLibrary.simpleMessage("Register"),
+    "requiredField": MessageLookupByLibrary.simpleMessage("Required field"),
+    "resetPassword": MessageLookupByLibrary.simpleMessage("Reset password"),
+    "thisFieldIsRequired": MessageLookupByLibrary.simpleMessage(
+      "This field is required",
+    ),
+    "title": MessageLookupByLibrary.simpleMessage("title"),
+  };
 }
