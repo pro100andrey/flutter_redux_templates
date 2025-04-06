@@ -74,7 +74,7 @@ import 'session/models/session_state.dart';
 part 'app_state.freezed.dart';
 
 @freezed
-class AppState with _$AppState {
+abstractclass AppState with _$AppState {
   const factory AppState({
     required ConnectivityState connectivity,
     required LogInState logIn,
