@@ -13,10 +13,6 @@
             "path": "ui"
         },
         {
-            "name": "storybook",
-            "path": "storybook"
-        },
-        {
             "name": "business",
             "path": "business"
         },

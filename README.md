@@ -23,7 +23,6 @@ The project is organized into the following folders to ensure a clean separation
 - **`templates`**: Contains code generation templates for creating states, pages, and connectors. Supports VSCode integration for quick scaffolding.
 - **`app`**: Handles app-wide configurations such as navigation, connectors, and entry points.
 - **`ui`**: Manages the user interface, including pages, widgets, and design-related components.
-- **`storybook`**: Provides a visual testing environment for UI components, ensuring they work as expected in isolation.
 - **`business`**: Contains the core business logic, including Redux actions, reducers, and state management.
 - **`http_client`**: Encapsulates HTTP-related logic, including API clients and network configurations.
 - **`models`**: Defines reusable data models shared across the application.
