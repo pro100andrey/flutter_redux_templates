@@ -12,4 +12,7 @@ abstract class AuthService {
 
   @POST('/api/account/login')
   Future<void> logIn({@Body() required LoginBody body});
+
+  @POST('/api/account/logout')
+  Future<void> logOut();
 }
