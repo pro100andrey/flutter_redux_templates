@@ -18,13 +18,12 @@ class ForgotPasswordPageConnector extends StatelessWidget {
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
     debug: this,
     vm: () => _Factory(this),
-    builder:
-        (context, vm) => ForgotPasswordPage(
-          isWaiting: vm.isWaiting,
-          email: vm.email,
-          onPressedResetPassword: vm.onPressedResetPassword,
-          onPressedBackToLogin: vm.onPressedBackToLogin,
-        ),
+    builder: (context, vm) => ForgotPasswordPage(
+      isWaiting: vm.isWaiting,
+      email: vm.email,
+      onPressedResetPassword: vm.onPressedResetPassword,
+      onPressedBackToLogin: vm.onPressedBackToLogin,
+    ),
   );
 }
 

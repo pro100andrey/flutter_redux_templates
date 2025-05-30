@@ -19,13 +19,12 @@ class ResetPasswordPageConnector extends StatelessWidget {
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
     debug: this,
     vm: () => _Factory(this),
-    builder:
-        (context, vm) => ResetPasswordPage(
-          password: vm.password,
-          confirmPassword: vm.confirmPassword,
-          onPressedResetPassword: vm.onPressedResetPassword,
-          onPressedBackToLogin: vm.onPressedBackToLogin,
-        ),
+    builder: (context, vm) => ResetPasswordPage(
+      password: vm.password,
+      confirmPassword: vm.confirmPassword,
+      onPressedResetPassword: vm.onPressedResetPassword,
+      onPressedBackToLogin: vm.onPressedBackToLogin,
+    ),
   );
 }
 
@@ -60,8 +59,9 @@ class _Factory extends VmFactory<AppState, ResetPasswordPageConnector, _Vm> {
         error: confirmPasswordError ?? passwordsMatchError,
         onChanged: (value) => dispatchSync(SetConfirmPasswordAction(value!)),
       ),
-      onPressedResetPassword:
-          formIsValid ? () => dispatchSync(ResetPasswordAction()) : null,
+      onPressedResetPassword: formIsValid
+          ? () => dispatchSync(ResetPasswordAction())
+          : null,
       onPressedBackToLogin: router.pop,
     );
   }

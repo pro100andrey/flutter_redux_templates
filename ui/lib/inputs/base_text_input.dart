@@ -129,15 +129,12 @@ class BaseTextInputState extends State<BaseTextInput> {
       prefixText: widget.prefixText,
       prefixIcon: widget.prefixIcon,
       suffix: widget.suffix,
-      suffixIcon:
-          widget.obscureText
-              ? IconButton(
-                onPressed: _invertVisible,
-                icon: Icon(
-                  _isVisible ? Icons.visibility_off : Icons.visibility,
-                ),
-              )
-              : null,
+      suffixIcon: widget.obscureText
+          ? IconButton(
+              onPressed: _invertVisible,
+              icon: Icon(_isVisible ? Icons.visibility_off : Icons.visibility),
+            )
+          : null,
       filled: widget.filled,
       errorText: widget.vm.error,
     ),

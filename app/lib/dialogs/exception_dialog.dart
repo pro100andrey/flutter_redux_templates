@@ -51,8 +51,8 @@ class ExceptionDialog<St> extends StatelessWidget {
       //
       final errorEvent = //
           (_Factory._errorEvents.isEmpty) //
-              ? null
-              : _Factory._errorEvents.removeFirst();
+          ? null
+          : _Factory._errorEvents.removeFirst();
 
       return _UserExceptionDialogWidget(
         errorEvent: errorEvent,

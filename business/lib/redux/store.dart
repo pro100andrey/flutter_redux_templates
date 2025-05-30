@@ -26,11 +26,11 @@ void _waitReducer(
   Object? flag,
   Object? ref,
 ) =>
-// ignore: avoid_dynamic_calls
-state.copyWith(
-  // ignore: avoid_dynamic_calls
-  wait: state.wait.process(operation, flag: flag, ref: ref),
-);
+    // ignore: avoid_dynamic_calls
+    state.copyWith(
+      // ignore: avoid_dynamic_calls
+      wait: state.wait.process(operation, flag: flag, ref: ref),
+    );
 
 class _MyErrorObserver implements ErrorObserver<AppState> {
   final _logger = Logger('Redux');

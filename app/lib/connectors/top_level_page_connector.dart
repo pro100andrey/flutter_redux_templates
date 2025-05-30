@@ -19,15 +19,14 @@ class TopLevelPageConnector extends StatelessWidget {
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
     debug: this,
     vm: () => _Factory(this),
-    builder:
-        (context, vm) => Stack(
-          children: [
-            child!,
-            if (vm.overlay == _Overlay.barrier) const BarrierOverlay(),
-            if (vm.overlay == _Overlay.noInternetConnection)
-              const NoInternetOverlay(),
-          ],
-        ),
+    builder: (context, vm) => Stack(
+      children: [
+        child!,
+        if (vm.overlay == _Overlay.barrier) const BarrierOverlay(),
+        if (vm.overlay == _Overlay.noInternetConnection)
+          const NoInternetOverlay(),
+      ],
+    ),
   );
 }
 

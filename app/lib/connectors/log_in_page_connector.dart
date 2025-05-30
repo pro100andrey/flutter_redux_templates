@@ -19,14 +19,13 @@ class LogInPageConnector extends StatelessWidget {
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
     debug: this,
     vm: () => _Factory(this),
-    builder:
-        (context, vm) => LogInPage(
-          email: vm.email,
-          password: vm.password,
-          onPressedForgotPassword: vm.onPressedForgotPassword,
-          onPressedLogIn: vm.onPressedLogIn,
-          onPressedRegister: vm.onPressedRegister,
-        ),
+    builder: (context, vm) => LogInPage(
+      email: vm.email,
+      password: vm.password,
+      onPressedForgotPassword: vm.onPressedForgotPassword,
+      onPressedLogIn: vm.onPressedLogIn,
+      onPressedRegister: vm.onPressedRegister,
+    ),
   );
 }
 
@@ -56,12 +55,11 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm> {
         error: passwordError,
         onChanged: (value) => dispatchSync(SetPasswordAction(password: value!)),
       ),
-      onPressedLogIn:
-          formIsValid
-              ? () async => dispatchAndWait(LogInWithEmailAction())
-              : null,
-      onPressedForgotPassword:
-          () async => router.pushNamed(Routes.forgotPassword),
+      onPressedLogIn: formIsValid
+          ? () async => dispatchAndWait(LogInWithEmailAction())
+          : null,
+      onPressedForgotPassword: () async =>
+          router.pushNamed(Routes.forgotPassword),
       onPressedRegister: () async => router.pushNamed(Routes.registration),
     );
   }

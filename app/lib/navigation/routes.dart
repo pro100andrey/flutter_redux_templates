@@ -56,11 +56,10 @@ class RoutersMap {
     routes: [
       GoRoute(
         path: '/splash',
-        pageBuilder:
-            (context, state) => MaterialPage<void>(
-              key: state.pageKey,
-              child: const ExceptionDialog<AppState>(child: SplashPage()),
-            ),
+        pageBuilder: (context, state) => MaterialPage<void>(
+          key: state.pageKey,
+          child: const ExceptionDialog<AppState>(child: SplashPage()),
+        ),
       ),
     ],
   );
@@ -70,13 +69,10 @@ class RoutersMap {
     routes: [
       GoRoute(
         path: '/home',
-        pageBuilder:
-            (context, state) => MaterialPage<void>(
-              key: state.pageKey,
-              child: const ExceptionDialog<AppState>(
-                child: HomePageConnector(),
-              ),
-            ),
+        pageBuilder: (context, state) => MaterialPage<void>(
+          key: state.pageKey,
+          child: const ExceptionDialog<AppState>(child: HomePageConnector()),
+        ),
       ),
     ],
   );
@@ -99,35 +95,31 @@ class RoutersMap {
       GoRoute(
         name: Routes.login,
         path: '/',
-        builder:
-            (context, state) =>
-                const ExceptionDialog<AppState>(child: LogInPageConnector()),
+        builder: (context, state) =>
+            const ExceptionDialog<AppState>(child: LogInPageConnector()),
         routes: [
           GoRoute(
             name: Routes.registration,
             path: 'registration',
-            pageBuilder:
-                (context, state) => MaterialPage<void>(
-                  key: state.pageKey,
-                  child: const RegistrationPageConnector(),
-                ),
+            pageBuilder: (context, state) => MaterialPage<void>(
+              key: state.pageKey,
+              child: const RegistrationPageConnector(),
+            ),
           ),
           GoRoute(
             name: Routes.forgotPassword,
             path: 'forgot-password',
-            pageBuilder:
-                (context, state) => MaterialPage<void>(
-                  key: state.pageKey,
-                  child: const ForgotPasswordPageConnector(),
-                ),
+            pageBuilder: (context, state) => MaterialPage<void>(
+              key: state.pageKey,
+              child: const ForgotPasswordPageConnector(),
+            ),
           ),
           GoRoute(
             path: 'reset-password',
-            pageBuilder:
-                (context, state) => MaterialPage<void>(
-                  key: state.pageKey,
-                  child: const ResetPasswordPageConnector(),
-                ),
+            pageBuilder: (context, state) => MaterialPage<void>(
+              key: state.pageKey,
+              child: const ResetPasswordPageConnector(),
+            ),
           ),
         ],
       ),

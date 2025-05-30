@@ -20,14 +20,13 @@ class RegistrationPageConnector extends StatelessWidget {
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
     debug: this,
     vm: () => _Factory(this),
-    builder:
-        (context, vm) => RegistrationPage(
-          email: vm.email,
-          password: vm.password,
-          confirmPassword: vm.confirmPassword,
-          onPressedRegister: vm.onPressedRegister,
-          onPressedBackToLogin: vm.onPressedBackToLogin,
-        ),
+    builder: (context, vm) => RegistrationPage(
+      email: vm.email,
+      password: vm.password,
+      confirmPassword: vm.confirmPassword,
+      onPressedRegister: vm.onPressedRegister,
+      onPressedBackToLogin: vm.onPressedBackToLogin,
+    ),
   );
 }
 
@@ -70,13 +69,12 @@ class _Factory extends VmFactory<AppState, RegistrationPageConnector, _Vm> {
         error: confirmPasswordError ?? passwordsMatchError,
         onChanged: (value) => dispatchSync(SetConfirmPasswordAction(value!)),
       ),
-      onPressedRegister:
-          formIsValid
-              ? () async {
-                await dispatchAndWait(RegistrationAction());
-                router.pop();
-              }
-              : null,
+      onPressedRegister: formIsValid
+          ? () async {
+              await dispatchAndWait(RegistrationAction());
+              router.pop();
+            }
+          : null,
       onPressedBackToLogin: router.pop,
     );
   }

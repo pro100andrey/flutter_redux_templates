@@ -51,5 +51,10 @@ Future<void> runEnv(Environment env) async {
     );
   }
 
-  runApp(StoreProvider(store: store, child: AppConnector(store: store)));
+  runApp(
+    StoreProvider(
+      store: store,
+      child: AppConnector(store: store),
+    ),
+  );
 }
