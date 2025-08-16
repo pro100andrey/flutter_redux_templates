@@ -158,7 +158,7 @@ extension _StringBufferExt on StringBuffer {
   }
 
   void addAsJson(Object? data) {
-    final dynamic objectData = data;
+    final objectData = data;
     if (objectData == null) {
       writeln('$objectData');
 
@@ -173,7 +173,9 @@ extension _StringBufferExt on StringBuffer {
       _ => () {
         try {
           // ignore: avoid_dynamic_calls
-          final dynamic jsonString = objectData.toJson();
+          final dynamic d = objectData;
+          // ignore: avoid_dynamic_calls
+          final dynamic jsonString = d.toJson();
           return encoder.convert(jsonString);
         } on Exception catch (_) {
           return json.toString();
