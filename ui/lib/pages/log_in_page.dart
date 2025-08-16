@@ -33,7 +33,7 @@ class LogInPage extends StatelessWidget {
           title: S.current.logIn,
           children: [
             const SizedBox(height: 24),
-            Assets.vec.placeholders.image.svg(height: 100),
+            Assets.svg.placeholders.image.svg(height: 100),
             const SizedBox(height: 16),
             EmailInput(vm: email),
             const SizedBox(height: 16),

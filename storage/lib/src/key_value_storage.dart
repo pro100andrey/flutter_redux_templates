@@ -1,47 +1,22 @@
-abstract class KeyValueStorage {
-  KeyValueStorage({required this.storageName});
+import 'package:sembast/sembast.dart';
 
-  /// Storage name
-  final String storageName;
+import 'base_key_value_storage.dart';
+import 'sembast/sembast_setup_mixin.dart';
 
-  ///
-  /// Reads a value from the storage.
-  ///
-  ///
-  /// [key] - The key of the value to read.
-  ///
-  /// Returns: The value stored, or null if not found.
-  ///
-  Future<T?> get<T>(String key) {
-    throw UnimplementedError();
+final class KeyValueStorage extends BaseKeyValueStorage with SembastSetupMixin {
+  @override
+  Future<void> clear() async => mainStore.delete(db);
+
+  @override
+  Future<void> delete(String key) async {
+    await mainStore.record(key).delete(db);
   }
 
-  ///
-  /// Writes a value to the storage.
-  ///
-  ///
-  /// [key] - The key of the value to write.
-  ///
-  /// [value] - The value to write.
-  ///
-  Future<void> put<T>(String key, T value) {
-    throw UnimplementedError();
-  }
+  @override
+  Future<T?> get<T>(String key) async =>
+      await mainStore.record(key).get(db) as T?;
 
-  ///
-  /// Deletes a value from the storage.
-  ///
-  ///
-  /// [key] - The key of the value to delete.
-  ///
-  Future<void> delete(String key) {
-    throw UnimplementedError();
-  }
-
-  ///
-  /// Clears all values from the storage.
-  ///
-  Future<void> clear() {
-    throw UnimplementedError();
-  }
+  @override
+  Future<void> put<T>(String key, T value) async =>
+      mainStore.record(key).put(db, value);
 }

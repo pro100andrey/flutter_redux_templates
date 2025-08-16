@@ -59,8 +59,8 @@ ThemeData darkTheme() {
   );
 }
 
-InputDecorationTheme inputDecorationTheme(
-  InputDecorationTheme theme,
+InputDecorationThemeData inputDecorationTheme(
+  InputDecorationThemeData theme,
   ColorsThemeExtension colors,
 ) {
   const borderRadius = BorderRadius.all(Radius.circular(28));

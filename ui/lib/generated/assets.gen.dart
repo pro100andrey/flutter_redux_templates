@@ -1,3 +1,5 @@
+// dart format width=80
+
 /// GENERATED CODE - DO NOT MODIFY BY HAND
 /// *****************************************************
 ///  FlutterGen
@@ -5,27 +7,27 @@
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
-// ignore_for_file: directives_ordering,unnecessary_import,implicit_dynamic_list_literal,deprecated_member_use
+// ignore_for_file: deprecated_member_use,directives_ordering,implicit_dynamic_list_literal,unnecessary_import
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/flutter_svg.dart' as _svg;
 import 'package:vector_graphics/vector_graphics.dart' as _vg;
 
-class $AssetsVecGen {
-  const $AssetsVecGen();
+class $AssetsSvgGen {
+  const $AssetsSvgGen();
 
-  /// Directory path: assets/vec/placeholders
-  $AssetsVecPlaceholdersGen get placeholders =>
-      const $AssetsVecPlaceholdersGen();
+  /// Directory path: assets/svg/placeholders
+  $AssetsSvgPlaceholdersGen get placeholders =>
+      const $AssetsSvgPlaceholdersGen();
 }
 
-class $AssetsVecPlaceholdersGen {
-  const $AssetsVecPlaceholdersGen();
+class $AssetsSvgPlaceholdersGen {
+  const $AssetsSvgPlaceholdersGen();
 
-  /// File path: assets/vec/placeholders/image.vec
+  /// File path: assets/svg/placeholders/image.svg
   SvgGenImage get image =>
-      const SvgGenImage.vec('assets/vec/placeholders/image.vec');
+      const SvgGenImage('assets/svg/placeholders/image.svg');
 
   /// List of all assets
   List<SvgGenImage> get values => [image];
@@ -36,7 +38,7 @@ class Assets {
 
   static const String package = 'ui';
 
-  static const $AssetsVecGen vec = $AssetsVecGen();
+  static const $AssetsSvgGen svg = $AssetsSvgGen();
 }
 
 class SvgGenImage {
@@ -68,6 +70,7 @@ class SvgGenImage {
     String? semanticsLabel,
     bool excludeFromSemantics = false,
     _svg.SvgTheme? theme,
+    _svg.ColorMapper? colorMapper,
     ColorFilter? colorFilter,
     Clip clipBehavior = Clip.hardEdge,
     @deprecated Color? color,
@@ -87,6 +90,7 @@ class SvgGenImage {
         assetBundle: bundle,
         packageName: package,
         theme: theme,
+        colorMapper: colorMapper,
       );
     }
     return _svg.SvgPicture(

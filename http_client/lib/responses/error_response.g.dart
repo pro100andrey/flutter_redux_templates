@@ -28,7 +28,4 @@ _ErrorItem _$ErrorItemFromJson(Map<String, dynamic> json) => _ErrorItem(
 );
 
 Map<String, dynamic> _$ErrorItemToJson(_ErrorItem instance) =>
-    <String, dynamic>{
-      if (instance.source case final value?) 'source': value,
-      'detail': instance.detail,
-    };
+    <String, dynamic>{'source': ?instance.source, 'detail': instance.detail};
