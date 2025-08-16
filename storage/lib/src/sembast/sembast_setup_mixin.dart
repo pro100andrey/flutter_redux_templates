@@ -20,9 +20,23 @@ mixin SembastSetupMixin {
     String dbFile = 'database.db',
     String? password,
   }) async {
-    final dir = await getApplicationDocumentsDirectory();
-    await dir.create(recursive: true);
-    final dbPath = p.join(dir.path, dbFile);
+    final getPath = () async {
+      // ignore: do_not_use_environment
+      const isWeb = bool.fromEnvironment('dart.library.js_util');
+
+      if (!isWeb) {
+        final dir = await getApplicationDocumentsDirectory();
+        await dir.create(recursive: true);
+        final dbPath = p.join(dir.path, dbFile);
+
+        return dbPath;
+      }
+
+      return '/assets/db';
+    }();
+
+    final dbPath = await getPath;
+
     final dbFactory = getDatabaseFactory();
 
     _db = await dbFactory.openDatabase(

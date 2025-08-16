@@ -16,7 +16,7 @@ bool get isDesktop => [
   TargetPlatform.windows,
   TargetPlatform.macOS,
   TargetPlatform.linux,
-].contains(defaultTargetPlatform);
+].contains(defaultTargetPlatform) !kIsWeb;
 
 Future<void> runEnv(Environment env) async {
   WidgetsFlutterBinding.ensureInitialized();
