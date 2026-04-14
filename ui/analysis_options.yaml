@@ -3,3 +3,6 @@ include: package:pro_lints/common.yaml
 analyzer:
   exclude:
     - "lib/generated/**.gen.dart"
+
+formatter:
+  trailing_commas: preserve

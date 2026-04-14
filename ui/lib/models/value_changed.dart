@@ -2,20 +2,23 @@ import 'dart:async';
 
 import 'package:equatable/equatable.dart';
 
-void printD(Object? v) => print;
+typedef VoidCallbackVm = FutureOr Function(void);
 
-typedef VoidCallbackVm = FutureOr Function();
-
-class BaseValueChangedVm<T> extends Equatable {
-  const BaseValueChangedVm({this.onChanged = printD, this.enabled = true});
+sealed class BaseValueChangedVm<T> extends Equatable {
+  BaseValueChangedVm({
+    FutureOr Function(T value)? onChanged,
+    this.enabled = true,
+  }) : _onChanged =
+           onChanged ??
+           ((value) => throw Exception('onChanged is not implemented.'));
 
   final bool enabled;
   //
   // ignore: unsafe_variance
-  final FutureOr Function(T value) onChanged;
+  final FutureOr Function(T value) _onChanged;
 
-  void onChangedSync(T value) {
-    if (!_ifActionIsSync(onChanged)) {
+  void onChangedSync(covariant T value) {
+    if (!_ifActionIsSync(_onChanged)) {
       throw Exception(
         "Can't onChangedSync(${value.runtimeType}) "
         'because ${value.runtimeType} is async.',
@@ -23,18 +26,18 @@ class BaseValueChangedVm<T> extends Equatable {
     }
     //
     // ignore: discarded_futures
-    onChanged(value);
+    _onChanged(value);
   }
 
-  Future<void> onChangedAsync(T value) async {
-    if (_ifActionIsSync(onChanged)) {
+  Future<void> onChangedAsync(covariant T value) async {
+    if (_ifActionIsSync(_onChanged)) {
       throw Exception(
         "Can't onChangedAsync(${value.runtimeType}) "
         'because ${value.runtimeType} is async.',
       );
     }
 
-    await onChanged(value);
+    await _onChanged(value);
   }
 
   @override
@@ -50,21 +53,21 @@ bool _ifActionIsSync<T>(FutureOr Function(T) action) {
   return isSync;
 }
 
-class ValueChangedVm<T> extends BaseValueChangedVm<T> {
-  const ValueChangedVm({
+final class ValueChangedVm<T> extends BaseValueChangedVm<T> {
+  ValueChangedVm({
     required this.value,
-    super.onChanged = printD,
+    super.onChanged,
     super.enabled,
   });
 
   final T value;
 
   @override
-  List<Object?> get props => [value, enabled];
+  List<Object?> get props => [...super.props, value];
 }
 
-class ValueChangedWithItemsVm<T> extends BaseValueChangedVm<T> {
-  const ValueChangedWithItemsVm({
+final class ValueChangedWithItemsVm<T> extends BaseValueChangedVm<T> {
+  ValueChangedWithItemsVm({
     super.onChanged,
     super.enabled = true,
     this.value,
@@ -75,11 +78,11 @@ class ValueChangedWithItemsVm<T> extends BaseValueChangedVm<T> {
   final List<T> items;
 
   @override
-  List<Object?> get props => super.props + items + [value];
+  List<Object?> get props => [...super.props, ...items, value];
 }
 
-class ValueChangedWithErrorVm<T> extends BaseValueChangedVm<T> {
-  const ValueChangedWithErrorVm({
+final class ValueChangedWithErrorVm<T> extends BaseValueChangedVm<T> {
+  ValueChangedWithErrorVm({
     required this.value,
     super.onChanged,
     super.enabled = true,
@@ -92,5 +95,5 @@ class ValueChangedWithErrorVm<T> extends BaseValueChangedVm<T> {
   bool get isError => error != null;
 
   @override
-  List<Object?> get props => super.props + [error, value];
+  List<Object?> get props => [...super.props, error, value];
 }
