@@ -10,6 +10,8 @@ class BaseValueChangedVm<T> extends Equatable {
   const BaseValueChangedVm({this.onChanged = printD, this.enabled = true});
 
   final bool enabled;
+  //
+  // ignore: unsafe_variance
   final FutureOr Function(T value) onChanged;
 
   void onChangedSync(T value) {
