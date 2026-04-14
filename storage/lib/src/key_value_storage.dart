@@ -5,7 +5,7 @@ import 'sembast/sembast_setup_mixin.dart';
 
 final class KeyValueStorage extends BaseKeyValueStorage with SembastSetupMixin {
   @override
-  Future<void> clear() async => mainStore.delete(db);
+  Future<void> clear() => mainStore.delete(db);
 
   @override
   Future<void> delete(String key) async {
@@ -17,6 +17,6 @@ final class KeyValueStorage extends BaseKeyValueStorage with SembastSetupMixin {
       await mainStore.record(key).get(db) as T?;
 
   @override
-  Future<void> put<T>(String key, T value) async =>
+  Future<void> put<T>(String key, T value) =>
       mainStore.record(key).put(db, value);
 }

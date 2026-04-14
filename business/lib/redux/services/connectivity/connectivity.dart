@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../common/services/interface.dart';
 
+//
 // ignore: one_member_abstracts
 abstract class ConnectivityServiceDriverInterface {
   void onStatusChange({required bool isAvailable});
@@ -16,7 +17,7 @@ class ConnectivityService extends DisposableServiceInterface {
 
   final ConnectivityServiceDriverInterface _driver;
 
-  bool _isNetworkAvailable = true;
+  var _isNetworkAvailable = true;
 
   bool get isNetworkAvailable => _isNetworkAvailable;
 
@@ -28,7 +29,7 @@ class ConnectivityService extends DisposableServiceInterface {
 
     if (!kIsWeb) {
       _subscription = Connectivity().onConnectivityChanged.listen(
-        (status) async => _setNetworkStatus(status),
+        _setNetworkStatus,
       );
       final status = await Connectivity().checkConnectivity();
       _setNetworkStatus(status);

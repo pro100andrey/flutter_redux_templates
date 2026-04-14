@@ -5,7 +5,7 @@ part 'colors.g.theme.dart';
 
 @themeExtensions
 class ColorsThemeExtension extends ThemeExtension<ColorsThemeExtension>
-    with _$ThemeExtensionMixin {
+    with _$ColorsThemeExtension {
   const ColorsThemeExtension({
     required this.primary,
     required this.secondary,

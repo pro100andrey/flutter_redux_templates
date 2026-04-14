@@ -58,7 +58,7 @@ class BaseTextInput extends StatefulWidget {
 }
 
 class BaseTextInputState extends State<BaseTextInput> {
-  bool _isVisible = true;
+  var _isVisible = true;
 
   final _controller = TextEditingController();
 

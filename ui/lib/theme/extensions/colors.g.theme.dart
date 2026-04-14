@@ -9,7 +9,7 @@ part of 'colors.dart';
 // ThemeExtensionsGenerator
 // **************************************************************************
 
-mixin _$ThemeExtensionMixin on ThemeExtension<ColorsThemeExtension> {
+mixin _$ColorsThemeExtension on ThemeExtension<ColorsThemeExtension> {
   @override
   ThemeExtension<ColorsThemeExtension> copyWith({
     Color? primary,
@@ -19,15 +19,15 @@ mixin _$ThemeExtensionMixin on ThemeExtension<ColorsThemeExtension> {
     Color? shade,
     Color? border,
   }) {
-    final object = this as ColorsThemeExtension;
+    final _this = (this as ColorsThemeExtension);
 
     return ColorsThemeExtension(
-      primary: primary ?? object.primary,
-      secondary: secondary ?? object.secondary,
-      background: background ?? object.background,
-      error: error ?? object.error,
-      shade: shade ?? object.shade,
-      border: border ?? object.border,
+      primary: primary ?? _this.primary,
+      secondary: secondary ?? _this.secondary,
+      background: background ?? _this.background,
+      error: error ?? _this.error,
+      shade: shade ?? _this.shade,
+      border: border ?? _this.border,
     );
   }
 
@@ -36,51 +36,55 @@ mixin _$ThemeExtensionMixin on ThemeExtension<ColorsThemeExtension> {
     ThemeExtension<ColorsThemeExtension>? other,
     double t,
   ) {
-    final otherValue = other;
-
-    if (otherValue is! ColorsThemeExtension) {
+    if (other is! ColorsThemeExtension) {
       return this;
     }
 
-    final value = this as ColorsThemeExtension;
+    final _this = (this as ColorsThemeExtension);
 
     return ColorsThemeExtension(
-      primary: Color.lerp(value.primary, otherValue.primary, t)!,
-      secondary: Color.lerp(value.secondary, otherValue.secondary, t)!,
-      background: Color.lerp(value.background, otherValue.background, t)!,
-      error: Color.lerp(value.error, otherValue.error, t)!,
-      shade: Color.lerp(value.shade, otherValue.shade, t)!,
-      border: Color.lerp(value.border, otherValue.border, t)!,
+      primary: Color.lerp(_this.primary, other.primary, t)!,
+      secondary: Color.lerp(_this.secondary, other.secondary, t)!,
+      background: Color.lerp(_this.background, other.background, t)!,
+      error: Color.lerp(_this.error, other.error, t)!,
+      shade: Color.lerp(_this.shade, other.shade, t)!,
+      border: Color.lerp(_this.border, other.border, t)!,
     );
   }
 
   @override
   bool operator ==(Object other) {
-    final value = this as ColorsThemeExtension;
+    if (identical(this, other)) {
+      return true;
+    }
 
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is ColorsThemeExtension &&
-            identical(value.primary, other.primary) &&
-            identical(value.secondary, other.secondary) &&
-            identical(value.background, other.background) &&
-            identical(value.error, other.error) &&
-            identical(value.shade, other.shade) &&
-            identical(value.border, other.border));
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+
+    final _this = (this as ColorsThemeExtension);
+    final _other = (other as ColorsThemeExtension);
+
+    return _other.primary == _this.primary &&
+        _other.secondary == _this.secondary &&
+        _other.background == _this.background &&
+        _other.error == _this.error &&
+        _other.shade == _this.shade &&
+        _other.border == _this.border;
   }
 
   @override
   int get hashCode {
-    final value = this as ColorsThemeExtension;
+    final _this = (this as ColorsThemeExtension);
 
     return Object.hash(
       runtimeType,
-      value.primary,
-      value.secondary,
-      value.background,
-      value.error,
-      value.shade,
-      value.border,
+      _this.primary,
+      _this.secondary,
+      _this.background,
+      _this.error,
+      _this.shade,
+      _this.border,
     );
   }
 }

@@ -172,8 +172,8 @@ extension _StringBufferExt on StringBuffer {
       String() => encoder.convert(jsonDecode(objectData)),
       _ => () {
         try {
-          // ignore: avoid_dynamic_calls
           final dynamic d = objectData;
+          //
           // ignore: avoid_dynamic_calls
           final dynamic jsonString = d.toJson();
           return encoder.convert(jsonString);

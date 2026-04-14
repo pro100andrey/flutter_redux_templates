@@ -21,6 +21,7 @@ mixin SembastSetupMixin {
     String? password,
   }) async {
     final getPath = () async {
+      //
       // ignore: do_not_use_environment
       const isWeb = bool.fromEnvironment('dart.library.js_util');
 

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../generated/colors.gen.dart';
 import 'extensions/colors.dart';
 
-ColorsThemeExtension _lightColors = const ColorsThemeExtension(
+var _lightColors = const ColorsThemeExtension(
   primary: ColorName.lightPrimary,
   secondary: ColorName.lightSecondary,
   background: ColorName.lightBackground,
@@ -12,7 +12,7 @@ ColorsThemeExtension _lightColors = const ColorsThemeExtension(
   border: ColorName.lightBorder,
 );
 
-ColorsThemeExtension _darkColors = const ColorsThemeExtension(
+var _darkColors = const ColorsThemeExtension(
   primary: ColorName.darkPrimary,
   secondary: ColorName.darkSecondary,
   background: ColorName.darkBackground,

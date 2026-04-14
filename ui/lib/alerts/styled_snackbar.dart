@@ -5,7 +5,7 @@ typedef ContextGetter = BuildContext? Function();
 class StyledSnackbar {
   StyledSnackbar._();
 
-  static final StyledSnackbar instance = StyledSnackbar._();
+  static final instance = StyledSnackbar._();
 
   ContextGetter? contextGetter;
 

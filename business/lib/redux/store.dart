@@ -1,5 +1,6 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:logging/logging.dart';
+
 import 'app_state.dart';
 import 'models/localized_message.dart';
 
@@ -20,14 +21,17 @@ Store<AppState> newStore({UserErrorWrapperHandler? userErrorWrapper}) {
 }
 
 void _waitReducer(
+  //
   // ignore: avoid_annotating_with_dynamic
   dynamic state,
   WaitOperation operation,
   Object? flag,
   Object? ref,
 ) =>
+    //
     // ignore: avoid_dynamic_calls
     state.copyWith(
+      //
       // ignore: avoid_dynamic_calls
       wait: state.wait.process(operation, flag: flag, ref: ref),
     );

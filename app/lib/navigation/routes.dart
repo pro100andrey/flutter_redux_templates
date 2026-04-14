@@ -27,7 +27,7 @@ GoRouter get router => RoutersMap.instance._currentRouter;
 class RoutersMap {
   RoutersMap._();
 
-  static final RoutersMap instance = RoutersMap._();
+  static final instance = RoutersMap._();
 
   late GoRouter _currentRouter = _splashRouter;
 

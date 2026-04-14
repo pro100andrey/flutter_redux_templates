@@ -19,7 +19,7 @@ class BaseValueChangedVm<T> extends Equatable {
         'because ${value.runtimeType} is async.',
       );
     }
-
+    //
     // ignore: discarded_futures
     onChanged(value);
   }

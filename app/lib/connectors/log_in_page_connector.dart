@@ -56,11 +56,10 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm> {
         onChanged: (value) => dispatchSync(SetPasswordAction(password: value!)),
       ),
       onPressedLogIn: formIsValid
-          ? () async => dispatchAndWait(LogInWithEmailAction())
+          ? () => dispatchAndWait(LogInWithEmailAction())
           : null,
-      onPressedForgotPassword: () async =>
-          router.pushNamed(Routes.forgotPassword),
-      onPressedRegister: () async => router.pushNamed(Routes.registration),
+      onPressedForgotPassword: () => router.pushNamed(Routes.forgotPassword),
+      onPressedRegister: () => router.pushNamed(Routes.registration),
     );
   }
 }
