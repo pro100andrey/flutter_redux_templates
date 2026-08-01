@@ -1,0 +1,31 @@
+name: tools
+description: >-
+  CLI dev tools for the Flutter Redux monorepo. AST-based scaffolding and
+  wiring helpers for AsyncRedux substates, actions, pages and connectors.
+publish_to: none
+version: 0.1.6
+
+# Standalone package (NOT a workspace member) so its heavy `analyzer` dependency
+# stays isolated from the app's resolution and so it can be installed globally:
+#   dart install --source path tools     # exposes the `frx` executable on PATH
+# During development, from this directory:
+#   dart run frx list-substates
+environment:
+  sdk: ^3.12.2
+
+executables:
+  frx: frx
+
+dependencies:
+  analyzer: ^14.0.0
+  args: ^2.7.0
+  code_builder: ^4.11.1
+  dart_style: ^3.1.11
+  # `frx create` materialises this monorepo under a new name from the archive
+  # embedded in lib/src/template/. Also the packer that produces it — see the
+  # regeneration command in tools/README.md.
+  mold: ^0.1.2
+  path: ^1.9.1
+
+dev_dependencies:
+  test: ^1.25.0

@@ -1,22 +1,16 @@
 import 'package:async_redux/async_redux.dart';
 
 import '../../app_state.dart';
+import '../../common/action.dart';
 import '../models/registration_state.dart';
-import '../registration_selectors.dart';
 
-class RegistrationAction extends ReduxAction<AppState> {
+class RegistrationAction extends Action with WaitingAction {
   @override
-  void before() => dispatchSync(WaitAction.add(RegistrationWaiting.wait));
-
-  @override
-  void after() => dispatchSync(WaitAction.remove(RegistrationWaiting.wait));
-
-  @override
-  Future<AppState?> reduce() async {
-    final email = selectRegistrationEmail(state)!;
-    final password = selectRegistrationPassword(state)!;
-
-    await _signUpRequest(email: email, password: password);
+  Future<AppState> reduce() async {
+    await _signUpRequest(
+      email: registration.email!,
+      password: registration.password!,
+    );
 
     return state.copyWith(registration: const RegistrationState());
   }

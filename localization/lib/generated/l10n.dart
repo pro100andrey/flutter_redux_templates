@@ -59,9 +59,14 @@ class S {
     return Intl.message('en', name: '_locale', desc: '', args: []);
   }
 
-  /// `title`
-  String get title {
-    return Intl.message('title', name: 'title', desc: '', args: []);
+  /// `Flutter Application 1`
+  String get appTitle {
+    return Intl.message(
+      'Flutter Application 1',
+      name: 'appTitle',
+      desc: '',
+      args: [],
+    );
   }
 
   /// `OK`
@@ -79,10 +84,20 @@ class S {
     return Intl.message('Log in', name: 'logIn', desc: '', args: []);
   }
 
-  /// `Back to logIn`
+  /// `Sign in to continue.`
+  String get logInSubtitle {
+    return Intl.message(
+      'Sign in to continue.',
+      name: 'logInSubtitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Back to log in`
   String get backToLogIn {
     return Intl.message(
-      'Back to logIn',
+      'Back to log in',
       name: 'backToLogIn',
       desc: '',
       args: [],
@@ -104,19 +119,19 @@ class S {
     );
   }
 
-  /// `Email`
-  String get email {
-    return Intl.message('Email', name: 'email', desc: '', args: []);
-  }
-
-  /// `Email is invalid`
-  String get emailInvalid {
+  /// `Forgot password?`
+  String get forgotPassword {
     return Intl.message(
-      'Email is invalid',
-      name: 'emailInvalid',
+      'Forgot password?',
+      name: 'forgotPassword',
       desc: '',
       args: [],
     );
+  }
+
+  /// `Email`
+  String get email {
+    return Intl.message('Email', name: 'email', desc: '', args: []);
   }
 
   /// `Password`
@@ -124,44 +139,24 @@ class S {
     return Intl.message('Password', name: 'password', desc: '', args: []);
   }
 
-  /// `Confirm Password`
+  /// `Confirm password`
   String get confirmPassword {
     return Intl.message(
-      'Confirm Password',
+      'Confirm password',
       name: 'confirmPassword',
       desc: '',
       args: [],
     );
   }
 
-  /// `Forgot password ?`
-  String get forgotPassword {
-    return Intl.message(
-      'Forgot password ?',
-      name: 'forgotPassword',
-      desc: '',
-      args: [],
-    );
+  /// `Dark theme`
+  String get darkTheme {
+    return Intl.message('Dark theme', name: 'darkTheme', desc: '', args: []);
   }
 
-  /// `This field is required`
-  String get thisFieldIsRequired {
-    return Intl.message(
-      'This field is required',
-      name: 'thisFieldIsRequired',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Invalid email`
-  String get invalidEmail {
-    return Intl.message(
-      'Invalid email',
-      name: 'invalidEmail',
-      desc: '',
-      args: [],
-    );
+  /// `Light theme`
+  String get lightTheme {
+    return Intl.message('Light theme', name: 'lightTheme', desc: '', args: []);
   }
 
   /// `Couldn't connect to internet.`
@@ -174,11 +169,31 @@ class S {
     );
   }
 
-  /// `Please check yor network settings.`
-  String get pleaseCheckYorNetworkSettings {
+  /// `Please check your network settings.`
+  String get pleaseCheckYourNetworkSettings {
     return Intl.message(
-      'Please check yor network settings.',
-      name: 'pleaseCheckYorNetworkSettings',
+      'Please check your network settings.',
+      name: 'pleaseCheckYourNetworkSettings',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Required field`
+  String get requiredField {
+    return Intl.message(
+      'Required field',
+      name: 'requiredField',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invalid email`
+  String get invalidEmail {
+    return Intl.message(
+      'Invalid email',
+      name: 'invalidEmail',
       desc: '',
       args: [],
     );
@@ -223,23 +238,16 @@ class S {
       args: [],
     );
   }
-
-  /// `Required field`
-  String get requiredField {
-    return Intl.message(
-      'Required field',
-      name: 'requiredField',
-      desc: '',
-      args: [],
-    );
-  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {
   const AppLocalizationDelegate();
 
   List<Locale> get supportedLocales {
-    return const <Locale>[Locale.fromSubtags(languageCode: 'en')];
+    return const <Locale>[
+      Locale.fromSubtags(languageCode: 'en'),
+      Locale.fromSubtags(languageCode: 'uk'),
+    ];
   }
 
   @override

@@ -10,5 +10,3 @@ abstract class RegistrationState with _$RegistrationState {
     String? confirmPassword,
   }) = _RegistrationState;
 }
-
-enum RegistrationWaiting { wait }

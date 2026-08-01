@@ -1,0 +1,18 @@
+# Pub workspace: resolution artifacts are shared at the workspace root.
+.dart_tool/
+
+# VS Code extension (tools/vscode) build artifacts.
+*.vsix
+node_modules/
+
+# Agent tooling: the committed parts (skills) ship with a clone; only the
+# per-machine settings stay out. Ignoring the whole `.claude` directory meant a
+# skill placed there reached nobody, and this is a template people clone.
+.claude/settings.local.json
+
+# Miscellaneous
+.DS_Store
+*.log
+
+# Compiled output of the VSCode extension (built by `npm run compile`).
+tools/vscode/out/

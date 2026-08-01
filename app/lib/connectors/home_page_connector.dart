@@ -1,9 +1,10 @@
 import 'package:async_redux/async_redux.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:business/redux/app_state.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/pages/home_page.dart';
 
+@RoutePage()
 class HomePageConnector extends StatelessWidget {
   const HomePageConnector({super.key});
 
@@ -24,11 +25,10 @@ class _Factory extends VmFactory<AppState, HomePageConnector, _Vm> {
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _Vm extends Vm with EquatableMixin {
-  _Vm({required this.isWaiting});
+class _Vm extends Vm {
+  _Vm({
+    required this.isWaiting,
+  }) : super(equals: [isWaiting]);
 
   final bool isWaiting;
-
-  @override
-  List<Object?> get props => [isWaiting];
 }

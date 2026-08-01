@@ -1,28 +1,58 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:logging/logging.dart';
+import 'package:storage/storage.dart';
 
+import '../dependencies.dart';
+import '../environment.dart';
+import '../persistor.dart';
 import 'app_state.dart';
 import 'models/localized_message.dart';
 
 late Store<AppState>? _store;
 
-Store<AppState> newStore({UserErrorWrapperHandler? userErrorWrapper}) {
+Store<AppState> newStore({
+  required Environment environment,
+  required AppState initialState,
+  required KeyValueStorage settings,
+  Persistor<AppState>? persistor,
+  UserErrorWrapperHandler? userErrorWrapper,
+}) {
   WaitAction.reducer = _waitReducer;
 
   _store = Store<AppState>(
-    initialState: AppState.initial(),
-    errorObserver: _MyErrorObserver(),
-    globalWrapError: _MyWrapError(customErrorWrapper: userErrorWrapper),
+    initialState: initialState,
+    environment: environment,
+    dependencies: (store) => AppDependencies(store, settings),
+    persistor: persistor,
+    globalErrorObserver: (store) =>
+        _MyErrorObserver(customErrorWrapper: userErrorWrapper),
     actionObservers: [_ReduxActionLogger()],
+    stateObservers: [_StateChangeObserver()],
     modelObserver: _DefaultModelObserver<dynamic>(),
   );
 
   return _store!;
 }
 
+/// Full boot for the app layer: opens storage, wires the [AppPersistor],
+/// restores the last persisted state, and builds the store. Keeps the storage
+/// backend inside `business` — the app never touches it.
+Future<Store<AppState>> createStore(Environment environment) async {
+  final settings = KeyValueStorage();
+  await settings.setupStorage(dbFile: 'settings.db');
+
+  final persistor = AppPersistor(settings);
+  final initialState = await persistor.readState() ?? AppState.initial();
+
+  return newStore(
+    environment: environment,
+    initialState: initialState,
+    settings: settings,
+    persistor: persistor,
+  );
+}
+
 void _waitReducer(
-  //
-  // ignore: avoid_annotating_with_dynamic
   dynamic state,
   WaitOperation operation,
   Object? flag,
@@ -36,30 +66,16 @@ void _waitReducer(
       wait: state.wait.process(operation, flag: flag, ref: ref),
     );
 
-class _MyErrorObserver implements ErrorObserver<AppState> {
+class _MyErrorObserver extends GlobalErrorObserver<AppState> {
+  _MyErrorObserver({this.customErrorWrapper});
+
   final _logger = Logger('Redux');
-
-  @override
-  bool observe(
-    Object error,
-    StackTrace stackTrace,
-    ReduxAction<AppState> action,
-    Store store,
-  ) {
-    _logger.shout('Error thrown during $action: $error');
-
-    return false;
-  }
-}
-
-typedef UserErrorWrapperHandler = LocalizedMessage? Function(Object? error);
-
-class _MyWrapError extends GlobalWrapError<AppState> {
-  _MyWrapError({this.customErrorWrapper});
   final UserErrorWrapperHandler? customErrorWrapper;
 
   @override
-  Object? wrap(Object error, StackTrace stackTrace, ReduxAction action) {
+  Object? observe() {
+    _logger.shout('Error thrown during $action: $error');
+
     if (customErrorWrapper != null) {
       final message = customErrorWrapper!(error);
       if (message != null) {
@@ -75,6 +91,23 @@ class _MyWrapError extends GlobalWrapError<AppState> {
   }
 }
 
+typedef UserErrorWrapperHandler = LocalizedMessage? Function(Object? error);
+
+/// One in-flight dispatch, keyed by the action instance — stable across nested
+/// WaitActions that would otherwise bump the global dispatchCount mid-action.
+/// Lets the action logger print duration + the state diff on the action's line.
+final _pending = <ReduxAction<AppState>, _PendingAction>{};
+
+class _PendingAction {
+  _PendingAction(ReduxAction<AppState> action)
+    : stopwatch = Stopwatch()..start(),
+      isSync = action.isSync();
+
+  final Stopwatch stopwatch;
+  final bool isSync;
+  List<String> changed = const [];
+}
+
 class _ReduxActionLogger extends ActionObserver<AppState> {
   final _logger = Logger('Redux');
 
@@ -85,41 +118,84 @@ class _ReduxActionLogger extends ActionObserver<AppState> {
     bool ini = false,
   }) {
     if (action is WaitAction<AppState>) {
-      final iniString = ini ? 'start' : 'end';
-
-      _logger.info(
-        'WaitAction '
-        'flag: ${action.flag} '
-        'ref: ${action.ref} '
-        'O: ${action.operation.name} '
-        'D: $dispatchCount - $iniString',
-      );
-
+      // WaitActions log once, on end. The flag is usually the awaited action
+      // (WaitingAction does `WaitAction.add(this)`) — show its type.
+      if (!ini) {
+        final flag = action.flag;
+        final target = flag is ReduxAction ? flag.runtimeType : flag;
+        _logger.info('⏳ WaitAction  ${action.operation.name}  $target');
+      }
       return;
     }
 
-    _logger.info('$action D: $dispatchCount - ${ini ? 'start' : 'end'}');
+    if (ini) {
+      _pending[action] = _PendingAction(action);
+      return;
+    }
+
+    // On end, one line: action, sync/async, duration, and the state diff
+    // collected by _StateChangeObserver during this dispatch.
+    final pending = _pending.remove(action);
+    final kind = (pending?.isSync ?? true) ? 'sync' : 'async';
+    final ms = ((pending?.stopwatch.elapsedMicroseconds ?? 0) / 1000)
+        .toStringAsFixed(1);
+    final changed = pending?.changed ?? const <String>[];
+    final diff = changed.isEmpty ? '' : '  Δ ${changed.join(', ')}';
+    _logger.info('${action.runtimeType}  #$dispatchCount  $kind ${ms}ms$diff');
   }
 }
 
+/// Records which top-level [AppState] substates an action changed into
+/// [_pending], for the action logger to print. (`wait` is omitted — WaitActions
+/// log themselves.)
+class _StateChangeObserver implements StateObserver<AppState> {
+  @override
+  void observe(
+    ReduxAction<AppState> action,
+    AppState prev,
+    AppState next,
+    Object? error,
+    int dispatchCount,
+  ) {
+    final pending = _pending[action];
+    if (pending == null || error != null || identical(prev, next)) {
+      return;
+    }
+
+    pending.changed = <String>[
+      if (prev.connectivity != next.connectivity) 'connectivity',
+      if (prev.login != next.login) 'login',
+      if (prev.registration != next.registration) 'registration',
+      if (prev.forgotPassword != next.forgotPassword) 'forgotPassword',
+      if (prev.resetPassword != next.resetPassword) 'resetPassword',
+      if (prev.session != next.session) 'session',
+      if (prev.theme != next.theme) 'theme',
+      if (prev.language != next.language) 'language',
+    ];
+  }
+}
+
+/// Logs each connector that actually rebuilt, tagged by #N (its action).
 class _DefaultModelObserver<Model> implements ModelObserver<Model> {
   final _logger = Logger('Redux');
 
   @override
-  // ignore: long-parameter-list
   void observe({
     required Model? modelPrevious,
     required Model? modelCurrent,
     bool? isDistinct,
-    StoreConnectorInterface? storeConnector,
+    StoreConnectorInterface<dynamic, dynamic>? storeConnector,
     int? reduceCount,
     int? dispatchCount,
   }) {
-    final debug =
+    // Skip connectors that didn't rebuild.
+    if (isDistinct != true) {
+      return;
+    }
+
+    final name =
         (storeConnector?.debug == null ? storeConnector : storeConnector!.debug)
             .runtimeType;
-    _logger.info(
-      '$debug D: $dispatchCount R: $reduceCount Rebuild: $isDistinct',
-    );
+    _logger.info('  ↻ $name  #$dispatchCount');
   }
 }

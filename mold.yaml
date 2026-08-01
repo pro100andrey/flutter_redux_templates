@@ -1,0 +1,46 @@
+name: flutter_redux_templates
+version: 0.1.0
+
+exclude:
+  - pubspec.lock
+  - mold.yaml
+  - tools/**
+  - .github/**
+
+variables:
+  project_name:
+    description: Project name, lower_snake_case
+    default: my_app
+    replaces: flutter_application_1
+  app_title:
+    description: The name shown to the user
+    default: My App
+  org:
+    description: Reverse-DNS organisation prefix
+    default: com.example
+
+extra_substitutions:
+  # Order matters. The specific rule has to run before the general one: rewriting
+  # `com.example` first would leave nothing for this to match. Apple's projects
+  # use the camelCase spelling of the name, which is the one casing mold does not
+  # derive — for a single-word token it is indistinguishable from snake_case.
+  - from: com.example.flutterApplication1
+    to: '{{ org }}.{{ project_name | camelCase }}'
+  - from: com.example
+    to: '{{ org }}'
+  # One display name for both surfaces: the OS reads it from `Info.plist`, the app
+  # shows it in its own AppBar through the l10n `appTitle`. They used to differ.
+  - from: Flutter Application 1
+    to: '{{ app_title }}'
+  # The workspace name — a separate token from the app identity, and it appears
+  # only in content, never in a path.
+  - from: flutter_redux_templates
+    to: '{{ project_name }}'
+
+path_renames:
+  # The Kotlin package directory has to follow the org, or it stops agreeing with
+  # the `package` declaration inside MainActivity.kt. `pathCase` is the one
+  # transform that swaps a separator instead of normalising words — a package
+  # path keeps its segments spelled exactly as the identifier does.
+  - from: kotlin/com/example
+    to: kotlin/{{ org | pathCase }}

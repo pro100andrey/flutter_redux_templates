@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
+import '../theme/spacing.dart';
 
 class NoInternetOverlay extends StatelessWidget {
   const NoInternetOverlay({super.key});
@@ -15,9 +16,9 @@ class NoInternetOverlay extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          Gaps.md,
           Text(
-            S.current.pleaseCheckYorNetworkSettings,
+            S.current.pleaseCheckYourNetworkSettings,
             style: Theme.of(context).textTheme.bodyLarge,
             textAlign: TextAlign.center,
           ),

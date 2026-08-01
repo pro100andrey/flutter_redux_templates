@@ -95,7 +95,7 @@ class LoggerInterceptor extends Interceptor {
 
   @override
   Future<void> onResponse(
-    Response response,
+    Response<dynamic> response,
     ResponseInterceptorHandler handler,
   ) async {
     if (enableLogging) {
@@ -126,7 +126,7 @@ class LoggerInterceptor extends Interceptor {
 
   void _printResponse(
     StringBuffer msg,
-    Response response, {
+    Response<dynamic> response, {
     bool isError = false,
   }) {
     msg.addKV('uri', response.requestOptions.uri);

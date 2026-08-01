@@ -1,13 +1,11 @@
-import 'package:async_redux/async_redux.dart';
-
 import '../../app_state.dart';
+import '../../common/action.dart';
 
-class SetConfirmPasswordAction extends ReduxAction<AppState> {
-  SetConfirmPasswordAction(this.confirmPassword);
+class SetConfirmPasswordAction extends Action {
+  SetConfirmPasswordAction(this.value);
 
-  final String confirmPassword;
+  final String? value;
 
   @override
-  AppState reduce() =>
-      state.copyWith.registration(confirmPassword: confirmPassword);
+  AppState reduce() => state.copyWith.registration(confirmPassword: value);
 }

@@ -1,12 +1,11 @@
-import 'package:async_redux/async_redux.dart';
-
 import '../../app_state.dart';
+import '../../common/action.dart';
 
-class SetEmailAction extends ReduxAction<AppState> {
-  SetEmailAction({required this.email});
+class SetEmailAction extends Action {
+  SetEmailAction(this.value);
 
-  final String email;
+  final String? value;
 
   @override
-  AppState reduce() => state.copyWith.forgotPassword(email: email);
+  AppState reduce() => state.copyWith.forgotPassword(email: value);
 }

@@ -9,46 +9,24 @@ part of 'colors.dart';
 // ThemeExtensionsGenerator
 // **************************************************************************
 
-mixin _$ColorsThemeExtension on ThemeExtension<ColorsThemeExtension> {
+mixin _$AppColors on ThemeExtension<AppColors> {
   @override
-  ThemeExtension<ColorsThemeExtension> copyWith({
-    Color? primary,
-    Color? secondary,
-    Color? background,
-    Color? error,
-    Color? shade,
-    Color? border,
-  }) {
-    final _this = (this as ColorsThemeExtension);
+  ThemeExtension<AppColors> copyWith({Color? borderStrong}) {
+    final _this = (this as AppColors);
 
-    return ColorsThemeExtension(
-      primary: primary ?? _this.primary,
-      secondary: secondary ?? _this.secondary,
-      background: background ?? _this.background,
-      error: error ?? _this.error,
-      shade: shade ?? _this.shade,
-      border: border ?? _this.border,
-    );
+    return AppColors(borderStrong: borderStrong ?? _this.borderStrong);
   }
 
   @override
-  ThemeExtension<ColorsThemeExtension> lerp(
-    ThemeExtension<ColorsThemeExtension>? other,
-    double t,
-  ) {
-    if (other is! ColorsThemeExtension) {
+  ThemeExtension<AppColors> lerp(ThemeExtension<AppColors>? other, double t) {
+    if (other is! AppColors) {
       return this;
     }
 
-    final _this = (this as ColorsThemeExtension);
+    final _this = (this as AppColors);
 
-    return ColorsThemeExtension(
-      primary: Color.lerp(_this.primary, other.primary, t)!,
-      secondary: Color.lerp(_this.secondary, other.secondary, t)!,
-      background: Color.lerp(_this.background, other.background, t)!,
-      error: Color.lerp(_this.error, other.error, t)!,
-      shade: Color.lerp(_this.shade, other.shade, t)!,
-      border: Color.lerp(_this.border, other.border, t)!,
+    return AppColors(
+      borderStrong: Color.lerp(_this.borderStrong, other.borderStrong, t)!,
     );
   }
 
@@ -62,34 +40,20 @@ mixin _$ColorsThemeExtension on ThemeExtension<ColorsThemeExtension> {
       return false;
     }
 
-    final _this = (this as ColorsThemeExtension);
-    final _other = (other as ColorsThemeExtension);
+    final _this = (this as AppColors);
+    final _other = (other as AppColors);
 
-    return _other.primary == _this.primary &&
-        _other.secondary == _this.secondary &&
-        _other.background == _this.background &&
-        _other.error == _this.error &&
-        _other.shade == _this.shade &&
-        _other.border == _this.border;
+    return _other.borderStrong == _this.borderStrong;
   }
 
   @override
   int get hashCode {
-    final _this = (this as ColorsThemeExtension);
+    final _this = (this as AppColors);
 
-    return Object.hash(
-      runtimeType,
-      _this.primary,
-      _this.secondary,
-      _this.background,
-      _this.error,
-      _this.shade,
-      _this.border,
-    );
+    return Object.hash(runtimeType, _this.borderStrong);
   }
 }
 
-extension ColorsThemeExtensionBuildContext on BuildContext {
-  ColorsThemeExtension get colorsTheme =>
-      Theme.of(this).extension<ColorsThemeExtension>()!;
+extension AppColorsBuildContext on BuildContext {
+  AppColors get colors => Theme.of(this).extension<AppColors>()!;
 }

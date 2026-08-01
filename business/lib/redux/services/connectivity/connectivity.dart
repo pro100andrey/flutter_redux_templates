@@ -5,23 +5,23 @@ import 'package:flutter/foundation.dart';
 
 import '../../../common/services/interface.dart';
 
-//
-// ignore: one_member_abstracts
-abstract class ConnectivityServiceDriverInterface {
+/// What the service needs from whoever is listening. Declared here, beside the
+/// class that calls it, so the dependency points from the listener to the
+/// service — this half knows nothing of Redux.
+abstract class ConnectivityServiceListener {
   void onStatusChange({required bool isAvailable});
 }
 
 class ConnectivityService extends DisposableServiceInterface {
-  ConnectivityService({required ConnectivityServiceDriverInterface driver})
-    : _driver = driver;
+  ConnectivityService({required this._listener});
 
-  final ConnectivityServiceDriverInterface _driver;
+  final ConnectivityServiceListener _listener;
 
   var _isNetworkAvailable = true;
 
   bool get isNetworkAvailable => _isNetworkAvailable;
 
-  StreamSubscription? _subscription;
+  StreamSubscription<dynamic>? _subscription;
 
   @override
   Future<void> start() async {
@@ -34,7 +34,7 @@ class ConnectivityService extends DisposableServiceInterface {
       final status = await Connectivity().checkConnectivity();
       _setNetworkStatus(status);
     } else {
-      _driver.onStatusChange(isAvailable: true);
+      _listener.onStatusChange(isAvailable: true);
     }
   }
 
@@ -50,7 +50,7 @@ class ConnectivityService extends DisposableServiceInterface {
 
     if (_isNetworkAvailable != isNetworkAvailable) {
       _isNetworkAvailable = isNetworkAvailable;
-      _driver.onStatusChange(isAvailable: _isNetworkAvailable);
+      _listener.onStatusChange(isAvailable: _isNetworkAvailable);
     }
   }
 }

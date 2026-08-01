@@ -9,5 +9,3 @@ abstract class ResetPasswordState with _$ResetPasswordState {
     String? confirmPassword,
   }) = _ResetPasswordState;
 }
-
-enum ResetPasswordWaiting { wait }

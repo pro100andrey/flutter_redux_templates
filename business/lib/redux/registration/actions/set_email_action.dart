@@ -1,12 +1,11 @@
-import 'package:async_redux/async_redux.dart';
-
 import '../../app_state.dart';
+import '../../common/action.dart';
 
-class SetEmailAction extends ReduxAction<AppState> {
-  SetEmailAction(this.email);
+class SetEmailAction extends Action {
+  SetEmailAction(this.value);
 
-  final String email;
+  final String? value;
 
   @override
-  AppState reduce() => state.copyWith.registration(email: email);
+  AppState reduce() => state.copyWith.registration(email: value);
 }

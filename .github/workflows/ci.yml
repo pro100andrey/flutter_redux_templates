@@ -1,0 +1,135 @@
+name: CI
+
+# Quality gate for the monorepo: formatting, static analysis, that the
+# committed generated code is in sync with its sources, and that the frx
+# wiring is consistent (`frx doctor`). The `tools` package (the frx CLI) is a
+# standalone package outside the Pub workspace, so it gets its own job.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# One in-flight run per ref; a new push cancels the previous run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workspace:
+    name: format · analyze · codegen · doctor
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # `stable` must satisfy the `sdk: ^3.12.0` bound in pubspec.yaml; pin
+          # `flutter-version:` here if a stable release ever lags behind it.
+          channel: stable
+          cache: true
+
+      - name: Resolve workspace
+        run: flutter pub get
+
+      - name: Check formatting
+        # Generated files are committed but formatted by their builders, so
+        # exclude them — only hand-written sources are gated.
+        run: >
+          dart format --output=none --set-exit-if-changed
+          $(git ls-files '*.dart' ':!*.g.dart' ':!*.freezed.dart' ':!*.gr.dart')
+
+      - name: Analyze
+        # Analyze the workspace members explicitly. A bare `dart analyze` from
+        # the root descends into `tools/` too — a standalone package that isn't
+        # resolved in this job — and floods false errors; `tools` is analyzed in
+        # its own job below.
+        run: dart analyze models storage localization http_client ui business app
+
+      - name: Verify generated code is up to date
+        # Regenerate everything and fail if the committed output drifted — a PR
+        # that changes a source but forgets to commit the regenerated part is
+        # caught here. `--workspace` builds every member from the `app` package.
+        # `git status --porcelain` (not `git diff`) so a NEW-but-uncommitted
+        # generated file (untracked) fails too, not just a modified one.
+        run: |
+          (cd app && dart run build_runner build --delete-conflicting-outputs --workspace)
+          drift="$(git status --porcelain -- '*.g.dart' '*.freezed.dart' '*.gr.dart')"
+          if [ -n "$drift" ]; then
+            echo "::error::Committed generated code is stale — regenerate and commit:"
+            echo "  (cd app && dart run build_runner build --delete-conflicting-outputs --workspace)"
+            echo "$drift"
+            exit 1
+          fi
+
+      - name: frx doctor
+        # Also the docs gate: `docs/flows/` is a pure function of the
+        # connectors, so doctor fails when a page's behaviour changed without
+        # `frx flow --md` being re-run.
+        working-directory: tools
+        run: |
+          dart pub get
+          dart run bin/frx.dart doctor --root ..
+
+      - name: frx against the real monorepo
+        # Runs here rather than in the `tools` job because it needs the Flutter
+        # packages resolved: it compares frx's page nodes against the route
+        # classes auto_route actually generated. In the tools job it would find
+        # no monorepo and skip itself, which reads like a pass.
+        working-directory: tools
+        run: dart test test/reality_test.dart
+
+  tools:
+    name: frx CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tools
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - name: Resolve
+        run: dart pub get
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze
+        run: dart analyze
+      - name: Test
+        # Unit + E2E round-trip net (add→remove / rename byte-clean). The E2E
+        # tests shell out to `dart run bin/frx.dart` against a temp fixture repo.
+        run: dart test
+
+  extension:
+    name: VS Code extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tools/vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/vscode/package-lock.json
+      # The extension is TypeScript compiled to out/. The gate is: it
+      # type-checks under `strict`, every command the manifest contributes or
+      # menus reference is registered in source, the unit suite passes against
+      # the compiled output, and the VSIX actually builds.
+      - name: Install
+        # `ci`, not `install`: installs exactly the committed lock and fails if
+        # package.json and the lock have drifted apart.
+        run: npm ci
+      - name: Type-check
+        run: npm run typecheck
+      - name: Validate manifest
+        run: npm run validate
+      - name: Test
+        # `pretest` compiles first; the suite runs against out/.
+        run: npm test
+      - name: Package VSIX
+        run: npx --yes @vscode/vsce package

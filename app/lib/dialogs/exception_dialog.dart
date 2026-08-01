@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:async_redux/async_redux.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:localization/localization.dart';
 
 /// Use it like this:
 ///
@@ -113,13 +114,13 @@ class _UserExceptionDialogWidget extends StatefulWidget {
           actions: [
             if (userException.onCancel != null)
               TextButton(
-                child: const Text('CANCEL'),
+                child: Text(S.current.cancel),
                 onPressed: () {
                   Navigator.of(context).pop(2);
                 },
               ),
             TextButton(
-              child: const Text('OK'),
+              child: Text(S.current.ok),
               onPressed: () {
                 Navigator.of(context).pop(1);
               },
@@ -156,7 +157,7 @@ class _UserExceptionDialogState extends State<_UserExceptionDialogWidget> {
   Widget build(BuildContext context) => widget.child;
 }
 
-class _Factory<St> extends VmFactory<St, UserExceptionDialog, _Vm> {
+class _Factory<St> extends VmFactory<St, UserExceptionDialog<dynamic>, _Vm> {
   static final Queue<Event<UserException>> _errorEvents = Queue();
 
   @override

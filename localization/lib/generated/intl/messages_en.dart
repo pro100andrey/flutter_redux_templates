@@ -25,17 +25,22 @@ class MessageLookup extends MessageLookupByLibrary {
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
     "_locale": MessageLookupByLibrary.simpleMessage("en"),
-    "backToLogIn": MessageLookupByLibrary.simpleMessage("Back to logIn"),
+    "appTitle": MessageLookupByLibrary.simpleMessage("Flutter Application 1"),
+    "backToLogIn": MessageLookupByLibrary.simpleMessage("Back to log in"),
     "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
-    "confirmPassword": MessageLookupByLibrary.simpleMessage("Confirm Password"),
+    "confirmPassword": MessageLookupByLibrary.simpleMessage("Confirm password"),
     "couldNotConnectToInternet": MessageLookupByLibrary.simpleMessage(
       "Couldn\'t connect to internet.",
     ),
+    "darkTheme": MessageLookupByLibrary.simpleMessage("Dark theme"),
     "email": MessageLookupByLibrary.simpleMessage("Email"),
-    "emailInvalid": MessageLookupByLibrary.simpleMessage("Email is invalid"),
-    "forgotPassword": MessageLookupByLibrary.simpleMessage("Forgot password ?"),
+    "forgotPassword": MessageLookupByLibrary.simpleMessage("Forgot password?"),
     "invalidEmail": MessageLookupByLibrary.simpleMessage("Invalid email"),
+    "lightTheme": MessageLookupByLibrary.simpleMessage("Light theme"),
     "logIn": MessageLookupByLibrary.simpleMessage("Log in"),
+    "logInSubtitle": MessageLookupByLibrary.simpleMessage(
+      "Sign in to continue.",
+    ),
     "minimumLengthSymbols": m0,
     "mustContainAtLeastOneLowercase": MessageLookupByLibrary.simpleMessage(
       "Must contain at least one lowercase",
@@ -48,15 +53,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "passwordsDoNotMatch": MessageLookupByLibrary.simpleMessage(
       "Passwords do not match",
     ),
-    "pleaseCheckYorNetworkSettings": MessageLookupByLibrary.simpleMessage(
-      "Please check yor network settings.",
+    "pleaseCheckYourNetworkSettings": MessageLookupByLibrary.simpleMessage(
+      "Please check your network settings.",
     ),
     "register": MessageLookupByLibrary.simpleMessage("Register"),
     "requiredField": MessageLookupByLibrary.simpleMessage("Required field"),
     "resetPassword": MessageLookupByLibrary.simpleMessage("Reset password"),
-    "thisFieldIsRequired": MessageLookupByLibrary.simpleMessage(
-      "This field is required",
-    ),
-    "title": MessageLookupByLibrary.simpleMessage("title"),
   };
 }

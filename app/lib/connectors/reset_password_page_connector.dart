@@ -1,17 +1,17 @@
 import 'package:async_redux/async_redux.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:business/redux/app_state.dart';
 import 'package:business/redux/reset_password/actions/reset_password_action.dart';
 import 'package:business/redux/reset_password/actions/set_confirm_password_action.dart';
 import 'package:business/redux/reset_password/actions/set_password_action.dart';
-import 'package:business/redux/reset_password/reset_password_selectors.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/reset_password_page.dart';
 
 import '../common/validators.dart';
-import '../navigation/routes.dart';
+import '../navigation/go_action.dart';
 
+@RoutePage()
 class ResetPasswordPageConnector extends StatelessWidget {
   const ResetPasswordPageConnector({super.key});
 
@@ -29,58 +29,43 @@ class ResetPasswordPageConnector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, ResetPasswordPageConnector, _Vm> {
+class _Factory extends VmFactory<AppState, ResetPasswordPageConnector, _Vm>
+    with Selectors {
   _Factory(super._connector);
 
   @override
   _Vm fromStore() {
-    final password = selectResetPasswordPassword(state);
-    final passwordError = passwordValidator(password);
-    final confirmPassword = selectResetPasswordConfirmPassword(state);
-    final confirmPasswordError = passwordValidator(confirmPassword);
-    final passwordsMatchError = passwordsMatchValidator(
-      password,
-      confirmPassword,
-    );
-    final formIsValid =
-        selectResetPasswordDataIsSet(state) &&
-        passwordError == null &&
-        confirmPasswordError == null &&
-        passwordsMatchError == null;
+    final password = resetPassword.password;
 
     return _Vm(
-      password: ValueChangedWithErrorVm(
+      password: FieldVm(
         value: password,
-        error: passwordError,
-        onChanged: (value) => dispatchSync(SetPasswordAction(value!)),
+        validator: (v) => passwordValidator(v),
+        onChanged: (v) => dispatchSync(SetPasswordAction(v)),
       ),
-      confirmPassword: ValueChangedWithErrorVm(
-        value: confirmPassword,
-        error: confirmPasswordError ?? passwordsMatchError,
-        onChanged: (value) => dispatchSync(SetConfirmPasswordAction(value!)),
+      confirmPassword: FieldVm(
+        value: resetPassword.confirmPassword,
+        validator: (v) =>
+            passwordValidator(v) ?? passwordsMatchValidator(password, v),
+        onChanged: (v) => dispatchSync(SetConfirmPasswordAction(v)),
       ),
-      onPressedResetPassword: formIsValid
-          ? () => dispatchSync(ResetPasswordAction())
-          : null,
-      onPressedBackToLogin: router.pop,
+      onPressedResetPassword: () => dispatch(ResetPasswordAction()),
+      onPressedBackToLogin: () => dispatch(GoAction.pop()),
     );
   }
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _Vm extends Vm with EquatableMixin {
+class _Vm extends Vm {
   _Vm({
     required this.password,
     required this.confirmPassword,
     required this.onPressedResetPassword,
     required this.onPressedBackToLogin,
-  });
+  }) : super(equals: [password, confirmPassword]);
 
-  final ValueChangedWithErrorVm<String?> password;
-  final ValueChangedWithErrorVm<String?> confirmPassword;
-  final VoidCallback? onPressedResetPassword;
-  final VoidCallback? onPressedBackToLogin;
-
-  @override
-  List<Object?> get props => [password, confirmPassword];
+  final FieldVm<String?> password;
+  final FieldVm<String?> confirmPassword;
+  final VoidCallback onPressedResetPassword;
+  final VoidCallback onPressedBackToLogin;
 }

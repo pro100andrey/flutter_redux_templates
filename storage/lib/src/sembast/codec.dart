@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart';
+import 'package:path/path.dart' as p;
 import 'package:sembast/sembast.dart';
 
 Uint8List _generateEncryptPassword(String password) {
@@ -159,4 +160,7 @@ class EncryptedDatabaseFactory implements DatabaseFactory {
   @override
   Future<bool> databaseExists(String path) =>
       databaseFactory.databaseExists(path);
+
+  @override
+  p.Context get pathContext => p.Context();
 }

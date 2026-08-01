@@ -1,7 +1,7 @@
-include: package:pro_lints/common.yaml
+include: package:pro_lints/recommended.yaml
 
-analyzer: 
+analyzer:
   exclude:
-  - "**/*.g.dart"
-  - "**/*.chopper.dart"
-  - "**/*.freezed.dart"
+    - "**/*.g.dart"
+    - "**/*.chopper.dart"
+    - "**/*.freezed.dart"

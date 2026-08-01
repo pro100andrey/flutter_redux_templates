@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
-import '../buttons/styled_elevated_button.dart';
+import '../buttons/button.dart';
+import '../buttons/theme_switcher.dart';
 import '../containers/auth_from_container.dart';
-import '../generated/assets.gen.dart';
-import '../inputs/email_input.dart';
-import '../inputs/password_input.dart';
+import '../forms/base_form.dart';
+import '../inputs/email_form_field.dart';
+import '../inputs/password_form_field.dart';
 import '../models/value_changed.dart';
+import '../theme/spacing.dart';
 
 class LogInPage extends StatelessWidget {
   const LogInPage({
@@ -15,50 +17,53 @@ class LogInPage extends StatelessWidget {
     required this.onPressedLogIn,
     required this.onPressedForgotPassword,
     required this.onPressedRegister,
+    required this.theme,
     super.key,
   });
 
-  final ValueChangedWithErrorVm<String?> email;
-  final ValueChangedWithErrorVm<String?> password;
-  final VoidCallback? onPressedLogIn;
+  final FieldVm<String?> email;
+  final FieldVm<String?> password;
+  final VoidCallback onPressedLogIn;
   final VoidCallback onPressedForgotPassword;
   final VoidCallback onPressedRegister;
+  final FieldVm<ThemeMode> theme;
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Stack(
-      fit: StackFit.expand,
-      children: [
-        AuthFormContainer(
-          title: S.current.logIn,
-          children: [
-            const SizedBox(height: 24),
-            Assets.svg.placeholders.image.svg(height: 100),
-            const SizedBox(height: 16),
-            EmailInput(vm: email),
-            const SizedBox(height: 16),
-            PasswordInput(vm: password),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: onPressedForgotPassword,
-                child: Text(S.current.forgotPassword),
-              ),
+    body: BaseForm(
+      builder: (context, form) => AuthFormContainer(
+        title: S.current.logIn,
+        subtitle: S.current.logInSubtitle,
+        trailing: ThemeSwitcher(vm: theme),
+        children: [
+          Gaps.lg,
+          EmailFormField(vm: email),
+          Gaps.md,
+          PasswordFormField(vm: password),
+          Gaps.md,
+          Align(
+            alignment: Alignment.centerRight,
+            child: Button.text(
+              label: S.current.forgotPassword,
+              onPressed: onPressedForgotPassword,
             ),
-            const SizedBox(height: 16),
-            StyledElevatedButton(
-              title: S.current.logIn,
-              onPressed: onPressedLogIn,
-            ),
-            const SizedBox(height: 16),
-            StyledElevatedButton(
-              title: S.current.register,
-              onPressed: onPressedRegister,
-            ),
-          ],
-        ),
-      ],
+          ),
+          Gaps.md,
+          Button.primary(
+            label: S.current.logIn,
+            onPressed: () {
+              if (form.validateAndSave()) {
+                onPressedLogIn();
+              }
+            },
+          ),
+          Gaps.md,
+          Button.secondary(
+            label: S.current.register,
+            onPressed: onPressedRegister,
+          ),
+        ],
+      ),
     ),
   );
 }

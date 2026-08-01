@@ -1,0 +1,21 @@
+{
+  // The extension is CommonJS (VSCode loads it with `require`), so `module` is
+  // node16 against a package.json with no `"type"`. TS wraps `import * as x` in
+  // `__importStar`; that is safe for the mutable `vscode` stub the tests swap in
+  // (test/helpers.ts) because __createBinding installs live getters onto the
+  // wrapper rather than copying values — verified, not assumed.
+  "compilerOptions": {
+    "target": "ES2021",
+    "lib": ["ES2021"],
+    "module": "node16",
+    "moduleResolution": "node16",
+    "rootDir": ".",
+    "outDir": "out",
+    "strict": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vscode"]
+  },
+  "include": ["extension.ts", "validate-manifest.ts", "src/**/*.ts", "test/**/*.ts"]
+}

@@ -3,22 +3,14 @@ import 'package:theme_extensions_builder_annotation/theme_extensions_builder_ann
 
 part 'colors.g.theme.dart';
 
-@themeExtensions
-class ColorsThemeExtension extends ThemeExtension<ColorsThemeExtension>
-    with _$ColorsThemeExtension {
-  const ColorsThemeExtension({
-    required this.primary,
-    required this.secondary,
-    required this.background,
-    required this.error,
-    required this.shade,
-    required this.border,
-  });
+/// Brand colors that vary by theme and have no Material role.
+///
+/// Read via `context.colors`. Anything with a role belongs in `ColorScheme`
+/// instead — see the layer rules in `theme/common.dart`.
+@ThemeExtensions(contextAccessorName: 'colors')
+class AppColors extends ThemeExtension<AppColors> with _$AppColors {
+  const AppColors({required this.borderStrong});
 
-  final Color primary;
-  final Color secondary;
-  final Color background;
-  final Color error;
-  final Color shade;
-  final Color border;
+  /// Boundary around an interactive control, a step stronger than `outline`.
+  final Color borderStrong;
 }

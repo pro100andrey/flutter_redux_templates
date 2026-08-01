@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
-import '../buttons/styled_elevated_button.dart';
+import '../buttons/button.dart';
 import '../containers/auth_from_container.dart';
-import '../inputs/confirm_password_input.dart';
-import '../inputs/password_input.dart';
+import '../forms/base_form.dart';
+import '../inputs/confirm_password_form_field.dart';
+import '../inputs/password_form_field.dart';
 import '../models/value_changed.dart';
+import '../theme/spacing.dart';
 
 class ResetPasswordPage extends StatelessWidget {
   const ResetPasswordPage({
@@ -16,36 +18,37 @@ class ResetPasswordPage extends StatelessWidget {
     super.key,
   });
 
-  final ValueChangedWithErrorVm<String?> password;
-  final ValueChangedWithErrorVm<String?> confirmPassword;
-  final VoidCallback? onPressedResetPassword;
-  final VoidCallback? onPressedBackToLogin;
+  final FieldVm<String?> password;
+  final FieldVm<String?> confirmPassword;
+  final VoidCallback onPressedResetPassword;
+  final VoidCallback onPressedBackToLogin;
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Stack(
-      fit: StackFit.expand,
-      children: [
-        AuthFormContainer(
-          title: S.current.resetPassword,
-          children: [
-            const SizedBox(height: 24),
-            PasswordInput(vm: password),
-            const SizedBox(height: 16),
-            ConfirmPasswordInput(vm: confirmPassword),
-            const SizedBox(height: 16),
-            StyledElevatedButton(
-              title: S.current.resetPassword,
-              onPressed: onPressedResetPassword,
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: onPressedBackToLogin,
-              child: Text(S.current.backToLogIn),
-            ),
-          ],
-        ),
-      ],
+    body: BaseForm(
+      builder: (context, form) => AuthFormContainer(
+        title: S.current.resetPassword,
+        children: [
+          Gaps.lg,
+          PasswordFormField(vm: password),
+          Gaps.md,
+          ConfirmPasswordFormField(vm: confirmPassword),
+          Gaps.md,
+          Button.primary(
+            label: S.current.resetPassword,
+            onPressed: () {
+              if (form.validateAndSave()) {
+                onPressedResetPassword();
+              }
+            },
+          ),
+          Gaps.md,
+          Button.text(
+            label: S.current.backToLogIn,
+            onPressed: onPressedBackToLogin,
+          ),
+        ],
+      ),
     ),
   );
 }

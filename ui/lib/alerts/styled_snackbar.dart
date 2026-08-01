@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/spacing.dart';
+
 typedef ContextGetter = BuildContext? Function();
 
 class StyledSnackbar {
@@ -30,7 +32,7 @@ class StyledSnackbar {
       SnackBar(
         elevation: 6,
         behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.fromLTRB(left, 0, right, 32),
+        margin: EdgeInsets.fromLTRB(left, 0, right, AppSpacing.xl),
         backgroundColor: Colors.black26,
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -43,7 +45,7 @@ class StyledSnackbar {
                   ctx,
                 ).textTheme.bodyLarge!.copyWith(color: Colors.white),
               ),
-              const SizedBox(height: 22),
+              Gaps.lg,
             ],
             Text(
               message,

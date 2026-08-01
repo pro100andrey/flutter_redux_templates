@@ -1,25 +1,18 @@
 import 'package:localization/localization.dart';
 import 'package:pro_validator/pro_validator.dart';
 
-final emailValidator = MultiValidator(
-  validators: [
-    RequiredValidator(
-      error: S.current.thisFieldIsRequired,
-      ignoreEmptyValues: false,
-    ),
-    EmailValidator(error: S.current.invalidEmail),
-  ],
-);
+S get s => S.current;
 
-final passwordValidator = MultiValidator(
-  validators: [
-    RequiredValidator(error: S.current.requiredField, ignoreEmptyValues: false),
-    MinLengthValidator(min: 8, error: S.current.minimumLengthSymbols(8)),
-    HasUppercaseValidator(error: S.current.mustContainAtLeastOneUppercase),
-    HasLowercaseValidator(error: S.current.mustContainAtLeastOneLowercase),
-  ],
-);
+ValidatorGroup get emailValidator =>
+    RequiredValidator(error: s.requiredField) &
+    EmailValidator(error: s.invalidEmail);
 
-final passwordsMatchValidator = MatchValidator(
-  error: S.current.passwordsDoNotMatch,
+ValidatorGroup get passwordValidator =>
+    RequiredValidator(error: s.requiredField) &
+    MinLengthValidator(min: 8, error: s.minimumLengthSymbols(8)) &
+    HasUppercaseValidator(error: s.mustContainAtLeastOneUppercase) &
+    HasLowercaseValidator(error: s.mustContainAtLeastOneLowercase);
+
+MatchValidator get passwordsMatchValidator => MatchValidator(
+  error: s.passwordsDoNotMatch,
 );

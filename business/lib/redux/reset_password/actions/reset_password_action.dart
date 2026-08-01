@@ -1,24 +1,15 @@
 import 'package:async_redux/async_redux.dart';
 
 import '../../app_state.dart';
+import '../../common/action.dart';
 import '../models/reset_password_state.dart';
-import '../reset_password_selectors.dart';
 
-class ResetPasswordAction extends ReduxAction<AppState> {
-  @override
-  void before() => dispatchSync(WaitAction.add(ResetPasswordWaiting.wait));
-
-  @override
-  void after() => dispatchSync(WaitAction.remove(ResetPasswordWaiting.wait));
-
+class ResetPasswordAction extends Action with WaitingAction {
   @override
   Future<AppState> reduce() async {
-    final password = selectResetPasswordPassword(state)!;
-    final confirmPassword = selectResetPasswordConfirmPassword(state)!;
-
     await _resetPasswordRequest(
-      password: password,
-      confirmPassword: confirmPassword,
+      password: resetPassword.password!,
+      confirmPassword: resetPassword.confirmPassword!,
     );
 
     return state.copyWith(resetPassword: const ResetPasswordState());

@@ -1,8 +1,7 @@
-import 'package:async_redux/async_redux.dart';
-
 import '../../app_state.dart';
+import '../../common/action.dart';
 
-class SetTokenAction extends ReduxAction<AppState> {
+class SetTokenAction extends Action {
   SetTokenAction({required this.value});
 
   final String value;

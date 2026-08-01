@@ -1,17 +1,19 @@
 import 'package:async_redux/async_redux.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:business/redux/app_state.dart';
-import 'package:business/redux/log_in/actions/log_in_with_email_action.dart';
-import 'package:business/redux/log_in/actions/set_email_action.dart';
-import 'package:business/redux/log_in/actions/set_password_action.dart';
-import 'package:business/redux/log_in/log_in_selectors.dart';
-import 'package:equatable/equatable.dart';
+import 'package:business/redux/login/actions/log_in_with_email_action.dart';
+import 'package:business/redux/login/actions/set_email_action.dart';
+import 'package:business/redux/login/actions/set_password_action.dart';
+import 'package:business/redux/theme/actions/set_theme_mode_action.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/log_in_page.dart';
 
 import '../common/validators.dart';
-import '../navigation/routes.dart';
+import '../navigation/app_router.dart';
+import '../navigation/go_action.dart';
 
+@RoutePage()
 class LogInPageConnector extends StatelessWidget {
   const LogInPageConnector({super.key});
 
@@ -25,61 +27,54 @@ class LogInPageConnector extends StatelessWidget {
       onPressedForgotPassword: vm.onPressedForgotPassword,
       onPressedLogIn: vm.onPressedLogIn,
       onPressedRegister: vm.onPressedRegister,
+      theme: vm.theme,
     ),
   );
 }
 
-/// Factory that creates a view-model  for the StoreConnector.
-class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm> {
+/// Factory that creates a view-model for the StoreConnector.
+class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
+    with Selectors {
   _Factory(super._connector);
 
   @override
-  _Vm fromStore() {
-    final email = selectLogInEmail(state);
-    final password = selectLogInPassword(state);
-    final emailError = emailValidator(email);
-    final passwordError = passwordValidator(password);
-    final formIsValid =
-        selectLogInDataIsSet(state) &&
-        emailError == null &&
-        passwordError == null;
-
-    return _Vm(
-      email: ValueChangedWithErrorVm(
-        value: email,
-        error: emailError,
-        onChanged: (value) => dispatchSync(SetEmailAction(value!)),
-      ),
-      password: ValueChangedWithErrorVm(
-        value: password,
-        error: passwordError,
-        onChanged: (value) => dispatchSync(SetPasswordAction(password: value!)),
-      ),
-      onPressedLogIn: formIsValid
-          ? () => dispatchAndWait(LogInWithEmailAction())
-          : null,
-      onPressedForgotPassword: () => router.pushNamed(Routes.forgotPassword),
-      onPressedRegister: () => router.pushNamed(Routes.registration),
-    );
-  }
+  _Vm fromStore() => _Vm(
+    email: FieldVm(
+      value: login.email,
+      validator: (v) => emailValidator(v),
+      onChanged: (v) => dispatchSync(SetEmailAction(v)),
+    ),
+    password: FieldVm(
+      value: login.password,
+      validator: (v) => passwordValidator(v),
+      onChanged: (v) => dispatchSync(SetPasswordAction(v)),
+    ),
+    onPressedLogIn: () => dispatchAndWait(LogInWithEmailAction()),
+    onPressedForgotPassword: () =>
+        dispatch(GoAction.push(const ForgotPasswordRoute())),
+    onPressedRegister: () => dispatch(GoAction.push(const RegistrationRoute())),
+    theme: FieldVm(
+      value: theme.mode,
+      onChanged: (mode) => dispatchSync(SetThemeModeAction(mode)),
+    ),
+  );
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _Vm extends Vm with EquatableMixin {
+class _Vm extends Vm {
   _Vm({
     required this.email,
     required this.password,
     required this.onPressedLogIn,
     required this.onPressedForgotPassword,
     required this.onPressedRegister,
-  });
+    required this.theme,
+  }) : super(equals: [email, password, theme]);
 
-  final ValueChangedWithErrorVm<String?> email;
-  final ValueChangedWithErrorVm<String?> password;
-  final VoidCallback? onPressedLogIn;
+  final FieldVm<String?> email;
+  final FieldVm<String?> password;
+  final VoidCallback onPressedLogIn;
   final VoidCallback onPressedForgotPassword;
   final VoidCallback onPressedRegister;
-
-  @override
-  List<Object?> get props => [email, password];
+  final FieldVm<ThemeMode> theme;
 }

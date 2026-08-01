@@ -4,28 +4,32 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 1.0.0
 
 environment:
-  sdk: ^3.11.4
+  sdk: ^3.12.0
+
+resolution: workspace
 
 dependencies:
-  async_redux: ^27.1.1
+  async_redux: ^28.0.0
+  auto_route: ^11.1.0
   business:
     path: ../business
-  equatable: ^2.0.8
+  equatable: ^2.1.0
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  go_router: ^17.2.1
   localization:
     path: ../localization
   pro_pretty_logging: ^2.0.0
-  pro_validator: ^2.0.1
+  pro_validator: ^3.0.0
   ui:
     path: ../ui
-  window_manager: ^0.5.1
+  window_manager: ^0.5.2
 
 dev_dependencies:
-  pro_lints: ^5.1.0
+  auto_route_generator: "^10.5.0"
+  build_runner: ^2.15.1
+  pro_lints: ^6.1.0
 
 flutter:
   uses-material-design: true

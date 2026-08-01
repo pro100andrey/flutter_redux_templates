@@ -1,0 +1,14 @@
+# The VSIX ships only the compiled extension (out/) plus media/.
+.vscode/**
+.vscode-test/**
+node_modules/**
+src/**
+test/**
+out/test/**
+out/validate-manifest.*
+**/*.ts
+**/*.map
+tsconfig.json
+*.vsix
+.gitignore
+.eslintrc*

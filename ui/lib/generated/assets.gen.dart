@@ -33,9 +33,7 @@ class $AssetsSvgPlaceholdersGen {
   List<SvgGenImage> get values => [image];
 }
 
-class Assets {
-  const Assets._();
-
+abstract final class Assets {
   static const String package = 'ui';
 
   static const $AssetsSvgGen svg = $AssetsSvgGen();

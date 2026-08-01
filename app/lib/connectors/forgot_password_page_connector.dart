@@ -1,16 +1,16 @@
 import 'package:async_redux/async_redux.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:business/redux/app_state.dart';
 import 'package:business/redux/forgot_password/actions/forgot_password_action.dart';
 import 'package:business/redux/forgot_password/actions/set_email_action.dart';
-import 'package:business/redux/forgot_password/forgot_password_selectors.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/forgot_password_page.dart';
 
 import '../common/validators.dart';
-import '../navigation/routes.dart';
+import '../navigation/go_action.dart';
 
+@RoutePage()
 class ForgotPasswordPageConnector extends StatelessWidget {
   const ForgotPasswordPageConnector({super.key});
 
@@ -19,7 +19,6 @@ class ForgotPasswordPageConnector extends StatelessWidget {
     debug: this,
     vm: () => _Factory(this),
     builder: (context, vm) => ForgotPasswordPage(
-      isWaiting: vm.isWaiting,
       email: vm.email,
       onPressedResetPassword: vm.onPressedResetPassword,
       onPressedBackToLogin: vm.onPressedBackToLogin,
@@ -28,41 +27,31 @@ class ForgotPasswordPageConnector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector, _Vm> {
+class _Factory extends VmFactory<AppState, ForgotPasswordPageConnector, _Vm>
+    with Selectors {
   _Factory(super._connector);
 
   @override
-  _Vm fromStore() {
-    final email = selectForgotPasswordEmail(state);
-    final emailError = emailValidator(email);
-
-    return _Vm(
-      isWaiting: false,
-      email: ValueChangedWithErrorVm(
-        value: email,
-        error: emailError,
-        onChanged: (value) => dispatchSync(SetEmailAction(email: value!)),
-      ),
-      onPressedResetPassword: () => dispatchSync(ForgotPasswordAction()),
-      onPressedBackToLogin: router.pop,
-    );
-  }
+  _Vm fromStore() => _Vm(
+    email: FieldVm(
+      value: forgotPassword.email,
+      validator: (v) => emailValidator(v),
+      onChanged: (v) => dispatchSync(SetEmailAction(v)),
+    ),
+    onPressedResetPassword: () => dispatch(ForgotPasswordAction()),
+    onPressedBackToLogin: () => dispatch(GoAction.pop()),
+  );
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _Vm extends Vm with EquatableMixin {
+class _Vm extends Vm {
   _Vm({
-    required this.isWaiting,
     required this.email,
     required this.onPressedResetPassword,
     required this.onPressedBackToLogin,
-  });
+  }) : super(equals: [email]);
 
-  final bool isWaiting;
-  final ValueChangedWithErrorVm<String?> email;
-  final VoidCallback? onPressedResetPassword;
+  final FieldVm<String?> email;
+  final VoidCallback onPressedResetPassword;
   final VoidCallback onPressedBackToLogin;
-
-  @override
-  List<Object?> get props => [isWaiting, email];
 }

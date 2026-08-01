@@ -1,0 +1,22 @@
+name: flutter_redux_templates
+description: >-
+  Workspace root for the Flutter Redux templates monorepo.
+  Enables Pub workspaces so every package shares a single
+  resolution (pubspec.lock) and .dart_tool/package_config.json.
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+
+# Pub workspaces (monorepo support). Each listed directory must contain a
+# pubspec.yaml with `resolution: workspace`. Run `flutter pub get` from this
+# directory to resolve every package together.
+# https://dart.dev/tools/pub/workspaces
+workspace:
+  - models
+  - storage
+  - localization
+  - http_client
+  - ui
+  - business
+  - app

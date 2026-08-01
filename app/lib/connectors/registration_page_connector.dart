@@ -1,18 +1,18 @@
 import 'package:async_redux/async_redux.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:business/redux/app_state.dart';
 import 'package:business/redux/registration/actions/registration_action.dart';
 import 'package:business/redux/registration/actions/set_confirm_password_action.dart';
 import 'package:business/redux/registration/actions/set_email_action.dart';
 import 'package:business/redux/registration/actions/set_password_action.dart';
-import 'package:business/redux/registration/registration_selectors.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:ui/models/value_changed.dart';
 import 'package:ui/pages/registration_page.dart';
 
 import '../common/validators.dart';
-import '../navigation/routes.dart';
+import '../navigation/go_action.dart';
 
+@RoutePage()
 class RegistrationPageConnector extends StatelessWidget {
   const RegistrationPageConnector({super.key});
 
@@ -31,71 +31,55 @@ class RegistrationPageConnector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, RegistrationPageConnector, _Vm> {
+class _Factory extends VmFactory<AppState, RegistrationPageConnector, _Vm>
+    with Selectors {
   _Factory(super._connector);
 
   @override
   _Vm fromStore() {
-    final email = selectRegistrationEmail(state);
-    final emailError = emailValidator(email);
-    final password = selectRegistrationPassword(state);
-    final passwordError = passwordValidator(password);
-    final confirmPassword = selectRegistrationConfirmPassword(state);
-    final confirmPasswordError = passwordValidator(confirmPassword);
-    final passwordsMatchError = passwordsMatchValidator(
-      password,
-      confirmPassword,
-    );
-    final formIsValid =
-        selectRegistrationDataIsSet(state) &&
-        emailError == null &&
-        passwordError == null &&
-        confirmPasswordError == null &&
-        passwordsMatchError == null;
+    final password = registration.password;
 
     return _Vm(
-      email: ValueChangedWithErrorVm(
-        value: email,
-        error: emailError,
-        onChanged: (value) => dispatchSync(SetEmailAction(value!)),
+      email: FieldVm(
+        value: registration.email,
+        validator: (v) => emailValidator(v),
+        onChanged: (v) => dispatchSync(SetEmailAction(v)),
       ),
-      password: ValueChangedWithErrorVm(
+      password: FieldVm(
         value: password,
-        error: passwordError,
-        onChanged: (value) => dispatchSync(SetPasswordAction(value!)),
+        validator: (v) => passwordValidator(v),
+        onChanged: (v) => dispatchSync(SetPasswordAction(v)),
       ),
-      confirmPassword: ValueChangedWithErrorVm(
-        value: confirmPassword,
-        error: confirmPasswordError ?? passwordsMatchError,
-        onChanged: (value) => dispatchSync(SetConfirmPasswordAction(value!)),
+      confirmPassword: FieldVm(
+        value: registration.confirmPassword,
+        validator: (v) =>
+            passwordValidator(v) ?? passwordsMatchValidator(password, v),
+        onChanged: (v) => dispatchSync(SetConfirmPasswordAction(v)),
       ),
-      onPressedRegister: formIsValid
-          ? () async {
-              await dispatchAndWait(RegistrationAction());
-              router.pop();
-            }
-          : null,
-      onPressedBackToLogin: router.pop,
+      onPressedRegister: () async {
+        final status = await dispatchAndWait(RegistrationAction());
+        if (status.isCompletedOk) {
+          dispatch(GoAction.pop());
+        }
+      },
+      onPressedBackToLogin: () => dispatch(GoAction.pop()),
     );
   }
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _Vm extends Vm with EquatableMixin {
+class _Vm extends Vm {
   _Vm({
     required this.email,
     required this.password,
     required this.confirmPassword,
     required this.onPressedRegister,
     required this.onPressedBackToLogin,
-  });
+  }) : super(equals: [email, password, confirmPassword]);
 
-  final ValueChangedWithErrorVm<String?> email;
-  final ValueChangedWithErrorVm<String?> password;
-  final ValueChangedWithErrorVm<String?> confirmPassword;
-  final VoidCallback? onPressedRegister;
-  final VoidCallback? onPressedBackToLogin;
-
-  @override
-  List<Object?> get props => [email, password, confirmPassword];
+  final FieldVm<String?> email;
+  final FieldVm<String?> password;
+  final FieldVm<String?> confirmPassword;
+  final VoidCallback onPressedRegister;
+  final VoidCallback onPressedBackToLogin;
 }

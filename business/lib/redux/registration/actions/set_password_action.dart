@@ -1,12 +1,11 @@
-import 'package:async_redux/async_redux.dart';
-
 import '../../app_state.dart';
+import '../../common/action.dart';
 
-class SetPasswordAction extends ReduxAction<AppState> {
-  SetPasswordAction(this.password);
+class SetPasswordAction extends Action {
+  SetPasswordAction(this.value);
 
-  final String password;
+  final String? value;
 
   @override
-  AppState reduce() => state.copyWith.registration(password: password);
+  AppState reduce() => state.copyWith.registration(password: value);
 }

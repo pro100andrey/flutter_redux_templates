@@ -1,75 +1,64 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
-import 'package:business/redux/session/session_selectors.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:localization/localization.dart';
 import 'package:ui/theme/common.dart';
 
 import 'connectors/top_level_page_connector.dart';
-import 'navigation/routers_flow.dart';
-import 'navigation/routes.dart';
+import 'dialogs/exception_dialog.dart';
 
-class AppConnector extends StatefulWidget {
-  const AppConnector({required this.store, super.key});
+/// Root of the app. Reads theme + language from the store and feeds them into
+/// [MaterialApp.router]; auth gating lives in the router's auth guard.
+class AppConnector extends StatelessWidget {
+  const AppConnector({required this.routerConfig, super.key});
 
-  final Store<AppState> store;
+  final RouterConfig<Object> routerConfig;
 
-  @override
-  State<AppConnector> createState() => _AppConnectorState();
-}
-
-class _AppConnectorState extends State<AppConnector> {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
     debug: this,
-    vm: () => _Factory(widget),
-    builder: (context, vm) {
-      final router = RoutersMap.instance.routerWithFlow(vm.flow);
-
-      return MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        routerDelegate: router.routerDelegate,
-        routeInformationProvider: router.routeInformationProvider,
-        theme: lightTheme(),
-        darkTheme: darkTheme(),
-        themeMode: ThemeMode.light,
-        routeInformationParser: router.routeInformationParser,
-        localizationsDelegates: const [
-          S.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: S.delegate.supportedLocales,
-        builder: (context, child) => TopLevelPageConnector(child: child),
-      );
-    },
+    vm: () => _Factory(this),
+    builder: (context, vm) => MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      routerConfig: routerConfig,
+      themeMode: vm.mode,
+      theme: lightTheme(),
+      darkTheme: darkTheme(),
+      localizationsDelegates: const [
+        S.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: S.delegate.supportedLocales,
+      locale: Locale(vm.locale),
+      // Both live above the router's Navigator: ExceptionDialog shows
+      // UserException dialogs (via NavigateAction.navigatorKey, wired in
+      // run_env), TopLevelPageConnector paints the barrier / no-internet
+      // overlays over everything.
+      builder: (context, child) => TopLevelPageConnector(
+        child: ExceptionDialog<AppState>(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
+    ),
   );
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, AppConnector, _Vm> {
+class _Factory extends VmFactory<AppState, AppConnector, _Vm> with Selectors {
   _Factory(super._connector);
 
   @override
-  _Vm fromStore() {
-    if (selectIsSessionAvailable(state)) {
-      return _Vm(flow: const HomeFlow());
-    }
-
-    return _Vm(flow: const AuthFlow(redirection: AuthFlowRedirection.login));
-  }
+  _Vm fromStore() => _Vm(mode: theme.mode, locale: language.locale);
 }
 
 /// The view-model holds the part of the Store state the dumb-widget needs.
-class _Vm extends Vm with EquatableMixin {
-  _Vm({required this.flow});
+class _Vm extends Vm {
+  _Vm({required this.mode, required this.locale})
+    : super(equals: [mode, locale]);
 
-  final RoutersFlow flow;
-
-  @override
-  List<Object?> get props => [flow];
+  final ThemeMode mode;
+  final String locale;
 }
