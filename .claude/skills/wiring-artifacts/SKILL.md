@@ -68,6 +68,30 @@ of intents and wires them in **one** transaction, in the order written.
   declaration sitting in the wrong place. Then run the type analyzer — the audit
   knows this architecture and the analyzer knows Dart, and neither substitutes for
   the other.
+- **The graph is a gate you close as you go, not a report you run at the end.**
+  The audit and the analyzer both pass on code nothing reaches: a selector no
+  reader ever calls, an action no widget dispatches, a slice left unreadable after
+  a screen was cut. Only the graph names those, and it names them per feature — so
+  read it when you finish each one, while the feature you just wrote is the obvious
+  suspect. Run it once at the end and every finding arrives at once, detached from
+  the decision that caused it.
+- **A private `StatefulWidget` is a widget that never became an artifact.** In
+  `ui` a private class is a stateless fragment of the widget above it, or that
+  widget's `State` — there is not one private `StatefulWidget` in the package. A
+  component with its own lifecycle earns a file in a family folder, which is what
+  gives it a preview and a name anything else can reach. Hidden inside a page it
+  has neither, and the next screen that needs it copies it instead.
+- **A value and the callback that changes it travel as one view-model.** `FieldVm`
+  (or `ChoiceVm`, when the value is picked from a finite set) carries the value,
+  its `onChanged`, an optional validator and a server-side error together. Split
+  into two fields on the view-model it is not merely off-pattern: both are fresh
+  closures every build, so a view-model that compares them rebuilds the connector
+  on every dispatch. `FieldVm` exists to keep behaviour out of its own `props`.
+- **Actions read through the selector facade.** A reducer reaching into
+  `state.<slice>.<field>` states the shape of the state twice — once in the slice
+  and once in the reducer — and the graph cannot see the read, so the selector
+  looks dead and the coupling looks absent. Note that this repository ships no
+  example of the rule: every action it carries only writes.
 
 ## Orientation
 
