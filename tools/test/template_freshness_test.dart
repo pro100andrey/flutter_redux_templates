@@ -29,22 +29,36 @@ void main() {
     final fresh = const ArchiveReader().read(
       await const Bundler().bundle(projectDir: repoRoot, manifest: manifest),
     );
-    final embedded = const ArchiveReader().read(base64Decode(kFrxTemplateBase64));
+    final embedded = const ArchiveReader().read(
+      base64Decode(kFrxTemplateBase64),
+    );
 
     const repack = 'Repack it: cd tools && make template';
 
     // Named before compared, so a failure says *which* file rather than "some
     // 963 KB of bytes differ".
-    final added = fresh.files.keys.toSet().difference(embedded.files.keys.toSet());
-    final gone = embedded.files.keys.toSet().difference(fresh.files.keys.toSet());
-    expect(added, isEmpty, reason: 'files the template has not captured yet. $repack');
+    final added = fresh.files.keys.toSet().difference(
+      embedded.files.keys.toSet(),
+    );
+    final gone = embedded.files.keys.toSet().difference(
+      fresh.files.keys.toSet(),
+    );
+    expect(
+      added,
+      isEmpty,
+      reason: 'files the template has not captured yet. $repack',
+    );
     expect(gone, isEmpty, reason: 'files the template still carries. $repack');
 
     final changed = [
       for (final entry in fresh.files.entries)
         if (!_sameBytes(entry.value, embedded.files[entry.key]!)) entry.key,
     ]..sort();
-    expect(changed, isEmpty, reason: 'files whose content has moved on. $repack');
+    expect(
+      changed,
+      isEmpty,
+      reason: 'files whose content has moved on. $repack',
+    );
   });
 }
 

@@ -61,8 +61,7 @@ class CreateCommand extends Command<int> {
   String get name => 'create';
 
   @override
-  String get description =>
-      'Create a new project from this monorepo template.';
+  String get description => 'Create a new project from this monorepo template.';
 
   @override
   String get invocation => 'frx create <project_name> [options]';
@@ -122,7 +121,13 @@ class CreateCommand extends Command<int> {
       for (final warning in warnings) {
         console.err.writeln('⚠ $warning');
       }
-      _report(plan, target: target, vars: vars, applied: applying, asJson: asJson);
+      _report(
+        plan,
+        target: target,
+        vars: vars,
+        applied: applying,
+        asJson: asJson,
+      );
       return 0;
     } on ValidationException catch (e) {
       // The destination is unusable, or a variable did not resolve. Nothing has
@@ -171,7 +176,9 @@ class CreateCommand extends Command<int> {
         '  ${plan.files.length} files · ${plan.totalReplacements} replacements '
         '· ${plan.renamed.length} path(s) renamed',
       )
-      ..writeln('  ${vars['org']}.${vars['project_name']} · "${vars['app_title']}"');
+      ..writeln(
+        '  ${vars['org']}.${vars['project_name']} · "${vars['app_title']}"',
+      );
 
     if (applied) {
       console.out
