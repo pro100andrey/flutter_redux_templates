@@ -3,14 +3,15 @@ name: wiring-artifacts
 description: >-
   Wiring an artifact of this Flutter AsyncRedux + auto_route monorepo — a state
   slice, a screen and its route, a selector, a navigation hop. Use when creating
-  one, when renaming or removing one, when working out how one is wired, or right
-  after hand-editing one: writing these files by hand writes the files and misses
-  the wiring.
+  one, when adding to one that already exists (a field on a state, a computed
+  value, an action, a hop), when renaming or removing one, when working out how one
+  is wired, or right after hand-editing one: writing these files by hand writes the
+  files and misses the wiring.
 ---
 
 # Wiring an artifact of this architecture
 
-Ask which of these four situations you are in, then use the family named beside
+Ask which of these five situations you are in, then use the family named beside
 it. **Before hand-writing any file of this architecture, run `frx --help` — it
 lists every command with what each one wires.** `frx help <command>` gives that
 command's flags and what each implies.
@@ -18,9 +19,10 @@ command's flags and what each implies.
 | You are… | Use |
 | --- | --- |
 | about to create an artifact of this architecture | the scaffolders |
+| about to *add to* one that already exists — a field, a computed value, an action, a navigation hop | the scaffolders too: each addition has its own command, and each carries the wiring that addition implies |
 | needing to understand how something is wired | the graph, the flow diagrams, and identifier resolution |
 | just done editing files by hand | the audit, then the type analyzer |
-| renaming or deleting an artifact | rename and removal — both preview, and both need an explicit apply |
+| renaming or deleting an artifact | rename and removal — both preview, both need an explicit apply, and both cover a substate or a page and nothing else |
 
 The command help is the authority on what exists; this file deliberately keeps no
 second copy of it. A copy of the surface has drifted here before, to eight of ten
@@ -41,10 +43,23 @@ not applied. A non-zero exit means none of it landed, so you never have to parse
 anything to find out whether it worked.
 
 For a feature's worth of artifacts at once, the batch command takes a declaration
-of intents and wires them in **one** transaction, in the order written.
+of intents and wires them in **one** transaction, in the order written. A shell
+loop over the same commands is the usual substitute for it and is not the same
+thing: it has no transaction, so a failure on the seventh intent leaves the first
+six wired and the state half-built — the one outcome every individual command is
+built to rule out.
 
 ## Traps the help does not tell you
 
+- **The hand takes back over the moment the artifact exists.** Creating a slice
+  reaches for the CLI; giving that slice its next field does not — the file is
+  already open, the field is one line, and typing it feels faster than asking what
+  a field implies. That line is where the wiring goes missing: a state field also
+  owns a getter on the selector facade, which the field command writes in the same
+  breath, and a computed value has a command of its own. Neither is a *creation*,
+  which is why the reflex to reach for a scaffolder never fires for them. Treat
+  typing into a file this architecture generated as the signal itself: something
+  would have written that line **and** the wiring that comes with it.
 - **Action mixins conflict, and the conflict is a compile error.** async_redux
   makes groups of them mutually exclusive by having them collide on a private
   member, so a bad pair fails the build rather than at runtime. Ask the CLI which
@@ -56,6 +71,14 @@ of intents and wires them in **one** transaction, in the order written.
   instead of inventing a new home for one — and note that a widget's previews are
   scaffolded alongside it into a mirrored tree, so a widget moved by hand leaves
   its preview behind.
+- **Removal knows a substate and a page, and nothing else.** Everything else this
+  architecture makes — a widget, a connector, a service, a model, an enum, a theme
+  extension — comes out with `rm`, and nothing unwires it on the way. Deleting the
+  file is the easy half; what still imports it, dispatches it or draws it is the
+  half no command is holding for you, and a widget takes its mirrored preview with
+  it or leaves a file pointing at a class that is gone. So `rm` and then the audit,
+  in the same breath — this is the one edit whose damage is invisible until
+  something else is compiled.
 - **Around a live `build_runner watch`, commands stand down.** They hand the build
   over rather than starting a second one, because a second `build_runner` asks the
   incumbent to exit. The fact is reported in the command's own result (`--json`
@@ -67,14 +90,19 @@ of intents and wires them in **one** transaction, in the order written.
   no longer composed into the state, a `part` whose generated file is missing, a
   declaration sitting in the wrong place. Then run the type analyzer — the audit
   knows this architecture and the analyzer knows Dart, and neither substitutes for
-  the other.
+  the other. The way this one is actually lost is not skipping it but spacing it:
+  run it once before starting and once when done, and the whole middle went
+  unmeasured, every finding surfacing at a point where any of a hundred edits could
+  have caused it. Reaching for the type analyzer mid-work is already a habit; this
+  one has to be put beside it on purpose.
 - **The graph is a gate you close as you go, not a report you run at the end.**
   The audit and the analyzer both pass on code nothing reaches: a selector no
   reader ever calls, an action no widget dispatches, a slice left unreadable after
   a screen was cut. Only the graph names those, and it names them per feature — so
   read it when you finish each one, while the feature you just wrote is the obvious
-  suspect. Run it once at the end and every finding arrives at once, detached from
-  the decision that caused it.
+  suspect. The moment is precise: the feature compiles, and you have not started the
+  next one. Run it once at the end instead and every finding arrives at once,
+  detached from the decision that caused it.
 - **A private `StatefulWidget` is a widget that never became an artifact.** In
   `ui` a private class is a stateless fragment of the widget above it, or that
   widget's `State` — there is not one private `StatefulWidget` in the package. A
