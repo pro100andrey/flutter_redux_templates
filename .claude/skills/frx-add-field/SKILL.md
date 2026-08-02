@@ -15,6 +15,54 @@ Add a field to an existing substate state (+ optional setter action).
 frx add-field <substate> <name:type>
 ```
 
+## What a field is here
+
+A field belongs to a slice's `@freezed` class. Adding one is three coordinated
+edits, and the command makes all three.
+
+**1. The factory**, spliced in via AST. A field is either nullable or carries
+`@Default(…)`, because the state is constructed with no arguments:
+
+```dart
+const factory TodosState({
+  @Default(IMapConst<int, Object>({})) IMap<int, Object> table,
+  @Default(IListConst<int>([])) IList<int> view,
+  DateTime? dueAt,
+}) = _TodosState;
+```
+
+A collection field is `IList` / `IMap` / `ISet`, and the import comes with it.
+`List` / `Map` compare by identity, so a connector would rebuild on an identical
+list.
+
+**2. The getter on the facade**, so anything can read the field without knowing
+where it sits:
+
+```dart
+/// Returns dueAt
+DateTime? get dueAt => _state.todos.dueAt;
+```
+
+`--no-selector` skips it. Rarely what you want: a field a connector cannot read
+is half-wired, and it is this getter that makes the read visible to `frx graph`.
+
+**3. A setter action**, with `--action` — positional constructor, `final` field,
+and freezed's nested `copyWith`:
+
+```dart
+class SetDueAtAction extends Action {
+  SetDueAtAction(this.dueAt);
+
+  final DateTime? dueAt;
+
+  @override
+  AppState reduce() => state.copyWith.todos(dueAt: dueAt);
+}
+```
+
+That `state.copyWith.<slice>(<field>: …)` form is how every write to a slice is
+spelled — not `state.copyWith(todos: state.todos.copyWith(…))`.
+
 ## Before you run it
 
 - The field is spliced into the `@freezed` factory via AST. A non-nullable

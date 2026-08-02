@@ -34,6 +34,7 @@ class SkillGen {
       out['.claude/skills/frx-${cmd.name}/SKILL.md'] = _skill(cmd, s);
     }
     out['.claude/skills/wiring-artifacts/SKILL.md'] = _router(runner);
+    out['.claude/skills/asyncredux-in-this-template/SKILL.md'] = _asyncRedux;
     return out;
   }
 
@@ -64,6 +65,12 @@ class SkillGen {
       ..writeln(cmd.invocation)
       ..writeln('```')
       ..writeln();
+
+    // Context first: what the thing is comes before what to watch out for.
+    if (s.context != null) {
+      b.writeln(s.context!.trim());
+      b.writeln();
+    }
 
     if (s.traps.isNotEmpty) {
       b.writeln('## Before you run it');
@@ -153,18 +160,22 @@ the creation commands only — `rename` and `remove` are refused with the reason
   command's own result (`--json` carries it as `build.handedToWatch`), not by the
   audit — read it there, at the moment you act. An *orphaned* watch is the
   converse: it regenerates nothing, and the audit reports it.
-- **A private `StatefulWidget` is a widget that never became an artifact.** In
-  `ui` a private class is a stateless fragment of the widget above it, or that
-  widget's `State`. A component with its own lifecycle earns a file in a family
-  folder, which is what gives it a preview and a name anything else can reach.
-- **A value and the callback that changes it travel as one view-model.**
-  `FieldVm` (or `ChoiceVm`, when the value is picked from a finite set) carries
-  the value, its `onChanged`, an optional validator and a server-side error
-  together. Split into two fields they are fresh closures every build, so the
-  view-model rebuilds the connector on every dispatch.
-- **Actions read through the selector facade.** A reducer reaching into
-  `state.<slice>.<field>` states the shape of the state twice, and the graph
-  cannot see the read, so the selector looks dead and the coupling looks absent.
+- **`ui` is data-driven and knows no domain.** It depends on neither `models` nor
+  `business`; a widget draws what it is handed. The connector is the seam where a
+  domain value becomes a primitive, a formatted string or a `ui`-local render
+  model. See `frx-add-widget` and `frx-add-connector`.
+
+## Writing the body, not just the file
+
+A command scaffolds the file and its wiring. How the body is written afterwards
+is this architecture's own, and in several places it is the opposite of what
+async_redux's documentation shows — `@freezed` rather than a hand-written
+`copy()`, an `extension type` facade rather than memoised selector functions,
+`extends Action` rather than `extends ReduxAction`.
+
+Read **`asyncredux-in-this-template`** before filling in a reducer, a connector
+or a state class, and whenever recalled async_redux knowledge is about to be
+applied here. Each command's own skill carries the rules for its artifact.
 
 ## Project defaults
 
@@ -260,20 +271,249 @@ reaches.''';
 }
 
 class _Situation {
-  const _Situation(this.when, {this.traps = const []});
+  const _Situation(this.when, {this.context, this.traps = const []});
 
   /// The trigger. Written the way the task sounds before the command is known.
   final String when;
+
+  /// What the artifact *is*, in this template's terms, with code from it.
+  ///
+  /// The command help says what the command writes; it cannot say how the body
+  /// is written afterwards, and that is where an agent falls back on recalled
+  /// async_redux knowledge — which is right about the library and wrong here in
+  /// five places (freezed rather than a hand-written `copy()`, an `extension
+  /// type` facade rather than memoised selector functions, `extends Action`
+  /// rather than `extends ReduxAction`, `IList` rather than `List`, private
+  /// `_Factory`/`_Vm` in the connector file). Raw markdown, so it can carry the
+  /// fenced code that makes the shape unambiguous.
+  final String? context;
+
   final List<String> traps;
 }
 
 /// Authored: how each job sounds in the moment, plus what its help omits.
 /// `create`, `new` and `completions` are deliberately absent — they are not
 /// reached for mid-task, and the router names them.
+/// The async_redux context that belongs to no single command.
+///
+/// Not a copy of the library's documentation. What an agent already knows about
+/// async_redux is mostly right and, in five places, exactly wrong here — so this
+/// states the divergence and stops. Anything a command owns lives in that
+/// command's skill instead.
+const _asyncRedux = r'''
+---
+name: asyncredux-in-this-template
+description: >-
+  How async_redux is actually used in this monorepo, where it diverges from the
+  library's own documentation, and the pieces no `frx` command owns —
+  dispatching, waiting, user-facing errors, persistence and injected
+  dependencies. Use before writing the body of a reducer, a connector or a state
+  class, and whenever recalled async_redux knowledge is about to be applied
+  here.
+---
+
+# async_redux, as this template uses it
+
+## Five places the library's docs point the wrong way
+
+| Stock async_redux | Here |
+| --- | --- |
+| an immutable class with its own `copy()` | `@freezed`, and `state.copyWith.<slice>(…)` for a nested write |
+| `extends ReduxAction<AppState>` | `extends Action` — it mixes in `Selectors` and types `deps` and `env` |
+| selector functions memoised with `cache1` / `cache2` | a facade of `extension type`s over `AppState`, zero-cost, nothing to memoise |
+| `VmFactory` / `Vm` written however | `_Factory` / `_Vm`, private, in the connector file, `with Selectors` |
+| `List` / `Map` in state | `IList` / `IMap` / `ISet` |
+
+Everything below is the part no command scaffolds.
+
+## Dispatching
+
+- `dispatchSync` — a synchronous reducer. Setters from a connector use this.
+- `dispatchAndWait` — returns the `ActionStatus`; await it when the next step
+  depends on whether the action succeeded.
+- `dispatch` — fire and forget, including `GoAction` for navigation.
+
+Navigation is itself an action (`GoAction.push` / `replace` / `navigate` / `pop`
+/ `popUntilRoot`), so it is observable and testable like any other, and
+connectors never poke the router.
+
+## Waiting
+
+`Wait` is a field on `AppState`, owned by async_redux. An action opts in with the
+`WaitingAction` mixin, which raises the barrier in `before()` and clears it in
+`after()`. The reader is a selector keyed on the action type:
+
+```dart
+bool get isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>();
+```
+
+`frx add-action -k waiting` writes both. Never reduce `wait` yourself.
+
+## Errors the user should see
+
+Throw `UserException` from a reducer and async_redux shows it. `store.dart`
+installs a `GlobalErrorObserver` that logs, wraps anything else into a
+`UserException`, and gives the app a first chance to translate through a
+`UserErrorWrapperHandler` returning a `LocalizedMessage` (title + message) — so a
+message can be localised without `business` depending on the app's locale.
+
+## Persistence
+
+`AppPersistor` (`business/lib/persistor.dart`) is a `Persistor<AppState>` over
+`KeyValueStorage` from `storage`. Boot goes through `createStore`: open storage,
+read the persisted state, fall back to `AppState.initial()`. The app layer never
+touches the storage backend. A persistor rebuilds state without dispatching,
+which is why `frx graph` gives it a node of its own.
+
+## Injected dependencies and environment
+
+`AppDependencies` is built once by the store and reaches a reducer as `deps` on
+the `Action` base; `Environment` (base URL, prod/dev) reaches it as `env`. Both
+are already typed there — reading `store.dependencies` and casting is the long
+way round.
+
+## What this template does not use
+
+Undo/redo, stream and timer actions, the provider integration, flutter_hooks,
+events, `abortDispatch`, the optimistic-update mixin, and async_redux's testing
+helpers — the template ships no test harness at all. If a task genuinely needs
+one of these it is new ground here, not an established pattern: say so rather
+than adopting it silently.
+''';
+
+/// Shared by `add-page` and `add-connector`: both scaffold the same three
+/// classes, so the shape is stated once rather than twice.
+const _connectorContext = r'''
+## What a connector is here
+
+Three classes in one file under `app/lib/connectors/`, two of them private. The
+public one carries `@RoutePage()` and does nothing but wire the other two:
+
+```dart
+@RoutePage()
+class LogInPageConnector extends StatelessWidget {
+  const LogInPageConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    debug: this,
+    vm: () => _Factory(this),
+    builder: (context, vm) => LogInPage(email: vm.email, theme: vm.theme),
+  );
+}
+```
+
+The factory reads the store. `with Selectors` is what lets it say `login.email`
+instead of reaching into the state, and it is where a dispatch is bound to a
+callback:
+
+```dart
+class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
+    with Selectors {
+  _Factory(super._connector);
+
+  @override
+  _Vm fromStore() => _Vm(
+    email: FieldVm(
+      value: login.email,
+      validator: emailValidator,
+      onChanged: (v) => dispatchSync(SetEmailAction(v)),
+    ),
+    onPressedLogIn: () => dispatchAndWait(LogInWithEmailAction()),
+    onPressedRegister: () => dispatch(GoAction.push(const RegistrationRoute())),
+  );
+}
+```
+
+The view-model holds what the dumb widget needs, and `equals:` names **only the
+fields that carry data**:
+
+```dart
+class _Vm extends Vm {
+  _Vm({required this.email, required this.onPressedLogIn})
+    : super(equals: [email]);
+
+  final FieldVm<String?> email;
+  final VoidCallback onPressedLogIn;
+}
+```
+
+A callback is a fresh closure every build, so listing one in `equals:` makes the
+view-model unequal to itself and the connector rebuilds on every dispatch. That
+is why a value and the callback that changes it travel together as `FieldVm`
+(or `ChoiceVm`, when the value comes from a finite set): its `props` deliberately
+omit the closures, so the value can be compared and the behaviour cannot break
+the comparison.
+
+**Which dispatch:** `dispatchSync` for a synchronous setter, `dispatchAndWait`
+when the next step depends on the result, `dispatch(GoAction.push(...))` for
+navigation. Connectors never touch the router directly.
+
+This file is also the seam between the domain and the screen: `ui` depends on
+neither `models` nor `business`, so an enum, a `DateTime` or a domain object
+becomes a primitive, a formatted string or a `ui`-local render model **here**,
+before it is handed over.
+''';
+
 const _situations = <String, _Situation>{
   'add-substate': _Situation(
     'A new slice of application state — a list or table of things, a search, '
     'or a single value the app holds onto.',
+    context: r'''
+## What a state slice is here
+
+The store holds one immutable `AppState`. It is never edited — a reducer returns
+a new one. `AppState` is a `@freezed` class composing the slices, and every slice
+has an entry in `initial()`:
+
+```dart
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({
+    required LoginState login,
+    required ThemeState theme,
+    required Wait wait,
+  }) = _AppState;
+
+  factory AppState.initial() => const AppState(
+    login: LoginState(),
+    theme: ThemeState(),
+    wait: Wait.empty,
+  );
+}
+```
+
+`wait` is async_redux's own barrier registry, not a slice of this app. Leave it
+alone — actions raise and clear it through the `WaitingAction` mixin.
+
+A slice is a `@freezed` class of its own, at
+`business/lib/redux/<slice>/models/<slice>_state.dart`. Every field is nullable
+or carries `@Default(…)`, because the state is constructed with no arguments,
+and collections are `IList` / `IMap` / `ISet` — value equality is what stops a
+connector rebuilding on an identical list.
+
+**`--kind` picks the shape**, and changing it later is a rewrite:
+
+- `value` — one `String? value`, plus `SetValueAction`
+- `search` — a `String? query` and an `IList<int> view` of results, plus
+  `SetQueryAction`
+- `table` — an `IMap<int, Object> table` and an `IList<int> view` over it, plus
+  `Add…Action` / `Retrieve…Action`
+
+```dart
+@freezed
+abstract class TodosState with _$TodosState {
+  const factory TodosState({
+    @Default(IMapConst<int, Object>({})) IMap<int, Object> table,
+    @Default(IListConst<int>([])) IList<int> view,
+  }) = _TodosState;
+}
+```
+
+The slice is never read directly. The command writes its getters into the
+selector facade, so a screen says `todos.view` and so does a reducer —
+`_state.todos.view` appears only inside the facade itself.
+''',
     traps: [
       'The kind decides the shape: `table` for a keyed collection with an '
           'ordering, `search` for a query with results, `value` for one value. '
@@ -287,6 +527,55 @@ const _situations = <String, _Situation>{
     'A piece of data a state slice does not hold yet — the slice already '
     'exists and needs one more field on it. Also the shape of a slice you '
     'just created: each field is one of these, not a file you open and type.',
+    context: r'''
+## What a field is here
+
+A field belongs to a slice's `@freezed` class. Adding one is three coordinated
+edits, and the command makes all three.
+
+**1. The factory**, spliced in via AST. A field is either nullable or carries
+`@Default(…)`, because the state is constructed with no arguments:
+
+```dart
+const factory TodosState({
+  @Default(IMapConst<int, Object>({})) IMap<int, Object> table,
+  @Default(IListConst<int>([])) IList<int> view,
+  DateTime? dueAt,
+}) = _TodosState;
+```
+
+A collection field is `IList` / `IMap` / `ISet`, and the import comes with it.
+`List` / `Map` compare by identity, so a connector would rebuild on an identical
+list.
+
+**2. The getter on the facade**, so anything can read the field without knowing
+where it sits:
+
+```dart
+/// Returns dueAt
+DateTime? get dueAt => _state.todos.dueAt;
+```
+
+`--no-selector` skips it. Rarely what you want: a field a connector cannot read
+is half-wired, and it is this getter that makes the read visible to `frx graph`.
+
+**3. A setter action**, with `--action` — positional constructor, `final` field,
+and freezed's nested `copyWith`:
+
+```dart
+class SetDueAtAction extends Action {
+  SetDueAtAction(this.dueAt);
+
+  final DateTime? dueAt;
+
+  @override
+  AppState reduce() => state.copyWith.todos(dueAt: dueAt);
+}
+```
+
+That `state.copyWith.<slice>(<field>: …)` form is how every write to a slice is
+spelled — not `state.copyWith(todos: state.todos.copyWith(…))`.
+''',
     traps: [
       'The field is spliced into the `@freezed` factory via AST. A '
           'non-nullable type **requires** `--default`, because a state is '
@@ -303,6 +592,46 @@ const _situations = <String, _Situation>{
     'A value computed from state rather than stored in it — a count, a '
     'filtered list, a derived flag; anything a screen reads that the state '
     'does not hold directly.',
+    context: r'''
+## What a selector is here
+
+Not a function, and nothing to memoise. async_redux's own documentation teaches
+selector functions cached with `cache1` / `cache2`; this template has none of
+that. A selector is a getter on an `extension type` over `AppState`, so reading
+one is a field access, and all of them live in a single file,
+`business/lib/redux/selectors.dart`:
+
+```dart
+extension type SelectLogin(AppState _state) implements Selector {
+  /// Returns waiting value
+  bool get isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>();
+
+  /// Returns email value
+  String? get email => _state.login.email;
+}
+```
+
+Three things reach those getters, and none of them names the state directly:
+
+- a screen, through `state.select.login.email`
+- a reducer, because `Action` mixes in `Selectors` — `login.email`
+- a connector's `_Factory`, for the same reason
+
+A value that spans slices belongs to `SelectComposites`, the
+`extension … on Select` — not inside one of the slices:
+
+```dart
+extension SelectComposites on Select {
+  bool get canEnterApp => session.isAvailable && !login.isWaiting;
+}
+```
+
+Within a slice you can still reach another one: every `SelectX` implements
+`Selector`, which is what lets that line say `session` and `login` at once.
+
+`doctor` reports a selector declared anywhere but the facade
+(`selector-outside-facade`), so the file is the convention, not a habit.
+''',
     traps: [
       '`--expr` is the getter body and defaults to reading the state field of '
           'the same name; `--type` tightens the return type from `Object?`. No '
@@ -314,6 +643,64 @@ const _situations = <String, _Situation>{
   'add-action': _Situation(
     'Something that changes state — a reducer, a mutation, an async operation '
     'a screen dispatches.',
+    context: r'''
+## What an action is here
+
+An action is a class with a `reduce()` method. You dispatch it; the store calls
+`reduce()` and replaces the state with what it returns. Returning `null` means
+"no state change" — the action still ran, and observers still see it.
+
+Actions extend **`Action`**, not `ReduxAction<AppState>`. The base lives in
+`business/lib/redux/common/action.dart` and is what gives a reducer its three
+tools:
+
+```dart
+abstract class Action extends ReduxAction<AppState> with Selectors {
+  AppDependencies get deps => store.dependencies! as AppDependencies;
+  Environment get env => store.environment! as Environment;
+}
+```
+
+- `Selectors` — the selector facade, so state is read as `login.email`
+- `deps` — injected services
+- `env` — base URL, prod/dev
+
+**Synchronous.** Parameters arrive through the constructor as `final` fields;
+the write is freezed's nested `copyWith`:
+
+```dart
+class SetEmailAction extends Action {
+  SetEmailAction(this.value);
+
+  final String? value;
+
+  @override
+  AppState reduce() => state.copyWith.login(email: value);
+}
+```
+
+**Asynchronous.** `Future<AppState?> reduce() async`, and every path must
+`await`. Reads go through the facade — `login.email`, never `state.login.email`:
+
+```dart
+class LogInWithEmailAction extends Action with WaitingAction {
+  @override
+  Future<AppState> reduce() async {
+    await _request(email: login.email!, password: login.password!);
+
+    return state.copyWith(login: const LoginState());
+  }
+}
+```
+
+`with WaitingAction` raises a wait barrier for the duration — `before()` puts it
+up, `after()` takes it down — and a screen asks about it through a selector,
+`isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>()`.
+
+**How it is dispatched**, from a connector's `_Factory`: `dispatchSync` for a
+synchronous setter, `dispatchAndWait` when the next step depends on the result,
+plain `dispatch` for fire-and-forget.
+''',
     traps: [
       'Mixins conflict, and the conflict is a **compile error**: async_redux '
           'makes groups mutually exclusive by colliding on a private member. '
@@ -326,6 +713,7 @@ const _situations = <String, _Situation>{
   ),
   'add-page': _Situation(
     'A new screen and the route that reaches it.',
+    context: _connectorContext,
     traps: [
       'It wires the page, its `@RoutePage()` connector, the `AutoRoute` entry '
           'and auth-area membership (`--public`). Navigation **to** it is a '
@@ -349,6 +737,55 @@ const _situations = <String, _Situation>{
   'add-widget': _Situation(
     'A reusable piece of UI in the `ui` package — an input, a button, a tile, '
     'a container.',
+    context: r'''
+## What a widget is here — `ui` is data-driven
+
+A widget draws what it is handed and decides nothing. It does not fetch, derive,
+look up or branch on the domain. Its inputs are data and callbacks: primitives,
+a `ui`-local render model, `FieldVm` / `ChoiceVm`.
+
+This is a boundary, not a preference. `ui` depends on neither `models` nor
+`business`, so a domain type cannot even be named in this package — the
+conversion happens in the connector, the one place that sees both sides.
+
+```dart
+class InputFormField extends StatelessWidget {
+  const InputFormField({required this.vm, this.labelText, super.key});
+
+  final FieldVm<String?> vm;
+  final String? labelText;
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    initialValue: vm.value,
+    validator: vm.validator,
+    onChanged: vm.onChanged,
+    decoration: InputDecoration(labelText: labelText),
+  );
+}
+```
+
+`FieldVm` is what makes that possible: the value, its `onChanged`, an optional
+validator and a server-side error arrive as one object, and its `props` omit the
+closures so the view-model above can still compare equal between builds.
+
+**Text: chrome is looked up, content arrives resolved.** A widget's own fixed
+label may come from `S.current`, because `ui` does depend on `localization`.
+Anything that depends on the domain or the data — an option's label, a formatted
+date, a pluralised count — arrives as a finished `String`, resolved in the
+connector where the locale and the domain both live. `ChoiceItemVm.label` puts it
+in one line: *label is data, not design*.
+
+Every widget is scaffolded with previews into a mirrored tree under
+`ui/lib/previews/`, which is what gives it a name and a rendering anything else
+can reach:
+
+```dart
+@AppPreview(name: 'primary', group: 'Button')
+Widget buttonPrimaryPreview() =>
+    Button.primary(label: 'Primary', onPressed: () {});
+```
+''',
     traps: [
       '`--dir` is required and open-ended: a name that does not exist creates '
           'the folder. Ask `frx list-widget-dirs` which already hold widgets '
@@ -358,11 +795,16 @@ const _situations = <String, _Situation>{
       '`-k` picks what it takes in: `field` takes a `FieldVm`, `choice` a '
           '`ChoiceVm`, `action` is a labelled button, `view` draws a render '
           'model, `container` wraps children.',
+      'A component with its own lifecycle earns a file in a family folder — '
+          'never a private `StatefulWidget` inside a page. Hidden there it has '
+          'no preview and no name anything else can reach, so the next screen '
+          'that needs it copies it instead. There is not one in the package.',
     ],
   ),
   'add-connector': _Situation(
     'Connecting a dumb widget to the store — the `StoreConnector` that builds '
     'its view-model.',
+    context: _connectorContext,
   ),
   'add-model': _Situation(
     'A data shape the app passes around — a freezed model, or a sealed union '

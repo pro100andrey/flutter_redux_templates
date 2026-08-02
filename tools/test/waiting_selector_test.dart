@@ -181,4 +181,49 @@ void main() {
     expect(r.stdout, contains('SelectLogIn.isWaiting'));
     expect(selectors(), isNot(contains('isWaiting')));
   });
+
+  // A table substate waits the same way an action does. It used to arrive with
+  // a second spelling of the idea — an `X Waiting` enum, and a `Retrieve` action
+  // hand-writing the `before()`/`after()` pair that `WaitingAction` exists to
+  // provide — which nothing in the template itself used. One spelling.
+  group('a table substate waits the way the rest of the template does', () {
+    setUp(() async {
+      final r = await runInProcess(fx, [
+        'add-substate',
+        'orders',
+        '--kind',
+        'table',
+      ]);
+      expect(r.exitCode, 0, reason: r.stderr);
+    });
+
+    String retrieveAction() => fx.read(
+      'business/lib/redux/orders/actions/retrieve_orders_action.dart',
+    );
+
+    test('the retrieve action mixes in WaitingAction', () {
+      expect(
+        retrieveAction(),
+        contains(
+          'class RetrieveOrdersAction extends Action with WaitingAction',
+        ),
+      );
+      expect(retrieveAction(), isNot(contains('WaitAction')));
+    });
+
+    test('the reader keys on the action type, not an enum flag', () {
+      expect(
+        selectors(),
+        contains('_state.wait.isWaitingForType<RetrieveOrdersAction>()'),
+      );
+      expect(selectors(), isNot(contains('OrdersWaiting')));
+    });
+
+    test('no waiting enum is left in the state file', () {
+      expect(
+        fx.read('business/lib/redux/orders/models/orders_state.dart'),
+        isNot(contains('enum')),
+      );
+    });
+  });
 }

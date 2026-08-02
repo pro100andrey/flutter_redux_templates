@@ -13,6 +13,54 @@ Scaffold a widget (+ its previews) in the ui package.
 frx add-widget <name> --dir <folder> [-k <kind>]
 ```
 
+## What a widget is here — `ui` is data-driven
+
+A widget draws what it is handed and decides nothing. It does not fetch, derive,
+look up or branch on the domain. Its inputs are data and callbacks: primitives,
+a `ui`-local render model, `FieldVm` / `ChoiceVm`.
+
+This is a boundary, not a preference. `ui` depends on neither `models` nor
+`business`, so a domain type cannot even be named in this package — the
+conversion happens in the connector, the one place that sees both sides.
+
+```dart
+class InputFormField extends StatelessWidget {
+  const InputFormField({required this.vm, this.labelText, super.key});
+
+  final FieldVm<String?> vm;
+  final String? labelText;
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    initialValue: vm.value,
+    validator: vm.validator,
+    onChanged: vm.onChanged,
+    decoration: InputDecoration(labelText: labelText),
+  );
+}
+```
+
+`FieldVm` is what makes that possible: the value, its `onChanged`, an optional
+validator and a server-side error arrive as one object, and its `props` omit the
+closures so the view-model above can still compare equal between builds.
+
+**Text: chrome is looked up, content arrives resolved.** A widget's own fixed
+label may come from `S.current`, because `ui` does depend on `localization`.
+Anything that depends on the domain or the data — an option's label, a formatted
+date, a pluralised count — arrives as a finished `String`, resolved in the
+connector where the locale and the domain both live. `ChoiceItemVm.label` puts it
+in one line: *label is data, not design*.
+
+Every widget is scaffolded with previews into a mirrored tree under
+`ui/lib/previews/`, which is what gives it a name and a rendering anything else
+can reach:
+
+```dart
+@AppPreview(name: 'primary', group: 'Button')
+Widget buttonPrimaryPreview() =>
+    Button.primary(label: 'Primary', onPressed: () {});
+```
+
 ## Before you run it
 
 - `--dir` is required and open-ended: a name that does not exist creates
@@ -23,6 +71,10 @@ frx add-widget <name> --dir <folder> [-k <kind>]
 - `-k` picks what it takes in: `field` takes a `FieldVm`, `choice` a
   `ChoiceVm`, `action` is a labelled button, `view` draws a render model,
   `container` wraps children.
+- A component with its own lifecycle earns a file in a family folder —
+  never a private `StatefulWidget` inside a page. Hidden there it has no
+  preview and no name anything else can reach, so the next screen that
+  needs it copies it instead. There is not one in the package.
 
 ## Flags
 

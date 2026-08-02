@@ -14,6 +14,60 @@ Scaffold an AsyncRedux substate and wire it into AppState (AST).
 frx add-substate <name>
 ```
 
+## What a state slice is here
+
+The store holds one immutable `AppState`. It is never edited — a reducer returns
+a new one. `AppState` is a `@freezed` class composing the slices, and every slice
+has an entry in `initial()`:
+
+```dart
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({
+    required LoginState login,
+    required ThemeState theme,
+    required Wait wait,
+  }) = _AppState;
+
+  factory AppState.initial() => const AppState(
+    login: LoginState(),
+    theme: ThemeState(),
+    wait: Wait.empty,
+  );
+}
+```
+
+`wait` is async_redux's own barrier registry, not a slice of this app. Leave it
+alone — actions raise and clear it through the `WaitingAction` mixin.
+
+A slice is a `@freezed` class of its own, at
+`business/lib/redux/<slice>/models/<slice>_state.dart`. Every field is nullable
+or carries `@Default(…)`, because the state is constructed with no arguments,
+and collections are `IList` / `IMap` / `ISet` — value equality is what stops a
+connector rebuilding on an identical list.
+
+**`--kind` picks the shape**, and changing it later is a rewrite:
+
+- `value` — one `String? value`, plus `SetValueAction`
+- `search` — a `String? query` and an `IList<int> view` of results, plus
+  `SetQueryAction`
+- `table` — an `IMap<int, Object> table` and an `IList<int> view` over it, plus
+  `Add…Action` / `Retrieve…Action`
+
+```dart
+@freezed
+abstract class TodosState with _$TodosState {
+  const factory TodosState({
+    @Default(IMapConst<int, Object>({})) IMap<int, Object> table,
+    @Default(IListConst<int>([])) IList<int> view,
+  }) = _TodosState;
+}
+```
+
+The slice is never read directly. The command writes its getters into the
+selector facade, so a screen says `todos.view` and so does a reducer —
+`_state.todos.view` appears only inside the facade itself.
+
 ## Before you run it
 
 - The kind decides the shape: `table` for a keyed collection with an

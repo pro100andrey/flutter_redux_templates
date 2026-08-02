@@ -217,8 +217,18 @@ class SelectorsSource {
     }
     // Before the type's closing `}` (node.end - 1, matching how [wire] inserts
     // the facade getters), so `dart format` places it among the others.
+    //
+    // With the `///` line: every other getter in the facade carries one — the
+    // four written by hand in the template and every one `add-substate`
+    // scaffolds — and a getter arriving bare was this command disagreeing with
+    // its own neighbours. No `[…]` reference in it, because `comment_references`
+    // is on and a return type like `DateTime?` is not a resolvable one.
     edits.add(
-      Edit.insert(ext.end - 1, '  $returnType get $getterName => $expr;\n'),
+      Edit.insert(
+        ext.end - 1,
+        '  /// Returns $getterName\n'
+        '  $returnType get $getterName => $expr;\n',
+      ),
     );
 
     return SelectorsAddResult(

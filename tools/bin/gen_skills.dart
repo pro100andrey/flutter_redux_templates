@@ -19,7 +19,9 @@ void main(List<String> args) {
   final dir = Directory(p.join(root, '.claude', 'skills'));
   if (dir.existsSync()) {
     for (final e in dir.listSync()) {
-      if (e is Directory && p.basename(e.path).startsWith('frx-')) {
+      final name = p.basename(e.path);
+      if (e is Directory &&
+          (name.startsWith('frx-') || name.startsWith('asyncredux-'))) {
         e.deleteSync(recursive: true);
       }
     }

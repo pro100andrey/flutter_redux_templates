@@ -13,6 +13,63 @@ Scaffold a ReduxAction into a substate.
 frx add-action <name> --state <substate>
 ```
 
+## What an action is here
+
+An action is a class with a `reduce()` method. You dispatch it; the store calls
+`reduce()` and replaces the state with what it returns. Returning `null` means
+"no state change" — the action still ran, and observers still see it.
+
+Actions extend **`Action`**, not `ReduxAction<AppState>`. The base lives in
+`business/lib/redux/common/action.dart` and is what gives a reducer its three
+tools:
+
+```dart
+abstract class Action extends ReduxAction<AppState> with Selectors {
+  AppDependencies get deps => store.dependencies! as AppDependencies;
+  Environment get env => store.environment! as Environment;
+}
+```
+
+- `Selectors` — the selector facade, so state is read as `login.email`
+- `deps` — injected services
+- `env` — base URL, prod/dev
+
+**Synchronous.** Parameters arrive through the constructor as `final` fields;
+the write is freezed's nested `copyWith`:
+
+```dart
+class SetEmailAction extends Action {
+  SetEmailAction(this.value);
+
+  final String? value;
+
+  @override
+  AppState reduce() => state.copyWith.login(email: value);
+}
+```
+
+**Asynchronous.** `Future<AppState?> reduce() async`, and every path must
+`await`. Reads go through the facade — `login.email`, never `state.login.email`:
+
+```dart
+class LogInWithEmailAction extends Action with WaitingAction {
+  @override
+  Future<AppState> reduce() async {
+    await _request(email: login.email!, password: login.password!);
+
+    return state.copyWith(login: const LoginState());
+  }
+}
+```
+
+`with WaitingAction` raises a wait barrier for the duration — `before()` puts it
+up, `after()` takes it down — and a screen asks about it through a selector,
+`isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>()`.
+
+**How it is dispatched**, from a connector's `_Factory`: `dispatchSync` for a
+synchronous setter, `dispatchAndWait` when the next step depends on the result,
+plain `dispatch` for fire-and-forget.
+
 ## Before you run it
 
 - Mixins conflict, and the conflict is a **compile error**: async_redux

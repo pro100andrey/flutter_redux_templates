@@ -83,18 +83,22 @@ the creation commands only — `rename` and `remove` are refused with the reason
   command's own result (`--json` carries it as `build.handedToWatch`), not by the
   audit — read it there, at the moment you act. An *orphaned* watch is the
   converse: it regenerates nothing, and the audit reports it.
-- **A private `StatefulWidget` is a widget that never became an artifact.** In
-  `ui` a private class is a stateless fragment of the widget above it, or that
-  widget's `State`. A component with its own lifecycle earns a file in a family
-  folder, which is what gives it a preview and a name anything else can reach.
-- **A value and the callback that changes it travel as one view-model.**
-  `FieldVm` (or `ChoiceVm`, when the value is picked from a finite set) carries
-  the value, its `onChanged`, an optional validator and a server-side error
-  together. Split into two fields they are fresh closures every build, so the
-  view-model rebuilds the connector on every dispatch.
-- **Actions read through the selector facade.** A reducer reaching into
-  `state.<slice>.<field>` states the shape of the state twice, and the graph
-  cannot see the read, so the selector looks dead and the coupling looks absent.
+- **`ui` is data-driven and knows no domain.** It depends on neither `models` nor
+  `business`; a widget draws what it is handed. The connector is the seam where a
+  domain value becomes a primitive, a formatted string or a `ui`-local render
+  model. See `frx-add-widget` and `frx-add-connector`.
+
+## Writing the body, not just the file
+
+A command scaffolds the file and its wiring. How the body is written afterwards
+is this architecture's own, and in several places it is the opposite of what
+async_redux's documentation shows — `@freezed` rather than a hand-written
+`copy()`, an `extension type` facade rather than memoised selector functions,
+`extends Action` rather than `extends ReduxAction`.
+
+Read **`asyncredux-in-this-template`** before filling in a reducer, a connector
+or a state class, and whenever recalled async_redux knowledge is about to be
+applied here. Each command's own skill carries the rules for its artifact.
 
 ## Project defaults
 

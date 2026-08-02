@@ -14,6 +14,45 @@ Add a computed getter to a substate's Select<Pascal> selector.
 frx add-selector <substate> <name>
 ```
 
+## What a selector is here
+
+Not a function, and nothing to memoise. async_redux's own documentation teaches
+selector functions cached with `cache1` / `cache2`; this template has none of
+that. A selector is a getter on an `extension type` over `AppState`, so reading
+one is a field access, and all of them live in a single file,
+`business/lib/redux/selectors.dart`:
+
+```dart
+extension type SelectLogin(AppState _state) implements Selector {
+  /// Returns waiting value
+  bool get isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>();
+
+  /// Returns email value
+  String? get email => _state.login.email;
+}
+```
+
+Three things reach those getters, and none of them names the state directly:
+
+- a screen, through `state.select.login.email`
+- a reducer, because `Action` mixes in `Selectors` — `login.email`
+- a connector's `_Factory`, for the same reason
+
+A value that spans slices belongs to `SelectComposites`, the
+`extension … on Select` — not inside one of the slices:
+
+```dart
+extension SelectComposites on Select {
+  bool get canEnterApp => session.isAvailable && !login.isWaiting;
+}
+```
+
+Within a slice you can still reach another one: every `SelectX` implements
+`Selector`, which is what lets that line say `session` and `login` at once.
+
+`doctor` reports a selector declared anywhere but the facade
+(`selector-outside-facade`), so the file is the convention, not a habit.
+
 ## Before you run it
 
 - `--expr` is the getter body and defaults to reading the state field of
