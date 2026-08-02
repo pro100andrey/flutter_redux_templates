@@ -90,6 +90,13 @@ test:
 docs:
 	dart run bin/frx.dart flow --md --root ..
 
+# The agent skills in ../.claude/skills — one per command plus the router,
+# derived from the command objects themselves so the flag lists cannot drift
+# from the CLI. `make check` catches a stale tree, because
+# skills_freshness_test.dart is part of `dart test`.
+skills:
+	dart run bin/gen_skills.dart
+
 # The archive `frx create` unpacks — a derived artifact like docs/flows, and it
 # goes stale the moment the product moves. `make check` catches that, because
 # template_freshness_test.dart is part of `dart test`.

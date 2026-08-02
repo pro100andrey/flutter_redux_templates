@@ -1,139 +1,110 @@
 ---
 name: wiring-artifacts
 description: >-
-  Wiring an artifact of this Flutter AsyncRedux + auto_route monorepo — a state
-  slice, a screen and its route, a selector, a navigation hop. Use when creating
-  one, when adding to one that already exists (a field on a state, a computed
-  value, an action, a hop), when renaming or removing one, when working out how one
-  is wired, or right after hand-editing one: writing these files by hand writes the
-  files and misses the wiring.
+  Router for this Flutter AsyncRedux + auto_route monorepo — picks which `frx`
+  command wires the artifact you are about to write, and carries the rules that
+  belong to no single command. Use when several artifacts are needed at once,
+  when it is unclear which command owns a change, right after hand-editing files
+  of this architecture, or when deleting anything that is not a substate or a
+  page.
 ---
 
-# Wiring an artifact of this architecture
+# Which command wires what
 
-Ask which of these five situations you are in, then use the family named beside
-it. **Before hand-writing any file of this architecture, run `frx --help` — it
-lists every command with what each one wires.** `frx help <command>` gives that
-command's flags and what each implies.
+Every row has its own skill (`frx-<command>`), which carries that command's
+flags and its traps. This table is the map; reach for the row's skill when you
+act on it.
 
-| You are… | Use |
+| You are about to write… | Use |
 | --- | --- |
-| about to create an artifact of this architecture | the scaffolders |
-| about to *add to* one that already exists — a field, a computed value, an action, a navigation hop | the scaffolders too: each addition has its own command, and each carries the wiring that addition implies |
-| needing to understand how something is wired | the graph, the flow diagrams, and identifier resolution |
-| just done editing files by hand | the audit, then the type analyzer |
-| renaming or deleting an artifact | rename and removal — both preview, both need an explicit apply, and both cover a substate or a page and nothing else |
+| a slice of application state | `frx add-substate` |
+| a field on a slice that already exists | `frx add-field` |
+| a value computed from state | `frx add-selector` |
+| something that changes state | `frx add-action` |
+| a screen and its route | `frx add-page` |
+| a tabbed shell over several screens | `frx add-tabs` |
+| getting from one screen to another | `frx add-nav` |
+| a reusable piece of UI | `frx add-widget` |
+| a store connection for a dumb widget | `frx add-connector` |
+| a data shape | `frx add-model` |
+| a fixed set of values | `frx add-enum` |
+| a service and its dispatcher | `frx add-service` |
+| an HTTP API client | `frx add-retrofit` |
+| theme values | `frx add-theme-extension` |
+| several of the above at once | `frx batch` |
+| a rename of a substate or page | `frx rename` |
+| a deletion of a substate or page | `frx remove` |
+| an audit of the project | `frx doctor` |
+| what reaches what, and what nothing reaches | `frx graph` |
+| what happens when the user taps | `frx flow` |
+| what artifact an identifier belongs to | `frx which` |
+| an inventory of state slices | `frx list-substates` |
+| an inventory of routes | `frx list-routes` |
+| where widgets live | `frx list-widget-dirs` |
+| which action mixins conflict | `frx list-mixins` |
+| codegen running continuously | `frx watch` |
 
-The command help is the authority on what exists; this file deliberately keeps no
-second copy of it. A copy of the surface has drifted here before, to eight of ten
-entries, in the editor extension.
+Names take any casing — `myProfile`, `my_profile`, `MyProfile` and `my-profile`
+all resolve to the same artifact.
 
-## Why not by hand
+## More than one artifact at once
 
-Creating a screen by hand is four files and three shared edits. The shared ones
-are the ones that are missed or half-done: the `AppState` field *and* its
-`initial()` entry, the selector facade's three insertion points, the `AutoRoute`
-registration, the auth-guard set.
+`frx batch` takes the intents as data and wires them in **one** transaction, in
+the order written. A shell loop over the same commands is the usual substitute
+and is not the same thing: it has no rollback boundary, so a failure at the
+fifth intent leaves the first four wired and the state half-built. Batch covers
+the creation commands only — `rename` and `remove` are refused with the reason.
 
-Every writing command **applies completely or not at all** — a failed write is
-indistinguishable from a write never attempted — and every one of them takes
-`--json`, which emits the changeset as data: each change with its path, its
-operation and a unified diff. With `--dry-run` the same object comes back marked
-not applied. A non-zero exit means none of it landed, so you never have to parse
-anything to find out whether it worked.
+## The rules that belong to no single command
 
-For a feature's worth of artifacts at once, the batch command takes a declaration
-of intents and wires them in **one** transaction, in the order written. A shell
-loop over the same commands is the usual substitute for it and is not the same
-thing: it has no transaction, so a failure on the seventh intent leaves the first
-six wired and the state half-built — the one outcome every individual command is
-built to rule out.
-
-## Traps the help does not tell you
-
-- **The hand takes back over the moment the artifact exists.** Creating a slice
-  reaches for the CLI; giving that slice its next field does not — the file is
-  already open, the field is one line, and typing it feels faster than asking what
-  a field implies. That line is where the wiring goes missing: a state field also
-  owns a getter on the selector facade, which the field command writes in the same
-  breath, and a computed value has a command of its own. Neither is a *creation*,
-  which is why the reflex to reach for a scaffolder never fires for them. Treat
-  typing into a file this architecture generated as the signal itself: something
-  would have written that line **and** the wiring that comes with it.
-- **Action mixins conflict, and the conflict is a compile error.** async_redux
-  makes groups of them mutually exclusive by having them collide on a private
-  member, so a bad pair fails the build rather than at runtime. Ask the CLI which
-  mixins exclude which, and let the scaffolder write the `with` clause — it
-  refuses a bad pair up front, which is the check you would otherwise be doing by
-  memory.
-- **A widget needs its folder named.** The folder is required and open-ended: a
-  name that does not exist yet creates it. Ask which folders already hold widgets
-  instead of inventing a new home for one — and note that a widget's previews are
-  scaffolded alongside it into a mirrored tree, so a widget moved by hand leaves
-  its preview behind.
-- **Removal knows a substate and a page, and nothing else.** Everything else this
-  architecture makes — a widget, a connector, a service, a model, an enum, a theme
-  extension — comes out with `rm`, and nothing unwires it on the way. Deleting the
-  file is the easy half; what still imports it, dispatches it or draws it is the
-  half no command is holding for you, and a widget takes its mirrored preview with
-  it or leaves a file pointing at a class that is gone. So `rm` and then the audit,
-  in the same breath — this is the one edit whose damage is invisible until
-  something else is compiled.
-- **Around a live `build_runner watch`, commands stand down.** They hand the build
-  over rather than starting a second one, because a second `build_runner` asks the
-  incumbent to exit. The fact is reported in the command's own result (`--json`
-  carries it), not by the audit — so read it there, at the moment you act. If you
-  need generated code *now* and the watch is up, wait for the watch rather than
-  killing it.
-- **After editing files by hand, run the audit.** It is the safety net for exactly
-  the drift the CLI cannot observe: a connector edited by hand, a substate folder
-  no longer composed into the state, a `part` whose generated file is missing, a
-  declaration sitting in the wrong place. Then run the type analyzer — the audit
-  knows this architecture and the analyzer knows Dart, and neither substitutes for
-  the other. The way this one is actually lost is not skipping it but spacing it:
-  run it once before starting and once when done, and the whole middle went
-  unmeasured, every finding surfacing at a point where any of a hundred edits could
-  have caused it. Reaching for the type analyzer mid-work is already a habit; this
-  one has to be put beside it on purpose.
-- **The graph is a gate you close as you go, not a report you run at the end.**
-  The audit and the analyzer both pass on code nothing reaches: a selector no
-  reader ever calls, an action no widget dispatches, a slice left unreadable after
-  a screen was cut. Only the graph names those, and it names them per feature — so
-  read it when you finish each one, while the feature you just wrote is the obvious
-  suspect. The moment is precise: the feature compiles, and you have not started the
-  next one. Run it once at the end instead and every finding arrives at once,
-  detached from the decision that caused it.
+- **A write applies completely or not at all.** A failed write is
+  indistinguishable from a write never attempted, so a zero exit means the whole
+  changeset landed and you never have to parse anything to find out. Exit `64` is
+  a usage error, `70` is "cannot do this here". What sits outside the
+  transaction: `dart format`, the `docs/flows` refresh and `build_runner` run
+  after it and roll nothing back.
+- **After editing files by hand, run the audit, then the type analyzer.** The
+  audit knows this architecture and the analyzer knows Dart; neither substitutes
+  for the other. The way this one is lost is not skipping it but spacing it — run
+  it once before starting and once when done and the whole middle went
+  unmeasured, every finding surfacing where any of a hundred edits could have
+  caused it.
+- **The graph is a gate you close as you go.** The audit and the analyzer both
+  pass on code nothing reaches: a selector no reader calls, an action no widget
+  dispatches. The moment is precise — the feature compiles, and you have not
+  started the next one.
+- **Deleting anything that is not a substate or a page is manual.** `frx remove`
+  knows those two. A widget, a connector, a service, a model, an enum, a theme
+  extension comes out with `rm`, and nothing unwires it: what still imports it is
+  yours to find, and a widget leaves its mirrored preview behind. So `rm` and
+  then the audit, in the same breath.
+- **Around a live `build_runner watch`, commands stand down.** They hand the
+  build over rather than starting a second one. The fact is reported in the
+  command's own result (`--json` carries it as `build.handedToWatch`), not by the
+  audit — read it there, at the moment you act. An *orphaned* watch is the
+  converse: it regenerates nothing, and the audit reports it.
 - **A private `StatefulWidget` is a widget that never became an artifact.** In
   `ui` a private class is a stateless fragment of the widget above it, or that
-  widget's `State` — there is not one private `StatefulWidget` in the package. A
-  component with its own lifecycle earns a file in a family folder, which is what
-  gives it a preview and a name anything else can reach. Hidden inside a page it
-  has neither, and the next screen that needs it copies it instead.
-- **A value and the callback that changes it travel as one view-model.** `FieldVm`
-  (or `ChoiceVm`, when the value is picked from a finite set) carries the value,
-  its `onChanged`, an optional validator and a server-side error together. Split
-  into two fields on the view-model it is not merely off-pattern: both are fresh
-  closures every build, so a view-model that compares them rebuilds the connector
-  on every dispatch. `FieldVm` exists to keep behaviour out of its own `props`.
+  widget's `State`. A component with its own lifecycle earns a file in a family
+  folder, which is what gives it a preview and a name anything else can reach.
+- **A value and the callback that changes it travel as one view-model.**
+  `FieldVm` (or `ChoiceVm`, when the value is picked from a finite set) carries
+  the value, its `onChanged`, an optional validator and a server-side error
+  together. Split into two fields they are fresh closures every build, so the
+  view-model rebuilds the connector on every dispatch.
 - **Actions read through the selector facade.** A reducer reaching into
-  `state.<slice>.<field>` states the shape of the state twice — once in the slice
-  and once in the reducer — and the graph cannot see the read, so the selector
-  looks dead and the coupling looks absent. Note that this repository ships no
-  example of the rule: every action it carries only writes.
+  `state.<slice>.<field>` states the shape of the state twice, and the graph
+  cannot see the read, so the selector looks dead and the coupling looks absent.
+
+## Project defaults
+
+A `.frxrc` at the repo root sets the house style once — `buildRunner`, `format`,
+`substateKind`, and a `placement` block that silences an audit rule by id. An
+explicit flag always wins.
 
 ## Orientation
 
-`frx --help` is the authority on the CLI and always travels with it. Two documents
-carry what the help cannot, and neither is restated here:
-
-- [`README.md`](../../../README.md) — the architecture: the packages, the layering,
-  and what belongs where.
-- `tools/README.md` — the CLI in depth: the shared flags, the machine-readable
-  output, and the two rules that decide whether a new feature belongs in it. Also
-  `tools/vscode/README.md` for the editor extension. **Both live in the template
-  repository, not in a project made from it** — `frx create` leaves `tools/`
-  behind, because the CLI is installed once and used across every project it
-  makes. Reach for `frx --help` when they are not there.
-
-`docs/flows/` is **generated** from the sources — regenerate it, never hand-edit
-it. The audit reports it as drift when it falls behind.
+- [`README.md`](../../../README.md) — the architecture and the full command map.
+- `frx --help` — the authority, and it always travels with the CLI.
+- `docs/flows/` is **generated** from the sources. Regenerate it, never hand-edit
+  it; the audit reports it as drift when it falls behind.
