@@ -9,40 +9,15 @@ description: >-
   page.
 ---
 
-# Which command wires what
+# Wiring artifacts of this architecture
 
-Every row has its own skill (`frx-<command>`), which carries that command's
-flags and its traps. This table is the map; reach for the row's skill when you
-act on it.
+Every artifact this architecture has is created and wired by one `frx` command,
+and each command carries its own skill — how the artifact is written here, and
+what its help does not say. Those skills reach you on their own: they fire on
+the situation, and the file-editing ones fire again on the file. Reading them
+ahead of time is not how they work and not how they are counted.
 
-| You are about to write… | Use |
-| --- | --- |
-| a slice of application state | `frx add-substate` |
-| a field on a slice that already exists | `frx add-field` |
-| a value computed from state | `frx add-selector` |
-| something that changes state | `frx add-action` |
-| a screen and its route | `frx add-page` |
-| a tabbed shell over several screens | `frx add-tabs` |
-| getting from one screen to another | `frx add-nav` |
-| a reusable piece of UI | `frx add-widget` |
-| a store connection for a dumb widget | `frx add-connector` |
-| a data shape | `frx add-model` |
-| a fixed set of values | `frx add-enum` |
-| a service and its dispatcher | `frx add-service` |
-| an HTTP API client | `frx add-retrofit` |
-| theme values | `frx add-theme-extension` |
-| several of the above at once | `frx batch` |
-| a rename of a substate or page | `frx rename` |
-| a deletion of a substate or page | `frx remove` |
-| an audit of the project | `frx doctor` |
-| what reaches what, and what nothing reaches | `frx graph` |
-| what happens when the user taps | `frx flow` |
-| what artifact an identifier belongs to | `frx which` |
-| an inventory of state slices | `frx list-substates` |
-| an inventory of routes | `frx list-routes` |
-| where widgets live | `frx list-widget-dirs` |
-| which action mixins conflict | `frx list-mixins` |
-| codegen running continuously | `frx watch` |
+`frx --help` lists the commands. This file carries what belongs to no single one.
 
 Names take any casing — `myProfile`, `my_profile`, `MyProfile` and `my-profile`
 all resolve to the same artifact.

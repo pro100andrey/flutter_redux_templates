@@ -2,7 +2,8 @@
 name: frx-add-enum
 description: >-
   A fixed set of values — a status, a priority, a mode. Wired by `frx
-  add-enum` (alias `ae`).
+  add-enum` (alias `ae`). Do NOT hand-write this artifact or edit the files
+  it wires — run the command.
 ---
 
 # `frx add-enum`

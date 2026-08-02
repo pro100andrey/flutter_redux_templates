@@ -2,7 +2,8 @@
 name: frx-batch
 description: >-
   Several artifacts at once — a whole feature's worth of state, screens and
-  actions, wired together. Wired by `frx batch` (alias `bat`).
+  actions, wired together. Wired by `frx batch` (alias `bat`). Do NOT
+  hand-write this artifact or edit the files it wires — run the command.
 ---
 
 # `frx batch`

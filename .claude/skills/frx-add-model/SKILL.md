@@ -3,7 +3,8 @@ name: frx-add-model
 description: >-
   A data shape the app passes around — a freezed model, or a sealed union
   when the value is one of several cases. Wired by `frx add-model` (alias
-  `am`).
+  `am`). Do NOT hand-write this artifact or edit the files it wires — run
+  the command.
 ---
 
 # `frx add-model`

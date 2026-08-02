@@ -33,7 +33,7 @@ class SkillGen {
       if (s == null) continue; // covered by the router instead
       out['.claude/skills/frx-${cmd.name}/SKILL.md'] = _skill(cmd, s);
     }
-    out['.claude/skills/wiring-artifacts/SKILL.md'] = _router(runner);
+    out['.claude/skills/wiring-artifacts/SKILL.md'] = _router();
     out['.claude/skills/asyncredux-in-this-template/SKILL.md'] = _asyncRedux;
     return out;
   }
@@ -48,13 +48,28 @@ class SkillGen {
       // command name and stops there. Splicing the CLI's own one-liner in as a
       // clause reads as a conjugation bug ("which add a field…") because those
       // are imperative, and the body repeats it verbatim two lines down.
+      // The prohibition stays. Anthropic's guide recommends negative triggers
+      // in a description, and the 650-trial comparison has imperative-plus-
+      // prohibition activating 98.6% against 62.6% for the imperative alone.
+      // The opposite rule — prompt the positive — governs the body, not this.
       ..writeln(
         _wrap(
           '${s.when} ${_writes.contains(cmd.name) ? 'Wired by' : 'Answered by'} '
-              '`frx ${cmd.name}`$alias.',
+              '`frx ${cmd.name}`$alias.'
+              '${_writes.contains(cmd.name) ? ' Do NOT hand-write this artifact '
+                        'or edit the files it wires — run the command.' : ''}',
           '  ',
         ),
-      )
+      );
+
+    if (s.paths.isNotEmpty) {
+      b.writeln('paths:');
+      for (final p in s.paths) {
+        b.writeln('  - "$p"');
+      }
+    }
+
+    b
       ..writeln('---')
       ..writeln()
       ..writeln('# `frx ${cmd.name}`')
@@ -94,11 +109,7 @@ class SkillGen {
     return b.toString();
   }
 
-  static String _router(CommandRunner<int> runner) {
-    final rows = <String>[];
-    for (final e in _routes) {
-      rows.add('| ${e.$1} | `frx ${e.$2}` |');
-    }
+  static String _router() {
     return '''
 ---
 name: wiring-artifacts
@@ -111,15 +122,15 @@ description: >-
   page.
 ---
 
-# Which command wires what
+# Wiring artifacts of this architecture
 
-Every row has its own skill (`frx-<command>`), which carries that command's
-flags and its traps. This table is the map; reach for the row's skill when you
-act on it.
+Every artifact this architecture has is created and wired by one `frx` command,
+and each command carries its own skill — how the artifact is written here, and
+what its help does not say. Those skills reach you on their own: they fire on
+the situation, and the file-editing ones fire again on the file. Reading them
+ahead of time is not how they work and not how they are counted.
 
-| You are about to write… | Use |
-| --- | --- |
-${rows.join('\n')}
+`frx --help` lists the commands. This file carries what belongs to no single one.
 
 Names take any casing — `myProfile`, `my_profile`, `MyProfile` and `my-profile`
 all resolve to the same artifact.
@@ -238,43 +249,31 @@ reaches.''';
     'remove',
     'rename',
   };
-
-  /// The router's table, in the order a feature is usually built.
-  static const _routes = <(String, String)>[
-    ('a slice of application state', 'add-substate'),
-    ('a field on a slice that already exists', 'add-field'),
-    ('a value computed from state', 'add-selector'),
-    ('something that changes state', 'add-action'),
-    ('a screen and its route', 'add-page'),
-    ('a tabbed shell over several screens', 'add-tabs'),
-    ('getting from one screen to another', 'add-nav'),
-    ('a reusable piece of UI', 'add-widget'),
-    ('a store connection for a dumb widget', 'add-connector'),
-    ('a data shape', 'add-model'),
-    ('a fixed set of values', 'add-enum'),
-    ('a service and its dispatcher', 'add-service'),
-    ('an HTTP API client', 'add-retrofit'),
-    ('theme values', 'add-theme-extension'),
-    ('several of the above at once', 'batch'),
-    ('a rename of a substate or page', 'rename'),
-    ('a deletion of a substate or page', 'remove'),
-    ('an audit of the project', 'doctor'),
-    ('what reaches what, and what nothing reaches', 'graph'),
-    ('what happens when the user taps', 'flow'),
-    ('what artifact an identifier belongs to', 'which'),
-    ('an inventory of state slices', 'list-substates'),
-    ('an inventory of routes', 'list-routes'),
-    ('where widgets live', 'list-widget-dirs'),
-    ('which action mixins conflict', 'list-mixins'),
-    ('codegen running continuously', 'watch'),
-  ];
 }
 
 class _Situation {
-  const _Situation(this.when, {this.context, this.traps = const []});
+  const _Situation(
+    this.when, {
+    this.context,
+    this.paths = const [],
+    this.traps = const [],
+  });
 
   /// The trigger. Written the way the task sounds before the command is known.
   final String when;
+
+  /// Globs that make the skill load when those files are being worked on.
+  ///
+  /// The measured failure this targets: an agent read five state files and
+  /// rewrote them wholesale ten minutes after reading the skill that says not
+  /// to. A description cannot fix that, because the standard says an agent
+  /// "only consult[s] skills for tasks that require knowledge or capabilities
+  /// beyond what they can handle alone" — and writing a Dart file looks like
+  /// one it can. `paths` fires on the file instead of on the intent.
+  ///
+  /// Only for commands that edit an artifact that already exists. A creation
+  /// command has no file to match yet, and a glob would narrow it to nothing.
+  final List<String> paths;
 
   /// What the artifact *is*, in this template's terms, with code from it.
   ///
@@ -527,6 +526,7 @@ selector facade, so a screen says `todos.view` and so does a reducer —
     'A piece of data a state slice does not hold yet — the slice already '
     'exists and needs one more field on it. Also the shape of a slice you '
     'just created: each field is one of these, not a file you open and type.',
+    paths: ['business/lib/redux/*/models/*_state.dart'],
     context: r'''
 ## What a field is here
 
@@ -592,6 +592,7 @@ spelled — not `state.copyWith(todos: state.todos.copyWith(…))`.
     'A value computed from state rather than stored in it — a count, a '
     'filtered list, a derived flag; anything a screen reads that the state '
     'does not hold directly.',
+    paths: ['business/lib/redux/selectors.dart'],
     context: r'''
 ## What a selector is here
 
@@ -643,6 +644,7 @@ Within a slice you can still reach another one: every `SelectX` implements
   'add-action': _Situation(
     'Something that changes state — a reducer, a mutation, an async operation '
     'a screen dispatches.',
+    paths: ['business/lib/redux/*/actions/*.dart'],
     context: r'''
 ## What an action is here
 
@@ -728,6 +730,7 @@ plain `dispatch` for fire-and-forget.
   ),
   'add-nav': _Situation(
     'Getting from one screen to another — a tap that opens another page.',
+    paths: ['app/lib/connectors/*.dart', 'app/lib/navigation/*.dart'],
     traps: [
       'Five edits across two packages, four of which alone leave code that '
           'does not compile. `--kind` picks the `GoAction` factory: `push`, '
@@ -737,6 +740,7 @@ plain `dispatch` for fire-and-forget.
   'add-widget': _Situation(
     'A reusable piece of UI in the `ui` package — an input, a button, a tile, '
     'a container.',
+    paths: ['ui/lib/**/*.dart'],
     context: r'''
 ## What a widget is here — `ui` is data-driven
 
@@ -804,6 +808,7 @@ Widget buttonPrimaryPreview() =>
   'add-connector': _Situation(
     'Connecting a dumb widget to the store — the `StoreConnector` that builds '
     'its view-model.',
+    paths: ['app/lib/connectors/*.dart'],
     context: _connectorContext,
   ),
   'add-model': _Situation(

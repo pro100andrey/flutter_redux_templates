@@ -2,7 +2,8 @@
 name: frx-remove
 description: >-
   Deleting a state slice or a screen, with everything that points at it.
-  Wired by `frx remove` (alias `rm`).
+  Wired by `frx remove` (alias `rm`). Do NOT hand-write this artifact or
+  edit the files it wires — run the command.
 ---
 
 # `frx remove`

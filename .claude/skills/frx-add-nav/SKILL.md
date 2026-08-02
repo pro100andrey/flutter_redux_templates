@@ -2,7 +2,11 @@
 name: frx-add-nav
 description: >-
   Getting from one screen to another — a tap that opens another page. Wired
-  by `frx add-nav` (alias `an`).
+  by `frx add-nav` (alias `an`). Do NOT hand-write this artifact or edit
+  the files it wires — run the command.
+paths:
+  - "app/lib/connectors/*.dart"
+  - "app/lib/navigation/*.dart"
 ---
 
 # `frx add-nav`

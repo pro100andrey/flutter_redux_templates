@@ -3,7 +3,11 @@ name: frx-add-selector
 description: >-
   A value computed from state rather than stored in it — a count, a
   filtered list, a derived flag; anything a screen reads that the state
-  does not hold directly. Wired by `frx add-selector` (alias `asel`).
+  does not hold directly. Wired by `frx add-selector` (alias `asel`). Do
+  NOT hand-write this artifact or edit the files it wires — run the
+  command.
+paths:
+  - "business/lib/redux/selectors.dart"
 ---
 
 # `frx add-selector`

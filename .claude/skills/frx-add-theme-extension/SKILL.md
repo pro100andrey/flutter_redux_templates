@@ -2,7 +2,8 @@
 name: frx-add-theme-extension
 description: >-
   Theme values the design needs — colours, sizes, spacing read off the
-  theme. Wired by `frx add-theme-extension` (alias `ate`).
+  theme. Wired by `frx add-theme-extension` (alias `ate`). Do NOT
+  hand-write this artifact or edit the files it wires — run the command.
 ---
 
 # `frx add-theme-extension`

@@ -2,7 +2,8 @@
 name: frx-add-page
 description: >-
   A new screen and the route that reaches it. Wired by `frx add-page`
-  (alias `ap`).
+  (alias `ap`). Do NOT hand-write this artifact or edit the files it wires
+  — run the command.
 ---
 
 # `frx add-page`

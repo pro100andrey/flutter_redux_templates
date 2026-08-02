@@ -2,7 +2,8 @@
 name: frx-add-retrofit
 description: >-
   An HTTP API client — endpoints against a base URL. Wired by `frx
-  add-retrofit` (alias `ar`).
+  add-retrofit` (alias `ar`). Do NOT hand-write this artifact or edit the
+  files it wires — run the command.
 ---
 
 # `frx add-retrofit`

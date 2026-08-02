@@ -3,7 +3,8 @@ name: frx-add-substate
 description: >-
   A new slice of application state — a list or table of things, a search,
   or a single value the app holds onto. Wired by `frx add-substate` (alias
-  `as`).
+  `as`). Do NOT hand-write this artifact or edit the files it wires — run
+  the command.
 ---
 
 # `frx add-substate`

@@ -4,7 +4,10 @@ description: >-
   A piece of data a state slice does not hold yet — the slice already
   exists and needs one more field on it. Also the shape of a slice you just
   created: each field is one of these, not a file you open and type. Wired
-  by `frx add-field` (alias `af`).
+  by `frx add-field` (alias `af`). Do NOT hand-write this artifact or edit
+  the files it wires — run the command.
+paths:
+  - "business/lib/redux/*/models/*_state.dart"
 ---
 
 # `frx add-field`

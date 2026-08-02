@@ -2,7 +2,8 @@
 name: frx-rename
 description: >-
   Renaming a state slice or a screen — files, classes and every wiring
-  reference. Wired by `frx rename` (alias `mv`).
+  reference. Wired by `frx rename` (alias `mv`). Do NOT hand-write this
+  artifact or edit the files it wires — run the command.
 ---
 
 # `frx rename`

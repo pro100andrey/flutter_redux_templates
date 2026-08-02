@@ -2,7 +2,8 @@
 name: frx-add-tabs
 description: >-
   A tabbed shell — several screens living under one tab bar, as a nested
-  route. Wired by `frx add-tabs` (alias `at`).
+  route. Wired by `frx add-tabs` (alias `at`). Do NOT hand-write this
+  artifact or edit the files it wires — run the command.
 ---
 
 # `frx add-tabs`

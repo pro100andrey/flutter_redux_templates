@@ -2,7 +2,10 @@
 name: frx-add-connector
 description: >-
   Connecting a dumb widget to the store — the `StoreConnector` that builds
-  its view-model. Wired by `frx add-connector` (alias `ac`).
+  its view-model. Wired by `frx add-connector` (alias `ac`). Do NOT
+  hand-write this artifact or edit the files it wires — run the command.
+paths:
+  - "app/lib/connectors/*.dart"
 ---
 
 # `frx add-connector`

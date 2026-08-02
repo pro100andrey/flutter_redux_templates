@@ -2,7 +2,8 @@
 name: frx-add-service
 description: >-
   A service and the Redux dispatcher that lets it reach the store. Wired by
-  `frx add-service` (alias `asvc`).
+  `frx add-service` (alias `asvc`). Do NOT hand-write this artifact or edit
+  the files it wires — run the command.
 ---
 
 # `frx add-service`
