@@ -171,10 +171,16 @@ the creation commands only — `rename` and `remove` are refused with the reason
   command's own result (`--json` carries it as `build.handedToWatch`), not by the
   audit — read it there, at the moment you act. An *orphaned* watch is the
   converse: it regenerates nothing, and the audit reports it.
-- **`ui` is data-driven and knows no domain.** It depends on neither `models` nor
-  `business`; a widget draws what it is handed. The connector is the seam where a
-  domain value becomes a primitive, a formatted string or a `ui`-local render
-  model. See `frx-add-widget` and `frx-add-connector`.
+- **A reducer reads through the facade and writes through nested `copyWith`.**
+  `login.email`, not `state.login.email` — the getters come from the `Selectors`
+  mixin, on the `Action` base and on a connector's `_Factory` alike, and the
+  graph can only see the read that way. The write is `state.copyWith.login(email:
+  value)`, freezed's nested form.
+- **`ui` is data-driven and knows no domain.** A widget draws what it is handed;
+  the connector is the seam where a domain value becomes a primitive, a formatted
+  string or a `ui`-local render model. A component with its own lifecycle earns a
+  file in a family folder, which is what gives it a preview and a name — inside a
+  page it has neither, and the next screen that needs it copies it.
 
 ## Writing the body, not just the file
 
@@ -644,7 +650,6 @@ Within a slice you can still reach another one: every `SelectX` implements
   'add-action': _Situation(
     'Something that changes state — a reducer, a mutation, an async operation '
     'a screen dispatches.',
-    paths: ['business/lib/redux/*/actions/*.dart'],
     context: r'''
 ## What an action is here
 
@@ -740,7 +745,6 @@ plain `dispatch` for fire-and-forget.
   'add-widget': _Situation(
     'A reusable piece of UI in the `ui` package — an input, a button, a tile, '
     'a container.',
-    paths: ['ui/lib/**/*.dart'],
     context: r'''
 ## What a widget is here — `ui` is data-driven
 

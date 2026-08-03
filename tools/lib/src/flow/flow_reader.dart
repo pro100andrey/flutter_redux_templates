@@ -95,6 +95,7 @@ class FlowReader {
     return (
       info: ActionInfo(
         className: v.className ?? p.basenameWithoutExtension(file.path),
+        declaresClass: v.className != null,
         mixins: v.mixins,
         isAsync: v.isAsync,
         writes: v.writes,

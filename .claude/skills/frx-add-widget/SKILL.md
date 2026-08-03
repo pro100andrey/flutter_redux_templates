@@ -4,8 +4,6 @@ description: >-
   A reusable piece of UI in the `ui` package — an input, a button, a tile,
   a container. Wired by `frx add-widget` (alias `aw`). Do NOT hand-write
   this artifact or edit the files it wires — run the command.
-paths:
-  - "ui/lib/**/*.dart"
 ---
 
 # `frx add-widget`

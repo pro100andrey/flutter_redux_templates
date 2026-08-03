@@ -44,7 +44,8 @@ class ${n.pascal}Connector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, ${n.pascal}Connector, _Vm> {
+class _Factory extends VmFactory<AppState, ${n.pascal}Connector, _Vm>
+    with Selectors {
   _Factory(super._connector);
 
   @override

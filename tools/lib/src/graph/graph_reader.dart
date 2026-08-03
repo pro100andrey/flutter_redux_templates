@@ -400,6 +400,11 @@ class GraphReader {
       final substate = Casing.parse(p.basename(dir.path)).camel;
       for (final file in sourceIndex.filesUnder(actionsDir)) {
         final read = reader.readActionWithImports(file);
+        // A file here need not hold an action. The template's own idiom is a
+        // `mixin … on Action` with the shared `reduce()`, and a mixin is never
+        // dispatched — so a node for it could only ever be reported as reached
+        // by nobody.
+        if (!read.info.declaresClass) continue;
         out[p.canonicalize(file.path)] = _Action(
           id: 'action:$substate.${read.info.className}',
           substate: substate,

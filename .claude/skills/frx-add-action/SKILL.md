@@ -4,8 +4,6 @@ description: >-
   Something that changes state — a reducer, a mutation, an async operation
   a screen dispatches. Wired by `frx add-action` (alias `aa`). Do NOT
   hand-write this artifact or edit the files it wires — run the command.
-paths:
-  - "business/lib/redux/*/actions/*.dart"
 ---
 
 # `frx add-action`

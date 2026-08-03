@@ -1,49 +1,65 @@
 #!/bin/bash
-# Refuse a wholesale `Write` over a file frx owns the shape of.
+# Refuse a hand edit to a file whose shape a frx command owns.
 #
 # Why a hook and not a skill: the Agent Skills standard says an agent "only
 # consult[s] skills for tasks that require knowledge or capabilities beyond what
-# they can handle alone", and writing a Dart file looks like one it can. A traced
-# run had the agent read five state files and rewrite them whole, ten minutes
-# after reading the skill that says not to. Anthropic's own guidance for that
-# gap is hooks — they fire on the tool call, not on the agent's judgement.
+# they can handle alone", and writing a Dart file looks like one it can. Two
+# traced runs bear that out — one rewrote five state files whole, the next added
+# the same fields line by line with Edit, both ten minutes after reading the
+# skill that says to run the command. Anthropic's guidance for that gap is
+# hooks: they fire on the tool call, not on the agent's judgement.
 #
-# Scope is deliberately narrow:
-#   * `Write` only. `Edit` is a targeted change and stays free — fixing a doc
-#     comment or a body in one of these files is ordinary work.
-#   * The two files whose *shape* a command owns: a substate's freezed state,
-#     and the selector facade. Everything else in the tree is yours to write.
+# The scope is asymmetric on purpose:
 #
-# Exit 2 blocks the call and hands stderr back to the agent, which is where the
+#   * a substate's state file — `Write` and `Edit` both refused. Every field in
+#     it carries wiring (the `Select` getter, a collection type's import) that
+#     only `add-field` writes, and a field is what an edit here almost always
+#     adds.
+#   * the selector facade — `Write` refused, `Edit` allowed. `add-selector`
+#     takes an expression, so a selector whose body needs statements is written
+#     by hand into this file, and that is what the skill tells you to do. A
+#     guard that forbade it would contradict the documentation it enforces.
+#
+# Exit 2 blocks the call and hands stderr to the agent, which is where the
 # command it should have run is named.
 set -u
 
 payload=$(cat)
 
-# No jq: a Flutter checkout is not guaranteed to have it. The two fields needed
-# are flat strings, so a tolerant grep is enough and costs no dependency.
-tool=$(printf '%s' "$payload" | grep -o '"tool_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-path=$(printf '%s' "$payload" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+# No jq: a Flutter checkout is not guaranteed to have it. Both fields needed are
+# flat strings, so a tolerant grep costs no dependency.
+field() {
+  printf '%s' "$payload" |
+    grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" |
+    head -1 |
+    sed 's/.*"\([^"]*\)"$/\1/'
+}
 
-[ "$tool" = "Write" ] || exit 0
+tool=$(field tool_name)
+path=$(field file_path)
+
+case "$tool" in
+  Write | Edit | MultiEdit) ;;
+  *) exit 0 ;;
+esac
 
 case "$path" in
   */business/lib/redux/*/models/*_state.dart)
     slice=$(printf '%s' "$path" | sed 's|.*/redux/\([^/]*\)/models/.*|\1|')
     cat >&2 <<EOF
-This file's shape belongs to frx. Writing it whole drops the wiring that comes
-with a field — the Select getter on the facade, and the import a collection type
-needs.
+The shape of this file belongs to frx. A field added here by hand arrives without
+the wiring that comes with it — the Select getter on the facade, and the import a
+collection type needs.
 
-  frx add-field $slice <name>:<type>          # nullable, or add --default
-  frx add-field $slice <name>:<type> --action # also its setter action
+  frx add-field $slice <name>:<type>           # nullable, or pass --default
+  frx add-field $slice <name>:<type> --action  # also its setter action
 
-Run \`frx help add-field\` for the flags. Use Edit for a targeted change to a
-line that already exists.
+Run \`frx help add-field\` for the flags. Collections are IList / IMap / ISet.
 EOF
     exit 2
     ;;
   */business/lib/redux/selectors.dart)
+    [ "$tool" = "Write" ] || exit 0
     cat >&2 <<'EOF'
 The selector facade is wired by frx. Writing it whole loses the getters other
 commands put there.
@@ -51,8 +67,7 @@ commands put there.
   frx add-selector <substate> <name> --type <T> [--expr '<body>']
 
 A selector whose body needs statements rather than one expression is written by
-hand — use Edit for that, inside this file, which is where the placement rule
-(`selector-outside-facade`) expects it.
+hand — reach for Edit for that, which this guard allows.
 EOF
     exit 2
     ;;

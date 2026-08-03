@@ -113,9 +113,20 @@ class ActionInfo {
     this.dispatches = const [],
     this.throwsUserException = false,
     this.file,
+    this.declaresClass = true,
   });
 
   final String className;
+
+  /// Whether the file actually declared a class, or [className] is the file
+  /// name standing in for one.
+  ///
+  /// A file under `actions/` need not hold an action: this template's own
+  /// pattern is a `mixin … on Action` carrying a shared `reduce()`, and one of
+  /// those was reported as an artifact nothing reaches — a mixin is never
+  /// dispatched, so the finding could only ever be false. Consumers that build
+  /// nodes skip a file where this is false.
+  final bool declaresClass;
 
   /// async_redux behaviour mixins (`WaitingAction`, `CheckInternet`, `Retry`…).
   final List<String> mixins;
