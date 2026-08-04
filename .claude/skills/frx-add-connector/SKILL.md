@@ -86,6 +86,13 @@ neither `models` nor `business`, so an enum, a `DateTime` or a domain object
 becomes a primitive, a formatted string or a `ui`-local render model **here**,
 before it is handed over.
 
+## Before you run it
+
+- The suffix is optional and idempotent: `Toolbar` and `ToolbarConnector`
+  scaffold the same artifact. Do not strip it yourself, and do not add it —
+  pass the name as you have it. `frx remove` reads the same rule, so
+  whichever spelling created it removes it.
+
 ## Flags
 
 ```

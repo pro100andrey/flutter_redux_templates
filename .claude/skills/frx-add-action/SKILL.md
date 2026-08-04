@@ -73,6 +73,10 @@ plain `dispatch` for fire-and-forget.
 
 ## Before you run it
 
+- The suffix is optional and idempotent: `ArchiveTask` and
+  `ArchiveTaskAction` scaffold the same artifact. Do not strip it yourself,
+  and do not add it — pass the name as you have it. `frx remove` reads the
+  same rule, so whichever spelling created it removes it.
 - Mixins conflict, and the conflict is a **compile error**: async_redux
   makes groups mutually exclusive by colliding on a private member. Ask
   `frx list-mixins` which exclude which and let the scaffolder write the

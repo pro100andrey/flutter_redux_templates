@@ -14,6 +14,13 @@ Scaffold a service + Redux dispatcher under redux/services.
 frx add-service <name>
 ```
 
+## Before you run it
+
+- The suffix is optional and idempotent: `Sync` and `SyncService` scaffold
+  the same artifact. Do not strip it yourself, and do not add it — pass the
+  name as you have it. `frx remove` reads the same rule, so whichever
+  spelling created it removes it.
+
 ## Flags
 
 ```
