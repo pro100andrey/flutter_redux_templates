@@ -522,19 +522,54 @@ const _sourcePackages = [
 /// time — the exact cost `doctor_test`'s "each package lib is walked once" was
 /// written to hold. The repository-wide test covers generated files anyway,
 /// because it enumerates git rather than the tree.
+///
+/// **It reads through the index, so the tree is read once.** The first version
+/// took every file's bytes on top of the string `SourceIndex` hands the checks
+/// below — a second full read of the project on a path the editor re-runs on
+/// every debounced event. Running first, it is the one that pays for the read,
+/// and the checks after it get the cached string; the NUL is found in that
+/// string at no extra cost.
+///
+/// Bytes are still read for the one file that cannot be decoded, because that
+/// is the only way to say *where*. A file no editor will show you the problem
+/// in is one you need an offset for, and it is at most one file per audit.
 void checkSourceText(FrxWorkspace repo, List<Finding> into) {
+  void report(File file, Unsearchable kind, int offset) => into.add(
+    Finding.warn(
+      '${p.relative(file.path, from: repo.root.path)} '
+      '${describeUnsearchable(kind, offset)}',
+      file: file.path,
+    ),
+  );
+
   for (final pkg in _sourcePackages) {
     final lib = Directory(p.join(repo.root.path, pkg, 'lib'));
     if (!lib.existsSync()) continue;
     for (final file in sourceIndex.filesUnder(lib)) {
-      final bad = unsearchableIn(file.readAsBytesSync());
-      if (bad == null) continue;
-      into.add(
-        Finding.warn(
-          '${p.relative(file.path, from: repo.root.path)} '
-          '${describeUnsearchable(bad.kind, bad.offset)}',
-          file: file.path,
-        ),
+      final String source;
+      try {
+        source = sourceIndex.sourceOf(file);
+      } on FileSystemException {
+        // Not valid UTF-8, so there is no string to search. Now — and only now
+        // — the bytes are worth reading, to name the offset.
+        final bad = unsearchableIn(file.readAsBytesSync());
+        report(file, bad?.kind ?? Unsearchable.notUtf8, bad?.offset ?? 0);
+        continue;
+      }
+
+      // Written as an escape. Typing the byte itself is the very defect
+      // this check reports, and doing it by accident is how it reached the
+      // repository to begin with — three times now, counting the two while
+      // this module was being written. The guard catches it every time.
+      final at = source.indexOf('\u0000');
+      if (at < 0) continue;
+      // A code-unit index is not a byte offset, and the report promises bytes
+      // because `xxd -s` is the tool that works on a file like this. Encoding
+      // the prefix costs one allocation, on a file that has already failed.
+      report(
+        file,
+        Unsearchable.nulByte,
+        utf8.encode(source.substring(0, at)).length,
       );
     }
   }
