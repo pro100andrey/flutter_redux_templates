@@ -1,7 +1,8 @@
 /// The audit's checks, as a list it walks.
 ///
-/// The list is not the point — walking seven entries costs the same edit to
-/// extend as calling seven functions did. Two things are:
+/// The list is not the point — walking the entries costs the same edit to
+/// extend as calling that many functions did. (It said "seven" while there were
+/// eleven, which is what a count in prose does.) Two things are:
 ///
 /// - **A check is addressable and runnable alone.** Answering "what does the
 ///   substate check say about this tree" used to cost a subprocess and arrive
@@ -34,6 +35,7 @@ import '../redux/store_source.dart';
 import '../routing/routes_source.dart';
 import '../workspace/frx_workspace.dart';
 import 'finding.dart';
+import 'text_bytes.dart';
 
 /// One audit check: what it is called, and what it reports.
 class Check {
@@ -56,6 +58,11 @@ class Check {
 
 /// Every check, in report order.
 const auditChecks = <Check>[
+  // First, and the order is load-bearing: a file that is not valid UTF-8 makes
+  // `readAsStringSync` throw, so a later check reaching it would take the audit
+  // down with a stack trace instead of a finding. This one reads bytes and
+  // reports.
+  Check('source-text', checkSourceText),
   Check('substates', checkSubstates),
   Check('change-log', checkChangeLog),
   Check('routes-and-connectors', checkRoutesAndConnectors),
@@ -430,12 +437,63 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
   }
 }
 
+// --- searchable sources ------------------------------------------------------
+
+/// The packages whose `lib/` holds a project's own source.
+///
+/// Hoisted the moment a second check needed it. Both walk the same five trees,
+/// and a project that grows a sixth package should not have to be discovered
+/// twice.
+const _sourcePackages = ['business', 'http_client', 'ui', 'app', 'models'];
+
+/// A source file that search tools skip.
+///
+/// **Why the audit reports this and not the compiler.** A NUL byte is legal
+/// Dart, invisible in an editor, and survives `dart format`. What it destroys is
+/// findability: `grep`, `git grep` and ripgrep classify the file as binary and
+/// skip it, so every symbol declared in it returns no hits — not a wrong answer,
+/// an empty one, which reads as "this does not exist".
+///
+/// Measured, in this repository, on the CLI's own source: one NUL written as a
+/// memo-key separator made `frx_workspace.dart` unsearchable, and
+/// `notSubstateDirs`, `isSubstateDir`, `packageRootOf` and `_marker` returned
+/// nothing anywhere. `dart analyze` was clean and 690 tests passed.
+///
+/// **This check would not have caught that one**, and saying so is the point:
+/// `tools/` is the CLI's own source and no audited project contains it. The
+/// repository-wide guard is [test/source_text_test.dart]. This check is the half
+/// that serves a *created* project, where the same byte can arrive by a paste
+/// from a terminal, a bad merge, or a generator that writes raw bytes.
+///
+/// Generated output is left out, and not for the usual reason. Asking for it
+/// is a different listing key, so it would walk each package's `lib/` a second
+/// time — the exact cost `doctor_test`'s "each package lib is walked once" was
+/// written to hold. The repository-wide test covers generated files anyway,
+/// because it enumerates git rather than the tree.
+void checkSourceText(FrxWorkspace repo, List<Finding> into) {
+  for (final pkg in _sourcePackages) {
+    final lib = Directory(p.join(repo.root.path, pkg, 'lib'));
+    if (!lib.existsSync()) continue;
+    for (final file in sourceIndex.filesUnder(lib)) {
+      final bad = unsearchableIn(file.readAsBytesSync());
+      if (bad == null) continue;
+      into.add(
+        Finding.warn(
+          '${p.relative(file.path, from: repo.root.path)} '
+          '${describeUnsearchable(bad.kind, bad.offset)}',
+          file: file.path,
+        ),
+      );
+    }
+  }
+}
+
 // --- generated code ----------------------------------------------------------
 
 /// Any `part 'x.(freezed|g|g.theme|gr).dart'` whose target file is absent means
 /// build_runner hasn't run (or is stale).
 void checkGeneratedParts(FrxWorkspace repo, List<Finding> into) {
-  const pkgs = ['business', 'http_client', 'ui', 'app', 'models'];
+  const pkgs = _sourcePackages;
   final partRe = RegExp(
     r'''^part\s+['"]([^'"]+\.(?:freezed|g|g\.theme|gr)\.dart)['"]\s*;''',
     multiLine: true,
