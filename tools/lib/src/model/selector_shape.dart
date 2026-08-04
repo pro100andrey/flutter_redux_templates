@@ -97,6 +97,17 @@ abstract final class SelectorShape {
   /// rules already state the bar a rule has to clear — its syntactic form cannot
   /// be wrong in the common case — and inheritance defeats a syntactic reading,
   /// which is why `implements Selector` is not required here.
+  /// **Mixins are not handled, and that is not an omission.** `Selectors` is
+  /// the one mixin in the facade and it carries only the spine — one
+  /// `SelectX get <field>` per substate, mirroring `Select`. `SelectorsSource`
+  /// writes there when a substate is wired or unwired; `addSelector`, the only
+  /// thing that adds a computed getter, writes to a `Select<Pascal>` extension
+  /// type and never to the mixin. So no selector a user wrote can be declared
+  /// there, and a reader that skips mixins is not missing one.
+  ///
+  /// Checked because a review raised the opposite — reasoning from `isFacadeSpine`
+  /// naming `mixinType` and from this method not handling it, which is true and
+  /// carries no consequence.
   static SelectorDecl? of(AstNode node) {
     if (node is ExtensionTypeDeclaration) {
       final name = node.namePart.typeName.lexeme;
