@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import 'support/fixture.dart';
@@ -236,12 +237,58 @@ void main() {
         add: ['add-connector', 'ToolbarConnector'],
         remove: ['ToolbarConnector', '--kind', 'connector'],
       ),
+      // Missed the first time, on the premise that `service` had no suffix
+      // rule. `add-service` writes `class <Name>Service`, so it has one, and
+      // `SyncService` scaffolded `SyncServiceService`.
+      'service (already suffixed)': (
+        add: ['add-service', 'SyncService'],
+        remove: ['SyncService', '--kind', 'service'],
+      ),
+      // `add-enum` and `add-model` write to one directory and `remove --kind
+      // model` covers both — untested until now, which is what the ticket asked
+      // for rather than what it got.
+      'enum': (
+        add: ['add-enum', 'Status', '--value', 'pending', '--value', 'done'],
+        remove: ['Status', '--kind', 'model'],
+      ),
+      // The stripping had to be symmetric, not merely present: the scaffolder
+      // stripped twice and removal once, so a doubly-suffixed name wrote
+      // `submit_button.dart` and was looked for at `submit_button_button.dart`.
+      'widget (suffix already doubled)': (
+        add: [
+          'add-widget',
+          'SubmitButtonButton',
+          '--dir',
+          'buttons',
+          '--kind',
+          'action',
+        ],
+        remove: ['SubmitButtonButton', '--kind', 'widget'],
+      ),
+    };
+
+    /// Every file under the fixture, by repo-relative path.
+    Set<String> files() => {
+      for (final e in fx.root.listSync(recursive: true).whereType<File>())
+        p.relative(e.path, from: fx.root.path),
     };
 
     for (final entry in cases.entries) {
       test(entry.key, () async {
+        final before = files();
         await ok([...entry.value.add, '--no-format']);
-        final res = await runFrx(fx, ['remove', ...entry.value.remove]);
+        final written = files().difference(before);
+        expect(
+          written,
+          isNotEmpty,
+          reason: '${entry.value.add.join(' ')} wrote nothing',
+        );
+
+        final res = await runFrx(fx, [
+          'remove',
+          ...entry.value.remove,
+          '--apply',
+        ]);
         expect(
           res.exitCode,
           0,
@@ -249,6 +296,17 @@ void main() {
               'scaffolded with `${entry.value.add.join(' ')}`, so '
               '`frx remove ${entry.value.remove.join(' ')}` has to find it.\n'
               '${res.stderr}',
+        );
+
+        // The criterion, not merely "it exited 0": removal takes back exactly
+        // what scaffolding wrote. A `remove` that finds the artifact and leaves
+        // half of it is the failure `rm` already had.
+        expect(
+          files().intersection(written),
+          isEmpty,
+          reason:
+              'left behind by `frx remove ${entry.value.remove.join(' ')}`: '
+              '${files().intersection(written).join(', ')}',
         );
       });
     }

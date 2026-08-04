@@ -100,18 +100,45 @@ class ContractGen {
       ..writeln(' */')
       ..writeln('export const FIX_IDS = [${_fixIds()}] as const;')
       ..writeln()
-      ..writeln('export type FixId = (typeof FIX_IDS)[number];');
+      ..writeln('export type FixId = (typeof FIX_IDS)[number];')
+      ..writeln()
+      ..writeln('/**')
+      ..writeln(' * What a non-zero `frx` exit means.')
+      ..writeln(' *')
+      ..writeln(' * The editor keys on both: `scaffold.ts` offers an overwrite')
+      ..writeln(
+        ' * on FAILURE, `artifact.ts` raises a disambiguation picker on',
+      )
+      ..writeln(' * USAGE. sysexits.h values, as a shell expects.')
+      ..writeln(' */')
+      ..writeln('export const EXIT = {')
+      ..writeln('  usage: ${FrxRunner.exitUsage},')
+      ..writeln('  failure: ${FrxRunner.exitFailure},')
+      ..writeln('} as const;');
     return b.toString();
   }
 
-  /// The remedy ids, from instances of the sealed hierarchy.
+  /// The remedy ids.
   ///
-  /// Instances and not a hand-kept list: `Fix` is sealed so a new remedy is a
-  /// compile error at every switch, and naming them here means the id the editor
-  /// keys on comes from the same place the audit emits.
+  /// The list is written out — `Fix` being sealed does not make a `const <Fix>[]`
+  /// literal exhaustive, and the first version of this claimed it did. What
+  /// makes it exhaustive is [_idOf]: a fourth subclass makes that switch
+  /// non-exhaustive and the generator stops compiling until the id is listed.
   static String _fixIds() => const <Fix>[
     BuildRunnerFix(''),
     OrphanFix(''),
     FlowDocsFix(),
-  ].map((f) => "'${f.id}'").join(', ');
+  ].map((f) => "'${_idOf(f)}'").join(', ');
+
+  /// The compile-time guard the list needs.
+  ///
+  /// Exhaustive over the sealed hierarchy, so adding a remedy to `Fix` is a
+  /// compile error here rather than a quick-fix that reaches the Problems panel
+  /// with no label — `code_actions.ts` widens to index, deliberately, so nothing
+  /// downstream would have failed.
+  static String _idOf(Fix fix) => switch (fix) {
+    BuildRunnerFix() => fix.id,
+    OrphanFix() => fix.id,
+    FlowDocsFix() => fix.id,
+  };
 }

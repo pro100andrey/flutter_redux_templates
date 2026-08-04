@@ -38,3 +38,15 @@ export type Kind<K extends keyof typeof KINDS> = (typeof KINDS)[K][number];
 export const FIX_IDS = ['build_runner', 'orphan', 'flow-docs'] as const;
 
 export type FixId = (typeof FIX_IDS)[number];
+
+/**
+ * What a non-zero `frx` exit means.
+ *
+ * The editor keys on both: `scaffold.ts` offers an overwrite
+ * on FAILURE, `artifact.ts` raises a disambiguation picker on
+ * USAGE. sysexits.h values, as a shell expects.
+ */
+export const EXIT = {
+  usage: 64,
+  failure: 70,
+} as const;

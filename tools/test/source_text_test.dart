@@ -115,6 +115,35 @@ void main() {
 
     test('a clean project says nothing', () => expect(run(), isEmpty));
 
+    test('a file that cannot be decoded does not take the audit down', () {
+      // The failure this closes, measured: two stray bytes in one source made
+      // `readAsStringSync` throw inside `checkGeneratedParts`, and `frx doctor`
+      // died with an unhandled `FileSystemException` — losing every finding
+      // collected so far, including this check's report of that exact file.
+      //
+      // Running `source-text` first did not help, and the comment that said it
+      // did was wrong: `audit()` returns one list after the loop, so an
+      // exception discards it whole. The guard is per-check, not positional.
+      fx.file('business/lib/undecodable.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync([0xff, 0xfe, ...utf8.encode('\nclass X {}\n')]);
+
+      final found = audit(FrxWorkspace(fx.root));
+
+      expect(
+        found.where((f) => f.message.contains('undecodable.dart')),
+        isNotEmpty,
+        reason: 'the file has to be named, not merely survived',
+      );
+      expect(
+        found.where((f) => f.message.contains('could not run')),
+        isNotEmpty,
+        reason:
+            'and the check that hit it has to say so — a check that died is '
+            'not a clean tree',
+      );
+    });
+
     test('an unsearchable source is reported, with its offset', () {
       final file = fx.file('business/lib/redux/thing.dart')
         ..parent.createSync(recursive: true)

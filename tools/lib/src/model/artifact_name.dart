@@ -35,6 +35,15 @@ class ArtifactName {
   /// `Toolbar`, from either `Toolbar` or `ToolbarConnector`.
   static Casing connectorStem(Casing name) => _stem(name, 'connector');
 
+  /// `Sync`, from either `Sync` or `SyncService`.
+  ///
+  /// Missed the first time round, on the premise that `service` had "no suffix
+  /// rule left to get backwards". It has one — `add-service` writes `class
+  /// ${n.pascal}Service` — so `add-service SyncService` produced
+  /// `SyncServiceService` in `services/sync_service/`, the identical defect
+  /// that had just been fixed for actions and connectors.
+  static Casing serviceStem(Casing name) => _stem(name, 'service');
+
   /// [name] without a trailing [word] — unless that word is the whole name.
   ///
   /// `frx add-action Action` is a strange thing to type, but stripping it to

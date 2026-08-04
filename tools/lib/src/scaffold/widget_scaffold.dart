@@ -52,7 +52,15 @@ class WidgetScaffold {
   final String dir;
 
   /// `PinFormField`, `SubmitButton`, `ExerciseCard`.
-  String get className => classNameFor(name, kind);
+  ///
+  /// [name] is already stripped by the constructor, so this appends and does not
+  /// strip again. Making it call [classNameFor] instead stripped twice on the
+  /// scaffolding path and once on the removal path — `add-widget
+  /// SubmitButtonButton -k action` wrote `submit_button.dart` while `remove
+  /// SubmitButtonButton` looked for `submit_button_button.dart`, which is the
+  /// same disagreement the public accessor was added to end, reintroduced by
+  /// ending it carelessly.
+  String get className => _classOf(name, kind);
 
   /// The class `add-widget <typed> --kind <kind>` writes, for the name as the
   /// user typed it.
@@ -67,17 +75,30 @@ class WidgetScaffold {
   /// Idempotent on an already-stripped name: [_stripSuffix] only strips when
   /// the result would be non-empty, so `Pin` stays `Pin`.
   static String classNameFor(Casing typed, WidgetKind kind) =>
-      '${_stripSuffix(typed, kind).pascal}${_suffixFor(kind).pascalOrEmpty}';
+      _classOf(_stripSuffix(typed, kind), kind);
+
+  /// The suffix rule itself, over a name already reduced to its stem. One
+  /// statement, so the two entry points differ only in whether they strip.
+  static String _classOf(Casing stem, WidgetKind kind) =>
+      '${stem.pascal}${_suffixFor(kind).pascalOrEmpty}';
 
   /// The basename `add-widget <typed> --kind <kind>` writes, and the one
   /// `remove` has to look for. Also the preview's basename in the mirror.
   static String fileNameFor(Casing typed, WidgetKind kind) =>
       '${_snakeOf(classNameFor(typed, kind))}.dart';
 
+  /// The rule stated once, for a name that has already been reduced to its
+  /// stem. Both entry points end here; they differ only in whether they strip
+  /// on the way, which is what makes the two directions symmetric.
+
   /// The render model for a [WidgetKind.view], e.g. `ExerciseCardVm`.
   String get vmClassName => '${className}Vm';
 
-  String get fileName => fileNameFor(name, kind);
+  /// Derived from [className], not from [fileNameFor]: `name` is stripped
+  /// already, and routing it through the public accessor stripped it a second
+  /// time — so the class said `SubmitButtonButton` while the file said
+  /// `submit_button.dart`.
+  String get fileName => '${_snakeOf(className)}.dart';
 
   /// The value type of the view-model a `field`/`choice` takes. Generated as a
   /// nullable string — the common case, and a one-word edit otherwise.

@@ -212,19 +212,33 @@ class RemovableResolver {
     }
 
     if (hits.isEmpty) return null;
-    if (hits.length > 1) {
-      // Two folders, or two kinds' spellings side by side — `pin.dart` and
-      // `pin_form_field.dart` are both things "Pin" could mean.
-      final where = hits.map((h) => 'ui/lib/${h.dir}/${h.file}').toList()
+
+    // The name as typed, spelled straight, beats a suffix expansion of it.
+    //
+    // Not a guess — it is the narrower reading of the same input. With
+    // `pin.dart` (a view) and `pin_form_field.dart` (a field) side by side,
+    // every spelling of "Pin" matches something, and refusing left the view
+    // unreachable: `PinFormField` names the field, and nothing names the view,
+    // because `Pin` *is* its own name and was being read as ambiguous. So the
+    // advice the refusal gave — "delete the one you mean by its own name" —
+    // was advice one of the two could not take.
+    final exact = hits.where((h) => h.file == '${name.snake}.dart').toList();
+    final candidates = exact.length == 1 ? exact : hits;
+
+    if (candidates.length > 1) {
+      // Genuinely ambiguous: the same basename in two folders, or two
+      // expansions with no straight spelling between them.
+      final where = candidates.map((h) => 'ui/lib/${h.dir}/${h.file}').toList()
         ..sort();
       blocked =
-          '"${name.pascal}" names ${hits.length} widgets '
-          '(${where.join(', ')}). Delete the one you mean by its own name, or '
-          'rename one of them first.';
+          '"${name.pascal}" names ${candidates.length} widgets '
+          '(${where.join(', ')}). Name the one you mean by its own class '
+          '(${candidates.map((h) => _pascalOf(h.file.substring(0, h.file.length - 5))).toSet().join(' or ')}), '
+          'or rename one of them first.';
       return null;
     }
 
-    final hit = hits.single;
+    final hit = candidates.single;
     final widget = p.join(repo.uiLib.path, hit.dir, hit.file);
     final preview = p.join(repo.uiPreviews.path, hit.dir, hit.file);
     final hasPreview = File(preview).existsSync();
@@ -284,7 +298,8 @@ class RemovableResolver {
   // --- service ---------------------------------------------------------------
 
   RemovableArtifact? _service(Casing name) {
-    final dir = Directory(p.join(repo.businessServices.path, name.snake));
+    final stem = ArtifactName.serviceStem(name);
+    final dir = Directory(p.join(repo.businessServices.path, stem.snake));
     if (!dir.existsSync()) return null;
 
     final held =
@@ -299,7 +314,7 @@ class RemovableResolver {
       kind: RemovableKind.service,
       name: name,
       header:
-          'Remove service "${name.pascal}Service"  (${held.length} file(s))',
+          'Remove service "${stem.pascal}Service"  (${held.length} file(s))',
       files: const [],
       directories: [dir.path],
       // `add-service` does not write `dependencies.dart` either — the field that

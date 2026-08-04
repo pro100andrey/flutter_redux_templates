@@ -21,6 +21,7 @@ import * as frx from './frx';
 import type { Invocation, RunResult } from './frx';
 import * as ui from './ui';
 import type { FrxWatch } from './watch';
+import { EXIT } from './generated/contract';
 
 export interface ScaffoldOptions {
   inv: Invocation;
@@ -47,7 +48,7 @@ export interface ScaffoldOptions {
 export async function runScaffold(opts: ScaffoldOptions): Promise<RunResult | null> {
   const { inv, args, cwd, afterChange } = opts;
   let res = await frx.runWithProgress(opts.title, inv, args, cwd);
-  if (res.code === 70 && opts.overwritePrompt !== undefined) {
+  if (res.code === EXIT.failure && opts.overwritePrompt !== undefined) {
     if (!(await ui.confirmOverwrite(opts.overwritePrompt))) return null;
     res = await frx.runWithProgress(
       opts.overwriteTitle ?? opts.title,

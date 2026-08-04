@@ -2,6 +2,7 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
+import '../model/artifact_name.dart';
 import '../scaffold/artifact_templates.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
@@ -23,7 +24,8 @@ class AddServiceCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    final name = requireName();
+    // See [ArtifactName]: `Sync` and `SyncService` are one artifact.
+    final name = ArtifactName.serviceStem(requireName());
 
     final dir = p.join(repo.businessServices.path, name.snake);
 

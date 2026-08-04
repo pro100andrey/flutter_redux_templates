@@ -93,6 +93,21 @@ class FrxRunner extends CommandRunner<int> {
 
   /// Runs the CLI, mapping argument-parsing problems to exit code 64 (EX_USAGE)
   /// so shells and CI can distinguish "you used it wrong" from a real failure.
+  ///
+  /// Named, because the editor reads them back — `scaffold.ts` keys on 70 to
+  /// offer an overwrite, `artifact.ts` on 64 to raise a disambiguation picker.
+  /// They travel into `contract.ts` with the rest of the contract rather than
+  /// being spelled as bare numbers on both sides.
+  ///
+  /// The values are sysexits.h's, which is what a shell expects.
+
+  /// You used it wrong: bad flags, an unknown kind, an ambiguous name.
+  static const exitUsage = 64;
+
+  /// It could not be done: not inside a project, a shape frx cannot wire, a
+  /// changeset that failed and was rolled back.
+  static const exitFailure = 70;
+
   Future<int> runFrx(List<String> args) async {
     try {
       return await run(_withConfigDefaults(args)) ?? 0;
@@ -100,13 +115,13 @@ class FrxRunner extends CommandRunner<int> {
       console.err.writeln(e.message);
       console.err.writeln();
       console.err.writeln(e.usage);
-      return 64;
+      return exitUsage;
     } on StateError catch (e) {
       // Commands throw StateError for user-facing "can't do this here" cases
       // (project not found, an AppState/selectors shape we can't wire). Surface
       // the message cleanly instead of letting it escape as an unhandled crash.
       console.err.writeln('✗ ${e.message}');
-      return 70;
+      return exitFailure;
     } on ApplyFailure catch (e) {
       // Caught here rather than per command because the guarantee being
       // reported — the tree is as it was — is the applier's, not any one
@@ -114,7 +129,7 @@ class FrxRunner extends CommandRunner<int> {
       // `rename`, and the audit's orphan fixer. A non-zero exit is the whole
       // truth for a consumer that only needs to know whether it worked.
       console.err.writeln('✗ ${e.message}');
-      return 70;
+      return exitFailure;
     }
   }
 

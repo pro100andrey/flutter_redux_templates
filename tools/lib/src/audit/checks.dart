@@ -58,10 +58,12 @@ class Check {
 
 /// Every check, in report order.
 const auditChecks = <Check>[
-  // First, and the order is load-bearing: a file that is not valid UTF-8 makes
-  // `readAsStringSync` throw, so a later check reaching it would take the audit
-  // down with a stack trace instead of a finding. This one reads bytes and
-  // reports.
+  // First so its finding is read first, not because ordering protects it: a
+  // file that is not valid UTF-8 makes `readAsStringSync` throw in whichever
+  // check reaches it, and what keeps that from taking the audit down is the
+  // per-check guard in [audit], not this position. The first version of this
+  // comment claimed otherwise and was wrong — `frx doctor` still died with a
+  // stack trace on the very file class this check exists to name.
   Check('source-text', checkSourceText),
   Check('substates', checkSubstates),
   Check('change-log', checkChangeLog),
@@ -85,7 +87,27 @@ List<Finding> audit(FrxWorkspace repo, {bool processState = false}) =>
       final findings = <Finding>[];
       for (final check in auditChecks) {
         if (check.needsProcessState && !processState) continue;
-        check.run(repo, findings);
+        try {
+          check.run(repo, findings);
+        } on Object catch (error) {
+          // **A check that throws must not take the audit with it.** Measured:
+          // one source file of invalid UTF-8 made `readAsStringSync` throw
+          // inside `checkGeneratedParts`, and `frx doctor` died with a stack
+          // trace — losing every finding already collected, including
+          // `checkSourceText`'s report of that exact file. Running the text
+          // check first did not save it: the list is returned after the loop,
+          // so an exception discards it whole.
+          //
+          // Reported rather than swallowed, and as an error: a check that could
+          // not run is not a clean tree, and the editor's Problems panel is
+          // where a user would otherwise see nothing at all.
+          findings.add(
+            Finding.error(
+              'the "${check.id}" check could not run: $error',
+              rule: check.id,
+            ),
+          );
+        }
       }
       return findings;
     });
@@ -441,10 +463,18 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
 
 /// The packages whose `lib/` holds a project's own source.
 ///
-/// Hoisted the moment a second check needed it. Both walk the same five trees,
-/// and a project that grows a sixth package should not have to be discovered
-/// twice.
-const _sourcePackages = ['business', 'http_client', 'ui', 'app', 'models'];
+/// Hoisted the moment a second check needed it, and widened at the same time:
+/// `storage` and `localization` ship in the template and were missing, so
+/// "every source file" meant five packages of seven.
+const _sourcePackages = [
+  'business',
+  'http_client',
+  'ui',
+  'app',
+  'models',
+  'storage',
+  'localization',
+];
 
 /// A source file that search tools skip.
 ///

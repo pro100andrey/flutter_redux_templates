@@ -28,6 +28,7 @@ import * as queries from '../queries';
 import * as ui from '../ui';
 import { ARTIFACT_KINDS } from '../ui';
 import type { ArtifactKind } from '../ui';
+import { EXIT } from '../generated/contract';
 
 /** What each kind means, for the disambiguation rows. */
 const KIND_BLURB: Record<ArtifactKind, string> = {
@@ -118,7 +119,7 @@ export async function removeArtifact(app: App, arg?: ArtifactArg): Promise<void>
   // The two shapes it emits — "is both a substate and a page" and "matches N
   // kinds (a, b)" — are both covered; a list the extension kept instead would be
   // the third copy of that inventory, and the second one to drift.
-  if (preview.code === 64 && !kind) {
+  if (preview.code === EXIT.usage && !kind) {
     const kinds = ambiguousKinds(preview.stderr);
     if (kinds.length > 1) {
       const pick = await vscode.window.showQuickPick<vscode.QuickPickItem & { label: ArtifactKind }>(
