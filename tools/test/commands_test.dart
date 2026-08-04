@@ -391,7 +391,11 @@ void main() {
   });
 
   group('the simple scaffolders', () {
-    // Seven commands whose whole output is new files. None had a test.
+    // The commands whose whole output is new files. `add-retrofit` and
+    // `add-theme-extension` were the two no test had ever run: they write into
+    // `http_client/lib/api` and `ui/lib/theme/extensions`, neither of which the
+    // fixture lays down, so they also pin that a scaffolder creates the
+    // directory it targets.
     const cases = <(String, List<String>, String)>[
       (
         'add-service',
@@ -408,6 +412,16 @@ void main() {
         'add-connector',
         ['add-connector', 'avatar'],
         'app/lib/connectors/avatar_connector.dart',
+      ),
+      (
+        'add-retrofit',
+        ['add-retrofit', 'catalog'],
+        'http_client/lib/api/catalog.dart',
+      ),
+      (
+        'add-theme-extension',
+        ['add-theme-extension', 'spacing'],
+        'ui/lib/theme/extensions/spacing.dart',
       ),
     ];
 
