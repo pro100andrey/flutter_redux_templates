@@ -24,7 +24,7 @@ EXT_VERSION := $(shell node -p "require('./$(EXT_DIR)/package.json').version" 2>
 VSIX        := frx-$(EXT_VERSION).vsix
 
 .DEFAULT_GOAL := help
-.PHONY: help install cli ext package ext-install profiles check test docs template uninstall clean
+.PHONY: help install cli ext package ext-install profiles check test docs skills contract template uninstall clean
 
 help:
 	@echo "frx — CLI $(shell sed -n 's/^version: //p' pubspec.yaml | head -1) · extension $(EXT_VERSION)"
@@ -38,6 +38,8 @@ help:
 	@echo "  make check                      everything CI runs, locally"
 	@echo "  make test                       dart test + the extension suite"
 	@echo "  make docs                       regenerate docs/flows"
+	@echo "  make skills                     regenerate .claude/skills from the commands"
+	@echo "  make contract                   regenerate the extension's constants from the CLI"
 	@echo "  make template                   repack the template 'frx create' unpacks"
 	@echo "  make uninstall [PROFILE=<name>] remove both"
 	@echo "  make clean                      drop build output"
@@ -96,6 +98,13 @@ docs:
 # skills_freshness_test.dart is part of `dart test`.
 skills:
 	dart run bin/gen_skills.dart
+
+# The extension's generated constants — the `--kind` sets, the marker path and
+# the doctor remedy ids, written from the CLI's own ArgParsers so the editor
+# reads the contract instead of restating it. `make check` catches a stale copy,
+# because contract_freshness_test.dart is part of `dart test`.
+contract:
+	dart run bin/gen_contract.dart
 
 # The archive `frx create` unpacks — a derived artifact like docs/flows, and it
 # goes stale the moment the product moves. `make check` catches that, because

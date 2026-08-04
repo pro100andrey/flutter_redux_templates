@@ -7,6 +7,7 @@
 // gate.
 import * as vscode from 'vscode';
 
+import { KINDS } from './generated/contract';
 import * as frx from './frx';
 import type { Invocation, RunResult } from './frx';
 import * as naming from './naming';
@@ -26,15 +27,7 @@ import * as queries from './queries';
  * from a list, because only they have a `list-*` command that enumerates them —
  * the rest are reached by name, which is why `remove` auto-detects the kind.
  */
-export const ARTIFACT_KINDS = [
-  'substate',
-  'page',
-  'action',
-  'model',
-  'widget',
-  'connector',
-  'service',
-] as const;
+export const ARTIFACT_KINDS = KINDS.remove;
 
 /** Which kind of artifact a picked row refers to. */
 export type ArtifactKind = (typeof ARTIFACT_KINDS)[number];

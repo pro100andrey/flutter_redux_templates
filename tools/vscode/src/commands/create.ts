@@ -4,6 +4,8 @@
 // these; the FRX overlay and "New here" menu delegate to them.
 import * as vscode from 'vscode';
 
+import { KINDS, type Kind } from '../generated/contract';
+
 import type { App } from '../app';
 import * as config from '../config';
 import * as frx from '../frx';
@@ -11,6 +13,43 @@ import * as paths from '../paths';
 import * as queries from '../queries';
 import * as scaffold from '../scaffold';
 import * as ui from '../ui';
+
+/**
+ * The `--kind` pickers: values from the CLI, prose from here.
+ *
+ * The values were hand-copied — four sets of them, and only `remove --kind` had
+ * a test, so three could drift silently and the fourth was caught by a regex
+ * over this file's text. Now `KINDS` is generated from each command's own
+ * ArgParser and the blurbs are a `Record` over it: add a kind in Dart, run
+ * `make contract`, and this stops compiling until somebody writes what it does.
+ * The order is the CLI's, so the picker lists them the way `--help` does.
+ */
+const SUBSTATE_BLURBS: Record<Kind<'substate'>, string> = {
+  value: 'Single nullable `value` field + SetValueAction',
+  search: '`query` string + `IList<int> view` + SetQueryAction',
+  table: 'byId `IMap` table + view + Add… / Retrieve… actions',
+};
+
+const ACTION_BLURBS: Record<Kind<'action'>, string> = {
+  sync: 'AppState? reduce()',
+  async: 'Future<AppState?> reduce() async',
+  waiting: 'extends Action with WaitingAction',
+};
+
+const NAV_BLURBS: Record<Kind<'nav'>, string> = {
+  push: 'Keep the current screen underneath (default)',
+  replace: 'Swap the current screen for the destination',
+  navigate: 'Go there, reusing the route if it is already up',
+};
+
+/** A quick-pick row per value, in the CLI's own order. */
+function picks<K extends string>(
+  values: readonly K[],
+  blurbs: Record<K, string>,
+): vscode.QuickPickItem[] {
+  return values.map((label) => ({ label, description: blurbs[label] }));
+}
+
 
 /** @param uri the right-clicked folder (undefined from the palette) */
 export async function addSubstate(app: App): Promise<void> {
@@ -23,11 +62,7 @@ export async function addSubstate(app: App): Promise<void> {
   if (name === undefined) return;
 
   const kindPick = await vscode.window.showQuickPick(
-    [
-      { label: 'value', description: 'Single nullable `value` field + SetValueAction' },
-      { label: 'search', description: '`query` string + `IList<int> view` + SetQueryAction' },
-      { label: 'table', description: 'byId `IMap` table + view + Add… / Retrieve… actions' },
-    ],
+    picks(KINDS.substate, SUBSTATE_BLURBS),
     { title: `FRX — Kind for "${name}"`, placeHolder: 'Substate flavour', ignoreFocusOut: true },
   );
   if (kindPick === undefined) return;
@@ -128,11 +163,7 @@ export async function addNav(app: App): Promise<void> {
   }
 
   const kindPick = await vscode.window.showQuickPick(
-    [
-      { label: 'push', description: 'Keep the current screen underneath (default)' },
-      { label: 'replace', description: 'Swap the current screen for the destination' },
-      { label: 'navigate', description: 'Go there, reusing the route if it is already up' },
-    ],
+    picks(KINDS.nav, NAV_BLURBS),
     { title: `FRX — ${from} → ${to}`, placeHolder: 'Which GoAction', ignoreFocusOut: true },
   );
   if (kindPick === undefined) return;
@@ -172,11 +203,7 @@ export async function addAction(app: App, presetState?: string): Promise<void> {
   }
 
   const kindPick = await vscode.window.showQuickPick(
-    [
-      { label: 'sync', description: 'AppState? reduce()' },
-      { label: 'async', description: 'Future<AppState?> reduce() async' },
-      { label: 'waiting', description: 'extends Action with WaitingAction' },
-    ],
+    picks(KINDS.action, ACTION_BLURBS),
     { title: `FRX — Action kind for "${name}"`, placeHolder: 'Body shape', ignoreFocusOut: true },
   );
   if (kindPick === undefined) return;
@@ -401,13 +428,15 @@ interface KindPick extends vscode.QuickPickItem {
  * primitive it wraps, and which states its previews enumerate — so it is asked
  * before the folder, whose suggestion depends on it.
  */
-const WIDGET_KINDS: KindPick[] = [
-  { value: 'view', label: '$(symbol-structure) View', description: 'draws a render model' },
-  { value: 'field', label: '$(edit) Field', description: 'takes a FieldVm; wraps InputFormField' },
-  { value: 'choice', label: '$(list-selection) Choice', description: 'takes a ChoiceVm; wraps ChoiceFormField' },
-  { value: 'action', label: '$(play) Action', description: 'a labelled action; wraps Button' },
-  { value: 'container', label: '$(layout) Container', description: 'wraps other widgets; takes a child' },
-];
+const WIDGET_BLURBS: Record<Kind<'widget'>, { label: string; description: string }> = {
+  view: { label: '$(symbol-structure) View', description: 'draws a render model' },
+  field: { label: '$(edit) Field', description: 'takes a FieldVm; wraps InputFormField' },
+  choice: { label: '$(list-selection) Choice', description: 'takes a ChoiceVm; wraps ChoiceFormField' },
+  action: { label: '$(play) Action', description: 'a labelled action; wraps Button' },
+  container: { label: '$(layout) Container', description: 'wraps other widgets; takes a child' },
+};
+
+const WIDGET_KINDS: KindPick[] = KINDS.widget.map((value) => ({ value, ...WIDGET_BLURBS[value] }));
 
 /** The single-file scaffolders, each with its own command identity. */
 const SIMPLE_SCAFFOLDS = {

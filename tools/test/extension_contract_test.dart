@@ -171,43 +171,28 @@ void main() {
     }
   });
 
-  test('the editor agrees with remove about what kinds exist', () {
-    // `--kind` crosses the boundary as a bare string, so nothing else would
-    // catch the extension offering a value the CLI stopped accepting — or, the
-    // direction that actually happened, the CLI gaining five kinds while the
-    // editor's union still said `'substate' | 'page'` and its disambiguation
-    // picker still offered exactly those two.
-    final allowed =
-        (FrxRunner().commands['remove']!.argParser.options['kind']!.allowed ??
-                const <String>[])
-            .toSet();
-    expect(allowed, isNotEmpty);
-
-    final declared = RegExp(
-      r'export const ARTIFACT_KINDS = \[([^\]]*)\]',
-    ).firstMatch(File(p.join(vscode.path, 'src', 'ui.ts')).readAsStringSync());
+  test('the editor derives its kinds rather than declaring them', () {
+    // This used to read `remove --kind` off the live parser and compare it
+    // against a regex extraction of `ARTIFACT_KINDS` from `ui.ts` — a test
+    // standing in for a seam, and one that covered only the one set of five.
+    // The seam exists now: `ContractGen` writes `src/generated/contract.ts`
+    // from every command's own ArgParser, `contract_freshness_test` fails on a
+    // stale copy, and `tsc` fails on a blurb missing for a new kind.
+    //
+    // What is left to check is that the editor still *reads* it. A hand-written
+    // list that happened to be correct today would pass every other gate.
+    final ui = File(p.join(vscode.path, 'src', 'ui.ts')).readAsStringSync();
     expect(
-      declared,
-      isNotNull,
-      reason: 'ARTIFACT_KINDS is gone from ui.ts — the contract has no subject',
-    );
-    final kinds = RegExp(
-      "'([a-z-]+)'",
-    ).allMatches(declared!.group(1)!).map((m) => m.group(1)!).toSet();
-
-    expect(
-      allowed.difference(kinds),
-      isEmpty,
+      ui,
+      contains('ARTIFACT_KINDS = KINDS.remove'),
       reason:
-          'frx remove --kind accepts kind(s) the editor never offers. Add them '
-          'to ARTIFACT_KINDS in src/ui.ts (and to KIND_BLURB beside it).',
+          'ui.ts declares its own artifact kinds again — the generated '
+          'contract is there to be read, not copied from.',
     );
     expect(
-      kinds.difference(allowed),
-      isEmpty,
-      reason:
-          'the editor offers a --kind value frx remove would reject with '
-          'exit 64.',
+      RegExp(r"export const ARTIFACT_KINDS = \[").hasMatch(ui),
+      isFalse,
+      reason: 'a literal list is back in ui.ts',
     );
   });
 

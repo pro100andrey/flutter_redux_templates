@@ -7,6 +7,7 @@
 // re-spawning frx and re-parsing its output.
 import * as path from 'path';
 
+import type { FixId } from './generated/contract';
 import * as frx from './frx';
 import type { Invocation } from './frx';
 
@@ -148,7 +149,7 @@ export interface DoctorFinding {
   severity: 'error' | 'warn';
   message: string;
   file: string | null;
-  fix: 'build_runner' | 'orphan' | 'flow-docs' | null;
+  fix: FixId | null;
 }
 
 /** A match of `frx which <word> --json`. */

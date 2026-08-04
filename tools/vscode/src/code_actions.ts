@@ -6,7 +6,12 @@
 // one action suffices; the label reflects the finding it was raised on.
 import * as vscode from 'vscode';
 
-const LABELS: Record<string, string> = {
+import type { FixId } from './generated/contract';
+
+// `Record<FixId, …>` and not `Record<string, …>`: a remedy added to the CLI's
+// sealed `Fix` hierarchy now fails to compile here until it has a label, rather
+// than reaching the Problems panel as a lightbulb with no text.
+const LABELS: Record<FixId, string> = {
   build_runner: 'FRX: generate missing code (doctor --fix)',
   orphan: 'FRX: remove orphan substate (doctor --fix)',
   'flow-docs': 'FRX: regenerate docs/flows (doctor --fix)',
@@ -39,8 +44,15 @@ export class FrxCodeActionProvider implements vscode.CodeActionProvider {
       if (seen.has(code)) continue; // one action per remedy kind
       seen.add(code);
 
+      // Widened to index, because `code` arrives from whatever CLI is on PATH
+      // — which may be newer than this build and emit a remedy this map has
+      // never heard of. The fallback is what keeps that a generic lightbulb
+      // instead of `undefined`. The map's own type stays exhaustive over the
+      // remedies this build *does* know, which is where the check is worth
+      // having.
+      const labels: Record<string, string | undefined> = LABELS;
       const action = new vscode.CodeAction(
-        LABELS[code] ?? 'FRX: run doctor --fix',
+        labels[code] ?? 'FRX: run doctor --fix',
         vscode.CodeActionKind.QuickFix,
       );
       action.command = { command: 'frx.doctorFix', title: 'FRX: doctor --fix' };

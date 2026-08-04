@@ -90,7 +90,7 @@ List<Directory> _searchBelow(String origin, String marker) {
 /// scanning for one. `grep -I` skips such a file entirely, so this module — the
 /// one that owns the monorepo's layout — returned no hits anywhere in the
 /// repository for `notSubstateDirs`, `isSubstateDir`, `packageRootOf` or
-/// `_marker`. The code was correct and unfindable, which is the worse failure:
+/// `marker`. The code was correct and unfindable, which is the worse failure:
 /// nothing reports it, and the next reader concludes the declaration is missing.
 ///
 /// A record key needs no separator, so there is nothing left to encode.
@@ -150,14 +150,18 @@ class FrxWorkspace {
 
   /// The marker that identifies the repo root — the same file [RoutesSource]
   /// keys on, so both agree on where the monorepo begins.
-  static const _marker = 'app/lib/navigation/app_router.dart';
+  ///
+  /// Public because the editor needs it too, and used to carry its own copy:
+  /// `ContractGen` emits it into the extension's generated constants rather
+  /// than anyone keeping a fourth declaration in step by hand.
+  static const marker = 'app/lib/navigation/app_router.dart';
 
   static FrxWorkspace locate({String? startDir}) => FrxWorkspace(
     walkUpForMarker(
       startDir,
-      _marker,
+      marker,
       (origin) =>
-          'Could not find the monorepo root (looking for "$_marker") walking '
+          'Could not find the monorepo root (looking for "$marker") walking '
           'up from "$origin". Run this from inside the monorepo, or pass --root.',
     ),
   );

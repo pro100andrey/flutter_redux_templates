@@ -7,14 +7,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+import { MARKER_PATH } from './generated/contract';
+
 /**
  * The file `frx` itself keys on to decide where the monorepo begins.
  *
- * Kept identical to `FrxWorkspace._marker` on the CLI side on purpose: the two
- * used to answer "is this our structure?" differently, and the extension's
- * answer was the looser one.
+ * Generated from `FrxWorkspace.marker`, not kept identical to it by hand. The
+ * two used to answer "is this our structure?" differently, and the extension's
+ * answer was the looser one; a copy that has already drifted once is not one to
+ * keep by convention.
  */
-const MARKER = path.join('app', 'lib', 'navigation', 'app_router.dart');
+const MARKER = path.join(...MARKER_PATH.split('/'));
 
 /**
  * How far below a workspace folder a project is looked for.
