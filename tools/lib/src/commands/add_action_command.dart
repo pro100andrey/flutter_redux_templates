@@ -12,6 +12,7 @@ import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
+import '../model/artifact_name.dart';
 
 /// Scaffolds a `ReduxAction` into an existing substate's `actions/` folder.
 class AddActionCommand extends WritingCommand {
@@ -77,7 +78,9 @@ class AddActionCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    final name = requireName();
+    // Stripped so `ArchiveTask` and `ArchiveTaskAction` scaffold the same
+    // artifact — and so `remove`, which strips, finds either.
+    final name = ArtifactName.actionStem(requireName());
     final stateArg = results['state'] as String?;
     if (stateArg == null || stateArg.trim().isEmpty) {
       usageException('--state <substate> is required.');

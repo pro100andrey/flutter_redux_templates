@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../scaffold/widget_scaffold.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
+import 'artifact_name.dart';
 
 /// The artifacts `remove` can delete that are *file sets* rather than wiring.
 ///
@@ -111,12 +113,10 @@ class RemovableResolver {
   // --- action ----------------------------------------------------------------
 
   RemovableArtifact? _action(Casing name, String? state) {
-    // `add-action` appends `Action` to the class but not always to the input:
-    // `ArchiveTask` and `ArchiveTaskAction` both name the same file, so accept
-    // either rather than making the user remember which.
-    final snake = name.snake.endsWith('_action')
-        ? name.snake
-        : '${name.snake}_action';
+    // `ArchiveTask` and `ArchiveTaskAction` name the same file — see
+    // [ArtifactName], which `add-action` now reads too, so the two directions
+    // are the same statement rather than two that happen to agree.
+    final snake = '${ArtifactName.actionStem(name).snake}_action';
 
     final hits = <String>[];
     for (final dir in state != null ? [state] : repo.substateDirs()) {
@@ -187,34 +187,55 @@ class RemovableResolver {
 
   // --- widget ----------------------------------------------------------------
 
+  /// The backward read of [WidgetScaffold.fileNameFor].
+  ///
+  /// A widget's file is named after its *class*, not after the argument: `-k
+  /// field` turns `Pin` into `PinFormField` and writes `pin_form_field.dart`.
+  /// So the name the user types does not name the file, and looking for
+  /// `<typed>.dart` found nothing for exactly the kinds that rename — measured:
+  /// `add-widget Pin --dir inputs -k field` then `remove Pin --kind widget`
+  /// exited 70. Every kind's spelling is tried, because `remove` is not told
+  /// which one built it.
   RemovableArtifact? _widget(Casing name) {
-    final hits = <String>[];
+    final spellings = {
+      for (final kind in WidgetKind.values)
+        WidgetScaffold.fileNameFor(name, kind),
+    };
+
+    final hits = <({String dir, String file})>[];
     for (final dir in repo.widgetDirs()) {
-      if (File(
-        p.join(repo.uiLib.path, dir, '${name.snake}.dart'),
-      ).existsSync()) {
-        hits.add(dir);
+      for (final file in spellings) {
+        if (File(p.join(repo.uiLib.path, dir, file)).existsSync()) {
+          hits.add((dir: dir, file: file));
+        }
       }
     }
 
     if (hits.isEmpty) return null;
     if (hits.length > 1) {
+      // Two folders, or two kinds' spellings side by side — `pin.dart` and
+      // `pin_form_field.dart` are both things "Pin" could mean.
+      final where = hits.map((h) => 'ui/lib/${h.dir}/${h.file}').toList()
+        ..sort();
       blocked =
-          '"${name.pascal}" names a widget in ${hits.length} folders '
-          '(${hits.join(', ')}). Delete the one you mean by path, or rename '
-          'one of them first.';
+          '"${name.pascal}" names ${hits.length} widgets '
+          '(${where.join(', ')}). Delete the one you mean by its own name, or '
+          'rename one of them first.';
       return null;
     }
 
-    final dir = hits.single;
-    final widget = p.join(repo.uiLib.path, dir, '${name.snake}.dart');
-    final preview = p.join(repo.uiPreviews.path, dir, '${name.snake}.dart');
+    final hit = hits.single;
+    final widget = p.join(repo.uiLib.path, hit.dir, hit.file);
+    final preview = p.join(repo.uiPreviews.path, hit.dir, hit.file);
     final hasPreview = File(preview).existsSync();
+    // The class, read back off the file that was found — so the report names
+    // what is being deleted rather than what was typed.
+    final className = _pascalOf(hit.file.substring(0, hit.file.length - 5));
 
     return RemovableArtifact(
       kind: RemovableKind.widget,
       name: name,
-      header: 'Remove widget "${name.pascal}"  (ui/lib/$dir)',
+      header: 'Remove widget "$className"  (ui/lib/${hit.dir})',
       files: [widget, if (hasPreview) preview],
       // A preview left behind imports a file that is gone, and the previewer
       // loads every file in the tree — so it fails on the whole mirror, not just
@@ -227,9 +248,7 @@ class RemovableResolver {
   // --- connector -------------------------------------------------------------
 
   RemovableArtifact? _connector(Casing name) {
-    final snake = name.snake.endsWith('_connector')
-        ? name.snake
-        : '${name.snake}_connector';
+    final snake = '${ArtifactName.connectorStem(name).snake}_connector';
     final file = File(p.join(repo.appConnectors.path, '$snake.dart'));
     if (!file.existsSync()) return null;
 

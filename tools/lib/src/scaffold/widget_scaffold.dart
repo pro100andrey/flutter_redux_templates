@@ -52,12 +52,32 @@ class WidgetScaffold {
   final String dir;
 
   /// `PinFormField`, `SubmitButton`, `ExerciseCard`.
-  String get className => '${name.pascal}${_suffixFor(kind).pascalOrEmpty}';
+  String get className => classNameFor(name, kind);
+
+  /// The class `add-widget <typed> --kind <kind>` writes, for the name as the
+  /// user typed it.
+  ///
+  /// Public because the convention has to be readable *backwards*. `remove`
+  /// derives a path from what it is handed, and it used to derive
+  /// `<typed>.dart` — so `add-widget Pin --dir inputs --kind field` wrote
+  /// `pin_form_field.dart` and `frx remove Pin --kind widget` exited 70,
+  /// "no widget named Pin". The two directions agreed only for the kinds that
+  /// add no suffix, which is why every round-trip test happened to pass.
+  ///
+  /// Idempotent on an already-stripped name: [_stripSuffix] only strips when
+  /// the result would be non-empty, so `Pin` stays `Pin`.
+  static String classNameFor(Casing typed, WidgetKind kind) =>
+      '${_stripSuffix(typed, kind).pascal}${_suffixFor(kind).pascalOrEmpty}';
+
+  /// The basename `add-widget <typed> --kind <kind>` writes, and the one
+  /// `remove` has to look for. Also the preview's basename in the mirror.
+  static String fileNameFor(Casing typed, WidgetKind kind) =>
+      '${_snakeOf(classNameFor(typed, kind))}.dart';
 
   /// The render model for a [WidgetKind.view], e.g. `ExerciseCardVm`.
   String get vmClassName => '${className}Vm';
 
-  String get fileName => '${_snakeOf(className)}.dart';
+  String get fileName => fileNameFor(name, kind);
 
   /// The value type of the view-model a `field`/`choice` takes. Generated as a
   /// nullable string — the common case, and a one-word edit otherwise.

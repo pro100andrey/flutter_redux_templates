@@ -185,4 +185,72 @@ void main() {
     expect(res.exitCode, 70);
     expect(res.stderr.toString(), contains('models/lib/nope.dart'));
   });
+
+  group('the name that created it removes it', () {
+    // The property the two directions have to share, and the one nothing was
+    // testing: `add` derives a path forward from what the user typed, `remove`
+    // derives it backward, and they agreed only by having been written to
+    // agree. Every kind, with the name a user would actually type.
+    final cases = <String, ({List<String> add, List<String> remove})>{
+      'model': (
+        add: ['add-model', 'Task'],
+        remove: ['Task', '--kind', 'model'],
+      ),
+      'service': (
+        add: ['add-service', 'Sync'],
+        remove: ['Sync', '--kind', 'service'],
+      ),
+      'connector': (
+        add: ['add-connector', 'Toolbar'],
+        remove: ['Toolbar', '--kind', 'connector'],
+      ),
+      'action': (
+        add: ['add-action', 'ArchiveTask', '--state', 'log_in'],
+        remove: ['ArchiveTask', '--kind', 'action'],
+      ),
+      'widget (no suffix)': (
+        add: ['add-widget', 'TaskTile', '--dir', 'tiles'],
+        remove: ['TaskTile', '--kind', 'widget'],
+      ),
+      // The kinds whose scaffolder renames what it was handed: `-k field`
+      // writes `PinFormField`, `-k action` writes `SubmitButton`. The file on
+      // disk is named after the class, not after the argument.
+      'widget (--kind field)': (
+        add: ['add-widget', 'Pin', '--dir', 'inputs', '--kind', 'field'],
+        remove: ['Pin', '--kind', 'widget'],
+      ),
+      'widget (--kind action)': (
+        add: ['add-widget', 'Submit', '--dir', 'buttons', '--kind', 'action'],
+        remove: ['Submit', '--kind', 'widget'],
+      ),
+      // The name a user reaches for having just read the class. `add` never
+      // stripped the suffix and `remove` always did, so `ArchiveTaskAction`
+      // scaffolded `ArchiveTaskActionAction` in
+      // `archive_task_action_action.dart` while removal looked for
+      // `archive_task_action.dart`.
+      'action (already suffixed)': (
+        add: ['add-action', 'ArchiveTaskAction', '--state', 'log_in'],
+        remove: ['ArchiveTaskAction', '--kind', 'action'],
+      ),
+      'connector (already suffixed)': (
+        add: ['add-connector', 'ToolbarConnector'],
+        remove: ['ToolbarConnector', '--kind', 'connector'],
+      ),
+    };
+
+    for (final entry in cases.entries) {
+      test(entry.key, () async {
+        await ok([...entry.value.add, '--no-format']);
+        final res = await runFrx(fx, ['remove', ...entry.value.remove]);
+        expect(
+          res.exitCode,
+          0,
+          reason:
+              'scaffolded with `${entry.value.add.join(' ')}`, so '
+              '`frx remove ${entry.value.remove.join(' ')}` has to find it.\n'
+              '${res.stderr}',
+        );
+      });
+    }
+  });
 }
