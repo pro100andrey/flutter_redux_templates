@@ -13,11 +13,11 @@ import '../util/console.dart';
 ///
 /// ```dart
 /// // the change — fifteen sites across the tier
-/// wire.alreadyWired ? null : EditFile(f.path, before: f.readAsStringSync(), after: wire.source)
+/// wire.unchanged ? null : EditFile(f.path, before: f.readAsStringSync(), after: wire.source)
 ///
 /// // the report — nine near-verbatim closures
 /// console.out.writeln('Router (${p.relative(f.path)}):');
-/// if (wire.alreadyWired) { console.out.writeln('  • … already registered — wiring skipped.'); }
+/// if (wire.unchanged) { console.out.writeln('  • … already registered — wiring skipped.'); }
 /// else { for (final c in wire.changes) console.out.writeln('  + $c'); }
 /// ```
 ///

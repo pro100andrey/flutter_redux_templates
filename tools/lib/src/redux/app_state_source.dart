@@ -31,50 +31,6 @@ class Substate {
   bool get isSubstate => type.endsWith('State');
 }
 
-/// The outcome of wiring a substate into `AppState`.
-class WireResult implements EditOutcome {
-  const WireResult({
-    required this.source,
-    required this.changes,
-    required this.alreadyWired,
-  });
-
-  /// The full, edited `app_state.dart` source (unchanged if [alreadyWired]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a field of the same name already existed — nothing was changed.
-  final bool alreadyWired;
-
-  @override
-  bool get unchanged => alreadyWired;
-}
-
-/// The outcome of unwiring a substate from `AppState`.
-class UnwireResult with Unwiring {
-  const UnwireResult({
-    required this.source,
-    required this.changes,
-    required this.found,
-  });
-
-  /// The full, edited `app_state.dart` source (unchanged when not [found]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a factory field of the given name existed and was removed.
-  @override
-  final bool found;
-}
-
 /// Reads and edits `business/lib/redux/app_state.dart` via the analyzer AST.
 ///
 /// This is the single wiring point for substates in this project, so it is the
@@ -163,7 +119,7 @@ class AppStateSource {
   /// the relative imports), a `required <type> <field>` factory parameter, and
   /// a `<field>: <type>()` entry in `AppState.initial()`. Returns the edited
   /// source; idempotent when the field already exists.
-  WireResult wireSubstate({
+  Edited wireSubstate({
     required String field,
     required String type,
     required String importPath,
@@ -175,7 +131,7 @@ class AppStateSource {
     final initial = _initialFactory(appState);
 
     if (factory.parameters.parameters.any((x) => x.name?.lexeme == field)) {
-      return WireResult(source: content, changes: const [], alreadyWired: true);
+      return Edited.nothing(content);
     }
 
     final edits = <Edit>[];
@@ -222,18 +178,14 @@ class AppStateSource {
     );
     changes.add('initial(): $field: $type()');
 
-    return WireResult(
-      source: applyEdits(content, edits),
-      changes: changes,
-      alreadyWired: false,
-    );
+    return Edited(source: applyEdits(content, edits), changes: changes);
   }
 
   /// Removes a substate from `AppState`: drops the `required <type> <field>`
   /// factory parameter, the `<field>: <type>()` entry in `initial()`, and the
   /// model import [importPath] (when present). The inverse of [wireSubstate];
   /// returns the edited source, or `found: false` when no such field exists.
-  UnwireResult unwireSubstate({required String field, String? importPath}) {
+  Unwired unwireSubstate({required String field, String? importPath}) {
     final content = sourceIndex.sourceOf(file);
     final unit = _parse(content);
     final appState = _appStateClass(unit);
@@ -243,7 +195,7 @@ class AppStateSource {
         .where((x) => x.name?.lexeme == field)
         .firstOrNull;
     if (param == null) {
-      return UnwireResult(source: content, changes: const [], found: false);
+      return Unwired.absent(content);
     }
 
     final edits = <Edit>[removeListItem(content, param)];
@@ -272,11 +224,7 @@ class AppStateSource {
       }
     }
 
-    return UnwireResult(
-      source: applyEdits(content, edits),
-      changes: changes,
-      found: true,
-    );
+    return Unwired(source: applyEdits(content, edits), changes: changes);
   }
 
   // --- AST helpers ----------------------------------------------------------

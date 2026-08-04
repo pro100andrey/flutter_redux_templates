@@ -114,8 +114,8 @@ class Changeset {
   Changeset add(Change change) => this.._changes.add(change);
 
   /// Appends [change] only when it is not null — the common shape, since most
-  /// commands compute an edit that may turn out to be a no-op
-  /// (`alreadyWired`/`alreadyPresent`).
+  /// commands compute an edit that may turn out to be a no-op (an
+  /// [EditOutcome] that reports itself `unchanged`).
   Changeset addIf(Change? change) => change == null ? this : add(change);
 
   /// The files that will exist afterwards, for `dart format`. Deletions are

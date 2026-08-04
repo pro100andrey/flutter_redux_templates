@@ -8,29 +8,6 @@ import '../ast/construction.dart';
 import '../ast/source_index.dart';
 import '../redux/ast_edit.dart';
 
-/// The outcome of wiring one navigation hop into a file.
-class NavWireResult implements EditOutcome {
-  const NavWireResult({
-    required this.source,
-    required this.changes,
-    required this.alreadyWired,
-  });
-
-  /// The full, edited source (unchanged if [alreadyWired]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a callback of that name was already there — nothing changed.
-  final bool alreadyWired;
-
-  @override
-  bool get unchanged => alreadyWired;
-}
-
 /// One argument the destination route takes — `id` of type `int`.
 class NavParam {
   const NavParam(this.name, this.type);
@@ -93,7 +70,7 @@ class NavSource {
   /// [args] is what the route constructor is handed, already spelled — `id: id`
   /// for a callback that takes the id, `productId: connector.id` for one the
   /// connector already holds.
-  NavWireResult wireConnector({
+  Edited wireConnector({
     required String original,
     required String callback,
     required String routeType,
@@ -130,11 +107,7 @@ class NavSource {
       );
     }
     if (_hasField(vm, callback)) {
-      return NavWireResult(
-        source: original,
-        changes: const [],
-        alreadyWired: true,
-      );
+      return Edited.nothing(original);
     }
 
     final signature = 'void Function(${params.map((p) => p.type).join(', ')})';
@@ -184,17 +157,13 @@ class NavSource {
       changes.add('$pageClass($callback: vm.$callback)');
     }
 
-    return NavWireResult(
-      source: applyEdits(content, edits),
-      changes: changes,
-      alreadyWired: false,
-    );
+    return Edited(source: applyEdits(content, edits), changes: changes);
   }
 
   /// Wires the receiving end into the dumb page: the constructor parameter and
   /// the field. What the page *does* with the callback is left alone — which
   /// button calls it is the one part of this frx cannot know.
-  NavWireResult wirePage({
+  Edited wirePage({
     required String content,
     required String callback,
     required String pageClass,
@@ -206,11 +175,7 @@ class NavSource {
       throw StateError('no `class $pageClass` in the page file');
     }
     if (_hasField(cls, callback)) {
-      return NavWireResult(
-        source: content,
-        changes: const [],
-        alreadyWired: true,
-      );
+      return Edited.nothing(content);
     }
     final ctor = _constructor(cls);
     if (ctor == null) {
@@ -221,7 +186,7 @@ class NavSource {
     // Before `super.key`, which convention keeps last.
     final named = _namedParams(ctor).toList();
     final superKey = named.where((p) => p.name?.lexeme == 'key').firstOrNull;
-    return NavWireResult(
+    return Edited(
       source: applyEdits(content, [
         superKey != null
             ? Edit.insert(superKey.offset, 'required this.$callback, ')
@@ -229,7 +194,6 @@ class NavSource {
         Edit.insert(cls.end - 1, '\n  final $signature $callback;\n'),
       ]),
       changes: ['$pageClass.$callback ($signature)'],
-      alreadyWired: false,
     );
   }
 

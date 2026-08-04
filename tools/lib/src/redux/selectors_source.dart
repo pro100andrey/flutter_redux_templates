@@ -8,50 +8,6 @@ import '../model/selector_shape.dart';
 import '../ast/source_index.dart';
 import 'ast_edit.dart';
 
-/// The outcome of wiring a substate's selectors into `selectors.dart`.
-class SelectorsWireResult implements EditOutcome {
-  const SelectorsWireResult({
-    required this.source,
-    required this.changes,
-    required this.alreadyWired,
-  });
-
-  /// The full, edited `selectors.dart` source (unchanged if [alreadyWired]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a `Select<Pascal>` type was already present — nothing changed.
-  final bool alreadyWired;
-
-  @override
-  bool get unchanged => alreadyWired;
-}
-
-/// The outcome of unwiring a substate's selectors from `selectors.dart`.
-class SelectorsUnwireResult with Unwiring {
-  const SelectorsUnwireResult({
-    required this.source,
-    required this.changes,
-    required this.found,
-  });
-
-  /// The full, edited `selectors.dart` source (unchanged when not [found]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a `Select<Pascal>` type existed and was removed.
-  @override
-  final bool found;
-}
-
 /// The outcome of adding a getter to a `Select<Pascal>` extension type.
 class SelectorsAddResult implements EditOutcome {
   const SelectorsAddResult({
@@ -107,7 +63,7 @@ class SelectorsSource {
   /// in which case the stale block is replaced in place (the facade getters
   /// reference it by name and need no change), so a regenerated substate whose
   /// kind changed doesn't leave a now-incompatible selector behind.
-  SelectorsWireResult wire({
+  Edited wire({
     required String field,
     required String pascal,
     required String block,
@@ -120,11 +76,7 @@ class SelectorsSource {
 
     final existing = _extensionType(unit, type);
     if (existing != null && !force) {
-      return SelectorsWireResult(
-        source: content,
-        changes: const [],
-        alreadyWired: true,
-      );
+      return Edited.nothing(content);
     }
 
     final select = _extensionType(unit, SelectorShape.facadeType);
@@ -171,11 +123,7 @@ class SelectorsSource {
       changes.add('extension type $type');
     }
 
-    return SelectorsWireResult(
-      source: applyEdits(content, edits),
-      changes: changes,
-      alreadyWired: false,
-    );
+    return Edited(source: applyEdits(content, edits), changes: changes);
   }
 
   /// Adds a `<returnType> get <getterName> => <expr>;` getter to the
@@ -311,7 +259,7 @@ class SelectorsSource {
   /// import scoped to that substate's folder ([snake]), and any shared package
   /// import (see [_sharedImportProbes]) left unused once the block is gone. The
   /// inverse of [wire]; `found: false` when no `Select<Pascal>` type exists.
-  SelectorsUnwireResult unwire({
+  Unwired unwire({
     required String field,
     required String pascal,
     required String snake,
@@ -322,11 +270,7 @@ class SelectorsSource {
 
     final existing = _extensionType(unit, type);
     if (existing == null) {
-      return SelectorsUnwireResult(
-        source: content,
-        changes: const [],
-        found: false,
-      );
+      return Unwired.absent(content);
     }
 
     final edits = <Edit>[removeDeclaration(content, existing)];
@@ -382,10 +326,9 @@ class SelectorsSource {
       }
     }
 
-    return SelectorsUnwireResult(
+    return Unwired(
       source: pruneEdits.isEmpty ? source : applyEdits(source, pruneEdits),
       changes: changes,
-      found: true,
     );
   }
 

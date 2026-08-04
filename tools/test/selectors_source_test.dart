@@ -55,7 +55,7 @@ void main() {
           '}\n',
       imports: const [],
     );
-    expect(r.alreadyWired, isFalse);
+    expect(r.unchanged, isFalse);
     expect(
       r.source,
       contains('SelectProfile get profile => SelectProfile(_state);'),
@@ -75,7 +75,7 @@ void main() {
       block: 'extension type SelectLogIn(AppState _state) {}\n',
       imports: const [],
     );
-    expect(r.alreadyWired, isTrue);
+    expect(r.unchanged, isTrue);
     expect(r.source, _selectors);
   });
 

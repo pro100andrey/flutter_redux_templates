@@ -6,34 +6,6 @@ import '../ast/declarations.dart';
 import '../ast/source_index.dart';
 import 'ast_edit.dart';
 
-/// The outcome of adding a field to a `@freezed` substate state class.
-class StateFieldResult implements EditOutcome {
-  const StateFieldResult({
-    required this.source,
-    required this.changes,
-    required this.alreadyPresent,
-    this.retyped = false,
-  });
-
-  /// The full edited state-file source (unchanged if [alreadyPresent]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a factory parameter of that name already existed.
-  final bool alreadyPresent;
-
-  /// True when that parameter was rewritten to a different declaration —
-  /// [alreadyPresent] is also true, and the file *did* change.
-  final bool retyped;
-
-  @override
-  bool get unchanged => alreadyPresent && !retyped;
-}
-
 /// Reads and edits a substate's `@freezed` state model — inserting a new field
 /// into its redirecting factory constructor, the same AST-splice approach
 /// [AppStateSource] uses for `AppState`.
@@ -58,7 +30,7 @@ class StateSource {
   /// run shipped `IMap<int, Object>` because of it. A command that silently
   /// answers "already present" to "make this field a `Task`" is not idempotent,
   /// it is unhelpful.
-  StateFieldResult addField({
+  Edited addField({
     required String className,
     required String name,
     required String type,
@@ -77,11 +49,7 @@ class StateSource {
     if (existing != null) {
       final wanted = _declaration(type, name, defaultExpr);
       if (!retype || existing.toSource() == wanted) {
-        return StateFieldResult(
-          source: content,
-          changes: const [],
-          alreadyPresent: true,
-        );
+        return Edited.nothing(content);
       }
 
       final edits = <Edit>[Edit.replace(existing.offset, existing.end, wanted)];
@@ -93,12 +61,7 @@ class StateSource {
         edits.add(importInsertion(importDirs, uri));
         changes.add("import '$uri';");
       }
-      return StateFieldResult(
-        source: applyEdits(content, edits),
-        changes: changes,
-        alreadyPresent: true,
-        retyped: true,
-      );
+      return Edited(source: applyEdits(content, edits), changes: changes);
     }
 
     final edits = <Edit>[];
@@ -128,11 +91,7 @@ class StateSource {
     );
     changes.add('field: $decl');
 
-    return StateFieldResult(
-      source: applyEdits(content, edits),
-      changes: changes,
-      alreadyPresent: false,
-    );
+    return Edited(source: applyEdits(content, edits), changes: changes);
   }
 
   /// The `@Default(...)` expression on field [name], or null when it has none.
