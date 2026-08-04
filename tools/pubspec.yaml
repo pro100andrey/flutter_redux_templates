@@ -3,7 +3,7 @@ description: >-
   CLI dev tools for the Flutter Redux monorepo. AST-based scaffolding and
   wiring helpers for AsyncRedux substates, actions, pages and connectors.
 publish_to: none
-version: 0.1.6
+version: 0.1.7
 
 # Standalone package (NOT a workspace member) so its heavy `analyzer` dependency
 # stays isolated from the app's resolution and so it can be installed globally:
