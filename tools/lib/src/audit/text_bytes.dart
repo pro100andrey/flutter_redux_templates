@@ -33,8 +33,31 @@ enum Unsearchable {
 /// finds what is in it, so reporting it would be this module claiming a
 /// consequence it cannot demonstrate.
 ({Unsearchable kind, int offset})? unsearchableIn(List<int> bytes) {
+  // NUL first, over the *whole* array. Folding this into the ASCII scan below
+  // and returning early on the first non-ASCII byte would miss a NUL that comes
+  // after one — a file with an em dash near the top and a NUL further down
+  // would decode cleanly and be reported as fine, which is the failure this
+  // whole module exists to stop.
   final nul = bytes.indexOf(0);
   if (nul >= 0) return (kind: Unsearchable.nulByte, offset: nul);
+
+  // Pure ASCII is valid UTF-8 by definition, and nearly every source in a Dart
+  // project is — so the decode below, which allocates a whole String only to
+  // throw it away, is skipped for almost all of them. The audit runs on every
+  // debounced editor event; a full decode per file, on top of the one
+  // `SourceIndex` already does, is not free.
+  for (final byte in bytes) {
+    if (byte >= 0x80) return _decodeFrom(bytes);
+  }
+  return null;
+}
+
+/// The slow half, reached only when the content is not plain ASCII.
+///
+/// Decoding is what produces the *offset* — the whole value of the finding on a
+/// file no editor will show you the problem in — so it is worth paying where it
+/// is needed, and only there.
+({Unsearchable kind, int offset})? _decodeFrom(List<int> bytes) {
   try {
     const Utf8Decoder().convert(bytes);
   } on FormatException catch (e) {

@@ -42,8 +42,19 @@ const kPreviewNotice = 'Preview only — re-run with --apply to apply.';
 /// Two spellings, because `--force` is the retired one and still answers.
 /// `remove` and `rename` each derived this inline, each under its own comment
 /// explaining the same history.
+///
+/// **Gated on the command declaring `--apply`, and that is the whole safety of
+/// it.** `--force` means two different things in this CLI: "actually do it" on
+/// the two destructive commands, and "overwrite what is already there" on every
+/// scaffolder — the collision guard below reads the same flag on the same
+/// [ArgResults] to mean the second. Without this gate the first scaffolder to
+/// reach for the shared helper, which is the obvious thing to do since it is the
+/// shared write path, would silently make `frx add-page Home --force` mean
+/// "apply" instead of "overwrite". A command with no `--apply` cannot get `true`
+/// out of this, so the mistake is not available to make.
 bool applying(ArgResults results) =>
-    _flag(results, 'apply') || _flag(results, 'force');
+    results.options.contains('apply') &&
+    (_flag(results, 'apply') || _flag(results, 'force'));
 
 /// Builds the build_runner step from what was actually written.
 ///

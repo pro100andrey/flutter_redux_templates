@@ -11,6 +11,19 @@ enum WidgetKind {
   field,
 
   /// Takes a `ChoiceVm<T>`; wraps `ChoiceFormField`.
+  ///
+  /// **Shares [field]'s `FormField` suffix, so one name holds one of the two.**
+  /// `add-widget Pin -k field` and `add-widget Pin -k choice` both mean
+  /// `PinFormField` in `pin_form_field.dart`; the second is refused by the
+  /// overwrite guard, naming both files, and `--force` replaces rather than
+  /// merges. Nothing is corrupted and nothing is silent — but after the fact
+  /// the file does not say which kind wrote it, and `remove` cannot either.
+  ///
+  /// Left as it is deliberately. Giving `choice` its own suffix would rename
+  /// the class and the file in every project already built on this convention,
+  /// which is a bigger decision than the collision costs: two widgets that both
+  /// wrap a form field, under one name, is a naming problem the author is
+  /// better placed to resolve than the scaffolder.
   choice,
 
   /// A labelled action; wraps `Button`.

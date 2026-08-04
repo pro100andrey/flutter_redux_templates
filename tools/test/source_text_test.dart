@@ -93,6 +93,13 @@ void main() {
     );
 
     expect(unsearchableIn(utf8.encode('plain ascii')), isNull);
+    // A NUL *after* a non-ASCII byte. The ASCII fast path skips the decode for
+    // plain files; folding the NUL scan into it and returning on the first
+    // non-ASCII byte would let this one through, decoding cleanly and reporting
+    // nothing — the exact failure this module exists to stop.
+    final lateNul = [...utf8.encode('em — dash'), 0, ...utf8.encode('tail')];
+    expect(unsearchableIn(lateNul)?.kind, Unsearchable.nulByte);
+    expect(unsearchableIn(lateNul)?.offset, utf8.encode('em — dash').length);
     // Deliberately allowed: text this repository is full of. A rule that fired
     // on an em dash or a Cyrillic comment would be worse than no rule — and
     // `utf8.encode`, not `codeUnits`, because the subject is bytes on disk.
