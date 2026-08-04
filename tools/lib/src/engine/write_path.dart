@@ -29,6 +29,22 @@ bool _flag(ArgResults results, String name, {bool orElse = false}) =>
     ? (results[name] as bool? ?? orElse)
     : orElse;
 
+/// What a destructive command says when it has only shown you the plan.
+///
+/// `remove` and `rename` preview by default and write on `--apply`, the inverse
+/// of the scaffolders' `--dry-run`, so they cannot use the default notice. It
+/// was written out four times — three in `remove`, once in `rename` — which is
+/// three chances for the flag it names to stop being the flag it takes.
+const kPreviewNotice = 'Preview only — re-run with --apply to apply.';
+
+/// Whether a destructive command was told to go through with it.
+///
+/// Two spellings, because `--force` is the retired one and still answers.
+/// `remove` and `rename` each derived this inline, each under its own comment
+/// explaining the same history.
+bool applying(ArgResults results) =>
+    _flag(results, 'apply') || _flag(results, 'force');
+
 /// Builds the build_runner step from what was actually written.
 ///
 /// A function rather than a value because the package is sometimes only known

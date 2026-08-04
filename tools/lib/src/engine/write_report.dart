@@ -93,6 +93,33 @@ class WriteReport {
   final String _command;
   final List<Map<String, Object?>> _changes;
 
+  /// The same `  <verb>  <path>` block `Changeset.describe` prints, rendered
+  /// from the frozen result instead of from the plan.
+  ///
+  /// `batch` needs it: by the time it reports, the changesets are staged into a
+  /// transaction and all it holds is `written`/`removed` — flat path lists with
+  /// no operation on them. So it printed `write` for every one, where the same
+  /// change is `overwrite`, `edit` or `move` in every single-command plan and in
+  /// this report's own JSON, and it printed absolute paths where the rest of the
+  /// CLI prints relative ones.
+  ///
+  /// The verbs come from [_describe], which is the one place that decides them —
+  /// so a batch and the commands inside it cannot disagree about what happened.
+  String human({String? from}) {
+    String rel(String path) =>
+        from == null ? p.relative(path) : p.relative(path, from: from);
+    final out = StringBuffer();
+    for (final c in _changes) {
+      final path = rel(c['path']! as String);
+      out.writeln(switch (c['op']) {
+        'move' => '  move  ${rel(c['from']! as String)} → $path',
+        'delete-directory' => '  delete  $path${p.separator}',
+        final op => '  $op  $path',
+      });
+    }
+    return out.toString();
+  }
+
   /// The JSON line to print. [applied] is the whole difference between the
   /// planned and the carried-out result.
   String render({required bool applied, BuildReport? build}) => jsonEncode({

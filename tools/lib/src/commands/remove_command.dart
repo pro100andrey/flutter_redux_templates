@@ -11,6 +11,7 @@ import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
 import '../redux/store_source.dart';
 import '../routing/routes_source.dart';
+import '../engine/write_path.dart';
 import '../util/casing.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
@@ -108,8 +109,7 @@ class RemoveCommand extends WritingCommand {
     final name = requireName();
     final forced = results['kind'] as String?;
     final state = results['state'] as String?;
-    // Either spelling; `--force` is the retired one.
-    final apply = (results['apply'] as bool) || (results['force'] as bool);
+    final apply = applying(results);
 
     final onDisk = RemovableResolver(repo);
     final fileKinds = {for (final k in RemovableKind.values) k.flag: k};
@@ -205,7 +205,7 @@ class RemoveCommand extends WritingCommand {
         if (a.missing.isNotEmpty) console.out.writeln();
       },
       previewOnly: !apply,
-      previewNotice: 'Preview only — re-run with --apply to apply.',
+      previewNotice: kPreviewNotice,
       closing: [
         '✓ Removed ${a.kind.flag} "${a.name.pascal}".',
         if (a.dangles != null) '  Note: ${a.dangles}.',
@@ -318,7 +318,7 @@ class RemoveCommand extends WritingCommand {
         wiring.narrate();
       },
       previewOnly: !apply,
-      previewNotice: 'Preview only — re-run with --apply to apply.',
+      previewNotice: kPreviewNotice,
       closing:
           '✓ Removed substate "${name.pascal}".\n'
           '  Note: code elsewhere that dispatched its actions or read its '
@@ -380,7 +380,7 @@ class RemoveCommand extends WritingCommand {
         }
       },
       previewOnly: !apply,
-      previewNotice: 'Preview only — re-run with --apply to apply.',
+      previewNotice: kPreviewNotice,
       closing: '✓ Removed page "${name.pascal}".',
       // The deleted page lives in `ui`, but build_runner runs in `app`; an
       // incremental build would try to delete the now-missing `ui` input from a

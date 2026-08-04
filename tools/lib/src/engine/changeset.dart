@@ -271,10 +271,27 @@ Future<Applied> apply(
     throw ApplyFailure(error, stack, restoreErrors: transaction.rollback());
   }
 
-  await formatFiles(transaction.written, enabled: format);
-  if (repoRoot != null) await refreshFlowDocs(repoRoot);
+  await settle(transaction, format: format, repoRoot: repoRoot);
 
   return (written: transaction.written, removed: transaction.removed);
+}
+
+/// What has to happen once a transaction's writes have landed, whoever
+/// committed it: format what changed, then refresh the `docs/flows` export.
+///
+/// Two lines, and they are a pair in that order. [apply] runs them for a single
+/// changeset; `batch` runs them once for a whole transaction, because it stages
+/// every intent and commits at the end. Its copy carried the comment "in the
+/// order the single-command path uses" — a duplicate that knew it was one.
+/// Named, the order is not something a third caller has to notice and get
+/// right.
+Future<void> settle(
+  WriteTransaction transaction, {
+  required bool format,
+  Directory? repoRoot,
+}) async {
+  await formatFiles(transaction.written, enabled: format);
+  if (repoRoot != null) await refreshFlowDocs(repoRoot);
 }
 
 /// One rollback boundary, across as many changesets as are staged into it.
