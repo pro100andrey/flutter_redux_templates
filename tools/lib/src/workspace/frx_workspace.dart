@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../ast/source_index.dart';
+
 /// Walks up from [startDir] (or the current directory) until an ancestor
 /// containing [marker] (a repo-relative path) is found, returning that ancestor
 /// directory. Throws [StateError] with `describe(origin)` when neither the walk
@@ -234,13 +236,24 @@ class FrxWorkspace {
 
   /// The substate folder names, sorted. A directory under `redux/` that is not
   /// in [notSubstateDirs] and is not hidden.
-  List<String> substateDirs() {
+  List<String> substateDirs() =>
+      [for (final dir in substateDirsIn()) p.basename(dir.path)]..sort();
+
+  /// The same folders as [substateDirs], as directories and unsorted.
+  ///
+  /// Split out because the graph reader wants the directories themselves and
+  /// had grown its own copy of the rule to get them — `directoriesIn` plus
+  /// `isSubstateDir`, spelled a second time, which is the duplication that
+  /// consolidation was supposed to end. One statement, and both callers share
+  /// the index's cached listing rather than walking `redux/` twice in a run
+  /// that asks both.
+  List<Directory> substateDirsIn() {
     final dir = businessRedux;
     if (!dir.existsSync()) return const [];
     return [
-      for (final entry in dir.listSync().whereType<Directory>())
-        if (isSubstateDir(p.basename(entry.path))) p.basename(entry.path),
-    ]..sort();
+      for (final entry in sourceIndex.directoriesIn(dir))
+        if (isSubstateDir(p.basename(entry.path))) entry,
+    ];
   }
 
   /// Whether a folder name directly under `redux/` names a substate.

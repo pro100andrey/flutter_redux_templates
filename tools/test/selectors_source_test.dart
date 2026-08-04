@@ -68,10 +68,14 @@ void main() {
     expectParses(r.source);
   });
 
-  test('a project written before the spine collapsed still wires', () {
+  test('a project written before the spine collapsed keeps both ways in', () {
     // `frx create` no longer writes `extension type Select`, but every project
-    // made before it has one. Wiring must not require it, must not write into
-    // it — that would keep a dead list alive — and must leave it compiling.
+    // made before it has one — and its hand-written screens may read
+    // `state.select.<field>`, which was a documented way in. Wiring must not
+    // *require* the type, and must extend it when it is there: adding to the
+    // mixin alone would have `add-substate` report success while
+    // `state.select.cart` did not exist, and the developer would meet a compile
+    // error in code the tool had just claimed to wire.
     final old = _tmp('''
 import 'app_state.dart';
 
@@ -107,8 +111,8 @@ extension type SelectLogIn(AppState _state) implements Selector {
     );
     expect(
       r.source,
-      isNot(contains('SelectProfile get profile => SelectProfile(_state);')),
-      reason: 'the old spine list is left exactly as it was',
+      contains('SelectProfile get profile => SelectProfile(_state);'),
+      reason: 'the pre-collapse hop keeps working in the project that has it',
     );
     expectParses(r.source);
   });

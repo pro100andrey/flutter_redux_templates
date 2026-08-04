@@ -50,7 +50,16 @@ class PageArtifact {
   /// a fact.
   const PageArtifact._(this.name);
 
-  factory PageArtifact.parse(String input) => PageArtifact(Casing.parse(input));
+  /// A page named by a spelling already **on disk** — a connector's file name,
+  /// a route type — taken exactly as read.
+  ///
+  /// Beside [fromRouteType] and non-stemming for the same reason: the audit
+  /// derives a route type from `home_page_page_connector.dart` to ask whether it
+  /// is registered, and a project scaffolded before the stemming really does
+  /// contain that file behind a registered `HomePageRoute`. Stemming there
+  /// makes `frx doctor` report a correctly wired page as unregistered.
+  factory PageArtifact.parse(String input) =>
+      PageArtifact._(Casing.parse(input));
 
   /// Recovers the artifact from a generated route type (`LogInRoute` → the
   /// `logIn` page), or null when [routeType] is not a `<Pascal>Route`.

@@ -392,14 +392,12 @@ class GraphReader {
   Map<String, _Action> _actionsOnDisk(FlowReader reader) {
     final out = <String, _Action>{};
     if (!workspace.businessRedux.existsSync()) return out;
-    // `isSubstateDir`, like the other four enumerations of these folders. This
-    // was the one that skipped it, so an `actions/` under `redux/services/` or
-    // `redux/common/` would have been read as a substate's — latent in the
-    // template, which has none, and a `frx add-service` away from not being.
-    // `directoriesIn` rather than a raw listing, so the audit's cached walk is
-    // shared instead of repeated.
-    for (final dir in sourceIndex.directoriesIn(workspace.businessRedux)) {
-      if (!FrxWorkspace.isSubstateDir(p.basename(dir.path))) continue;
+    // `substateDirsIn`, which is where the rule lives. This used to walk the
+    // directory itself and skip `isSubstateDir` entirely, so an `actions/`
+    // under `redux/services/` would have been read as a substate's; the first
+    // fix applied the rule but spelled it here, which is the same duplication
+    // one level down.
+    for (final dir in workspace.substateDirsIn()) {
       final actionsDir = Directory(p.join(dir.path, 'actions'));
       if (!actionsDir.existsSync()) continue;
       final substate = Casing.parse(p.basename(dir.path)).camel;

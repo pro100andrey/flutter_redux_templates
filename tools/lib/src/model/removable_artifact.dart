@@ -162,6 +162,7 @@ class RemovableResolver {
     return RemovableArtifact(
       kind: RemovableKind.action,
       name: name,
+      className: _pascalOf(snake),
       header: 'Remove action "${_pascalOf(snake)}"  (substate: $owner)',
       files: [file],
       dangles:
@@ -312,6 +313,7 @@ class RemovableResolver {
     return RemovableArtifact(
       kind: RemovableKind.connector,
       name: name,
+      className: _pascalOf(snake),
       header: 'Remove connector "${_pascalOf(snake)}"',
       files: [file.path],
       dangles: 'the route or widget that referenced it no longer compiles',
@@ -336,6 +338,7 @@ class RemovableResolver {
     return RemovableArtifact(
       kind: RemovableKind.service,
       name: name,
+      className: '${stem.pascal}Service',
       header:
           'Remove service "${stem.pascal}Service"  (${held.length} file(s))',
       files: const [],

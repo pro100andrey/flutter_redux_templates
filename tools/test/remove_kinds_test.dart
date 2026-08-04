@@ -235,6 +235,39 @@ void main() {
     expect(res.stderr.toString(), contains('models/lib/nope.dart'));
   });
 
+  test('a page-suffixed tab scaffolds one consistent spelling', () async {
+    // `add-tabs` handed each --tab name raw to the scaffolder and stemmed to
+    // the artifact, so a tab called `BasketPage` produced `class BasketPagePage`
+    // inside `basket_page.dart`, a connector importing a `basket_page_page.dart`
+    // nobody wrote, and a route registered as `BasketRoute`. Four spellings,
+    // exit 0, and a project that does not compile.
+    await ok([
+      'add-tabs',
+      'Main',
+      '-t',
+      'BasketPage',
+      '-t',
+      'Profile',
+      '--no-format',
+    ]);
+
+    final page = fx.file('ui/lib/pages/basket_page.dart');
+    expect(page.existsSync(), isTrue, reason: 'the file the artifact names');
+    expect(page.readAsStringSync(), contains('class BasketPage extends'));
+
+    final connector = fx.file('app/lib/connectors/basket_page_connector.dart');
+    expect(
+      connector.readAsStringSync(),
+      contains("import 'package:ui/pages/basket_page.dart';"),
+      reason: 'the connector has to import the file that was actually written',
+    );
+    expect(
+      fx.read('app/lib/navigation/app_router.dart'),
+      contains('BasketRoute'),
+      reason: 'and the route has to match the class auto_route will generate',
+    );
+  });
+
   group('the name that created it removes it', () {
     // The property the two directions have to share, and the one nothing was
     // testing: `add` derives a path forward from what the user typed, `remove`
@@ -316,6 +349,15 @@ void main() {
       'substate': (
         add: ['add-substate', 'cart'],
         remove: ['cart', '--kind', 'substate'],
+      ),
+      // The doubled case for pages, which the widget row had and this did not
+      // — which is why a double strip (once at the command, once in
+      // `PageArtifact`) passed: the class went to `CheckoutPagePage`, the file
+      // to `checkout_page.dart` and the route to `CheckoutRoute`, all three
+      // disagreeing, at exit 0.
+      'page (suffix already doubled)': (
+        add: ['add-page', 'CheckoutPagePage'],
+        remove: ['CheckoutPagePage', '--kind', 'page'],
       ),
       // The stripping had to be symmetric, not merely present: the scaffolder
       // stripped twice and removal once, so a doubly-suffixed name wrote

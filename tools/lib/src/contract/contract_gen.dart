@@ -80,7 +80,12 @@ class ContractGen {
       ..writeln('export const KINDS = {');
     for (final entry in kinds().entries) {
       final values = entry.value.map((v) => "'$v'").join(', ');
-      b.writeln('  ${entry.key}: [$values],');
+      // The key is quoted because it comes from a command name: the first
+      // hyphenated one to gain a `--kind` would emit `theme-extension: [...]`,
+      // which is not a legal object key. `contract_freshness_test` compares
+      // the generated string against itself, so it would pass while `tsc`
+      // failed on a file this wrote.
+      b.writeln("  '${entry.key}': [$values],");
     }
     b
       ..writeln('} as const;')

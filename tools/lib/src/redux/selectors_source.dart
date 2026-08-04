@@ -38,13 +38,16 @@ class SelectorsAddResult implements EditOutcome {
 
 /// Reads and edits `business/lib/redux/selectors.dart` via the analyzer AST.
 ///
-/// This repo exposes every substate's selectors through the `Select` /
-/// `Selectors` extension-type facade in `selectors.dart` (so callers reach them
-/// as `state.select.<field>`), rather than through free functions. Wiring a
-/// substate means three edits here: a `Select<Pascal> get <field>` on the
-/// `Select` extension type, the same on the `Selectors` mixin, and the new
-/// `extension type Select<Pascal>` appended at the end — plus any imports the
-/// getters need.
+/// This repo exposes every substate's selectors through the `Selectors` mixin
+/// in `selectors.dart` — a consumer mixes it in and reads `login.email` —
+/// rather than through free functions. Wiring a substate means two edits here: a
+/// `Select<Pascal> get <field>` on the mixin, and the new `extension type
+/// Select<Pascal>` appended at the end, plus any imports the getters need.
+///
+/// It was three, against a `Select` extension type that carried the same getter
+/// list and that nothing called. That type is gone from what `create` writes;
+/// [wire] still extends one when it finds it, because a project made before the
+/// collapse may read `state.select.<field>` in code frx did not write.
 class SelectorsSource {
   SelectorsSource(this.file);
 
@@ -86,9 +89,14 @@ class SelectorsSource {
     // a list only this writer ever touched.
     //
     // A project scaffolded before that collapse still has the extension type,
-    // and this deliberately does *not* write into it: adding a getter there
-    // would keep a dead list alive, and leaving it alone costs the project
-    // nothing — its own consumers use the mixin too.
+    // and its screens may read `state.select.<field>` — one of the three ways
+    // in that this repository documented until the collapse. So it is extended
+    // when it is there: skipping it would leave `add-substate` reporting
+    // success while `state.select.cart` did not exist, and the developer
+    // meeting a compile error in code the tool had just claimed to wire.
+    //
+    // Nothing new grows one; `create` no longer writes it.
+    final select = _extensionType(unit, SelectorShape.facadeType);
     final selectors = _mixin(unit, SelectorShape.mixinType);
     if (selectors == null) {
       throw StateError(
@@ -124,6 +132,12 @@ class SelectorsSource {
         Edit.insert(selectors.end - 1, '  $type get $field => $type(state);\n'),
       );
       changes.add('${SelectorShape.mixinType}.$field => $type(state)');
+      if (select != null) {
+        edits.add(
+          Edit.insert(select.end - 1, '  $type get $field => $type(_state);\n'),
+        );
+        changes.add('${SelectorShape.facadeType}.$field => $type(_state)');
+      }
       edits.add(Edit.insert(content.length, '\n$block'));
       changes.add('extension type $type');
     }

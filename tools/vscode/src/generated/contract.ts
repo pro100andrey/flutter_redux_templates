@@ -17,12 +17,12 @@ export const MARKER_PATH = 'app/lib/navigation/app_router.dart';
 
 /** Every `--kind` the CLI accepts, by the artifact it makes. */
 export const KINDS = {
-  substate: ['value', 'search', 'table'],
-  action: ['sync', 'async', 'waiting'],
-  widget: ['field', 'choice', 'action', 'view', 'container'],
-  nav: ['push', 'replace', 'navigate'],
-  remove: ['substate', 'page', 'action', 'model', 'widget', 'connector', 'service'],
-  rename: ['substate', 'page'],
+  'substate': ['value', 'search', 'table'],
+  'action': ['sync', 'async', 'waiting'],
+  'widget': ['field', 'choice', 'action', 'view', 'container'],
+  'nav': ['push', 'replace', 'navigate'],
+  'remove': ['substate', 'page', 'action', 'model', 'widget', 'connector', 'service'],
+  'rename': ['substate', 'page'],
 } as const;
 
 /** The values one `--kind` accepts, as a union. */

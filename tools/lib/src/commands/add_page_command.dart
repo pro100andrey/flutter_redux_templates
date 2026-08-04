@@ -1,6 +1,5 @@
 import 'package:args/args.dart';
 
-import '../model/artifact_name.dart';
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
 import '../model/page_artifact.dart';
@@ -61,8 +60,12 @@ class AddPageCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    // See [ArtifactName]: `Home` and `HomePage` are one page.
-    final name = ArtifactName.pageStem(requireName());
+    // Not stemmed here: `PageArtifact` owns that, and doing it at the call
+    // site too stripped twice — `CheckoutPagePage` reached the scaffolder as
+    // `CheckoutPage` and the artifact as `Checkout`, so the class, the file it
+    // was written to and the route registered for it were three different
+    // spellings, and the command exited 0.
+    final typed = requireName();
     final public = results['public'] as bool;
 
     final List<PageParam> params;
@@ -74,7 +77,10 @@ class AddPageCommand extends WritingCommand {
 
     final source = RoutesSource.of(repo);
 
-    final a = PageArtifact(name);
+    final a = PageArtifact(typed);
+    // Everything downstream reads the artifact's own name, so there is one
+    // normalisation and no way for two of them to disagree.
+    final name = a.name;
     final routeType = a.routeType;
     // Default path: /<dash-name> plus a /:p segment per param.
     final path = _normalizePath(
