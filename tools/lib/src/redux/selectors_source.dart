@@ -58,6 +58,7 @@ class SelectorsAddResult implements EditOutcome {
     required this.source,
     required this.changes,
     required this.alreadyPresent,
+    this.retyped = false,
   });
 
   /// The full edited `selectors.dart` source (unchanged if [alreadyPresent]).
@@ -71,8 +72,12 @@ class SelectorsAddResult implements EditOutcome {
   /// True when a getter of that name already existed on the type.
   final bool alreadyPresent;
 
+  /// True when that getter's return type was rewritten — [alreadyPresent] is
+  /// also true, and the file *did* change.
+  final bool retyped;
+
   @override
-  bool get unchanged => alreadyPresent;
+  bool get unchanged => alreadyPresent && !retyped;
 }
 
 /// Reads and edits `business/lib/redux/selectors.dart` via the analyzer AST.
@@ -189,6 +194,7 @@ class SelectorsSource {
     required String returnType,
     required String expr,
     List<String> imports = const [],
+    bool retype = false,
   }) {
     final content = sourceIndex.sourceOf(file);
     final unit = sourceIndex.unitFor(file);
@@ -199,11 +205,58 @@ class SelectorsSource {
         '(see `frx list-substates`).',
       );
     }
-    if (_getters(ext.body, getterName).isNotEmpty) {
+    final existing = _getters(ext.body, getterName).firstOrNull;
+    if (existing != null) {
+      // Retyping touches the return type and nothing else. The body is the
+      // author's — a getter whose expression was hand-written must not be
+      // reverted to the generated one just because its field changed type, and
+      // the field's own read (`_state.<field>.<name>`) is unaffected anyway.
+      final declared = existing.returnType?.toSource();
+      if (!retype || declared == null || declared == returnType) {
+        return SelectorsAddResult(
+          source: content,
+          changes: const [],
+          alreadyPresent: true,
+        );
+      }
+      final edits = <Edit>[
+        Edit.replace(
+          existing.returnType!.offset,
+          existing.returnType!.end,
+          returnType,
+        ),
+      ];
+      // The doc line `add-substate` writes names the type — `/// Returns
+      // [IMap<int, Object>] table`. Left alone it says the opposite of the
+      // signature above it, which is worse than saying nothing.
+      final doc = existing.documentationComment;
+      if (doc != null) {
+        for (final token in doc.tokens) {
+          final at = token.lexeme.indexOf(declared);
+          if (at < 0) continue;
+          edits.add(
+            Edit.replace(
+              token.offset + at,
+              token.offset + at + declared.length,
+              returnType,
+            ),
+          );
+        }
+      }
+      final changes = <String>[
+        '$selectorType.$getterName: $declared → $returnType',
+      ];
+      final importDirs = unit.directives.whereType<ImportDirective>().toList();
+      final present = importDirs.map((d) => d.uri.stringValue).toSet();
+      for (final uri in imports.where((u) => !present.contains(u))) {
+        edits.add(importInsertion(importDirs, uri));
+        changes.add("import '$uri';");
+      }
       return SelectorsAddResult(
-        source: content,
-        changes: const [],
+        source: applyEdits(content, edits),
+        changes: changes,
         alreadyPresent: true,
+        retyped: true,
       );
     }
 

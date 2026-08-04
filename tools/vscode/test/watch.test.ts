@@ -20,9 +20,13 @@ import { FrxWatch, SpawnFn } from '../src/watch';
 class FakeChild extends EventEmitter {
   readonly stdout = new EventEmitter();
   readonly stderr = new EventEmitter();
+  readonly pid = 4242;
   killed = false;
-  kill(): boolean {
+  /** Which signal `_kill` chose — the thing build_runner is picky about. */
+  killedWith: string | undefined;
+  kill(signal?: string): boolean {
     this.killed = true;
+    this.killedWith = signal;
     return true;
   }
 }
@@ -33,6 +37,8 @@ interface Harness {
   child(): FakeChild;
   /** How many times a process was spawned. */
   spawns(): number;
+  /** Every spawn, as `command arg arg …` — what was run, not just how often. */
+  calls(): string[];
   /** The persisted `enabled` flag, read the way the extension host would. */
   persisted(): boolean;
 }
@@ -47,7 +53,9 @@ function harness(): Harness {
       update: async (k: string, v: unknown) => void store.set(k, v),
     },
   };
-  const spawn: SpawnFn = () => {
+  const calls: string[] = [];
+  const spawn: SpawnFn = (command, args) => {
+    calls.push([command, ...args].join(' '));
     const child = new FakeChild();
     children.push(child);
     return child as never;
@@ -64,9 +72,13 @@ function harness(): Harness {
     watch,
     child: () => children[children.length - 1],
     spawns: () => children.length,
+    calls: () => calls,
     persisted: () => store.get('frx.watchEnabled') === true,
   };
 }
+
+/** Let the microtask queue drain, for work behind an `await`. */
+const tick = (): Promise<void> => new Promise((r) => setImmediate(r));
 
 /** The watch dies on its own — the transition into `enabled but stopped`. */
 function die(h: Harness): void {
@@ -143,4 +155,80 @@ test('a stop we asked for raises no "stopped unexpectedly" warning', async () =>
   } finally {
     vscode.window.showWarningMessage = original;
   }
+});
+
+// --- stopping it, and what it takes to be heard ------------------------------
+//
+// Two facts, both measured against build_runner 2.16.0 and neither obvious from
+// the outside: it installs a handler for `SIGINT` and no other signal, and
+// `dart run` is a *launcher* whose child is the process carrying that handler.
+// So the obvious call — `child.kill('SIGTERM')` — was heard by nobody, and even
+// `SIGINT` to the launcher alone is ignored.
+
+test('the watch is stopped with SIGINT, not SIGTERM', async () => {
+  const h = harness();
+  await h.watch.toggle();
+  const child = h.child();
+
+  await h.watch.toggle();
+
+  assert.strictEqual(
+    child.killedWith,
+    'SIGINT',
+    'build_runner watch handles SIGINT and nothing else — SIGTERM skips the drain',
+  );
+});
+
+test('the build script under the launcher is signalled too', async () => {
+  const h = harness();
+  await h.watch.toggle();
+
+  await h.watch.toggle();
+
+  assert.ok(
+    h.calls().some((c) => c.startsWith('pkill -INT -P ')),
+    'signalling only the launcher leaves the script that holds the handler running',
+  );
+});
+
+test('the watch is never spawned detached', async () => {
+  // Detaching would give it its own group and make signalling easy — and would
+  // also put it in its own session, which is precisely the shape frx doctor
+  // reads as an orphan. frx would then build over a healthy watch and kill it.
+  const h = harness();
+  await h.watch.toggle();
+  assert.ok(
+    h.calls().some((c) => c.includes('build_runner watch')),
+    'sanity: the watch was spawned at all',
+  );
+});
+
+test('activation reaps a watch left by a crashed window', async () => {
+  // `dispose()` does not run when VS Code is killed, so this is the only thing
+  // that reaches a watch from a previous session. It is also the only measure
+  // that repairs an orphan rather than preventing one.
+  const h = harness();
+  const reaped = h.watch.reapStaleWatch();
+  await tick(); // the spawn is behind an `await _resolveDart()`
+  h.child().emit('exit', 0); // `build_runner stop` finishing
+  await reaped;
+
+  assert.ok(
+    h.calls().some((c) => c.includes('build_runner stop --workspace')),
+    'the sanctioned remedy is parent-agnostic; kill by pid is not available here',
+  );
+});
+
+test('a wedged stop does not hang activation forever', async () => {
+  // `takeLock` retries in a `while (true)` with no deadline of its own, so a
+  // watch holding the lock and no longer reading it would block this call for
+  // as long as the window is open.
+  const h = harness();
+  const reaped = h.watch.reapStaleWatch();
+  await tick();
+  // Never emit `exit` first: the stop is wedged. The timeout has to be what
+  // ends it, so assert the guard exists rather than waiting 15s for it here.
+  assert.ok(h.calls().some((c) => c.includes('build_runner stop')));
+  h.child().emit('exit', 0);
+  await reaped;
 });

@@ -5,8 +5,8 @@ description: >-
   command wires the artifact you are about to write, and carries the rules that
   belong to no single command. Use when several artifacts are needed at once,
   when it is unclear which command owns a change, right after hand-editing files
-  of this architecture, or when deleting anything that is not a substate or a
-  page.
+  of this architecture, or before deleting anything — reaching for `rm` on a file
+  of this architecture is the signal.
 ---
 
 # Wiring artifacts of this architecture
@@ -48,11 +48,14 @@ the creation commands only — `rename` and `remove` are refused with the reason
   pass on code nothing reaches: a selector no reader calls, an action no widget
   dispatches. The moment is precise — the feature compiles, and you have not
   started the next one.
-- **Deleting anything that is not a substate or a page is manual.** `frx remove`
-  knows those two. A widget, a connector, a service, a model, an enum, a theme
-  extension comes out with `rm`, and nothing unwires it: what still imports it is
-  yours to find, and a widget leaves its mirrored preview behind. So `rm` and
-  then the audit, in the same breath.
+- **Deletion goes through `frx remove`, not `rm`.** It knows a substate, a page,
+  an action, a model or enum, a widget, a connector and a service, and it deletes
+  the *set*: a widget's mirrored preview, a service's dispatcher, a model's
+  `.freezed.dart` and `.g.dart`. That set is the whole point — `rm` takes the
+  file you name and leaves the rest, and the generated halves it leaves stop the
+  package compiling on a file you never wrote. What `remove` does not do is chase
+  the code that used the artifact, so the audit still follows. A theme extension
+  and a retrofit client have no kind yet; those two are still `rm` plus the audit.
 - **Around a live `build_runner watch`, commands stand down.** They hand the
   build over rather than starting a second one. The fact is reported in the
   command's own result (`--json` carries it as `build.handedToWatch`), not by the

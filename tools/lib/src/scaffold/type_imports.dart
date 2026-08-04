@@ -19,6 +19,13 @@
 /// loudly, and there is no shape here that produces a wrong one.
 library;
 
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+
+import '../util/casing.dart';
+import '../workspace/frx_workspace.dart';
+
 /// Maps a type a caller can ask for to the import that supplies it.
 abstract final class TypeImports {
   const TypeImports._();
@@ -50,4 +57,61 @@ abstract final class TypeImports {
 
   /// The imports a single type expression needs.
   static List<String> forType(String type) => forAll([type]);
+}
+
+/// Imports for types *this project* defines, resolved from the filesystem.
+///
+/// Separate from [TypeImports] and not a table, because a project's own model
+/// names cannot be known in advance — only looked up. Kept out of the pure
+/// module above so that one stays testable without a repository.
+///
+/// Why it exists at all: `add-field --force` retypes a field, and the type it
+/// retypes *to* is almost always one of these. `IMap<int, Object>` becoming
+/// `IMap<int, Task>` without `package:models/task.dart` is a file that does not
+/// compile — and the guard that made `--force` necessary also refuses the hand
+/// edit that would add the import.
+abstract final class ProjectTypeImports {
+  const ProjectTypeImports._();
+
+  /// A capitalised identifier is a candidate type name; `IMap<int, Task>` and
+  /// `IMapConst<int, Task>({})` both yield `IMap`/`IMapConst` and `Task`, and
+  /// only the ones with a file behind them survive the lookup.
+  static final _identifier = RegExp(r'\b([A-Z][A-Za-z0-9_]*)\b');
+
+  /// The imports [snippets] need from this repository's own packages.
+  static List<String> forAll(FrxWorkspace repo, Iterable<String?> snippets) {
+    final models = repo.modelsLib;
+    if (!models.existsSync()) return const [];
+    final package = _packageName(models.parent);
+    if (package == null) return const [];
+
+    final found = <String>{};
+    for (final snippet in snippets.nonNulls) {
+      for (final match in _identifier.allMatches(snippet)) {
+        final String snake;
+        try {
+          snake = Casing.parse(match.group(1)!).snake;
+        } on FormatException {
+          continue;
+        }
+        if (File(p.join(models.path, '$snake.dart')).existsSync()) {
+          found.add('package:$package/$snake.dart');
+        }
+      }
+    }
+    return found.toList()..sort();
+  }
+
+  /// The `name:` of the pubspec in [dir], or null when there is none to read.
+  /// Read rather than assumed: `models` is what the template calls it, and a
+  /// project that renamed the package is not wrong.
+  static String? _packageName(Directory dir) {
+    final pubspec = File(p.join(dir.path, 'pubspec.yaml'));
+    if (!pubspec.existsSync()) return null;
+    final match = RegExp(
+      r'^name:\s*(\S+)',
+      multiLine: true,
+    ).firstMatch(pubspec.readAsStringSync());
+    return match?.group(1);
+  }
 }

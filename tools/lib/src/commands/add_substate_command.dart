@@ -147,7 +147,6 @@ class AddSubstateCommand extends WritingCommand {
       build: (_) => BuildStep.build(
         FrxWorkspace.packageRootOf(source.file.path),
         nextHint: 'generate the freezed part for the new state',
-        args: const ['--delete-conflicting-outputs'],
       ),
     );
   }

@@ -15,6 +15,18 @@ import * as diag from './diagnostics';
 
 const STATE_KEY = 'frx.watchEnabled';
 
+/** How long a signalled watch is given to drain before it is killed outright. */
+const DRAIN_MS = 10_000;
+
+/**
+ * How long to wait for `build_runner stop` before giving up on it.
+ *
+ * It needs one: `takeLock` retries in a `while (true)` with a 100 ms delay and
+ * no deadline of its own, so against a wedged watch — one holding the lock and
+ * no longer reading it — the call never returns.
+ */
+const STOP_MS = 15_000;
+
 /**
  * The `child_process.spawn` seam.
  *
@@ -105,6 +117,67 @@ export class FrxWatch {
   }
 
   /**
+   * Stop any `build_runner watch` left over from a previous window.
+   *
+   * **This is the only measure that repairs an orphan that already exists**, and
+   * the only one that covers the case nothing else can: `dispose()` does not run
+   * when VS Code or the extension host is killed, so a crash always leaves the
+   * watch behind. Everything else here reduces how often that happens.
+   *
+   * `build_runner stop` is parent-agnostic on purpose — it writes a `.requested`
+   * file beside the build lock and whoever holds the lock picks it up through a
+   * file watcher, so it never asks who started the process. That is also why it
+   * is scoped to this project and cannot touch a watch belonging to another one.
+   *
+   * Failure is silent by design: there is usually nothing to stop, and a warning
+   * on every activation would train the user to ignore the channel.
+   */
+  async reapStaleWatch(): Promise<void> {
+    const dart = await this._resolveDart();
+    if (!dart) return;
+    const ch = this.channel();
+    await new Promise<void>((resolve) => {
+      let done = false;
+      const finish = (note: string) => {
+        if (done) return;
+        done = true;
+        ch.appendLine(note);
+        resolve();
+      };
+      let stop: cp.ChildProcess;
+      try {
+        stop = this._spawn(dart, ['run', 'build_runner', 'stop', '--workspace'], {
+          cwd: this._root,
+          shell: false,
+          stdio: 'ignore',
+        });
+      } catch {
+        // EACCES on the resolved `dart`, ENOENT on a stale `frx.path`, EMFILE.
+        // `_start` wraps its identical spawn for the same reason; letting this
+        // one reject would leave the user's persisted watch-ON silently off.
+        finish('[reap: could not start build_runner stop]');
+        return;
+      }
+      const deadline = setTimeout(() => {
+        try {
+          stop.kill('SIGKILL');
+        } catch {
+          /* already gone */
+        }
+        finish('[reap: build_runner stop timed out — a wedged watch may remain]');
+      }, STOP_MS);
+      stop.on('exit', () => {
+        clearTimeout(deadline);
+        finish('[reap: checked for a leftover watch]');
+      });
+      stop.on('error', () => {
+        clearTimeout(deadline);
+        finish('[reap: could not run build_runner stop]');
+      });
+    });
+  }
+
+  /**
    * Flip the toggle: start the watch (and persist ON) or stop it (persist OFF).
    *
    * The branch is on [running], not on [enabled] — those two disagree in exactly
@@ -182,7 +255,23 @@ export class FrxWatch {
     this._render();
   }
 
-  /** Terminate the process without changing the persisted enabled state. */
+  /**
+   * Terminate the process without changing the persisted enabled state.
+   *
+   * **SIGINT, and not to `child.pid` alone.** Two facts, both measured:
+   * `build_runner watch` installs a handler for `SIGINT` and no other signal, so
+   * the SIGTERM this used to send skipped the drain entirely; and `dart run` is
+   * a launcher whose *child* is the build script that carries that handler, so a
+   * signal to `child.pid` is ignored by both. Signalling the process group is
+   * not an option here the way it is in a terminal — an extension's child shares
+   * the extension host's group, and signalling that would hit VS Code itself —
+   * so the script is reached by naming it: `pkill -P <launcher>`.
+   *
+   * Detaching the child to give it its own group is also not an option: that
+   * calls `setsid()`, and a watch in its own session is exactly the shape
+   * `frx doctor` reads as an orphan, after which frx would build over a healthy
+   * watch and kill it.
+   */
   private _kill(): void {
     const child = this._child;
     if (!child) return;
@@ -190,11 +279,45 @@ export class FrxWatch {
     // A stopped watch no longer knows the build state — drop its findings
     // rather than leave them stale forever.
     this._buildDiagnostics.clear();
+    // Everything that reaches *past* the launcher needs a pid. Signalling the
+    // launcher itself does not, and happens either way — a spawn that failed
+    // before it got a pid is still a process to ask to stop.
+    const pid = child.pid;
+
+    if (process.platform === 'win32') {
+      // Node's `kill()` ignores the signal on Windows and kills one process;
+      // `/T` is what takes the build script with it.
+      try {
+        if (pid !== undefined) this._spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {});
+        else child.kill();
+      } catch {
+        /* nothing left to kill */
+      }
+      return;
+    }
+
     try {
-      child.kill('SIGTERM');
+      child.kill('SIGINT');
+      if (pid !== undefined) this._spawn('pkill', ['-INT', '-P', String(pid)], {});
     } catch {
       /* already gone */
     }
+    if (pid === undefined) return;
+    // It has a lock to release and possibly a build to finish. Insist only
+    // after giving it that time.
+    const deadline = setTimeout(() => {
+      try {
+        // Children first: `pkill -P` finds children of a *living* process, so
+        // killing the launcher first leaves the build script reparented to init
+        // and holding the build lock — a fresh orphan made by the guard against
+        // orphans.
+        this._spawn('pkill', ['-KILL', '-P', String(pid)], {});
+        process.kill(pid, 'SIGKILL');
+      } catch {
+        /* drained in time */
+      }
+    }, DRAIN_MS);
+    child.once('exit', () => clearTimeout(deadline));
   }
 
   private _render(): void {

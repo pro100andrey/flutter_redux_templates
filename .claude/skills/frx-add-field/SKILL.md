@@ -91,6 +91,7 @@ spelled — not `state.copyWith(todos: state.todos.copyWith(…))`.
 -b, --build-runner     Run build_runner in the artifact's package after writing.
 -d, --default          A `@Default(<expr>)` for the field. Required for a non-nullable type (a state field must be nullable or defaulted).
 -a, --action           Also scaffold a Set<Field>Action setter in the substate.
+-f, --force            When the field already exists, rewrite its declaration to this type (and its selector getter to match).
     --[no-]selector    Also add a getter for the field to the substate's Select<Pascal> in selectors.dart.
                        (defaults to on)
 ```

@@ -232,7 +232,7 @@ class DoctorCommand extends Command<int> {
     console.out.writeln('  build_runner build  ($pkg) …');
     final proc = await Process.start(
       'dart',
-      const ['run', 'build_runner', 'build', '--delete-conflicting-outputs'],
+      const ['run', 'build_runner', 'build'],
       workingDirectory: p.join(repo.root.path, pkg),
       mode: ProcessStartMode.inheritStdio,
     );

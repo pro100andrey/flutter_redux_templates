@@ -16,12 +16,10 @@ frx watch [arguments]
 ## Flags
 
 ```
--h, --help                               Print this usage information.
--p, --package                            Watch a single package (e.g. business) instead of the whole workspace.
-    --[no-]delete-conflicting-outputs    Pass --delete-conflicting-outputs to build_runner.
-                                         (defaults to on)
-    --print                              Print the command that would run, then exit (don't watch).
-    --root                               Repo root to search from.
+-h, --help       Print this usage information.
+-p, --package    Watch a single package (e.g. business) instead of the whole workspace.
+    --print      Print the command that would run, then exit (don't watch).
+    --root       Repo root to search from.
 ```
 
 Every writing command takes `--dry-run` (plan only), `--json` (the changeset as

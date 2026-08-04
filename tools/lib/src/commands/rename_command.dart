@@ -287,7 +287,7 @@ class RenameCommand extends Command<int> with NameArg {
       emptiedDirs: [oldDir.path],
       buildPackageRoot: FrxWorkspace.packageRootOf(appState.file.path),
       buildCommands: const [
-        ['run', 'build_runner', 'build', '--delete-conflicting-outputs'],
+        ['run', 'build_runner', 'build'],
       ],
       // Generated files left in the old folder (freezed parts, …) would
       // linger beside nothing — drop them; build_runner remakes the new ones.
