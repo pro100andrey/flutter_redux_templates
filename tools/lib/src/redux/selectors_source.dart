@@ -108,15 +108,6 @@ class SelectorsSource {
     final edits = <Edit>[];
     final changes = <String>[];
 
-    // Imports the getters need, each inserted in sorted position within its
-    // section (package/dart vs relative) so `directives_ordering` stays happy.
-    final importDirs = unit.directives.whereType<ImportDirective>().toList();
-    final present = importDirs.map((d) => d.uri.stringValue).toSet();
-    for (final uri in imports.where((u) => !present.contains(u))) {
-      edits.add(importInsertion(importDirs, uri));
-      changes.add("import '$uri';");
-    }
-
     if (existing != null) {
       // force: swap the stale extension type body in place. The `Selectors`
       // getter already points at this type name, so it is left untouched.
@@ -142,7 +133,13 @@ class SelectorsSource {
       changes.add('extension type $type');
     }
 
-    return Edited(source: applyEdits(content, edits), changes: changes);
+    // Imports the getters need, each inserted in sorted position within its
+    // section (package/dart vs relative) so `directives_ordering` stays happy.
+    final added = addImports(applyEdits(content, edits), imports);
+    return Edited(
+      source: added.source,
+      changes: [...added.changes, ...changes],
+    );
   }
 
   /// Adds a `<returnType> get <getterName> => <expr>;` getter to the
@@ -210,31 +207,19 @@ class SelectorsSource {
           );
         }
       }
-      final changes = <String>[
-        '$selectorType.$getterName: $declared → $returnType',
-      ];
-      final importDirs = unit.directives.whereType<ImportDirective>().toList();
-      final present = importDirs.map((d) => d.uri.stringValue).toSet();
-      for (final uri in imports.where((u) => !present.contains(u))) {
-        edits.add(importInsertion(importDirs, uri));
-        changes.add("import '$uri';");
-      }
+      final added = addImports(applyEdits(content, edits), imports);
       return SelectorsAddResult(
-        source: applyEdits(content, edits),
-        changes: changes,
+        source: added.source,
+        changes: [
+          '$selectorType.$getterName: $declared → $returnType',
+          ...added.changes,
+        ],
         alreadyPresent: true,
         retyped: true,
       );
     }
 
     final edits = <Edit>[];
-    final changes = <String>['$selectorType.$getterName => $expr'];
-    final importDirs = unit.directives.whereType<ImportDirective>().toList();
-    final present = importDirs.map((d) => d.uri.stringValue).toSet();
-    for (final uri in imports.where((u) => !present.contains(u))) {
-      edits.add(importInsertion(importDirs, uri));
-      changes.add("import '$uri';");
-    }
     // Before the type's closing `}` (node.end - 1, matching how [wire] inserts
     // the facade getters), so `dart format` places it among the others.
     //
@@ -251,9 +236,10 @@ class SelectorsSource {
       ),
     );
 
+    final added = addImports(applyEdits(content, edits), imports);
     return SelectorsAddResult(
-      source: applyEdits(content, edits),
-      changes: changes,
+      source: added.source,
+      changes: ['$selectorType.$getterName => $expr', ...added.changes],
       alreadyPresent: false,
     );
   }

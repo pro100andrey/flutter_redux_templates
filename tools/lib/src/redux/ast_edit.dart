@@ -1,3 +1,4 @@
+import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
 
@@ -265,4 +266,40 @@ Edit importInsertion(List<ImportDirective> imports, String uri) {
   return incomingIsPackage
       ? Edit.insert(imports.first.offset, "import '$uri';\n")
       : Edit.insert(imports.last.end, "\n\nimport '$uri';");
+}
+
+/// Adds every one of [uris] that [source] does not already import, and reports
+/// the ones it added.
+///
+/// One re-parse per import, which is the whole point. [importInsertion] places
+/// an import among the ones it can see, so two insertions computed against the
+/// same parse can name the same offset — and then which of them lands first is
+/// whatever tie [applyEdits] happened to break, not sorted order. Adding
+/// `package:collection/collection.dart` and
+/// `package:fast_immutable_collections/…` to a file importing only
+/// `package:freezed_annotation/…` put both before `freezed_annotation` at offset
+/// 0, and emitted `fast_immutable_collections` above `collection`.
+///
+/// `NavSource` and `RoutesSource` each learned this and re-parse in place; four
+/// other call sites did not. This is that rule, stated once.
+///
+/// Runs *after* the structural edits, never before: every structural offset in
+/// this tier points into a body below the import block, and an import spliced
+/// in first moves it.
+({String source, List<String> changes}) addImports(
+  String source,
+  Iterable<String> uris,
+) {
+  var result = source;
+  final changes = <String>[];
+  for (final uri in uris) {
+    final directives = parseString(
+      content: result,
+      throwIfDiagnostics: false,
+    ).unit.directives.whereType<ImportDirective>().toList();
+    if (directives.any((d) => d.uri.stringValue == uri)) continue;
+    result = applyEdits(result, [importInsertion(directives, uri)]);
+    changes.add("import '$uri';");
+  }
+  return (source: result, changes: changes);
 }

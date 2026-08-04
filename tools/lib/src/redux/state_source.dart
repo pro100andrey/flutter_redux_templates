@@ -53,32 +53,18 @@ class StateSource {
       }
 
       final edits = <Edit>[Edit.replace(existing.offset, existing.end, wanted)];
-      final changes = <String>['field: ${existing.toSource()} → $wanted'];
       // The new type may need an import the old one did not.
-      final importDirs = unit.directives.whereType<ImportDirective>().toList();
-      final present = importDirs.map((d) => d.uri.stringValue).toSet();
-      for (final uri in imports.where((u) => !present.contains(u))) {
-        edits.add(importInsertion(importDirs, uri));
-        changes.add("import '$uri';");
-      }
-      return Edited(source: applyEdits(content, edits), changes: changes);
-    }
-
-    final edits = <Edit>[];
-    final changes = <String>[];
-
-    // Imports the field's type needs, each in sorted position in its section.
-    final importDirs = unit.directives.whereType<ImportDirective>().toList();
-    final present = importDirs.map((d) => d.uri.stringValue).toSet();
-    for (final uri in imports.where((u) => !present.contains(u))) {
-      edits.add(importInsertion(importDirs, uri));
-      changes.add("import '$uri';");
+      final added = addImports(applyEdits(content, edits), imports);
+      return Edited(
+        source: added.source,
+        changes: ['field: ${existing.toSource()} → $wanted', ...added.changes],
+      );
     }
 
     final params = factory.parameters;
     final decl = _declaration(type, name, defaultExpr);
     final delimiter = params.rightDelimiter;
-    edits.add(
+    final edits = <Edit>[
       // A factory with no named group at all has to grow one; from there the
       // shared comma rule applies.
       delimiter == null
@@ -88,10 +74,14 @@ class StateSource {
               closer: delimiter,
               element: decl,
             ),
-    );
-    changes.add('field: $decl');
+    ];
 
-    return Edited(source: applyEdits(content, edits), changes: changes);
+    // Imports the field's type needs, each in sorted position in its section.
+    final added = addImports(applyEdits(content, edits), imports);
+    return Edited(
+      source: added.source,
+      changes: [...added.changes, 'field: $decl'],
+    );
   }
 
   /// The `@Default(...)` expression on field [name], or null when it has none.

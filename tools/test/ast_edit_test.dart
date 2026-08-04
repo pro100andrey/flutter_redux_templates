@@ -160,6 +160,75 @@ void main() {
         ),
       );
     });
+
+    test('two insertions against one parse aim at the same offset', () {
+      // The defect [addImports] exists to prevent, stated as the arithmetic it
+      // is: both sort before the only import present, so both anchor on it.
+      const src =
+          "import 'package:freezed_annotation/freezed_annotation.dart';";
+      final imports = importsOf(src);
+      expect(
+        [
+          importInsertion(imports, 'package:collection/collection.dart').start,
+          importInsertion(
+            imports,
+            'package:fast_immutable_collections/f.dart',
+          ).start,
+        ],
+        [0, 0],
+      );
+    });
+  });
+
+  group('addImports', () {
+    test('sorts two additions that anchor on the same import', () {
+      // Both sort before `freezed_annotation`, so computed against one parse
+      // they collide and land in whatever order `applyEdits` broke the tie —
+      // which put `fast_immutable_collections` above `collection`.
+      const src =
+          "import 'package:freezed_annotation/freezed_annotation.dart';\n\n"
+          'class TasksState {}\n';
+      final out = addImports(src, [
+        'package:collection/collection.dart',
+        'package:fast_immutable_collections/f.dart',
+      ]);
+      expect(
+        out.source.indexOf('package:collection'),
+        allOf(
+          lessThan(out.source.indexOf('package:fast_immutable_collections')),
+          lessThan(out.source.indexOf('package:freezed_annotation')),
+        ),
+      );
+      expect(out.changes, hasLength(2));
+      expectParses(out.source);
+    });
+
+    test('keeps the package block above a relative one added beside it', () {
+      // The two branches that can name the same offset from different sections:
+      // `package:` after the last package import, relative after the last import
+      // overall — the same token when the file has only package imports.
+      const src = "import 'package:a/a.dart';\n";
+      final out = addImports(src, ['package:z/z.dart', '../foo.dart']);
+      expect(
+        out.source.indexOf('package:z'),
+        lessThan(out.source.indexOf('../foo.dart')),
+      );
+      expectParses(out.source);
+    });
+
+    test('skips a uri already imported and reports only what it added', () {
+      const src = "import 'package:a/a.dart';\n";
+      final out = addImports(src, ['package:a/a.dart', 'package:b/b.dart']);
+      expect(out.changes, ["import 'package:b/b.dart';"]);
+      expect('package:a/a.dart'.allMatches(out.source), hasLength(1));
+    });
+
+    test('an empty uri list leaves the source untouched', () {
+      const src = "import 'package:a/a.dart';\n";
+      final out = addImports(src, const []);
+      expect(out.source, src);
+      expect(out.changes, isEmpty);
+    });
   });
 
   group('removeListItem', () {
