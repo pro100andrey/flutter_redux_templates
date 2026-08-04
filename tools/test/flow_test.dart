@@ -148,7 +148,16 @@ void main() {
       final action = flow.actions['RegistrationAction']!;
       expect(action.mixins, ['WaitingAction']);
       expect(action.isAsync, isTrue);
-      expect(action.writes, 'registration');
+      expect(action.writesLabel, 'registration');
+      expect(
+        action.writes,
+        [(substate: 'registration', field: null)],
+        reason:
+            'the label is a rendering of this, not the other way round — '
+            'graph_reader used to split the label back apart on the `, ` the '
+            'renderer joined it with, so the separator was the only channel '
+            'between two readers of one fact',
+      );
       expect(action.throwsUserException, isTrue);
       expect(action.file, isNotNull);
     });
@@ -178,7 +187,7 @@ class SomeAction extends Action {
 ''');
       return FlowReader(
         FrxWorkspace.locate(startDir: root.path),
-      ).readAction(file).writes;
+      ).readAction(file).writesLabel;
     }
 
     // freezed puts the substate name in a different place in each shape, and

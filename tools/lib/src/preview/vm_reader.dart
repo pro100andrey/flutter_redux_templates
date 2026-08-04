@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
+
+import '../ast/source_index.dart';
 
 /// One constructor parameter of a view-model.
 class VmField {
@@ -130,13 +134,24 @@ abstract final class VmReader {
   /// field-initialising (`this.x`) — the pure-data shape. The `Vm` suffix is
   /// not required: `read` is also pointed at the shared models
   /// (`FieldVm`, `ChoiceVm`), and at whatever a hand-written widget uses.
-  static List<ViewModel> read(String source) {
-    final unit = parseString(content: source, throwIfDiagnostics: false).unit;
-    return [
-      for (final decl in unit.declarations.whereType<ClassDeclaration>())
-        if (_readClass(decl) case final vm?) vm,
-    ];
-  }
+  static List<ViewModel> read(String source) =>
+      _of(parseString(content: source, throwIfDiagnostics: false).unit);
+
+  /// The same, for a file — through [sourceIndex], which is the difference.
+  ///
+  /// This was the one reader in the tier that called `parseString` itself, so
+  /// its parses were invisible to the index: `parsesOf` could not count them,
+  /// `doctor_test`'s "no file is parsed twice" could not see them, and
+  /// `checkRecoveredFiles` could not report a view-model file whose tree was
+  /// recovered — even though `checkViewModels` had just answered from it.
+  ///
+  /// Its only caller is that audit, and it already holds the [File].
+  static List<ViewModel> of(File file) => _of(sourceIndex.unitFor(file));
+
+  static List<ViewModel> _of(CompilationUnit unit) => [
+    for (final decl in unit.declarations.whereType<ClassDeclaration>())
+      if (_readClass(decl) case final vm?) vm,
+  ];
 
   /// The view-model named [className] in [source], or null if absent.
   static ViewModel? readClass(String source, String className) {

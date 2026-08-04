@@ -274,7 +274,7 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
       if (!source.contains('equals:') && !source.contains('get props')) {
         continue;
       }
-      for (final vm in VmReader.read(source)) {
+      for (final vm in VmReader.of(file)) {
         for (final field in vm.fieldsOutsideEquality) {
           into.add(
             Finding.warn(

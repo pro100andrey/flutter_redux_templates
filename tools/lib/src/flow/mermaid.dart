@@ -76,8 +76,8 @@ void _writeSteps(
     final notes = _notesFor(action);
     if (notes != null) b.writeln('${pad}Note over $id: ${_esc(notes)}');
 
-    if (action?.writes != null) {
-      b.writeln('$pad$id->>ST: copyWith(${_esc(action!.writes!)})');
+    if (action?.writesLabel case final w?) {
+      b.writeln('$pad$id->>ST: copyWith(${_esc(w)})');
     }
     if (action?.throwsUserException ?? false) {
       // Propagates to the caller, where async_redux surfaces it as a dialog.
@@ -119,7 +119,7 @@ class _ParticipantIds {
         if (!flow.actions.containsKey(step.target)) continue;
         actions.putIfAbsent(step.target, () => 'A${++n}');
         final action = flow.actions[step.target];
-        if (action?.writes != null) usesState = true;
+        if (action?.writesLabel != null) usesState = true;
         if (action?.dispatches.isNotEmpty ?? false) usesState = true;
       }
     }

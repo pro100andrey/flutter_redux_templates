@@ -83,18 +83,17 @@ class GraphReader {
     for (final a in actions.values) {
       addNode(_actionNode(a));
       owners[a.file] = a.id;
-      final writes = a.info.writes;
-      if (writes == null) continue;
-      // `logIn.email, logIn.password` — one edge per substate touched.
-      for (final field in writes.split(', ')) {
-        final substate = field.split('.').first;
-        if (!nodes.containsKey('substate:$substate')) continue;
+      // One edge per substate touched, off the structured writes. This used to
+      // split the display string back apart on the `', '` the renderer joined
+      // it with.
+      for (final w in a.info.writes) {
+        if (!nodes.containsKey('substate:${w.substate}')) continue;
         addEdge(
           GraphEdge(
             from: a.id,
-            to: 'substate:$substate',
+            to: 'substate:${w.substate}',
             kind: EdgeKind.writes,
-            via: field,
+            via: w.label,
           ),
         );
       }
@@ -393,8 +392,14 @@ class GraphReader {
   Map<String, _Action> _actionsOnDisk(FlowReader reader) {
     final out = <String, _Action>{};
     if (!workspace.businessRedux.existsSync()) return out;
-    for (final dir
-        in workspace.businessRedux.listSync().whereType<Directory>()) {
+    // `isSubstateDir`, like the other four enumerations of these folders. This
+    // was the one that skipped it, so an `actions/` under `redux/services/` or
+    // `redux/common/` would have been read as a substate's — latent in the
+    // template, which has none, and a `frx add-service` away from not being.
+    // `directoriesIn` rather than a raw listing, so the audit's cached walk is
+    // shared instead of repeated.
+    for (final dir in sourceIndex.directoriesIn(workspace.businessRedux)) {
+      if (!FrxWorkspace.isSubstateDir(p.basename(dir.path))) continue;
       final actionsDir = Directory(p.join(dir.path, 'actions'));
       if (!actionsDir.existsSync()) continue;
       final substate = Casing.parse(p.basename(dir.path)).camel;
@@ -444,7 +449,11 @@ class GraphReader {
     required bool Function(String) hasSubstate,
     required Map<String, String> owners,
   }) {
-    final file = File(p.join(appState.file.parent.path, 'selectors.dart'));
+    // `FrxWorkspace.selectorsFile`, whose doc says it exists so a command
+    // holding a workspace need not locate `AppState` to find the file beside
+    // it. This located `AppState` to find it anyway — a third spelling of one
+    // path.
+    final file = workspace.selectorsFile;
     if (!file.existsSync()) return;
 
     final byClass = <String, List<_Action>>{};
