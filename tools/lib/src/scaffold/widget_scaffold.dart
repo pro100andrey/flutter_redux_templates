@@ -87,10 +87,6 @@ class WidgetScaffold {
   static String fileNameFor(Casing typed, WidgetKind kind) =>
       '${_snakeOf(classNameFor(typed, kind))}.dart';
 
-  /// The rule stated once, for a name that has already been reduced to its
-  /// stem. Both entry points end here; they differ only in whether they strip
-  /// on the way, which is what makes the two directions symmetric.
-
   /// The render model for a [WidgetKind.view], e.g. `ExerciseCardVm`.
   String get vmClassName => '${className}Vm';
 

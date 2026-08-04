@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../util/casing.dart';
+import 'artifact_name.dart';
 
 /// The naming conventions of one page, derived from its name.
 ///
@@ -29,7 +30,25 @@ class PageArtifact {
   static bool isRoutePage(ClassDeclaration decl) =>
       decl.metadata.any((m) => m.name.name == routePageAnnotation);
 
-  const PageArtifact(this.name);
+  /// A page named by a **user**: `Home` and `HomePage` are the same page.
+  ///
+  /// The stemming belongs on this constructor and not inside each command,
+  /// because every direction has to agree — `add-page`, `remove --kind page`,
+  /// `rename` and `add-nav` all take a name someone typed, and only two of them
+  /// were normalising it. `add-page HomePage` wrote `home_page_page.dart` while
+  /// `remove HomePage --kind page` looked for a `HomePageRoute` that did not
+  /// exist and quietly removed nothing.
+  factory PageArtifact(Casing name) =>
+      PageArtifact._(ArtifactName.pageStem(name));
+
+  /// A page named by what is **on disk**, taken exactly as read.
+  ///
+  /// Deliberately does not stem, and the split is the point: a project
+  /// scaffolded before the fix above really does contain
+  /// `HomePagePageConnector` behind `HomePageRoute`, and stemming what was read
+  /// back would make those pages unresolvable. Normalise input; never normalise
+  /// a fact.
+  const PageArtifact._(this.name);
 
   factory PageArtifact.parse(String input) => PageArtifact(Casing.parse(input));
 
@@ -38,7 +57,7 @@ class PageArtifact {
   static PageArtifact? fromRouteType(String routeType) {
     if (!routeType.endsWith('Route')) return null;
     final base = routeType.substring(0, routeType.length - 'Route'.length);
-    return PageArtifact.parse(Casing.parse(base).snake);
+    return PageArtifact._(Casing.parse(Casing.parse(base).snake));
   }
 
   final Casing name;

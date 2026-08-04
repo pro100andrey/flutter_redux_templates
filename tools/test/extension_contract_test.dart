@@ -182,17 +182,24 @@ void main() {
     // What is left to check is that the editor still *reads* it. A hand-written
     // list that happened to be correct today would pass every other gate.
     final ui = File(p.join(vscode.path, 'src', 'ui.ts')).readAsStringSync();
+    final decl = RegExp(r'export const ARTIFACT_KINDS = (.+);').firstMatch(ui);
     expect(
-      ui,
-      contains('ARTIFACT_KINDS = KINDS.remove'),
-      reason:
-          'ui.ts declares its own artifact kinds again — the generated '
-          'contract is there to be read, not copied from.',
+      decl,
+      isNotNull,
+      reason: 'ARTIFACT_KINDS is gone from ui.ts — nothing left to check',
     );
+    // The whole right-hand side, not a substring of it. `contains(...)` was
+    // satisfied by `KINDS.remove.slice(0, 2)` and `KINDS.remove.filter(...)` —
+    // the editor offering fewer kinds than the CLI accepts, which is exactly
+    // the drift the set-comparison this replaced was written to catch. `tsc`
+    // does not object either: a narrowed array is still assignable.
     expect(
-      RegExp(r"export const ARTIFACT_KINDS = \[").hasMatch(ui),
-      isFalse,
-      reason: 'a literal list is back in ui.ts',
+      decl!.group(1),
+      'KINDS.remove',
+      reason:
+          'ui.ts must take the generated list whole. Anything that narrows or '
+          'reorders it puts the editor back out of step with `remove --kind`, '
+          'which is what the generated contract exists to prevent.',
     );
   });
 

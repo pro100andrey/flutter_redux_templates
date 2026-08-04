@@ -1,5 +1,6 @@
 import 'package:args/args.dart';
 
+import '../model/artifact_name.dart';
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
 import '../model/page_artifact.dart';
@@ -41,7 +42,8 @@ class AddTabsCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    final name = requireName();
+    // See [ArtifactName]: the shell and each tab take either spelling.
+    final name = ArtifactName.pageStem(requireName());
     final tabArgs = results['tab'] as List<String>;
     if (tabArgs.length < 2) {
       usageException('Provide at least two --tab options.');

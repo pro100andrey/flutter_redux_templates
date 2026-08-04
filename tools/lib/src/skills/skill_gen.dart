@@ -729,6 +729,10 @@ plain `dispatch` for fire-and-forget.
     'A new screen and the route that reaches it.',
     context: _connectorContext,
     traps: [
+      'The suffix is optional and idempotent: `Home` and `HomePage` scaffold the '
+          'same artifact. Do not strip it yourself, and do not add it — pass '
+          'the name as you have it. `frx remove` reads the same rule, so '
+          'whichever spelling created it removes it.',
       'It wires the page, its `@RoutePage()` connector, the `AutoRoute` entry '
           'and auth-area membership (`--public`). Navigation **to** it is a '
           'separate decision — that is `add-nav`.',
@@ -739,6 +743,12 @@ plain `dispatch` for fire-and-forget.
   'add-tabs': _Situation(
     'A tabbed shell — several screens living under one tab bar, as a nested '
     'route.',
+    traps: [
+      'The suffix is optional and idempotent: `Main` and `MainPage` scaffold the '
+          'same artifact. Do not strip it yourself, and do not add it — pass '
+          'the name as you have it. `frx remove` reads the same rule, so '
+          'whichever spelling created it removes it.',
+    ],
   ),
   'add-nav': _Situation(
     'Getting from one screen to another — a tap that opens another page.',

@@ -35,7 +35,12 @@ enum RemovableKind {
   /// the outside a deleted freezed model and a deleted enum are the same job.
   model,
 
-  /// `ui/lib/<dir>/<snake>.dart` and its preview under `ui/lib/previews/<dir>/`.
+  /// `ui/lib/<dir>/<file>.dart` and its preview under `ui/lib/previews/<dir>/`.
+  ///
+  /// The basename is the widget's *class* in snake case, not the name it was
+  /// scaffolded from: `-k field` turns `Pin` into `PinFormField`. Said here
+  /// because the previous wording — `<snake>.dart` — is the derivation that
+  /// made `remove` miss every widget whose kind adds a suffix.
   widget,
 
   /// `app/lib/connectors/<snake>_connector.dart` — one file.
@@ -50,18 +55,31 @@ enum RemovableKind {
 
 /// A located artifact: what would be deleted, and what the user should know.
 class RemovableArtifact {
-  const RemovableArtifact({
+  // Not `const`: [className] defaults to [name] rendered, which a const
+  // constructor cannot compute. Nothing constructs one as a constant.
+  RemovableArtifact({
     required this.kind,
     required this.name,
     required this.header,
     required this.files,
+    String? className,
     this.directories = const [],
     this.missing = const [],
     this.dangles,
-  });
+  }) : className = className ?? name.pascal;
 
   final RemovableKind kind;
+
+  /// The name as the user typed it.
   final Casing name;
+
+  /// The class actually resolved, which is not always [name] spelled in Pascal.
+  ///
+  /// A widget's file is named after its class, so `remove Pin --kind widget`
+  /// can resolve to `PinFormField`. The header said so and the closing line did
+  /// not — one command reporting two different widgets, the second of them a
+  /// class that does not exist.
+  final String className;
 
   /// The plan's one-line title, e.g. `Action "ArchiveTaskAction → tasks"`.
   final String header;
@@ -213,32 +231,36 @@ class RemovableResolver {
 
     if (hits.isEmpty) return null;
 
-    // The name as typed, spelled straight, beats a suffix expansion of it.
-    //
-    // Not a guess — it is the narrower reading of the same input. With
-    // `pin.dart` (a view) and `pin_form_field.dart` (a field) side by side,
-    // every spelling of "Pin" matches something, and refusing left the view
-    // unreachable: `PinFormField` names the field, and nothing names the view,
-    // because `Pin` *is* its own name and was being read as ambiguous. So the
-    // advice the refusal gave — "delete the one you mean by its own name" —
-    // was advice one of the two could not take.
-    final exact = hits.where((h) => h.file == '${name.snake}.dart').toList();
-    final candidates = exact.length == 1 ? exact : hits;
-
-    if (candidates.length > 1) {
-      // Genuinely ambiguous: the same basename in two folders, or two
-      // expansions with no straight spelling between them.
-      final where = candidates.map((h) => 'ui/lib/${h.dir}/${h.file}').toList()
-        ..sort();
+    if (hits.length > 1) {
+      // **Refuse. Do not prefer the straight spelling.**
+      //
+      // Preferring it looked like the narrower reading of the same input and
+      // was a silent wrong deletion: with a hand-written `pin.dart` already
+      // there, `add-widget Pin -k field` writes `pin_form_field.dart`, and
+      // `remove Pin --kind widget --apply` then deleted `pin.dart` — a
+      // different widget from the one that same name had just created, which
+      // is exactly the round-trip property this resolver is under test for.
+      // An ambiguity resolved by a rule is still an ambiguity; under `--apply`
+      // it is unrecoverable.
+      //
+      // Each candidate is named with the class that reaches it *and* its path,
+      // because one of them may not be reachable by name at all: `Pin` is both
+      // the view's own class and the stem of `PinFormField`, so no spelling
+      // isolates the view. Saying so is the honest answer — the way out is to
+      // rename one of them or delete the file.
+      final named = hits.map((h) {
+        final cls = _pascalOf(h.file.substring(0, h.file.length - 5));
+        return '$cls (ui/lib/${h.dir}/${h.file})';
+      }).toList()..sort();
       blocked =
-          '"${name.pascal}" names ${candidates.length} widgets '
-          '(${where.join(', ')}). Name the one you mean by its own class '
-          '(${candidates.map((h) => _pascalOf(h.file.substring(0, h.file.length - 5))).toSet().join(' or ')}), '
-          'or rename one of them first.';
+          '"${name.pascal}" names ${hits.length} widgets — ${named.join(', ')}. '
+          'Re-run with the class of the one you mean. If that is the name you '
+          'just typed, it is also the stem of the other, so nothing tells them '
+          'apart: rename one, or delete the file directly.';
       return null;
     }
 
-    final hit = candidates.single;
+    final hit = hits.single;
     final widget = p.join(repo.uiLib.path, hit.dir, hit.file);
     final preview = p.join(repo.uiPreviews.path, hit.dir, hit.file);
     final hasPreview = File(preview).existsSync();
@@ -249,6 +271,7 @@ class RemovableResolver {
     return RemovableArtifact(
       kind: RemovableKind.widget,
       name: name,
+      className: className,
       header: 'Remove widget "$className"  (ui/lib/${hit.dir})',
       files: [widget, if (hasPreview) preview],
       // A preview left behind imports a file that is gone, and the previewer

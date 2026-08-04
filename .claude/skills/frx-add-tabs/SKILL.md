@@ -14,6 +14,13 @@ Scaffold an AutoTabsScaffold shell + tab pages and wire the nested route.
 frx add-tabs <name> --tab <t1> --tab <t2> …
 ```
 
+## Before you run it
+
+- The suffix is optional and idempotent: `Main` and `MainPage` scaffold the
+  same artifact. Do not strip it yourself, and do not add it — pass the
+  name as you have it. `frx remove` reads the same rule, so whichever
+  spelling created it removes it.
+
 ## Flags
 
 ```

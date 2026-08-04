@@ -207,7 +207,7 @@ class RemoveCommand extends WritingCommand {
       previewOnly: !apply,
       previewNotice: kPreviewNotice,
       closing: [
-        '✓ Removed ${a.kind.flag} "${a.name.pascal}".',
+        '✓ Removed ${a.kind.flag} "${a.className}".',
         if (a.dangles != null) '  Note: ${a.dangles}.',
       ].join('\n'),
     );

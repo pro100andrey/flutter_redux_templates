@@ -181,6 +181,54 @@ void main() {
     );
   });
 
+  test('a name that reaches two widgets is refused, never picked', () async {
+    // The regression this pins was a "helpful" rule: prefer the spelling typed
+    // straight over a suffix expansion of it. With a hand-written `pin.dart`
+    // already there, `add-widget Pin -k field` writes `pin_form_field.dart` —
+    // and `remove Pin --kind widget --apply` then deleted `pin.dart`, a
+    // different widget from the one that same name had just created. Under
+    // `--apply` that is unrecoverable, and it broke the round-trip property
+    // this file exists to hold.
+    fx.file('ui/lib/inputs/pin.dart')
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync('class Pin {}\n');
+    await ok([
+      'add-widget',
+      'Pin',
+      '--dir',
+      'inputs',
+      '-k',
+      'field',
+      '--no-format',
+    ]);
+
+    final res = await runFrx(fx, [
+      'remove',
+      'Pin',
+      '--kind',
+      'widget',
+      '--apply',
+    ]);
+    expect(res.exitCode, 64, reason: res.stdout.toString());
+    expect(
+      fx.file('ui/lib/inputs/pin.dart').existsSync(),
+      isTrue,
+      reason: 'refused, so neither candidate was touched',
+    );
+    expect(fx.file('ui/lib/inputs/pin_form_field.dart').existsSync(), isTrue);
+
+    // And the refusal has to name both, with the class that reaches each —
+    // one of them may not be reachable by name at all, which is worth saying
+    // rather than leaving the reader to discover.
+    expect(res.stderr.toString(), contains('PinFormField'));
+    expect(res.stderr.toString(), contains('pin.dart'));
+
+    // The one that *can* be named is removable by that name.
+    await ok(['remove', 'PinFormField', '--kind', 'widget', '--apply']);
+    expect(fx.file('ui/lib/inputs/pin_form_field.dart').existsSync(), isFalse);
+    expect(fx.file('ui/lib/inputs/pin.dart').existsSync(), isTrue);
+  });
+
   test('a name of no kind reports where it looked', () async {
     final res = await runFrx(fx, ['remove', 'Nope', '--kind', 'model']);
     expect(res.exitCode, 70);
@@ -250,6 +298,24 @@ void main() {
       'enum': (
         add: ['add-enum', 'Status', '--value', 'pending', '--value', 'done'],
         remove: ['Status', '--kind', 'model'],
+      ),
+      // The two wired kinds — separate code paths in `remove_command`
+      // (`_removeSubstate`, `_removePage`) that "every kind" did not cover.
+      // `add-page HomePage` wrote `home_page_page.dart` with connector
+      // `HomePagePageConnector` and route `HomePageRoute`, and the round trip
+      // could not see it because removal did not strip either: the two
+      // directions agreed on the wrong answer.
+      'page': (
+        add: ['add-page', 'Checkout'],
+        remove: ['Checkout', '--kind', 'page'],
+      ),
+      'page (already suffixed)': (
+        add: ['add-page', 'BasketPage'],
+        remove: ['BasketPage', '--kind', 'page'],
+      ),
+      'substate': (
+        add: ['add-substate', 'cart'],
+        remove: ['cart', '--kind', 'substate'],
       ),
       // The stripping had to be symmetric, not merely present: the scaffolder
       // stripped twice and removal once, so a doubly-suffixed name wrote

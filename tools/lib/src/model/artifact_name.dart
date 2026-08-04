@@ -35,6 +35,17 @@ class ArtifactName {
   /// `Toolbar`, from either `Toolbar` or `ToolbarConnector`.
   static Casing connectorStem(Casing name) => _stem(name, 'connector');
 
+  /// `Home`, from either `Home` or `HomePage`.
+  ///
+  /// The third one missed, and the one that mattered most: the skills tell
+  /// agents "the suffix is optional and idempotent — pass the name as you have
+  /// it", and an agent reads a page's class off `HomePage`. `add-page HomePage`
+  /// wrote `class HomePagePage` into `home_page_page.dart`, with connector
+  /// `HomePagePageConnector`, route `HomePageRoute` and path `/home-page`.
+  /// Documentation that generalises is worse than none when one command does
+  /// not honour it.
+  static Casing pageStem(Casing name) => _stem(name, 'page');
+
   /// `Sync`, from either `Sync` or `SyncService`.
   ///
   /// Missed the first time round, on the premise that `service` had "no suffix

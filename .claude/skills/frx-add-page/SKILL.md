@@ -86,6 +86,10 @@ before it is handed over.
 
 ## Before you run it
 
+- The suffix is optional and idempotent: `Home` and `HomePage` scaffold the
+  same artifact. Do not strip it yourself, and do not add it — pass the
+  name as you have it. `frx remove` reads the same rule, so whichever
+  spelling created it removes it.
 - It wires the page, its `@RoutePage()` connector, the `AutoRoute` entry
   and auth-area membership (`--public`). Navigation **to** it is a separate
   decision — that is `add-nav`.

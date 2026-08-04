@@ -1,5 +1,6 @@
 import 'package:args/args.dart';
 
+import '../model/artifact_name.dart';
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
 import '../model/page_artifact.dart';
@@ -60,7 +61,8 @@ class AddPageCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    final name = requireName();
+    // See [ArtifactName]: `Home` and `HomePage` are one page.
+    final name = ArtifactName.pageStem(requireName());
     final public = results['public'] as bool;
 
     final List<PageParam> params;

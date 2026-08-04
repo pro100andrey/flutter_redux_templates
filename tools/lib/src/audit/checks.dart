@@ -89,7 +89,7 @@ List<Finding> audit(FrxWorkspace repo, {bool processState = false}) =>
         if (check.needsProcessState && !processState) continue;
         try {
           check.run(repo, findings);
-        } on Object catch (error) {
+        } on Object catch (error, stack) {
           // **A check that throws must not take the audit with it.** Measured:
           // one source file of invalid UTF-8 made `readAsStringSync` throw
           // inside `checkGeneratedParts`, and `frx doctor` died with a stack
@@ -101,16 +101,38 @@ List<Finding> audit(FrxWorkspace repo, {bool processState = false}) =>
           // Reported rather than swallowed, and as an error: a check that could
           // not run is not a clean tree, and the editor's Problems panel is
           // where a user would otherwise see nothing at all.
+          //
+          // No `rule:`. That field is the `.frxrc` id a project silences a
+          // *placement* finding by; a check id is not one, and putting it there
+          // would offer the editor a "silence this" that silences nothing.
+          //
+          // The first frames of the trace go in the message, because the
+          // alternative is a one-line "could not run" with no file and no line
+          // — which reads to a user as "my project is broken" when it means
+          // "frx is broken", and leaves nobody able to triage it.
           findings.add(
             Finding.error(
-              'the "${check.id}" check could not run: $error',
-              rule: check.id,
+              'the "${check.id}" check could not run: $error\n'
+              '${_firstFrames(stack)}',
             ),
           );
         }
       }
       return findings;
     });
+
+/// The top of a stack trace, indented, for a finding that reports a crash.
+///
+/// Bounded because a finding is one entry in a list a user reads, not a crash
+/// dump — the frames that name the failing check and its caller are the ones
+/// that make it triageable, and the rest is `dart test`'s job.
+String _firstFrames(StackTrace stack, {int frames = 4}) => stack
+    .toString()
+    .trimRight()
+    .split('\n')
+    .take(frames)
+    .map((line) => '  $line')
+    .join('\n');
 
 // --- substates ---------------------------------------------------------------
 

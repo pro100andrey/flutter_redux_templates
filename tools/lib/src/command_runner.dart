@@ -91,23 +91,23 @@ class FrxRunner extends CommandRunner<int> {
     return super.runCommand(topLevelResults);
   }
 
-  /// Runs the CLI, mapping argument-parsing problems to exit code 64 (EX_USAGE)
-  /// so shells and CI can distinguish "you used it wrong" from a real failure.
-  ///
-  /// Named, because the editor reads them back — `scaffold.ts` keys on 70 to
-  /// offer an overwrite, `artifact.ts` on 64 to raise a disambiguation picker.
-  /// They travel into `contract.ts` with the rest of the contract rather than
-  /// being spelled as bare numbers on both sides.
-  ///
-  /// The values are sysexits.h's, which is what a shell expects.
-
   /// You used it wrong: bad flags, an unknown kind, an ambiguous name.
+  ///
+  /// sysexits.h's `EX_USAGE`. Named because the editor reads it back —
+  /// `artifact.ts` raises a disambiguation picker on it — so it travels into
+  /// `contract.ts` rather than being spelled as a bare number on both sides.
   static const exitUsage = 64;
 
   /// It could not be done: not inside a project, a shape frx cannot wire, a
   /// changeset that failed and was rolled back.
+  ///
+  /// sysexits.h's `EX_SOFTWARE`. `scaffold.ts` keys on it to offer an
+  /// overwrite.
   static const exitFailure = 70;
 
+  /// Runs the CLI, mapping argument-parsing problems to [exitUsage] and
+  /// "cannot be done here" to [exitFailure], so shells and CI can distinguish
+  /// "you used it wrong" from a real failure.
   Future<int> runFrx(List<String> args) async {
     try {
       return await run(_withConfigDefaults(args)) ?? 0;

@@ -119,7 +119,10 @@ class _ParticipantIds {
         if (!flow.actions.containsKey(step.target)) continue;
         actions.putIfAbsent(step.target, () => 'A${++n}');
         final action = flow.actions[step.target];
-        if (action?.writesLabel != null) usesState = true;
+        // `writes.isNotEmpty`, not `writesLabel != null`: the label is a
+        // rendering of the writes, and joining every one of them into a string
+        // to compare it against null is the shape this was all changed to stop.
+        if (action?.writes.isNotEmpty ?? false) usesState = true;
         if (action?.dispatches.isNotEmpty ?? false) usesState = true;
       }
     }
