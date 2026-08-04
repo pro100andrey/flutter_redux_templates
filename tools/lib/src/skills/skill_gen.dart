@@ -612,7 +612,7 @@ one is a field access, and all of them live in a single file,
 `business/lib/redux/selectors.dart`:
 
 ```dart
-extension type SelectLogin(AppState _state) implements Selector {
+extension type SelectLogin(AppState _state) {
   /// Returns waiting value
   bool get isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>();
 
@@ -621,23 +621,27 @@ extension type SelectLogin(AppState _state) implements Selector {
 }
 ```
 
-Three things reach those getters, and none of them names the state directly:
+The facade is the `Selectors` mixin, and mixing it in is the only way in:
 
-- a screen, through `state.select.login.email`
-- a reducer, because `Action` mixes in `Selectors` — `login.email`
+- a reducer, because `Action` mixes it in — `login.email`
 - a connector's `_Factory`, for the same reason
 
-A value that spans slices belongs to `SelectComposites`, the
-`extension … on Select` — not inside one of the slices:
+There is no root type and no `state.select` hop. There were both, plus a
+`Select` extension type carrying the same getter list as the mixin, and nothing
+in the template ever called them — so adding a slice cost two parallel lists,
+one of which was unreachable.
+
+A value that spans slices belongs to `SelectComposites`, on the facade itself —
+not inside one of the slices:
 
 ```dart
-extension SelectComposites on Select {
+extension SelectComposites on Selectors {
   bool get canEnterApp => session.isAvailable && !login.isWaiting;
 }
 ```
 
-Within a slice you can still reach another one: every `SelectX` implements
-`Selector`, which is what lets that line say `session` and `login` at once.
+That works because `Selectors` has every slice in scope. A `SelectX` does not
+reach its siblings, and in the whole template not one of them tried to.
 
 `doctor` reports a selector declared anywhere but the facade
 (`selector-outside-facade`), so the file is the convention, not a habit.

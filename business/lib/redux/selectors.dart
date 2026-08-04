@@ -6,21 +6,11 @@ import 'login/actions/log_in_with_email_action.dart';
 import 'registration/actions/registration_action.dart';
 import 'reset_password/actions/reset_password_action.dart';
 
-extension type const Selector(AppState _state) {
-  Select get select => Select(_state);
-}
-
-extension type Select(AppState _state) implements Selector {
-  SelectConnectivity get connectivity => SelectConnectivity(_state);
-  SelectForgotPassword get forgotPassword => SelectForgotPassword(_state);
-  SelectLogin get login => SelectLogin(_state);
-  SelectRegistration get registration => SelectRegistration(_state);
-  SelectResetPassword get resetPassword => SelectResetPassword(_state);
-  SelectSession get session => SelectSession(_state);
-  SelectTheme get theme => SelectTheme(_state);
-  SelectLanguage get language => SelectLanguage(_state);
-}
-
+/// The facade: mix it in and every substate's selectors are in scope.
+///
+/// `Action` mixes it in, and so does every connector's `_Factory` — which is
+/// the whole surface. A reducer reads `login.email`; nothing has to go through
+/// a root type and a hop to get there.
 mixin Selectors {
   AppState get state;
 
@@ -34,15 +24,17 @@ mixin Selectors {
   SelectLanguage get language => SelectLanguage(state);
 }
 
-extension SelectComposites on Select {
+/// Values that span substates. They belong on the facade rather than on any
+/// one substate's selectors, which is what `on Selectors` says.
+extension SelectComposites on Selectors {
   bool get canEnterApp => session.isAvailable && !login.isWaiting;
 }
 
-extension type SelectConnectivity(AppState _state) implements Selector {
+extension type SelectConnectivity(AppState _state) {
   bool get isConnected => _state.connectivity.isAvailable;
 }
 
-extension type SelectForgotPassword(AppState _state) implements Selector {
+extension type SelectForgotPassword(AppState _state) {
   /// Returns waiting value
   bool get isWaiting => _state.wait.isWaitingForType<ForgotPasswordAction>();
 
@@ -50,7 +42,7 @@ extension type SelectForgotPassword(AppState _state) implements Selector {
   String? get email => _state.forgotPassword.email;
 }
 
-extension type SelectLogin(AppState _state) implements Selector {
+extension type SelectLogin(AppState _state) {
   /// Returns waiting value
   bool get isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>();
 
@@ -61,7 +53,7 @@ extension type SelectLogin(AppState _state) implements Selector {
   String? get password => _state.login.password;
 }
 
-extension type SelectRegistration(AppState _state) implements Selector {
+extension type SelectRegistration(AppState _state) {
   /// Returns waiting value
   bool get isWaiting => _state.wait.isWaitingForType<RegistrationAction>();
 
@@ -75,7 +67,7 @@ extension type SelectRegistration(AppState _state) implements Selector {
   String? get confirmPassword => _state.registration.confirmPassword;
 }
 
-extension type SelectResetPassword(AppState _state) implements Selector {
+extension type SelectResetPassword(AppState _state) {
   /// Returns waiting value
   bool get isWaiting => _state.wait.isWaitingForType<ResetPasswordAction>();
 
@@ -86,7 +78,7 @@ extension type SelectResetPassword(AppState _state) implements Selector {
   String? get confirmPassword => _state.resetPassword.confirmPassword;
 }
 
-extension type SelectSession(AppState _state) implements Selector {
+extension type SelectSession(AppState _state) {
   /// Returns session token
   String? get token => _state.session.token;
 
@@ -94,12 +86,12 @@ extension type SelectSession(AppState _state) implements Selector {
   bool get isAvailable => token != null;
 }
 
-extension type SelectTheme(AppState _state) implements Selector {
+extension type SelectTheme(AppState _state) {
   /// Returns the selected theme mode
   ThemeMode get mode => _state.theme.mode;
 }
 
-extension type SelectLanguage(AppState _state) implements Selector {
+extension type SelectLanguage(AppState _state) {
   /// Returns the selected locale code (e.g. `en`)
   String get locale => _state.language.locale;
 }

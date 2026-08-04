@@ -79,12 +79,21 @@ class SelectorsSource {
       return Edited.nothing(content);
     }
 
-    final select = _extensionType(unit, SelectorShape.facadeType);
+    // One spine, so one getter. There used to be two — an `extension type
+    // Select` carrying the same list as the mixin — and wiring a substate meant
+    // keeping both in step. Nothing called the first: no consumer constructed a
+    // `Selector` or read `.select`, so half of every substate's facade cost was
+    // a list only this writer ever touched.
+    //
+    // A project scaffolded before that collapse still has the extension type,
+    // and this deliberately does *not* write into it: adding a getter there
+    // would keep a dead list alive, and leaving it alone costs the project
+    // nothing — its own consumers use the mixin too.
     final selectors = _mixin(unit, SelectorShape.mixinType);
-    if (select == null || selectors == null) {
+    if (selectors == null) {
       throw StateError(
-        'selectors.dart is missing the `Select` extension type or `Selectors` '
-        'mixin — cannot wire selectors automatically (${file.path}).',
+        'selectors.dart is missing the `${SelectorShape.mixinType}` mixin — '
+        'cannot wire selectors automatically (${file.path}).',
       );
     }
 
@@ -101,24 +110,20 @@ class SelectorsSource {
     }
 
     if (existing != null) {
-      // force: swap the stale extension type body in place. The `Select` /
-      // `Selectors` getters already point at this type name, so they're left
-      // untouched. (Imports the old kind needed but the new one doesn't are
-      // left as-is rather than pruned.)
+      // force: swap the stale extension type body in place. The `Selectors`
+      // getter already points at this type name, so it is left untouched.
+      // (Imports the old kind needed but the new one doesn't are left as-is
+      // rather than pruned.)
       edits.add(Edit.replace(existing.offset, existing.end, block.trimRight()));
       changes.add('extension type $type (replaced)');
     } else {
-      // Fresh: add the two facade getters just before each declaration's closing
-      // `}` (node.end - 1, so we don't depend on a `rightBracket` accessor), and
+      // Fresh: add the facade getter just before the mixin's closing `}`
+      // (node.end - 1, so we don't depend on a `rightBracket` accessor), and
       // append the new extension type at end of file.
-      edits.add(
-        Edit.insert(select.end - 1, '  $type get $field => $type(_state);\n'),
-      );
-      changes.add('Select.$field => $type(_state)');
       edits.add(
         Edit.insert(selectors.end - 1, '  $type get $field => $type(state);\n'),
       );
-      changes.add('Selectors.$field => $type(state)');
+      changes.add('${SelectorShape.mixinType}.$field => $type(state)');
       edits.add(Edit.insert(content.length, '\n$block'));
       changes.add('extension type $type');
     }
@@ -276,7 +281,10 @@ class SelectorsSource {
     final edits = <Edit>[removeDeclaration(content, existing)];
     final changes = <String>['extension type $type'];
 
-    // The two facade getters that pointed at the removed type.
+    // The facade getter that pointed at the removed type, from wherever it is.
+    // The mixin is where one is written now; the `Select` extension type is
+    // checked as well because a project scaffolded before the spine collapsed
+    // still has one, and unwiring has to leave that project compiling too.
     final select = _extensionType(unit, SelectorShape.facadeType);
     final selectors = _mixin(unit, SelectorShape.mixinType);
     for (final getter in [

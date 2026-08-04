@@ -128,15 +128,6 @@ abstract class AppState with _\$AppState {
   static const _selectors = '''
 import 'app_state.dart';
 
-extension type const Selector(AppState _state) {
-  Select get select => Select(_state);
-}
-
-extension type Select(AppState _state) implements Selector {
-  SelectConnectivity get connectivity => SelectConnectivity(_state);
-  SelectLogIn get logIn => SelectLogIn(_state);
-}
-
 mixin Selectors {
   AppState get state;
 
@@ -144,11 +135,11 @@ mixin Selectors {
   SelectLogIn get logIn => SelectLogIn(state);
 }
 
-extension type SelectConnectivity(AppState _state) implements Selector {
+extension type SelectConnectivity(AppState _state) {
   bool get isConnected => _state.connectivity.isAvailable;
 }
 
-extension type SelectLogIn(AppState _state) implements Selector {
+extension type SelectLogIn(AppState _state) {
   String? get email => _state.logIn.email;
 }
 ''';
