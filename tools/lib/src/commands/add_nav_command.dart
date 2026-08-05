@@ -168,7 +168,7 @@ class AddNavCommand extends WritingCommand {
         console.out.writeln();
       },
       relativeTo: repo.root.path,
-      closing: connectorResult.alreadyWired
+      closing: connectorResult.unchanged
           ? '✓ $nothingToDo'
           : '✓ Wired. ${from.pageClass} calls `$callback` — hook it to '
                 'whatever the user taps.',

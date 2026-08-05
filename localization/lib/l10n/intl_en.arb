@@ -21,5 +21,11 @@
     "minimumLengthSymbols": "Minimum length {value} symbols",
     "mustContainAtLeastOneLowercase": "Must contain at least one lowercase",
     "mustContainAtLeastOneUppercase": "Must contain at least one uppercase",
-    "passwordsDoNotMatch": "Passwords do not match"
+    "passwordsDoNotMatch": "Passwords do not match",
+    "somethingWentWrong": "Something went wrong",
+    "tryAgainLater": "Please try again later.",
+    "sessionExpired": "Session expired",
+    "pleaseLogInAgain": "Please log in again.",
+    "networkError": "Connection problem",
+    "checkYourConnection": "Check your connection and try again."
 }

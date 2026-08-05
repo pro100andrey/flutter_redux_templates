@@ -44,7 +44,8 @@ class ${n.pascal}Connector extends StatelessWidget {
 }
 
 /// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, ${n.pascal}Connector, _Vm> {
+class _Factory extends VmFactory<AppState, ${n.pascal}Connector, _Vm>
+    with Selectors {
   _Factory(super._connector);
 
   @override
@@ -119,9 +120,21 @@ class _Vm extends Vm {
   /// imported here too — asked of [TypeImports] rather than left to the caller,
   /// which is the hole that shipped `final IList<String> tags;` with no
   /// `fast_immutable_collections` import.
-  static String fieldSetter(Casing substate, Casing field, String type) {
+  ///
+  /// [extraImports] carries what [TypeImports] cannot answer: a type this
+  /// *project* defines, which is only resolvable against a workspace this
+  /// template does not have. Without it the setter was the one file of the three
+  /// `add-field --action` writes that missed the models import — the state file
+  /// and the facade both got it — so `final Task? selected;` arrived undefined.
+  static String fieldSetter(
+    Casing substate,
+    Casing field,
+    String type, {
+    List<String> extraImports = const [],
+  }) {
     final packages = [
-      for (final import in TypeImports.forType(type)) "import '$import';\n",
+      for (final import in {...TypeImports.forType(type), ...extraImports})
+        "import '$import';\n",
     ];
     final imports = [
       if (packages.isNotEmpty) ...[...packages, '\n'],

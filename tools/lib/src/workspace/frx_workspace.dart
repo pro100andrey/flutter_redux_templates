@@ -2,27 +2,139 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../ast/source_index.dart';
+
 /// Walks up from [startDir] (or the current directory) until an ancestor
 /// containing [marker] (a repo-relative path) is found, returning that ancestor
-/// directory. Throws [StateError] with `describe(origin)` when the filesystem
-/// root is reached without a hit.
+/// directory. Throws [StateError] with `describe(origin)` when neither the walk
+/// up nor the search below finds one.
 ///
 /// The single walk-up primitive: [FrxWorkspace], [AppStateSource] and
 /// [RoutesSource] all resolve their roots through it, each supplying its own
 /// marker and not-found message, so the loop body lives in exactly one place.
+///
+/// **Up first, then down.** Walking up alone assumes the project is at or above
+/// where you stand, which is true only when the project *is* the repository. A
+/// template unpacked into somebody else's monorepo is not: `bloom/` is a pub
+/// workspace whose own root has no router, and the app sits in
+/// `apps/tm_console`. Every command run from `bloom/` failed with "run this from
+/// inside the monorepo" while the project was one directory down — a correct
+/// message about the wrong assumption.
+///
+/// The search below is deliberately narrow. It answers only when **exactly one**
+/// project is under [startDir]; with two, picking one would mean writing into an
+/// app nobody named, so it stays an error and says which ones it found.
 Directory walkUpForMarker(
   String? startDir,
   String marker,
   String Function(String origin) describe,
 ) {
-  final origin = startDir ?? Directory.current.path;
-  var dir = Directory(origin).absolute;
+  // Absolute *then* normalised, and the order is the whole point: `p.normalize`
+  // leaves a bare `.` as `.`, and `Directory('.').absolute` concatenates without
+  // normalising, so normalising first still produced `<cwd>/.` — which then
+  // travelled into every path the command printed and every `--root` it passed
+  // on. Caught by review after the first fix claimed to have closed it.
+  final origin = p.normalize(p.absolute(startDir ?? Directory.current.path));
+  var dir = Directory(origin);
   while (true) {
     if (File(p.join(dir.path, marker)).existsSync()) return dir;
     final parent = dir.parent;
-    if (parent.path == dir.path) throw StateError(describe(origin));
+    if (parent.path == dir.path) break;
     dir = parent;
   }
+
+  final below = _searchBelow(origin, marker);
+  if (below.length == 1) return below.single;
+  if (below.length > 1) {
+    final names = below.map((d) => p.relative(d.path, from: origin)).toList()
+      ..sort();
+    throw StateError(
+      '${below.length} frx projects are under "$origin" '
+      '(${names.join(', ')}). Pass --root to name the one you mean.',
+    );
+  }
+  throw StateError(describe(origin));
+}
+
+/// The downward search, run only where it can pay off and only once per
+/// question.
+///
+/// **Two bounds, and both were bought with a cost that showed up in review.**
+///
+/// The scan used to run on *every* failed walk-up, so a command typed in a home
+/// directory walked three levels of everything under it before reporting the
+/// same "not inside a frx project" it used to report instantly. Now the origin
+/// has to look like somewhere a project could have been unpacked — a directory
+/// with a `pubspec.yaml` or a `.git` — which is true of `bloom/` (the case this
+/// exists for) and false of the places the cost was paid in.
+///
+/// And [TargetResolver] asks this three times per command, once per marker
+/// (`app_router.dart`, `app_state.dart`, …), so one `frx remove` outside a
+/// project paid for three full scans. Memoised per question, which is safe for
+/// a process that lives for one command.
+List<Directory> _searchBelow(String origin, String marker) {
+  final dir = Directory(origin);
+  final plausible =
+      File(p.join(origin, 'pubspec.yaml')).existsSync() ||
+      Directory(p.join(origin, '.git')).existsSync();
+  if (!plausible) return const [];
+  final question = (origin, marker);
+  return _searched.putIfAbsent(
+    question,
+    () => _holdersBelow(dir.absolute, marker),
+  );
+}
+
+/// Keyed by the pair, not by a joined string.
+///
+/// The joined form needed a separator no path can contain, which is NUL — and a
+/// literal NUL makes the whole `.dart` file binary to every tool that decides by
+/// scanning for one. `grep -I` skips such a file entirely, so this module — the
+/// one that owns the monorepo's layout — returned no hits anywhere in the
+/// repository for `notSubstateDirs`, `isSubstateDir`, `packageRootOf` or
+/// `marker`. The code was correct and unfindable, which is the worse failure:
+/// nothing reports it, and the next reader concludes the declaration is missing.
+///
+/// A record key needs no separator, so there is nothing left to encode.
+final _searched = <(String, String), List<Directory>>{};
+
+/// How far below the origin a project is looked for — the same bound the editor
+/// extension uses, covering `apps/<name>`, `packages/<name>` and one grouping
+/// level above those.
+const _searchDepth = 3;
+
+/// Never descended into: build output, platform shells and dependency trees.
+/// All are large and none can hold a project of ours.
+const _skipDirs = {
+  'build',
+  'node_modules',
+  'ios',
+  'android',
+  'macos',
+  'windows',
+  'linux',
+  'web',
+};
+
+/// Directories under [from] that hold [marker], outermost first. A hit is not
+/// descended into: its own packages are packages, not projects.
+List<Directory> _holdersBelow(Directory from, String marker, [int depth = 0]) {
+  if (File(p.join(from.path, marker)).existsSync()) return [from];
+  if (depth >= _searchDepth) return const [];
+
+  final List<FileSystemEntity> entries;
+  try {
+    entries = from.listSync(followLinks: false);
+  } on FileSystemException {
+    return const []; // unreadable — a permission or a race, not our business
+  }
+
+  return [
+    for (final entry in entries.whereType<Directory>())
+      if (!p.basename(entry.path).startsWith('.') &&
+          !_skipDirs.contains(p.basename(entry.path)))
+        ..._holdersBelow(entry, marker, depth + 1),
+  ];
 }
 
 /// The resolved monorepo: its root plus the well-known package directories the
@@ -40,14 +152,18 @@ class FrxWorkspace {
 
   /// The marker that identifies the repo root — the same file [RoutesSource]
   /// keys on, so both agree on where the monorepo begins.
-  static const _marker = 'app/lib/navigation/app_router.dart';
+  ///
+  /// Public because the editor needs it too, and used to carry its own copy:
+  /// `ContractGen` emits it into the extension's generated constants rather
+  /// than anyone keeping a fourth declaration in step by hand.
+  static const marker = 'app/lib/navigation/app_router.dart';
 
   static FrxWorkspace locate({String? startDir}) => FrxWorkspace(
     walkUpForMarker(
       startDir,
-      _marker,
+      marker,
       (origin) =>
-          'Could not find the monorepo root (looking for "$_marker") walking '
+          'Could not find the monorepo root (looking for "$marker") walking '
           'up from "$origin". Run this from inside the monorepo, or pass --root.',
     ),
   );
@@ -120,13 +236,24 @@ class FrxWorkspace {
 
   /// The substate folder names, sorted. A directory under `redux/` that is not
   /// in [notSubstateDirs] and is not hidden.
-  List<String> substateDirs() {
+  List<String> substateDirs() =>
+      [for (final dir in substateDirsIn()) p.basename(dir.path)]..sort();
+
+  /// The same folders as [substateDirs], as directories and unsorted.
+  ///
+  /// Split out because the graph reader wants the directories themselves and
+  /// had grown its own copy of the rule to get them — `directoriesIn` plus
+  /// `isSubstateDir`, spelled a second time, which is the duplication that
+  /// consolidation was supposed to end. One statement, and both callers share
+  /// the index's cached listing rather than walking `redux/` twice in a run
+  /// that asks both.
+  List<Directory> substateDirsIn() {
     final dir = businessRedux;
     if (!dir.existsSync()) return const [];
     return [
-      for (final entry in dir.listSync().whereType<Directory>())
-        if (isSubstateDir(p.basename(entry.path))) p.basename(entry.path),
-    ]..sort();
+      for (final entry in sourceIndex.directoriesIn(dir))
+        if (isSubstateDir(p.basename(entry.path))) entry,
+    ];
   }
 
   /// Whether a folder name directly under `redux/` names a substate.

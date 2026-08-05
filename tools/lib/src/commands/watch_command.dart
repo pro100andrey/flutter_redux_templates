@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
-import '../engine/build_step.dart';
+import '../engine/watch_supervision.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
 import '../util/console.dart';
@@ -23,11 +23,6 @@ class WatchCommand extends Command<int> {
         help:
             'Watch a single package (e.g. business) instead of the whole '
             'workspace.',
-      )
-      ..addFlag(
-        'delete-conflicting-outputs',
-        defaultsTo: true,
-        help: 'Pass --delete-conflicting-outputs to build_runner.',
       )
       ..addFlag(
         'print',
@@ -72,8 +67,6 @@ class WatchCommand extends Command<int> {
       'watch',
       // --workspace builds every member; omit it for a single package.
       if (package == null) '--workspace',
-      if (results['delete-conflicting-outputs'] as bool)
-        '--delete-conflicting-outputs',
     ];
 
     final rel = p.relative(cwd);
@@ -91,6 +84,9 @@ class WatchCommand extends Command<int> {
       ..writeln('  $cmd')
       ..writeln('  Ctrl-C to stop.')
       ..writeln();
-    return streamProcess('dart', args, cwd);
+    // Supervised, not bare: a watch that outlives `frx` regenerates nothing
+    // and is indistinguishable from a working one until a generated file turns
+    // out to be stale.
+    return WatchSupervision.run(args, cwd);
   }
 }

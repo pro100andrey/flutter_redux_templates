@@ -28,6 +28,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "appTitle": MessageLookupByLibrary.simpleMessage("Flutter Application 1"),
     "backToLogIn": MessageLookupByLibrary.simpleMessage("Back to log in"),
     "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
+    "checkYourConnection": MessageLookupByLibrary.simpleMessage(
+      "Check your connection and try again.",
+    ),
     "confirmPassword": MessageLookupByLibrary.simpleMessage("Confirm password"),
     "couldNotConnectToInternet": MessageLookupByLibrary.simpleMessage(
       "Couldn\'t connect to internet.",
@@ -48,6 +51,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "mustContainAtLeastOneUppercase": MessageLookupByLibrary.simpleMessage(
       "Must contain at least one uppercase",
     ),
+    "networkError": MessageLookupByLibrary.simpleMessage("Connection problem"),
     "ok": MessageLookupByLibrary.simpleMessage("OK"),
     "password": MessageLookupByLibrary.simpleMessage("Password"),
     "passwordsDoNotMatch": MessageLookupByLibrary.simpleMessage(
@@ -56,8 +60,18 @@ class MessageLookup extends MessageLookupByLibrary {
     "pleaseCheckYourNetworkSettings": MessageLookupByLibrary.simpleMessage(
       "Please check your network settings.",
     ),
+    "pleaseLogInAgain": MessageLookupByLibrary.simpleMessage(
+      "Please log in again.",
+    ),
     "register": MessageLookupByLibrary.simpleMessage("Register"),
     "requiredField": MessageLookupByLibrary.simpleMessage("Required field"),
     "resetPassword": MessageLookupByLibrary.simpleMessage("Reset password"),
+    "sessionExpired": MessageLookupByLibrary.simpleMessage("Session expired"),
+    "somethingWentWrong": MessageLookupByLibrary.simpleMessage(
+      "Something went wrong",
+    ),
+    "tryAgainLater": MessageLookupByLibrary.simpleMessage(
+      "Please try again later.",
+    ),
   };
 }

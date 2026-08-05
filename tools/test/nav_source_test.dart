@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:tools/src/redux/ast_edit.dart';
 import 'package:tools/src/routing/nav_source.dart';
 
 import 'support/parses.dart';
@@ -111,17 +112,16 @@ class ItemPageConnector extends StatelessWidget {
   });
 
   group('wiring the connector', () {
-    NavWireResult wire({
-      List<NavParam> params = const [NavParam('id', 'int')],
-    }) => _nav.wireConnector(
-      original: _connector,
-      callback: 'onTapItem',
-      routeType: 'ItemRoute',
-      method: 'push',
-      args: params.map((p) => '${p.name}: ${p.name}').join(', '),
-      params: params,
-      pageClass: 'CatalogPage',
-    );
+    Edited wire({List<NavParam> params = const [NavParam('id', 'int')]}) =>
+        _nav.wireConnector(
+          original: _connector,
+          callback: 'onTapItem',
+          routeType: 'ItemRoute',
+          method: 'push',
+          args: params.map((p) => '${p.name}: ${p.name}').join(', '),
+          params: params,
+          pageClass: 'CatalogPage',
+        );
 
     test('the result parses', () {
       expectParses(wire().source, reason: 'the wired connector');
@@ -193,7 +193,7 @@ class ItemPageConnector extends StatelessWidget {
         params: const [NavParam('id', 'int')],
         pageClass: 'CatalogPage',
       );
-      expect(twice.alreadyWired, isTrue);
+      expect(twice.unchanged, isTrue);
       expect(twice.source, once);
     });
 
@@ -229,7 +229,7 @@ class ItemPageConnector extends StatelessWidget {
   });
 
   group('wiring the page', () {
-    NavWireResult wire() => _nav.wirePage(
+    Edited wire() => _nav.wirePage(
       content: _page,
       callback: 'onTapItem',
       pageClass: 'CatalogPage',
@@ -276,7 +276,7 @@ class ItemPageConnector extends StatelessWidget {
         pageClass: 'CatalogPage',
         params: const [NavParam('id', 'int')],
       );
-      expect(twice.alreadyWired, isTrue);
+      expect(twice.unchanged, isTrue);
       expect(twice.source, once);
     });
   });

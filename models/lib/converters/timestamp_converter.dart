@@ -23,13 +23,17 @@ class YYYYMMDDConverter implements JsonConverter<DateTime, String> {
 class YYYYMMDDTHISConverter implements JsonConverter<DateTime, String> {
   const YYYYMMDDTHISConverter();
 
-  @override
-  DateTime fromJson(String value) => DateFormat('yyyy-MM-dd').parse(value);
+  /// Named once and read by both directions.
+  ///
+  /// They were two literals, and they had drifted: `toJson` wrote the time and
+  /// `fromJson` parsed `'yyyy-MM-dd'`. `DateFormat.parse` is non-strict, so the
+  /// trailing time was dropped rather than rejected — a value this converter
+  /// wrote did not survive this converter reading it, silently.
+  static const _pattern = 'yyyy-MM-ddTHH:mm:ss';
 
   @override
-  String toJson(DateTime value) => DateFormat(
-    'yyyy-MM-dd'
-    'T'
-    'HH:mm:ss',
-  ).format(value);
+  DateTime fromJson(String value) => DateFormat(_pattern).parse(value);
+
+  @override
+  String toJson(DateTime value) => DateFormat(_pattern).format(value);
 }

@@ -171,6 +171,38 @@ void main() {
     }
   });
 
+  test('the editor derives its kinds rather than declaring them', () {
+    // This used to read `remove --kind` off the live parser and compare it
+    // against a regex extraction of `ARTIFACT_KINDS` from `ui.ts` — a test
+    // standing in for a seam, and one that covered only the one set of five.
+    // The seam exists now: `ContractGen` writes `src/generated/contract.ts`
+    // from every command's own ArgParser, `contract_freshness_test` fails on a
+    // stale copy, and `tsc` fails on a blurb missing for a new kind.
+    //
+    // What is left to check is that the editor still *reads* it. A hand-written
+    // list that happened to be correct today would pass every other gate.
+    final ui = File(p.join(vscode.path, 'src', 'ui.ts')).readAsStringSync();
+    final decl = RegExp(r'export const ARTIFACT_KINDS = (.+);').firstMatch(ui);
+    expect(
+      decl,
+      isNotNull,
+      reason: 'ARTIFACT_KINDS is gone from ui.ts — nothing left to check',
+    );
+    // The whole right-hand side, not a substring of it. `contains(...)` was
+    // satisfied by `KINDS.remove.slice(0, 2)` and `KINDS.remove.filter(...)` —
+    // the editor offering fewer kinds than the CLI accepts, which is exactly
+    // the drift the set-comparison this replaced was written to catch. `tsc`
+    // does not object either: a narrowed array is still assignable.
+    expect(
+      decl!.group(1),
+      'KINDS.remove',
+      reason:
+          'ui.ts must take the generated list whole. Anything that narrows or '
+          'reorders it puts the editor back out of step with `remove --kind`, '
+          'which is what the generated contract exists to prevent.',
+    );
+  });
+
   test('the editor keeps no copy of the non-substate folder list', () {
     // There was one, and it was deliberate: the "New here" folder entry had a
     // right-clicked folder and no resolved workspace, so it could not consult

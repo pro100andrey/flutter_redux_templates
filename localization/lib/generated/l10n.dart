@@ -238,6 +238,66 @@ class S {
       args: [],
     );
   }
+
+  /// `Something went wrong`
+  String get somethingWentWrong {
+    return Intl.message(
+      'Something went wrong',
+      name: 'somethingWentWrong',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Please try again later.`
+  String get tryAgainLater {
+    return Intl.message(
+      'Please try again later.',
+      name: 'tryAgainLater',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Session expired`
+  String get sessionExpired {
+    return Intl.message(
+      'Session expired',
+      name: 'sessionExpired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Please log in again.`
+  String get pleaseLogInAgain {
+    return Intl.message(
+      'Please log in again.',
+      name: 'pleaseLogInAgain',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connection problem`
+  String get networkError {
+    return Intl.message(
+      'Connection problem',
+      name: 'networkError',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Check your connection and try again.`
+  String get checkYourConnection {
+    return Intl.message(
+      'Check your connection and try again.',
+      name: 'checkYourConnection',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

@@ -1,6 +1,15 @@
-abstract class BaseKeyValueStorage {
-  const BaseKeyValueStorage();
-
+/// The contract every storage backend satisfies — and the type consumers name.
+///
+/// `interface` and not a plain abstract class: it declares no behaviour, so
+/// there is nothing to inherit, and an implementer that forgets a member should
+/// hear about it from the compiler rather than from an inherited stub.
+///
+/// Two adapters satisfy it — `KeyValueStorage` on sembast for the app, and
+/// `InMemoryKeyValueStorage` for anything that must not touch a disk. Hold this
+/// type, not either of them: `KeyValueStorage` pulls in path_provider, which is
+/// a Flutter plugin, so a consumer typed on it cannot be exercised without a
+/// binding and a real file.
+abstract interface class BaseKeyValueStorage {
   ///
   /// Reads a value from the storage.
   ///

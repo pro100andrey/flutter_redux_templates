@@ -6,6 +6,10 @@ exclude:
   - mold.yaml
   - tools/**
   - .github/**
+  # This repository's own process config — the ticket tracker and its label
+  # vocabulary. Excluded for the reason `tools/**` is: a project made by
+  # `frx create` should inherit the architecture, not somebody else's backlog.
+  - agents/**
 
 variables:
   project_name:

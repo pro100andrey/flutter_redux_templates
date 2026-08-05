@@ -181,15 +181,18 @@ class BatchCommand extends Command<int> {
       console.out.writeln(
         asJson
             ? report.render(applied: false, build: planned)
-            : '${_humanPlan(intents, transaction)}\n'
+            : '${_humanPlan(intents, report, repo)}\n'
                   'Dry run — nothing kept.',
       );
       return 0;
     }
 
-    // Outside the transaction, in the order the single-command path uses.
-    await formatFiles(transaction.written, enabled: results.flag('format'));
-    await refreshFlowDocs(repo.root);
+    // Outside the transaction — the same pair `apply` runs for one changeset.
+    await settle(
+      transaction,
+      format: results.flag('format'),
+      repoRoot: repo.root,
+    );
     final built = await _runBuilds(
       transaction,
       enabled: results.flag('build-runner'),
@@ -199,7 +202,7 @@ class BatchCommand extends Command<int> {
     console.out.writeln(
       asJson
           ? report.render(applied: true, build: built)
-          : '${_humanPlan(intents, transaction)}\n'
+          : '${_humanPlan(intents, report, repo)}\n'
                 '✓ ${intents.length} intent(s), '
                 '${transaction.written.length} file(s) written.',
     );
@@ -393,19 +396,25 @@ class BatchCommand extends Command<int> {
   }
 
   /// The human plan: what each intent was, and what the batch touched.
-  String _humanPlan(List<_Intent> intents, WriteTransaction transaction) {
+  /// The intents, then what they did — in the CLI's own plan vocabulary.
+  ///
+  /// Rendered from [WriteReport.human] rather than from the transaction's flat
+  /// `written`/`removed` lists, which carry no operation: every change came out
+  /// as `write`, including the overwrites, edits and moves that every
+  /// single-command plan names properly. See [WriteReport.human].
+  String _humanPlan(
+    List<_Intent> intents,
+    WriteReport report,
+    FrxWorkspace repo,
+  ) {
     final out = StringBuffer()..writeln('Batch (${intents.length} intent(s)):');
     for (final intent in intents) {
       out.writeln('  • ${intent.description}');
     }
-    out.writeln();
-    for (final file in transaction.written) {
-      out.writeln('  write  $file');
-    }
-    for (final path in transaction.removed) {
-      out.writeln('  delete  $path');
-    }
-    return out.toString();
+    return (out
+          ..writeln()
+          ..write(report.human(from: repo.root.path)))
+        .toString();
   }
 
   void _reportRollback(List<String> errors) {

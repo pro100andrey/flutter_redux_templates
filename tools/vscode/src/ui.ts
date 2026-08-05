@@ -7,18 +7,44 @@
 // gate.
 import * as vscode from 'vscode';
 
+import { KINDS } from './generated/contract';
 import * as frx from './frx';
 import type { Invocation, RunResult } from './frx';
 import * as naming from './naming';
+import * as paths from './paths';
 import * as queries from './queries';
 
-/** Which kind of artifact a picked row refers to. */
-export type ArtifactKind = 'substate' | 'page';
+/**
+ * The kinds `frx remove --kind` accepts, in its order.
+ *
+ * A second statement of the CLI's list, and the only one the extension keeps —
+ * `--kind` is passed as a string, so nothing else would catch a value the CLI
+ * stopped accepting. `extension_contract_test.dart` compares this array against
+ * the command's own `allowed`, from the side that owns it.
+ *
+ * The first two are *wired* artifacts, resolved from what the project declares;
+ * the rest are file sets resolved from disk. Only the first two can be picked
+ * from a list, because only they have a `list-*` command that enumerates them —
+ * the rest are reached by name, which is why `remove` auto-detects the kind.
+ */
+export const ARTIFACT_KINDS = KINDS.remove;
 
-/** What `pickArtifact` resolved to; `kind` is undefined on the free-text path. */
+/** Which kind of artifact a picked row refers to. */
+export type ArtifactKind = (typeof ARTIFACT_KINDS)[number];
+
+/** The two the pickers can enumerate. */
+export type ListedKind = Extract<ArtifactKind, 'substate' | 'page'>;
+
+/**
+ * What `pickArtifact` resolved to; `kind` is undefined on the free-text path.
+ *
+ * [ListedKind], not [ArtifactKind]: this picker enumerates substates and pages,
+ * so a caller that only handles those two — `rename` — stays type-checked
+ * against being handed an action.
+ */
 export interface PickedArtifact {
   name: string;
-  kind: ArtifactKind | undefined;
+  kind: ListedKind | undefined;
 }
 
 /**
@@ -27,7 +53,7 @@ export interface PickedArtifact {
  * putting our own string there is exactly the bug the type system now rejects.
  */
 interface PickRow extends vscode.QuickPickItem {
-  frxKind?: ArtifactKind;
+  frxKind?: ListedKind;
 }
 
 /** The folder a command was invoked on: the clicked one, else the first workspace folder. */
@@ -40,17 +66,35 @@ export function folderOf(uri: vscode.Uri | undefined): string | undefined {
 }
 
 /**
- * The command preamble every scaffolder repeats: pick the target folder, then
- * resolve frx (explaining the failure). Returns `{ inv, targetDir }` ready to
- * run, or null when there's no folder or frx is unavailable (a message was
+ * The command preamble every scaffolder repeats: resolve the target *project*,
+ * then resolve frx (explaining the failure). Returns `{ inv, targetDir }` ready
+ * to run, or null when there's no project or frx is unavailable (a message was
  * already shown).
+ *
+ * `targetDir` is the project root, not the folder the command was invoked on.
+ * The CLI's `--root` only walks *up*, so the palette — which has no clicked
+ * folder and falls back to the first workspace folder — handed it a directory
+ * above the project in any repository where the template was unpacked into a
+ * subdirectory, and every command failed with "not inside a frx project".
  */
 export async function resolveTarget(
   context: vscode.ExtensionContext,
   uri: vscode.Uri | undefined,
 ): Promise<{ inv: Invocation; targetDir: string } | null> {
-  const targetDir = folderOf(uri);
-  if (!targetDir) return null;
+  const invokedOn = folderOf(uri);
+  if (!invokedOn) return null;
+  const targetDir = paths.projectRootFor(invokedOn);
+  if (!targetDir) {
+    // Either nothing of ours is here, or several are and picking one would mean
+    // scaffolding into an app the user never named.
+    const roots = paths.findProjectRoots();
+    vscode.window.showErrorMessage(
+      roots.length > 1
+        ? `FRX: ${roots.length} frx projects are open — right-click inside the one you mean.`
+        : 'FRX: no frx project here (looked for app/lib/navigation/app_router.dart).',
+    );
+    return null;
+  }
   const inv = await resolveOrExplain(context, targetDir);
   if (!inv) return null;
   return { inv, targetDir };

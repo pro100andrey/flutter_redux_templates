@@ -8,56 +8,13 @@ import '../model/selector_shape.dart';
 import '../ast/source_index.dart';
 import 'ast_edit.dart';
 
-/// The outcome of wiring a substate's selectors into `selectors.dart`.
-class SelectorsWireResult implements EditOutcome {
-  const SelectorsWireResult({
-    required this.source,
-    required this.changes,
-    required this.alreadyWired,
-  });
-
-  /// The full, edited `selectors.dart` source (unchanged if [alreadyWired]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a `Select<Pascal>` type was already present — nothing changed.
-  final bool alreadyWired;
-
-  @override
-  bool get unchanged => alreadyWired;
-}
-
-/// The outcome of unwiring a substate's selectors from `selectors.dart`.
-class SelectorsUnwireResult with Unwiring {
-  const SelectorsUnwireResult({
-    required this.source,
-    required this.changes,
-    required this.found,
-  });
-
-  /// The full, edited `selectors.dart` source (unchanged when not [found]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a `Select<Pascal>` type existed and was removed.
-  @override
-  final bool found;
-}
-
 /// The outcome of adding a getter to a `Select<Pascal>` extension type.
 class SelectorsAddResult implements EditOutcome {
   const SelectorsAddResult({
     required this.source,
     required this.changes,
     required this.alreadyPresent,
+    this.retyped = false,
   });
 
   /// The full edited `selectors.dart` source (unchanged if [alreadyPresent]).
@@ -71,19 +28,26 @@ class SelectorsAddResult implements EditOutcome {
   /// True when a getter of that name already existed on the type.
   final bool alreadyPresent;
 
+  /// True when that getter's return type was rewritten — [alreadyPresent] is
+  /// also true, and the file *did* change.
+  final bool retyped;
+
   @override
-  bool get unchanged => alreadyPresent;
+  bool get unchanged => alreadyPresent && !retyped;
 }
 
 /// Reads and edits `business/lib/redux/selectors.dart` via the analyzer AST.
 ///
-/// This repo exposes every substate's selectors through the `Select` /
-/// `Selectors` extension-type facade in `selectors.dart` (so callers reach them
-/// as `state.select.<field>`), rather than through free functions. Wiring a
-/// substate means three edits here: a `Select<Pascal> get <field>` on the
-/// `Select` extension type, the same on the `Selectors` mixin, and the new
-/// `extension type Select<Pascal>` appended at the end — plus any imports the
-/// getters need.
+/// This repo exposes every substate's selectors through the `Selectors` mixin
+/// in `selectors.dart` — a consumer mixes it in and reads `login.email` —
+/// rather than through free functions. Wiring a substate means two edits here: a
+/// `Select<Pascal> get <field>` on the mixin, and the new `extension type
+/// Select<Pascal>` appended at the end, plus any imports the getters need.
+///
+/// It was three, against a `Select` extension type that carried the same getter
+/// list and that nothing called. That type is gone from what `create` writes;
+/// [wire] still extends one when it finds it, because a project made before the
+/// collapse may read `state.select.<field>` in code frx did not write.
 class SelectorsSource {
   SelectorsSource(this.file);
 
@@ -102,7 +66,7 @@ class SelectorsSource {
   /// in which case the stale block is replaced in place (the facade getters
   /// reference it by name and need no change), so a regenerated substate whose
   /// kind changed doesn't leave a now-incompatible selector behind.
-  SelectorsWireResult wire({
+  Edited wire({
     required String field,
     required String pascal,
     required String block,
@@ -115,61 +79,66 @@ class SelectorsSource {
 
     final existing = _extensionType(unit, type);
     if (existing != null && !force) {
-      return SelectorsWireResult(
-        source: content,
-        changes: const [],
-        alreadyWired: true,
-      );
+      return Edited.nothing(content);
     }
 
+    // One spine, so one getter. There used to be two — an `extension type
+    // Select` carrying the same list as the mixin — and wiring a substate meant
+    // keeping both in step. Nothing called the first: no consumer constructed a
+    // `Selector` or read `.select`, so half of every substate's facade cost was
+    // a list only this writer ever touched.
+    //
+    // A project scaffolded before that collapse still has the extension type,
+    // and its screens may read `state.select.<field>` — one of the three ways
+    // in that this repository documented until the collapse. So it is extended
+    // when it is there: skipping it would leave `add-substate` reporting
+    // success while `state.select.cart` did not exist, and the developer
+    // meeting a compile error in code the tool had just claimed to wire.
+    //
+    // Nothing new grows one; `create` no longer writes it.
     final select = _extensionType(unit, SelectorShape.facadeType);
     final selectors = _mixin(unit, SelectorShape.mixinType);
-    if (select == null || selectors == null) {
+    if (selectors == null) {
       throw StateError(
-        'selectors.dart is missing the `Select` extension type or `Selectors` '
-        'mixin — cannot wire selectors automatically (${file.path}).',
+        'selectors.dart is missing the `${SelectorShape.mixinType}` mixin — '
+        'cannot wire selectors automatically (${file.path}).',
       );
     }
 
     final edits = <Edit>[];
     final changes = <String>[];
 
-    // Imports the getters need, each inserted in sorted position within its
-    // section (package/dart vs relative) so `directives_ordering` stays happy.
-    final importDirs = unit.directives.whereType<ImportDirective>().toList();
-    final present = importDirs.map((d) => d.uri.stringValue).toSet();
-    for (final uri in imports.where((u) => !present.contains(u))) {
-      edits.add(importInsertion(importDirs, uri));
-      changes.add("import '$uri';");
-    }
-
     if (existing != null) {
-      // force: swap the stale extension type body in place. The `Select` /
-      // `Selectors` getters already point at this type name, so they're left
-      // untouched. (Imports the old kind needed but the new one doesn't are
-      // left as-is rather than pruned.)
+      // force: swap the stale extension type body in place. The `Selectors`
+      // getter already points at this type name, so it is left untouched.
+      // (Imports the old kind needed but the new one doesn't are left as-is
+      // rather than pruned.)
       edits.add(Edit.replace(existing.offset, existing.end, block.trimRight()));
       changes.add('extension type $type (replaced)');
     } else {
-      // Fresh: add the two facade getters just before each declaration's closing
-      // `}` (node.end - 1, so we don't depend on a `rightBracket` accessor), and
+      // Fresh: add the facade getter just before the mixin's closing `}`
+      // (node.end - 1, so we don't depend on a `rightBracket` accessor), and
       // append the new extension type at end of file.
-      edits.add(
-        Edit.insert(select.end - 1, '  $type get $field => $type(_state);\n'),
-      );
-      changes.add('Select.$field => $type(_state)');
       edits.add(
         Edit.insert(selectors.end - 1, '  $type get $field => $type(state);\n'),
       );
-      changes.add('Selectors.$field => $type(state)');
+      changes.add('${SelectorShape.mixinType}.$field => $type(state)');
+      if (select != null) {
+        edits.add(
+          Edit.insert(select.end - 1, '  $type get $field => $type(_state);\n'),
+        );
+        changes.add('${SelectorShape.facadeType}.$field => $type(_state)');
+      }
       edits.add(Edit.insert(content.length, '\n$block'));
       changes.add('extension type $type');
     }
 
-    return SelectorsWireResult(
-      source: applyEdits(content, edits),
-      changes: changes,
-      alreadyWired: false,
+    // Imports the getters need, each inserted in sorted position within its
+    // section (package/dart vs relative) so `directives_ordering` stays happy.
+    final added = addImports(applyEdits(content, edits), imports);
+    return Edited(
+      source: added.source,
+      changes: [...added.changes, ...changes],
     );
   }
 
@@ -189,6 +158,7 @@ class SelectorsSource {
     required String returnType,
     required String expr,
     List<String> imports = const [],
+    bool retype = false,
   }) {
     final content = sourceIndex.sourceOf(file);
     final unit = sourceIndex.unitFor(file);
@@ -199,31 +169,77 @@ class SelectorsSource {
         '(see `frx list-substates`).',
       );
     }
-    if (_getters(ext.body, getterName).isNotEmpty) {
+    final existing = _getters(ext.body, getterName).firstOrNull;
+    if (existing != null) {
+      // Retyping touches the return type and nothing else. The body is the
+      // author's — a getter whose expression was hand-written must not be
+      // reverted to the generated one just because its field changed type, and
+      // the field's own read (`_state.<field>.<name>`) is unaffected anyway.
+      final declared = existing.returnType?.toSource();
+      if (!retype || declared == null || declared == returnType) {
+        return SelectorsAddResult(
+          source: content,
+          changes: const [],
+          alreadyPresent: true,
+        );
+      }
+      final edits = <Edit>[
+        Edit.replace(
+          existing.returnType!.offset,
+          existing.returnType!.end,
+          returnType,
+        ),
+      ];
+      // The doc line `add-substate` writes names the type — `/// Returns
+      // [IMap<int, Object>] table`. Left alone it says the opposite of the
+      // signature above it, which is worse than saying nothing.
+      final doc = existing.documentationComment;
+      if (doc != null) {
+        for (final token in doc.tokens) {
+          final at = token.lexeme.indexOf(declared);
+          if (at < 0) continue;
+          edits.add(
+            Edit.replace(
+              token.offset + at,
+              token.offset + at + declared.length,
+              returnType,
+            ),
+          );
+        }
+      }
+      final added = addImports(applyEdits(content, edits), imports);
       return SelectorsAddResult(
-        source: content,
-        changes: const [],
+        source: added.source,
+        changes: [
+          '$selectorType.$getterName: $declared → $returnType',
+          ...added.changes,
+        ],
         alreadyPresent: true,
+        retyped: true,
       );
     }
 
     final edits = <Edit>[];
-    final changes = <String>['$selectorType.$getterName => $expr'];
-    final importDirs = unit.directives.whereType<ImportDirective>().toList();
-    final present = importDirs.map((d) => d.uri.stringValue).toSet();
-    for (final uri in imports.where((u) => !present.contains(u))) {
-      edits.add(importInsertion(importDirs, uri));
-      changes.add("import '$uri';");
-    }
     // Before the type's closing `}` (node.end - 1, matching how [wire] inserts
     // the facade getters), so `dart format` places it among the others.
+    //
+    // With the `///` line: every other getter in the facade carries one — the
+    // four written by hand in the template and every one `add-substate`
+    // scaffolds — and a getter arriving bare was this command disagreeing with
+    // its own neighbours. No `[…]` reference in it, because `comment_references`
+    // is on and a return type like `DateTime?` is not a resolvable one.
     edits.add(
-      Edit.insert(ext.end - 1, '  $returnType get $getterName => $expr;\n'),
+      Edit.insert(
+        ext.end - 1,
+        '  /// Returns $getterName\n'
+        '  $returnType get $getterName => $expr;\n',
+      ),
     );
 
+    final added = addImports(applyEdits(content, edits), imports);
     return SelectorsAddResult(
-      source: applyEdits(content, edits),
-      changes: changes,
+      source: added.source,
+      changes: ['$selectorType.$getterName => $expr', ...added.changes],
       alreadyPresent: false,
     );
   }
@@ -248,7 +264,7 @@ class SelectorsSource {
   /// import scoped to that substate's folder ([snake]), and any shared package
   /// import (see [_sharedImportProbes]) left unused once the block is gone. The
   /// inverse of [wire]; `found: false` when no `Select<Pascal>` type exists.
-  SelectorsUnwireResult unwire({
+  Unwired unwire({
     required String field,
     required String pascal,
     required String snake,
@@ -259,17 +275,16 @@ class SelectorsSource {
 
     final existing = _extensionType(unit, type);
     if (existing == null) {
-      return SelectorsUnwireResult(
-        source: content,
-        changes: const [],
-        found: false,
-      );
+      return Unwired.absent(content);
     }
 
     final edits = <Edit>[removeDeclaration(content, existing)];
     final changes = <String>['extension type $type'];
 
-    // The two facade getters that pointed at the removed type.
+    // The facade getter that pointed at the removed type, from wherever it is.
+    // The mixin is where one is written now; the `Select` extension type is
+    // checked as well because a project scaffolded before the spine collapsed
+    // still has one, and unwiring has to leave that project compiling too.
     final select = _extensionType(unit, SelectorShape.facadeType);
     final selectors = _mixin(unit, SelectorShape.mixinType);
     for (final getter in [
@@ -319,10 +334,9 @@ class SelectorsSource {
       }
     }
 
-    return SelectorsUnwireResult(
+    return Unwired(
       source: pruneEdits.isEmpty ? source : applyEdits(source, pruneEdits),
       changes: changes,
-      found: true,
     );
   }
 

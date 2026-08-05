@@ -58,7 +58,7 @@ void main() {
       type: 'ProfileState',
       importPath: 'profile/models/profile_state.dart',
     );
-    expect(r.alreadyWired, isFalse);
+    expect(r.unchanged, isFalse);
     expect(r.changes, hasLength(3));
 
     // Re-parse the produced source to confirm the field is now composed and
@@ -102,7 +102,7 @@ abstract class AppState with _\$AppState {
       type: 'LogInState',
       importPath: 'log_in/models/log_in_state.dart',
     );
-    expect(r.alreadyWired, isTrue);
+    expect(r.unchanged, isTrue);
     expect(r.source, _appState);
   });
 

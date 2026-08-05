@@ -15,12 +15,13 @@
 ///   dead-selector list, which is the direction that invites deleting working
 ///   code.
 ///
-/// **Recognition is wider than generation.** [declare] writes
-/// `implements Selector`, because that is what puts a substate's getters on the
-/// facade. [of] does not require it. The declaration this architecture most
-/// needs to notice is the one a human wrote by hand and got subtly wrong, and a
-/// recognizer that only sees correctly-written selectors cannot report a
-/// badly-written one.
+/// **Recognition is wider than generation.** [declare] writes the one shape frx
+/// makes; [of] accepts several, including the ones a project scaffolded before
+/// the spine collapsed still contains (`implements Selector`, an `extension type
+/// Select`). The declaration this architecture most needs to notice is the one a
+/// human wrote by hand and got subtly wrong, and a recognizer that only sees
+/// what the generator writes today cannot report either a bad one or an old
+/// one.
 ///
 /// This module is the *primitive*: it owns the facade's vocabulary and the test
 /// for belonging to it. [SubstateArtifact] keeps the substate-shaped questions
@@ -62,7 +63,7 @@ class SelectorDecl {
   final List<ClassMember> members;
 
   /// Whether these getters land on the facade's own spine rather than on a
-  /// substate's selectors — `Select`, `Selector`, `Selectors`.
+  /// substate's selectors — `Selectors`, or the `Select` an older project has.
   ///
   /// Reached *through*, so they carry no substate of their own; a reader that
   /// files nodes per substate has nowhere to put them.
@@ -80,11 +81,20 @@ abstract final class SelectorShape {
   /// each of their type names carries.
   static const facadeType = 'Select';
 
-  /// The root extension type, and the interface a substate's selectors declare
-  /// themselves against.
-  static const rootType = 'Selector';
-
-  /// The mixin that gives a class the facade's reach without going through it.
+  /// The mixin **is** the facade: what a consumer mixes in to reach every
+  /// substate's selectors.
+  ///
+  /// There used to be two more spine types beside it — a root `Selector` whose
+  /// one member was `Select get select`, and a `Select` extension type carrying
+  /// one getter per substate, the same list the mixin carries. Measured across
+  /// the template: nothing constructed a `Selector`, nothing read `.select`,
+  /// and the one composite hanging off `Select` was unreachable because the
+  /// only route to it was. Every consumer — six connectors and the base
+  /// `Action` — reaches the facade by `with Selectors`.
+  ///
+  /// So a substate cost two parallel getter lists to add, one of which nobody
+  /// could call. `Select` survives as the *prefix* on `SelectLogin` and friends
+  /// ([typeFor]); only the declaration is gone.
   static const mixinType = 'Selectors';
 
   /// The `Select<Pascal>` type name for a substate.
@@ -96,7 +106,15 @@ abstract final class SelectorShape {
   /// on what an extension extends, never on what a type *is*. The placement
   /// rules already state the bar a rule has to clear — its syntactic form cannot
   /// be wrong in the common case — and inheritance defeats a syntactic reading,
-  /// which is why `implements Selector` is not required here.
+  /// which is why an `implements` clause is not required here.
+  ///
+  /// **The `Selectors` mixin declaration itself is not handled, and that is not
+  /// an omission.** It carries only the spine — one `SelectX get <field>` per
+  /// substate — which is a hop onto a substate's selectors, not a selector.
+  /// `addSelector`, the only thing that writes a computed getter, targets a
+  /// `Select<Pascal>` extension type. A composite written as `extension … on
+  /// Selectors` *is* handled, by the [ExtensionDeclaration] branch, and lands on
+  /// the spine exactly as it did when it was written `on Select`.
   static SelectorDecl? of(AstNode node) {
     if (node is ExtensionTypeDeclaration) {
       final name = node.namePart.typeName.lexeme;
@@ -129,8 +147,12 @@ abstract final class SelectorShape {
   /// The mixin belongs here as much as the two extension types: a getter added
   /// to `Selectors` reaches every consumer that mixes it in, which is the
   /// facade's reach and not one substate's.
+  /// [facadeType] is still named here, though the template no longer declares
+  /// it: a project scaffolded before the spine collapsed still has an
+  /// `extension type Select`, and reading one must not file its hops as if they
+  /// were a substate's selectors.
   static bool isFacadeSpine(String type) =>
-      type == facadeType || type == rootType || type == mixinType;
+      type == facadeType || type == mixinType;
 
   /// Whether [type] names a selector type at all.
   ///
@@ -151,8 +173,13 @@ abstract final class SelectorShape {
   ///
   /// The spelling lives beside [of] so the generator and the recognizer cannot
   /// drift apart — which is the failure this module was extracted to end.
+  /// No `implements`: the interface it used to declare against carried one
+  /// member, `select`, which let a substate's selectors reach a sibling's. In
+  /// the whole template not one of them did — every getter reads its own
+  /// substate — so the reach was a door nobody opened, and it made each type a
+  /// subtype of something with no other purpose.
   static String declare({required String type, required String body}) =>
-      'extension type $type(AppState _state) implements $rootType {\n$body}\n';
+      'extension type $type(AppState _state) {\n$body}\n';
 
   static List<ClassMember> _membersOf(AstNode? body) =>
       body is BlockClassBody ? body.members : const <ClassMember>[];

@@ -15,7 +15,7 @@ import 'redux/theme/models/theme_state.dart';
 class AppPersistor extends Persistor<AppState> {
   AppPersistor(this._storage);
 
-  final KeyValueStorage _storage;
+  final BaseKeyValueStorage _storage;
 
   static const _themeKey = 'themeMode';
   static const _localeKey = 'locale';

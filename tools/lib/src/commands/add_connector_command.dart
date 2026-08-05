@@ -5,6 +5,7 @@ import '../engine/changeset.dart';
 import '../scaffold/artifact_templates.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
+import '../model/artifact_name.dart';
 
 /// Scaffolds a `StoreConnector` for the dumb widget of the same name.
 ///
@@ -26,7 +27,8 @@ class AddConnectorCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    final name = requireName();
+    // See [ArtifactName]: `Toolbar` and `ToolbarConnector` are one artifact.
+    final name = ArtifactName.connectorStem(requireName());
 
     final file = p.join(
       repo.appConnectors.path,

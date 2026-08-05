@@ -34,7 +34,6 @@ class SubstateScaffold {
   final SubstateKind kind;
 
   static const _freezed = 'package:freezed_annotation/freezed_annotation.dart';
-  static const _asyncRedux = 'package:async_redux/async_redux.dart';
   static const _fic =
       'package:fast_immutable_collections/fast_immutable_collections.dart';
 
@@ -125,10 +124,7 @@ class SubstateScaffold {
 
   /// A `@freezed abstract class <Pascal>State with _$<Pascal>State { const
   /// factory … }` library, with an optional trailing [extraBody] (e.g. an enum).
-  Library _stateLibrary(
-    List<Parameter> params, {
-    List<Spec> extraBody = const [],
-  }) {
+  Library _stateLibrary(List<Parameter> params) {
     final className = '${_pascal}State';
     return Library(
       (b) => b
@@ -150,8 +146,7 @@ class SubstateScaffold {
                 ),
               ),
           ),
-        )
-        ..body.addAll(extraBody),
+        ),
     );
   }
 
@@ -166,27 +161,18 @@ class SubstateScaffold {
     ),
   ]);
 
-  Library _tableState() => _stateLibrary(
-    [
-      _named(
-        'table',
-        _iMap(refer('int'), refer('Object')),
-        annotation: _default('IMapConst<int, Object>({})'),
-      ),
-      _named(
-        'view',
-        _iList(refer('int')),
-        annotation: _default('IListConst<int>([])'),
-      ),
-    ],
-    extraBody: [
-      Enum(
-        (e) => e
-          ..name = '${_pascal}Waiting'
-          ..values.add(EnumValue((v) => v..name = 'wait')),
-      ),
-    ],
-  );
+  Library _tableState() => _stateLibrary([
+    _named(
+      'table',
+      _iMap(refer('int'), refer('Object')),
+      annotation: _default('IMapConst<int, Object>({})'),
+    ),
+    _named(
+      'view',
+      _iList(refer('int')),
+      annotation: _default('IListConst<int>([])'),
+    ),
+  ]);
 
   // --- selector facade block ------------------------------------------------
 
@@ -223,13 +209,14 @@ class SubstateScaffold {
         return (
           block: wrap(
             '  /// Returns waiting value\n'
-            '  bool get isWaiting => _state.wait.isWaiting(${_pascal}Waiting.wait);\n\n'
+            '  bool get isWaiting =>\n'
+            '      _state.wait.isWaitingForType<Retrieve${_pascal}Action>();\n\n'
             '  /// Returns [IMap<int, Object>] table\n'
             '  IMap<int, Object> get table => _state.$_camel.table;\n\n'
             '  /// Returns [Object] value by id\n'
             '  Object byId(int id) => table[id]!;\n',
           ),
-          imports: [_fic, '${_snake}/models/${_snake}_state.dart'],
+          imports: [_fic, '${_snake}/actions/retrieve_${_snake}_action.dart'],
         );
     }
   }
@@ -384,55 +371,23 @@ class SubstateScaffold {
     );
   }
 
-  /// `Retrieve<Pascal>Action` — an async action that toggles the waiting flag.
+  /// `Retrieve<Pascal>Action` — an async action behind the wait barrier.
+  ///
+  /// The barrier comes from the `WaitingAction` mixin rather than a hand-written
+  /// `before()`/`after()` pair over an enum flag, which is what this used to
+  /// emit. Two spellings of one idea is one too many: the template's own waiting
+  /// actions all mix it in, `add-action -k waiting` scaffolds it, and the reader
+  /// is `isWaitingForType<T>()` — keyed on the action, so no enum has to exist
+  /// to name the thing being waited for.
   Library _retrieveAction() {
-    final waiting = refer(
-      '${_pascal}Waiting',
-      '../models/${_snake}_state.dart',
-    );
-    final waitAction = refer('WaitAction', _asyncRedux);
     return Library(
       (b) => b.body.add(
         Class(
           (c) => c
             ..name = 'Retrieve${_pascal}Action'
             ..extend = _houseAction
+            ..mixins.add(refer('WaitingAction', '../../common/action.dart'))
             ..methods.addAll([
-              Method(
-                (m) => m
-                  ..name = 'before'
-                  ..annotations.add(refer('override'))
-                  ..returns = refer('void')
-                  ..lambda = true
-                  ..body = refer('dispatchSync').call([
-                    waitAction
-                        .property('add')
-                        .call(
-                          [waiting.property('wait')],
-                          {'ref': refer('this')},
-                        ),
-                  ]).code,
-              ),
-              Method(
-                (m) => m
-                  ..name = 'after'
-                  ..annotations.add(refer('override'))
-                  ..returns = refer('void')
-                  ..lambda = true
-                  ..body = refer('dispatchSync')
-                      .call(
-                        [
-                          waitAction
-                              .property('remove')
-                              .call(
-                                [waiting.property('wait')],
-                                {'ref': refer('this')},
-                              ),
-                        ],
-                        {'notify': literalFalse},
-                      )
-                      .code,
-              ),
               Method(
                 (m) => m
                   ..name = 'reduce'

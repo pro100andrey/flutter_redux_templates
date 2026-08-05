@@ -1,5 +1,5 @@
-// The artifact lifecycle commands: rename and remove a substate/page (files,
-// classes, and every wiring reference).
+// The artifact lifecycle commands: rename a substate/page, and remove any
+// artifact (files, classes, and every wiring reference).
 //
 // **Both always preview.** That is the risk grading as a rule: destructive
 // operations always show a plan, creative ones never do. The plan opens as a
@@ -26,7 +26,41 @@ import * as frx from '../frx';
 import * as plan from '../plan_view';
 import * as queries from '../queries';
 import * as ui from '../ui';
+import { ARTIFACT_KINDS } from '../ui';
 import type { ArtifactKind } from '../ui';
+import { EXIT } from '../generated/contract';
+
+/** What each kind means, for the disambiguation rows. */
+const KIND_BLURB: Record<ArtifactKind, string> = {
+  substate: 'the AppState slice and its selectors',
+  page: 'the page, its connector and the route',
+  action: 'the ReduxAction file under its substate',
+  model: 'the model or enum, with its generated siblings',
+  widget: 'the widget and its mirrored preview',
+  connector: 'the standalone StoreConnector',
+  service: 'the service folder and its dispatcher',
+};
+
+/**
+ * The kinds offered by an exit-64 ambiguity from `remove`, or `[]` when the
+ * message was not one — which is how a real usage error is told apart.
+ *
+ * Keyed on the `Disambiguate with --kind a|b` clause, not on the kind words
+ * anywhere in the text. Both ambiguity messages the CLI emits end in that clause
+ * and nothing else does, and the looser reading was wrong in a way that
+ * mattered: the refusal for a page's connector *also* names two kinds and *also*
+ * says `--kind`, so it raised a picker offering `connector` — the one answer the
+ * CLI had just explained it will never accept. It is a redirect to read, not a
+ * fork to choose from.
+ */
+export function ambiguousKinds(stderr: string): ArtifactKind[] {
+  const clause = /Disambiguate with --kind ([a-z|]+)/.exec(stderr);
+  if (!clause) return [];
+  const offered = new Set(clause[1].split('|'));
+  // Ordered by ARTIFACT_KINDS rather than by the message, so the picker reads
+  // the same way whichever two kinds collided.
+  return ARTIFACT_KINDS.filter((k) => offered.has(k));
+}
 
 /**
  * What the entry points hand these commands. A tree item carries
@@ -46,7 +80,10 @@ export interface ArtifactArg {
 }
 
 /**
- * Remove a substate or page: preview the plan, confirm, then apply with --force.
+ * Remove an artifact: preview the plan, confirm, then apply with --force.
+ *
+ * The picker lists what `list-substates` and `list-routes` can enumerate; every
+ * other kind is reached by typing its name, which is why the CLI auto-detects.
  */
 export async function removeArtifact(app: App, arg?: ArtifactArg): Promise<void> {
   const target = await ui.resolveTarget(app.context, undefined);
@@ -56,7 +93,7 @@ export async function removeArtifact(app: App, arg?: ArtifactArg): Promise<void>
   let name = arg?.frxName;
   let kind: string | undefined = arg?.frxKind;
   if (!name) {
-    const picked = await ui.pickArtifact(inv, targetDir, 'Remove — substate or page');
+    const picked = await ui.pickArtifact(inv, targetDir, 'Remove — pick, or type any artifact name');
     if (!picked) return;
     name = picked.name;
     kind = picked.kind ?? kind; // picked from a group → we already know which
@@ -73,19 +110,28 @@ export async function removeArtifact(app: App, arg?: ArtifactArg): Promise<void>
     targetDir,
   );
 
-  // Ambiguous — the name is both a substate and a page. `remove` exits 64 for
-  // this, but 64 is also the generic usage code, so match the message too so a
-  // real usage error doesn't misfire the picker.
-  if (preview.code === 64 && !kind && /substate.*and.*page/is.test(preview.stderr)) {
-    const pick = await vscode.window.showQuickPick<vscode.QuickPickItem & { label: ArtifactKind }>(
-      [
-        { label: 'substate', description: 'Remove the AppState substate' },
-        { label: 'page', description: 'Remove the page + route' },
-      ],
-      { title: `FRX — "${name}" is both a substate and a page`, placeHolder: 'Which to remove?' },
-    );
-    if (!pick) return;
-    return removeArtifact(app, { frxName: name, frxKind: pick.label });
+  // Ambiguous — the name matches more than one kind. `remove` exits 64 for this,
+  // but 64 is also the generic usage code, so the kinds are read out of the
+  // message: if it does not name them, this was a real usage error and falls
+  // through to the failure path below.
+  //
+  // Read rather than hardcoded because the CLI's kind list is no longer two.
+  // The two shapes it emits — "is both a substate and a page" and "matches N
+  // kinds (a, b)" — are both covered; a list the extension kept instead would be
+  // the third copy of that inventory, and the second one to drift.
+  if (preview.code === EXIT.usage && !kind) {
+    const kinds = ambiguousKinds(preview.stderr);
+    if (kinds.length > 1) {
+      const pick = await vscode.window.showQuickPick<vscode.QuickPickItem & { label: ArtifactKind }>(
+        kinds.map((k) => ({ label: k, description: KIND_BLURB[k] })),
+        {
+          title: `FRX — "${name}" matches ${kinds.length} kinds`,
+          placeHolder: 'Which to remove?',
+        },
+      );
+      if (!pick) return;
+      return removeArtifact(app, { frxName: name, frxKind: pick.label });
+    }
   }
   // Not found (exit 70) or another failure — surface the message, don't confirm.
   if (preview.code !== 0) {

@@ -1,15 +1,24 @@
+import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
 
 /// The outcome of an idempotent edit to one file: the whole edited source, what
 /// changed, and whether anything did.
 ///
-/// Six result types in this tier already carried exactly these three facts,
-/// under two spellings of the boolean — `alreadyWired` for a registration,
-/// `alreadyPresent` for a member. Nothing named the shape, so every command
-/// holding one wrote the same two derivations by hand: the change to apply
-/// (fifteen sites) and the block that reports it (nine). Named, both are
-/// derived once, in `commands/wiring.dart`.
+/// Nine result types in this tier carried exactly these three facts, under four
+/// spellings of the boolean — `alreadyWired` for a registration,
+/// `alreadyPresent` for a member, `found` for a removal, and `alreadyPresent &&
+/// !retyped` for an edit that rewrites what it finds. Nothing named the shape,
+/// so every command holding one wrote the same two derivations by hand: the
+/// change to apply (fifteen sites) and the block that reports it (nine). Named,
+/// both are derived once, in `commands/wiring.dart`.
+///
+/// Four of the nine are gone, measured against their callers rather than
+/// assumed: see [Edited]. Three survive, and each earns it — `RouteWireResult`
+/// and `RouteUnwireResult` carry `warnings`, which reaches the editor through
+/// `plan_view.ts`, and `SelectorsAddResult` carries `alreadyPresent`, which two
+/// commands read and which is *not* `unchanged`: a retyped selector is present
+/// and changed at once.
 abstract interface class EditOutcome {
   /// The full source after the edit — byte-identical to the original when
   /// [unchanged].
@@ -34,8 +43,14 @@ abstract interface class EditOutcome {
 /// The results that predate [EditOutcome] each named their boolean after what
 /// they were adding — `alreadyWired`, `alreadyPresent`, `found` — because each
 /// was the only outcome its module returned, and its callers read that word. A
-/// module whose callers do not returns this instead of making a seventh class
-/// for the same three fields.
+/// module whose callers do not returns this instead of making another class for
+/// the same three fields.
+///
+/// **The criterion was stated here and never checked against the callers.**
+/// Measured: `.found` had no production reader across three classes, `.retyped`
+/// none at all, and `.alreadyWired` exactly one — `add_nav_command`, reading it
+/// to pick a closing line, where `unchanged` says the same thing. Four classes
+/// were repeating [Edited] verbatim. Re-measure before adding a fifth.
 class Edited implements EditOutcome {
   /// [changes] is required and not defaulted: a changed outcome with nothing to
   /// report is a block in the report with no lines under it, which reads as a
@@ -59,17 +74,44 @@ class Edited implements EditOutcome {
 
 /// An [EditOutcome] that took something away rather than adding it.
 ///
-/// A mixin and not three one-line getters because this is the one of the four
-/// spellings that inverts, and inverting it back is a silent bug of the worst
-/// kind: `unchanged => found` skips the edit in exactly the case that needed
-/// one, and the report says "nothing to unwire" about a field that is still
-/// there. Written once, a fourth unwire result cannot get it wrong.
+/// A mixin and not one-line getters on each result because this is the one of
+/// the four spellings that inverts, and inverting it back is a silent bug of the
+/// worst kind: `unchanged => found` skips the edit in exactly the case that
+/// needed one, and the report says "nothing to unwire" about a field that is
+/// still there. Written once, no unwire result can get it wrong.
 mixin Unwiring implements EditOutcome {
   /// True when what was to be removed was there.
   bool get found;
 
   @override
   bool get unchanged => !found;
+}
+
+/// An [Unwiring] with nothing to add to the three facts — what [Edited] is for
+/// a wiring.
+///
+/// It exists rather than folding the unwirings into [Edited] because `found` is
+/// the word their tests are written in, and `expect(unwired.found, isTrue)` says
+/// what happened where `expect(unwired.unchanged, isFalse)` makes the reader
+/// invert it in their head. Tests are callers too, so the criterion on [Edited]
+/// — does anything read the specific word — does not stop applying just because
+/// the caller is a test.
+class Unwired with Unwiring {
+  /// What was named was there, and [changes] describe taking it out.
+  const Unwired({required this.source, required this.changes}) : found = true;
+
+  /// Nothing of that name was there, so there was nothing to remove and
+  /// [source] is the file as it stands.
+  const Unwired.absent(this.source) : changes = const [], found = false;
+
+  @override
+  final String source;
+
+  @override
+  final List<String> changes;
+
+  @override
+  final bool found;
 }
 
 /// A text edit over a source string: replace `[start, end)` with [text].
@@ -224,4 +266,40 @@ Edit importInsertion(List<ImportDirective> imports, String uri) {
   return incomingIsPackage
       ? Edit.insert(imports.first.offset, "import '$uri';\n")
       : Edit.insert(imports.last.end, "\n\nimport '$uri';");
+}
+
+/// Adds every one of [uris] that [source] does not already import, and reports
+/// the ones it added.
+///
+/// One re-parse per import, which is the whole point. [importInsertion] places
+/// an import among the ones it can see, so two insertions computed against the
+/// same parse can name the same offset — and then which of them lands first is
+/// whatever tie [applyEdits] happened to break, not sorted order. Adding
+/// `package:collection/collection.dart` and
+/// `package:fast_immutable_collections/…` to a file importing only
+/// `package:freezed_annotation/…` put both before `freezed_annotation` at offset
+/// 0, and emitted `fast_immutable_collections` above `collection`.
+///
+/// `NavSource` and `RoutesSource` each learned this and re-parse in place; four
+/// other call sites did not. This is that rule, stated once.
+///
+/// Runs *after* the structural edits, never before: every structural offset in
+/// this tier points into a body below the import block, and an import spliced
+/// in first moves it.
+({String source, List<String> changes}) addImports(
+  String source,
+  Iterable<String> uris,
+) {
+  var result = source;
+  final changes = <String>[];
+  for (final uri in uris) {
+    final directives = parseString(
+      content: result,
+      throwIfDiagnostics: false,
+    ).unit.directives.whereType<ImportDirective>().toList();
+    if (directives.any((d) => d.uri.stringValue == uri)) continue;
+    result = applyEdits(result, [importInsertion(directives, uri)]);
+    changes.add("import '$uri';");
+  }
+  return (source: result, changes: changes);
 }

@@ -151,7 +151,7 @@ const INVENTORY: Capability[] = [
   {
     command: 'frx.remove',
     label: '$(trash) Remove…',
-    description: 'Delete a substate/page and unwire it',
+    description: 'Delete an artifact and unwire it',
     family: 'Edit existing',
   },
   // --- Inspect ------------------------------------------------------------

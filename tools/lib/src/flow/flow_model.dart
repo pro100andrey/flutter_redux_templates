@@ -103,19 +103,42 @@ class UseCase {
   };
 }
 
+/// One `copyWith` target: the substate, and the field inside it when the write
+/// names one.
+///
+/// [field] is null for the flat shape `state.copyWith(logIn: …)`, which replaces
+/// a whole substate and so has no field to name.
+typedef StateWrite = ({String substate, String? field});
+
+extension StateWriteLabel on StateWrite {
+  /// `logIn.email`, or just `logIn` for a whole-substate write.
+  String get label => field == null ? substate : '$substate.$field';
+}
+
 /// What one action does, read from its own file.
 class ActionInfo {
   const ActionInfo({
     required this.className,
     this.mixins = const [],
     this.isAsync = false,
-    this.writes,
+    this.writes = const [],
     this.dispatches = const [],
     this.throwsUserException = false,
     this.file,
+    this.declaresClass = true,
   });
 
   final String className;
+
+  /// Whether the file actually declared a class, or [className] is the file
+  /// name standing in for one.
+  ///
+  /// A file under `actions/` need not hold an action: this template's own
+  /// pattern is a `mixin … on Action` carrying a shared `reduce()`, and one of
+  /// those was reported as an artifact nothing reaches — a mixin is never
+  /// dispatched, so the finding could only ever be false. Consumers that build
+  /// nodes skip a file where this is false.
+  final bool declaresClass;
 
   /// async_redux behaviour mixins (`WaitingAction`, `CheckInternet`, `Retry`…).
   final List<String> mixins;
@@ -123,8 +146,23 @@ class ActionInfo {
   /// Whether `reduce()` is async (a round trip the diagram should show).
   final bool isAsync;
 
-  /// The AppState field it writes, from `state.copyWith(<field>: …)`.
-  final String? writes;
+  /// The AppState fields it writes, from `state.copyWith(<field>: …)`.
+  ///
+  /// **Structured, because it has two readers.** This was a `String?` that
+  /// [_qualify] built by joining `'<substate>.<field>'` with `', '`, and
+  /// `graph_reader` split it back apart on the same separator to raise one edge
+  /// per substate touched. A *rendering* choice was the only channel between two
+  /// readers of one fact: change the separator, or a field name containing one,
+  /// and the graph silently loses its write edges with nothing failing.
+  ///
+  /// [writesLabel] keeps the string, so the JSON and the diagrams say exactly
+  /// what they always did.
+  final List<StateWrite> writes;
+
+  /// `logIn.email, logIn.password` — the display form, and the only form the
+  /// `--json` contract and the mermaid renderers ever wanted.
+  String? get writesLabel =>
+      writes.isEmpty ? null : writes.map((w) => w.label).join(', ');
 
   /// Actions it dispatches itself (cascades).
   final List<DispatchStep> dispatches;
@@ -138,7 +176,7 @@ class ActionInfo {
     'class': className,
     'mixins': mixins,
     'isAsync': isAsync,
-    if (writes != null) 'writes': writes,
+    if (writesLabel case final w?) 'writes': w,
     'dispatches': [for (final d in dispatches) d.toJson()],
     'throwsUserException': throwsUserException,
     if (file != null) 'file': file,

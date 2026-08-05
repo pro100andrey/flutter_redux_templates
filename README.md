@@ -445,7 +445,7 @@ frx doctor          # audit: wiring drift, orphans, ungenerated code, stale
                     # moved widget, a watch that outlived its IDE
 frx doctor --fix    # auto-repair: run codegen, remove orphan substates and
                     # empty artifact folders, regenerate docs/flows
-frx remove my_profile --apply   # delete a substate/page and unwire it
+frx remove my_profile --apply   # delete any artifact and unwire it (kind auto-detected)
 ```
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the same gate on

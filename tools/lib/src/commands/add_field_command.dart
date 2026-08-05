@@ -37,6 +37,10 @@ class AddFieldCommand extends WritingCommand {
   List<String> get positionals => const ['substate', 'name:type'];
 
   @override
+  /// `--force` is declared below rather than taken from the base, because here
+  /// it means "the field is already there — change it", which is a narrower
+  /// thing than "overwrite the file".
+  @override
   WriteFlags get flags =>
       const WriteFlags(force: false, diff: true, buildRunner: true);
 
@@ -55,6 +59,22 @@ class AddFieldCommand extends WritingCommand {
         abbr: 'a',
         negatable: false,
         help: 'Also scaffold a Set<Field>Action setter in the substate.',
+      )
+      // Retyping a field, not overwriting a file. `add-substate --kind table`
+      // scaffolds `IMap<int, Object>` because the element type is unknown when
+      // the slice is made, and tightening it to `IMap<int, Task>` was hand work
+      // — until the guard refused hand edits to state files, at which point a
+      // traced run shipped `Object` because nothing could change it.
+      //
+      // Behind a flag, not automatic: a silent retype would make a typo in the
+      // type rewrite a field that was already right.
+      ..addFlag(
+        'force',
+        abbr: 'f',
+        negatable: false,
+        help:
+            'When the field already exists, rewrite its declaration to this '
+            'type (and its selector getter to match).',
       )
       ..addFlag(
         'selector',
@@ -80,6 +100,28 @@ class AddFieldCommand extends WritingCommand {
       );
     }
 
+    // Retyping rebuilds the declaration from what this invocation was given, so
+    // an `@Default(...)` the old one carried and this one does not is dropped —
+    // silently changing `AppState.initial()` for every reader. Nullable types do
+    // not require `--default`, which is exactly where it would slip through, so
+    // the ask is made explicit rather than inferred.
+    if ((results['force'] as bool) && defaultExpr == null) {
+      final existing =
+          StateSource(
+            SubstateArtifact(substate).stateFile(repo.businessRedux),
+          ).defaultOf(
+            className: SubstateArtifact(substate).stateType,
+            name: field.camel,
+          );
+      if (existing != null) {
+        usageException(
+          'Field "${field.camel}" currently defaults to `$existing`, and '
+          '--force would drop it. Pass --default to say what it should be, or '
+          '--default \'$existing\' to keep it.',
+        );
+      }
+    }
+
     final artifact = SubstateArtifact(substate);
     final stateFile = artifact.stateFile(repo.businessRedux);
     if (!stateFile.existsSync()) {
@@ -97,7 +139,11 @@ class AddFieldCommand extends WritingCommand {
       name: field.camel,
       type: type,
       defaultExpr: defaultExpr,
-      imports: TypeImports.forAll([type, defaultExpr]),
+      imports: [
+        ...TypeImports.forAll([type, defaultExpr]),
+        ...ProjectTypeImports.forAll(repo, [type, defaultExpr]),
+      ],
+      retype: results['force'] as bool,
     );
 
     final withAction = results['action'] as bool;
@@ -128,7 +174,11 @@ class AddFieldCommand extends WritingCommand {
             // The getter lands in a different library than the state, so the
             // type it returns has to be importable there too. Only the type —
             // the default is never written into selectors.dart.
-            imports: TypeImports.forType(type),
+            imports: [
+              ...TypeImports.forType(type),
+              ...ProjectTypeImports.forAll(repo, [type]),
+            ],
+            retype: results['force'] as bool,
           )
         : null;
 
@@ -136,20 +186,29 @@ class AddFieldCommand extends WritingCommand {
     // SetValueAction, say) — write it only when absent.
     final writeAction = withAction && !actionFile.existsSync();
     final setterContent = writeAction
-        ? ArtifactTemplates.fieldSetter(substate, field, type)
+        ? ArtifactTemplates.fieldSetter(
+            substate,
+            field,
+            type,
+            extraImports: ProjectTypeImports.forAll(repo, [type]),
+          )
         : null;
 
     final state = Wiring.at(
       stateFile,
       result,
-      skipped: 'field "${field.camel}" already present — skipped.',
+      skipped:
+          'field "${field.camel}" already present — skipped. '
+          'Pass --force to rewrite its declaration to $type.',
     );
     final selector = selectorResult == null
         ? null
         : Wiring.at(
             selectors!.file,
             selectorResult,
-            skipped: 'getter "${field.camel}" already present — skipped.',
+            skipped:
+                'getter "${field.camel}" already present — skipped. '
+                'Pass --force to rewrite its return type.',
           );
 
     return WritePlan(
@@ -193,7 +252,6 @@ class AddFieldCommand extends WritingCommand {
       build: (_) => BuildStep.build(
         FrxWorkspace.packageRootOf(stateFile.path),
         nextHint: 'regenerate the freezed part for the field',
-        args: const ['--delete-conflicting-outputs'],
       ),
     );
   }

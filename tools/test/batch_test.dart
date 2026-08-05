@@ -57,6 +57,38 @@ void main() {
 
   Future<Ran> batch(List<String> args) => runInProcess(fx, ['batch', ...args]);
 
+  test('a batch names its changes the way its commands do', () async {
+    // It printed `write` for everything, off the transaction's flat path list,
+    // where the same change is `create`, `edit` or `move` in every
+    // single-command plan and in the batch's own `--json`. Two vocabularies for
+    // one set of operations, decided by whether you ran the commands together.
+    final r = await batch([
+      declare([
+        {
+          'command': 'add-substate',
+          'args': ['cart'],
+        },
+      ]),
+    ]);
+    expect(r.exitCode, 0, reason: r.stderr);
+
+    expect(
+      r.stdout,
+      contains('create  business/lib/redux/cart/models/cart_state.dart'),
+      reason: 'the verb, and a path relative to the repo root',
+    );
+    expect(
+      r.stdout,
+      contains('edit  business/lib/redux/app_state.dart'),
+      reason: 'wiring an existing file is an edit, not a write',
+    );
+    expect(
+      r.stdout,
+      isNot(contains('  write  ')),
+      reason: 'no verb of its own',
+    );
+  });
+
   group('one transaction', () {
     test('a whole feature is wired in written order', () async {
       final r = await batch([

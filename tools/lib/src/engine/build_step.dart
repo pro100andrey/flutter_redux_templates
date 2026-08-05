@@ -66,8 +66,8 @@ class BuildStep {
     required this.nextHint,
   });
 
-  /// A single `build_runner build` (optionally with extra [args] like
-  /// `--delete-conflicting-outputs`) — the common case.
+  /// A single `build_runner build` (optionally with extra [args]) — the common
+  /// case.
   BuildStep.build(
     this.packageRoot, {
     required this.nextHint,
@@ -195,6 +195,21 @@ Map<int, _Proc> _describe(Iterable<int> pids) {
 /// outright, and a session `ps` would not report leaves the watch counted as live
 /// — standing down for a watch that turns out to be dead costs a stale generated
 /// file, while building over a live one kills the developer's watch.
+///
+/// **On macOS the session comparison never fires, and the `ppid` fallback is
+/// what answers.** Apple's `ps` declares `sess` as a kernel pointer
+/// (`KPTR`/`%lx` in `adv_cmds/ps/keyword.c`), which an unprivileged process is
+/// shown as `0` — so every process reads the same value and the comparison is
+/// always false. That is not a bug here: macOS has no subreapers, so a real
+/// orphan is reparented to `launchd` at pid 1 and the fallback catches it. It is
+/// recorded because the paragraph above describes Linux, and a reader would
+/// otherwise believe the session test is doing the work everywhere.
+///
+/// The known way to be wrong is a watch deliberately put in its own session
+/// (`setsid`, or a spawn with `ProcessStartMode.detached`): its parent is in a
+/// different session, so a *live* watch reads as an orphan — and frx would then
+/// build over it and kill it. Nothing in this repo starts a watch that way, and
+/// nothing should.
 bool _isOrphan(_Proc watch, _Proc? parent) {
   if (watch.ppid <= 1) return true;
   if (parent == null) return true; // the parent is gone from the table entirely

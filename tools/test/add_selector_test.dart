@@ -14,15 +14,29 @@ void main() {
   test(
     'adds a getter reading the state field of the same name by default',
     () async {
+      // `value`, not `email`: the fixture's facade already carries a hand-written
+      // `get email`, so asking for that one takes the already-present branch and
+      // the command writes nothing — this assertion used to pass against text
+      // the fixture shipped rather than anything the command did.
       final res = await runFrx(fx, [
         'add-selector',
         'log_in',
-        'email',
+        'value',
         '--type',
         'String?',
       ]);
       expect(res.exitCode, 0, reason: res.stderr.toString());
-      expect(selectors(), contains('String? get email => _state.logIn.email;'));
+      expect(selectors(), contains('String? get value => _state.logIn.value;'));
+      // Carrying the `///` its neighbours all carry — the four hand-written in
+      // the template and every one `add-substate` scaffolds. A bare getter was
+      // this command disagreeing with the file it writes into.
+      expect(
+        selectors(),
+        contains(
+          '  /// Returns value\n'
+          '  String? get value => _state.logIn.value;',
+        ),
+      );
     },
   );
 

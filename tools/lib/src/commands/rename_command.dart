@@ -8,7 +8,6 @@ import 'package:path/path.dart' as p;
 import '../ast/rename_edits.dart';
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
-import '../engine/diff.dart';
 import '../engine/write_path.dart';
 import '../engine/write_report.dart';
 import '../model/page_artifact.dart';
@@ -287,7 +286,7 @@ class RenameCommand extends Command<int> with NameArg {
       emptiedDirs: [oldDir.path],
       buildPackageRoot: FrxWorkspace.packageRootOf(appState.file.path),
       buildCommands: const [
-        ['run', 'build_runner', 'build', '--delete-conflicting-outputs'],
+        ['run', 'build_runner', 'build'],
       ],
       // Generated files left in the old folder (freezed parts, …) would
       // linger beside nothing — drop them; build_runner remakes the new ones.
@@ -321,9 +320,7 @@ class RenameCommand extends Command<int> with NameArg {
     List<String> emptiedDirs = const [],
     String Function(String path, String content)? afterEdits,
   }) async {
-    // Either spelling; `--force` is the retired one. Named `applying` because
-    // `apply` is the changeset applier this ends up calling.
-    final applying = (results['apply'] as bool) || (results['force'] as bool);
+    final goingThrough = applying(results);
     final asJson = machineMode(results);
 
     if (!asJson) {
@@ -415,24 +412,21 @@ class RenameCommand extends Command<int> with NameArg {
       console.out.writeln();
 
       if (results['diff'] as bool) {
-        // The files still hold their old content (edits aren't applied yet).
-        for (final e in edits.entries) {
-          console.out.write(
-            unifiedDiff(
-              File(e.key).readAsStringSync(),
-              e.value.content,
-              path: p.relative(e.key),
-            ),
-          );
-        }
-        console.out.writeln();
+        // `Changeset.diff` renders an `EditFile` as `unifiedDiff(before, after)`
+        // — which is what this computed by hand from the same two strings, the
+        // `before` being the very thing the plan already carries. Paths are now
+        // relative to the repo root rather than the working directory, which is
+        // the right anchor for a command that takes `--root`.
+        console.out
+          ..write(plan.diff(from: repoRoot))
+          ..writeln();
       }
     }
 
-    if (!applying) {
+    if (!goingThrough) {
       console.out.writeln(
         report?.render(applied: false, build: plannedBuild(step)) ??
-            'Preview only — re-run with --apply to apply.',
+            kPreviewNotice,
       );
       return 0;
     }

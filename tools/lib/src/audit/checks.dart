@@ -1,7 +1,8 @@
 /// The audit's checks, as a list it walks.
 ///
-/// The list is not the point — walking seven entries costs the same edit to
-/// extend as calling seven functions did. Two things are:
+/// The list is not the point — walking the entries costs the same edit to
+/// extend as calling that many functions did. (It said "seven" while there were
+/// eleven, which is what a count in prose does.) Two things are:
 ///
 /// - **A check is addressable and runnable alone.** Answering "what does the
 ///   substate check say about this tree" used to cost a subprocess and arrive
@@ -16,6 +17,7 @@
 /// the duplication this split was actually for.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -33,6 +35,7 @@ import '../redux/store_source.dart';
 import '../routing/routes_source.dart';
 import '../workspace/frx_workspace.dart';
 import 'finding.dart';
+import 'text_bytes.dart';
 
 /// One audit check: what it is called, and what it reports.
 class Check {
@@ -55,6 +58,13 @@ class Check {
 
 /// Every check, in report order.
 const auditChecks = <Check>[
+  // First so its finding is read first, not because ordering protects it: a
+  // file that is not valid UTF-8 makes `readAsStringSync` throw in whichever
+  // check reaches it, and what keeps that from taking the audit down is the
+  // per-check guard in [audit], not this position. The first version of this
+  // comment claimed otherwise and was wrong — `frx doctor` still died with a
+  // stack trace on the very file class this check exists to name.
+  Check('source-text', checkSourceText),
   Check('substates', checkSubstates),
   Check('change-log', checkChangeLog),
   Check('routes-and-connectors', checkRoutesAndConnectors),
@@ -63,6 +73,7 @@ const auditChecks = <Check>[
   Check('preview-mirror', checkPreviewMirror),
   Check('placement', checkPlacement),
   Check('view-model-equality', checkViewModels),
+  Check('agent-hooks', checkAgentHooks),
   Check('orphaned-watch', checkOrphanedWatch, needsProcessState: true),
   // Last: it reports on what the checks above read, so it has to run after
   // them. See [checkRecoveredFiles] for why that bound is the honest one.
@@ -76,10 +87,52 @@ List<Finding> audit(FrxWorkspace repo, {bool processState = false}) =>
       final findings = <Finding>[];
       for (final check in auditChecks) {
         if (check.needsProcessState && !processState) continue;
-        check.run(repo, findings);
+        try {
+          check.run(repo, findings);
+        } on Object catch (error, stack) {
+          // **A check that throws must not take the audit with it.** Measured:
+          // one source file of invalid UTF-8 made `readAsStringSync` throw
+          // inside `checkGeneratedParts`, and `frx doctor` died with a stack
+          // trace — losing every finding already collected, including
+          // `checkSourceText`'s report of that exact file. Running the text
+          // check first did not save it: the list is returned after the loop,
+          // so an exception discards it whole.
+          //
+          // Reported rather than swallowed, and as an error: a check that could
+          // not run is not a clean tree, and the editor's Problems panel is
+          // where a user would otherwise see nothing at all.
+          //
+          // No `rule:`. That field is the `.frxrc` id a project silences a
+          // *placement* finding by; a check id is not one, and putting it there
+          // would offer the editor a "silence this" that silences nothing.
+          //
+          // The first frames of the trace go in the message, because the
+          // alternative is a one-line "could not run" with no file and no line
+          // — which reads to a user as "my project is broken" when it means
+          // "frx is broken", and leaves nobody able to triage it.
+          findings.add(
+            Finding.error(
+              'the "${check.id}" check could not run: $error\n'
+              '${_firstFrames(stack)}',
+            ),
+          );
+        }
       }
       return findings;
     });
+
+/// The top of a stack trace, indented, for a finding that reports a crash.
+///
+/// Bounded because a finding is one entry in a list a user reads, not a crash
+/// dump — the frames that name the failing check and its caller are the ones
+/// that make it triageable, and the rest is `dart test`'s job.
+String _firstFrames(StackTrace stack, {int frames = 4}) => stack
+    .toString()
+    .trimRight()
+    .split('\n')
+    .take(frames)
+    .map((line) => '  $line')
+    .join('\n');
 
 // --- substates ---------------------------------------------------------------
 
@@ -265,7 +318,7 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
       if (!source.contains('equals:') && !source.contains('get props')) {
         continue;
       }
-      for (final vm in VmReader.read(source)) {
+      for (final vm in VmReader.of(file)) {
         for (final field in vm.fieldsOutsideEquality) {
           into.add(
             Finding.warn(
@@ -428,12 +481,106 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
   }
 }
 
+// --- searchable sources ------------------------------------------------------
+
+/// The packages whose `lib/` holds a project's own source.
+///
+/// Hoisted the moment a second check needed it, and widened at the same time:
+/// `storage` and `localization` ship in the template and were missing, so
+/// "every source file" meant five packages of seven.
+const _sourcePackages = [
+  'business',
+  'http_client',
+  'ui',
+  'app',
+  'models',
+  'storage',
+  'localization',
+];
+
+/// A source file that search tools skip.
+///
+/// **Why the audit reports this and not the compiler.** A NUL byte is legal
+/// Dart, invisible in an editor, and survives `dart format`. What it destroys is
+/// findability: `grep`, `git grep` and ripgrep classify the file as binary and
+/// skip it, so every symbol declared in it returns no hits — not a wrong answer,
+/// an empty one, which reads as "this does not exist".
+///
+/// Measured, in this repository, on the CLI's own source: one NUL written as a
+/// memo-key separator made `frx_workspace.dart` unsearchable, and
+/// `notSubstateDirs`, `isSubstateDir`, `packageRootOf` and `_marker` returned
+/// nothing anywhere. `dart analyze` was clean and 690 tests passed.
+///
+/// **This check would not have caught that one**, and saying so is the point:
+/// `tools/` is the CLI's own source and no audited project contains it. The
+/// repository-wide guard is [test/source_text_test.dart]. This check is the half
+/// that serves a *created* project, where the same byte can arrive by a paste
+/// from a terminal, a bad merge, or a generator that writes raw bytes.
+///
+/// Generated output is left out, and not for the usual reason. Asking for it
+/// is a different listing key, so it would walk each package's `lib/` a second
+/// time — the exact cost `doctor_test`'s "each package lib is walked once" was
+/// written to hold. The repository-wide test covers generated files anyway,
+/// because it enumerates git rather than the tree.
+///
+/// **It reads through the index, so the tree is read once.** The first version
+/// took every file's bytes on top of the string `SourceIndex` hands the checks
+/// below — a second full read of the project on a path the editor re-runs on
+/// every debounced event. Running first, it is the one that pays for the read,
+/// and the checks after it get the cached string; the NUL is found in that
+/// string at no extra cost.
+///
+/// Bytes are still read for the one file that cannot be decoded, because that
+/// is the only way to say *where*. A file no editor will show you the problem
+/// in is one you need an offset for, and it is at most one file per audit.
+void checkSourceText(FrxWorkspace repo, List<Finding> into) {
+  void report(File file, Unsearchable kind, int offset) => into.add(
+    Finding.warn(
+      '${p.relative(file.path, from: repo.root.path)} '
+      '${describeUnsearchable(kind, offset)}',
+      file: file.path,
+    ),
+  );
+
+  for (final pkg in _sourcePackages) {
+    final lib = Directory(p.join(repo.root.path, pkg, 'lib'));
+    if (!lib.existsSync()) continue;
+    for (final file in sourceIndex.filesUnder(lib)) {
+      final String source;
+      try {
+        source = sourceIndex.sourceOf(file);
+      } on FileSystemException {
+        // Not valid UTF-8, so there is no string to search. Now — and only now
+        // — the bytes are worth reading, to name the offset.
+        final bad = unsearchableIn(file.readAsBytesSync());
+        report(file, bad?.kind ?? Unsearchable.notUtf8, bad?.offset ?? 0);
+        continue;
+      }
+
+      // Written as an escape. Typing the byte itself is the very defect
+      // this check reports, and doing it by accident is how it reached the
+      // repository to begin with — three times now, counting the two while
+      // this module was being written. The guard catches it every time.
+      final at = source.indexOf('\u0000');
+      if (at < 0) continue;
+      // A code-unit index is not a byte offset, and the report promises bytes
+      // because `xxd -s` is the tool that works on a file like this. Encoding
+      // the prefix costs one allocation, on a file that has already failed.
+      report(
+        file,
+        Unsearchable.nulByte,
+        utf8.encode(source.substring(0, at)).length,
+      );
+    }
+  }
+}
+
 // --- generated code ----------------------------------------------------------
 
 /// Any `part 'x.(freezed|g|g.theme|gr).dart'` whose target file is absent means
 /// build_runner hasn't run (or is stale).
 void checkGeneratedParts(FrxWorkspace repo, List<Finding> into) {
-  const pkgs = ['business', 'http_client', 'ui', 'app', 'models'];
+  const pkgs = _sourcePackages;
   final partRe = RegExp(
     r'''^part\s+['"]([^'"]+\.(?:freezed|g|g\.theme|gr)\.dart)['"]\s*;''',
     multiLine: true,
@@ -522,6 +669,109 @@ void checkPreviewMirror(FrxWorkspace repo, List<Finding> into) {
   }
 }
 
+// --- agent hooks -------------------------------------------------------------
+
+/// Hooks declared in `.claude/settings.json` must name a script that is there.
+///
+/// A hook whose command does not resolve is the worst shape a guard can take:
+/// nothing reports it, the tool call it was meant to refuse simply succeeds, and
+/// the project looks guarded from the outside. It fails *open* and silently.
+///
+/// Two ways this happens, and both have happened here:
+///
+///   * **The template was unpacked into a subdirectory.** The shipped command is
+///     `$CLAUDE_PROJECT_DIR/.claude/hooks/…`, which is right only when the
+///     project is the checkout. Unpacked at `apps/tm_console`, the variable
+///     points at the outer repository and the path misses by two segments — and
+///     the settings file there had already been hand-patched to compensate.
+///   * **The script moved or was renamed** and the settings file did not follow.
+///
+/// Warnings, never errors, and silent for a project with no `.claude/settings.json`:
+/// agent hooks are an opt-in convenience, and a project that removed them is not
+/// broken.
+///
+/// The variable is resolved against [repo] rather than the environment, because
+/// what is being checked is the file the project ships, not the state of
+/// whichever shell ran the audit. That is also the only reading under which
+/// "unpacked into a subdirectory" is detectable at all.
+void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
+  final settings = File(p.join(repo.root.path, '.claude', 'settings.json'));
+  if (!settings.existsSync()) return;
+
+  final Object? parsed;
+  try {
+    parsed = jsonDecode(settings.readAsStringSync());
+  } on FormatException catch (e) {
+    into.add(
+      Finding.warn(
+        '${p.relative(settings.path)} is not valid JSON (${e.message}) — every '
+        'hook it declares is silently off.',
+        file: settings.path,
+      ),
+    );
+    return;
+  }
+  if (parsed is! Map<String, Object?>) return;
+
+  final hooks = parsed['hooks'];
+  if (hooks is! Map<String, Object?>) return;
+
+  for (final event in hooks.entries) {
+    final matchers = event.value;
+    if (matchers is! List) continue;
+    for (final matcher in matchers.whereType<Map<String, Object?>>()) {
+      final declared = matcher['hooks'];
+      if (declared is! List) continue;
+      for (final hook in declared.whereType<Map<String, Object?>>()) {
+        if (hook['type'] != 'command') continue;
+        final command = hook['command'];
+        if (command is! String) continue;
+        final script = _hookScript(repo, command);
+        if (script == null || File(script).existsSync()) continue;
+        into.add(
+          Finding.warn(
+            '.claude/settings.json declares a ${event.key} hook whose script is '
+            'not at ${p.relative(script, from: repo.root.path)} — it fails open, '
+            'so what it refuses is being allowed with nothing said. '
+            '\$CLAUDE_PROJECT_DIR is the directory holding .claude/, so a '
+            'project unpacked into a subdirectory does not need its own path in '
+            'the command.',
+            file: settings.path,
+          ),
+        );
+      }
+    }
+  }
+}
+
+/// The file a hook command runs, resolved against [repo], or null when the
+/// command is not a plain path this check can be sure about.
+///
+/// Deliberately incurious. A command with a pipe, a redirect or its own
+/// arguments is somebody's shell one-liner, and guessing which token in it is
+/// the script would produce false warnings about hooks that work — worse than
+/// the silence this returns instead.
+String? _hookScript(FrxWorkspace repo, String command) {
+  final trimmed = command.trim();
+  if (trimmed.isEmpty) return null;
+  if (RegExp(r'[|&;><$(]').hasMatch(trimmed.replaceAll(_projectDir, ''))) {
+    return null;
+  }
+  if (trimmed.contains(' ')) return null;
+
+  final path = trimmed.startsWith(_projectDir)
+      ? trimmed.substring(_projectDir.length).replaceFirst(RegExp(r'^/+'), '')
+      : trimmed;
+  // An absolute path outside the project, or a bare name resolved on PATH, is
+  // not this project's file to have an opinion about. A bare name is the one
+  // that bites: joined to the root it becomes a path that is never there, so
+  // every `prettier`-style hook would be reported as broken.
+  if (p.isAbsolute(path) || !path.contains(p.separator)) return null;
+  return p.join(repo.root.path, path);
+}
+
+const _projectDir = r'$CLAUDE_PROJECT_DIR';
+
 // --- placement ---------------------------------------------------------------
 
 /// Code that is wired, compiles, and sits in the wrong place.
@@ -556,6 +806,20 @@ void checkPlacement(FrxWorkspace repo, List<Finding> into) {
 /// healthy watch from the outside — the generated file simply stops keeping
 /// up. frx already refuses to build around a live watch, so an orphan would
 /// otherwise make it stand down for a process that will never do the work.
+///
+/// **Neither remedy is a plain `kill`, and that is the point.**
+/// `build_runner watch` installs a handler for exactly one signal — `SIGINT`
+/// (`build_runner/lib/src/commands/watch_command.dart`, `ProcessSignal
+/// .sigint.watch()`). A bare `kill` sends `SIGTERM`, which it never hears
+/// about, so the process dies wherever it happens to be with no drain and no
+/// release of its lock.
+///
+/// `build_runner stop` is named first because it is the sanctioned one: it
+/// writes a `.requested` file beside the build lock and the running watch picks
+/// it up through a file watcher, so it never asks who the parent was — which is
+/// exactly the property an orphan needs. It is scoped to one project, though,
+/// so `kill -INT` stays as the answer for an orphan belonging to a project you
+/// are not standing in.
 // The workspace is unused — this check reads the process table, not the tree.
 // Kept in the signature so every check has one shape and the registry can hold
 // them together; the alternative is a second signature and a branch to pick it.
@@ -564,8 +828,9 @@ void checkOrphanedWatch(FrxWorkspace repo, List<Finding> into) {
     into.add(
       Finding.warn(
         'build_runner watch (pid $pid) outlived the terminal or IDE that '
-        'started it — it regenerates nothing. Stop it with `kill $pid` '
-        'and start a new one.',
+        'started it — it regenerates nothing. Stop it with '
+        '`dart run build_runner stop --workspace` from the project it '
+        'watches, or `kill -INT $pid` — then start a new one.',
       ),
     );
   }

@@ -11,6 +11,19 @@ enum WidgetKind {
   field,
 
   /// Takes a `ChoiceVm<T>`; wraps `ChoiceFormField`.
+  ///
+  /// **Shares [field]'s `FormField` suffix, so one name holds one of the two.**
+  /// `add-widget Pin -k field` and `add-widget Pin -k choice` both mean
+  /// `PinFormField` in `pin_form_field.dart`; the second is refused by the
+  /// overwrite guard, naming both files, and `--force` replaces rather than
+  /// merges. Nothing is corrupted and nothing is silent — but after the fact
+  /// the file does not say which kind wrote it, and `remove` cannot either.
+  ///
+  /// Left as it is deliberately. Giving `choice` its own suffix would rename
+  /// the class and the file in every project already built on this convention,
+  /// which is a bigger decision than the collision costs: two widgets that both
+  /// wrap a form field, under one name, is a naming problem the author is
+  /// better placed to resolve than the scaffolder.
   choice,
 
   /// A labelled action; wraps `Button`.
@@ -52,11 +65,48 @@ class WidgetScaffold {
   final String dir;
 
   /// `PinFormField`, `SubmitButton`, `ExerciseCard`.
-  String get className => '${name.pascal}${_suffixFor(kind).pascalOrEmpty}';
+  ///
+  /// [name] is already stripped by the constructor, so this appends and does not
+  /// strip again. Making it call [classNameFor] instead stripped twice on the
+  /// scaffolding path and once on the removal path — `add-widget
+  /// SubmitButtonButton -k action` wrote `submit_button.dart` while `remove
+  /// SubmitButtonButton` looked for `submit_button_button.dart`, which is the
+  /// same disagreement the public accessor was added to end, reintroduced by
+  /// ending it carelessly.
+  String get className => _classOf(name, kind);
+
+  /// The class `add-widget <typed> --kind <kind>` writes, for the name as the
+  /// user typed it.
+  ///
+  /// Public because the convention has to be readable *backwards*. `remove`
+  /// derives a path from what it is handed, and it used to derive
+  /// `<typed>.dart` — so `add-widget Pin --dir inputs --kind field` wrote
+  /// `pin_form_field.dart` and `frx remove Pin --kind widget` exited 70,
+  /// "no widget named Pin". The two directions agreed only for the kinds that
+  /// add no suffix, which is why every round-trip test happened to pass.
+  ///
+  /// Idempotent on an already-stripped name: [_stripSuffix] only strips when
+  /// the result would be non-empty, so `Pin` stays `Pin`.
+  static String classNameFor(Casing typed, WidgetKind kind) =>
+      _classOf(_stripSuffix(typed, kind), kind);
+
+  /// The suffix rule itself, over a name already reduced to its stem. One
+  /// statement, so the two entry points differ only in whether they strip.
+  static String _classOf(Casing stem, WidgetKind kind) =>
+      '${stem.pascal}${_suffixFor(kind).pascalOrEmpty}';
+
+  /// The basename `add-widget <typed> --kind <kind>` writes, and the one
+  /// `remove` has to look for. Also the preview's basename in the mirror.
+  static String fileNameFor(Casing typed, WidgetKind kind) =>
+      '${_snakeOf(classNameFor(typed, kind))}.dart';
 
   /// The render model for a [WidgetKind.view], e.g. `ExerciseCardVm`.
   String get vmClassName => '${className}Vm';
 
+  /// Derived from [className], not from [fileNameFor]: `name` is stripped
+  /// already, and routing it through the public accessor stripped it a second
+  /// time — so the class said `SubmitButtonButton` while the file said
+  /// `submit_button.dart`.
   String get fileName => '${_snakeOf(className)}.dart';
 
   /// The value type of the view-model a `field`/`choice` takes. Generated as a

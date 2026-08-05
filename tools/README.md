@@ -78,7 +78,7 @@ Every command has a short alias (in parentheses).
 | `add-field` | `af` | Add a field to a substate's `@freezed` state (+ setter) |
 | `add-selector` | `asel` | Add a computed getter to a substate's `Select<Pascal>` |
 | `rename` | `mv` | Rename a substate/page — files, classes, **every** wiring reference |
-| `remove` | `rm` | Delete a substate/page **and unwire it** |
+| `remove` | `rm` | Delete any artifact — substate, page, action, model, widget, connector, service — **and unwire it** |
 | **Inspect** | | |
 | `list-substates` | `ls` | Substates composed into `AppState` (table or `--json`) |
 | `list-routes` | `lr` | Routes registered in `AppRouter` (table or `--json`) |
@@ -618,7 +618,32 @@ frx rename login sign_in --kind page --apply     # force the kind when a name is
 frx remove my_profile                            # preview only
 frx remove my_profile --apply -b                 # delete files + unwire
 frx remove intro --kind page --apply
+
+frx remove ArchiveTask --apply                   # an action; the kind is auto-detected
+frx remove Reset --state tasks --apply           # ...unless the name is used under two substates
+frx remove TaskTile --kind widget --apply        # widget + its mirrored preview
+frx remove Task --kind model --apply             # model/enum + its .freezed.dart and .g.dart
+frx remove Sync --kind service --apply           # the service folder and its dispatcher
 ```
+
+`remove` takes seven kinds, resolved two ways. A **substate** and a **page** are
+found by what the project declares — an `AppState` field, an `AppRouter` route —
+and removing one is mostly unwiring. An **action**, **model** (or enum),
+**widget**, **connector** and **service** are file sets found on disk, because
+the `add-*` that wrote them wired nothing central.
+
+For those five the point is the *set*, which is what `rm` gets wrong: a widget's
+preview lives in a mirror tree, a service's dispatcher sits beside it, and a
+model leaves `.freezed.dart` / `.g.dart` siblings that are `part of` a file that
+no longer exists — so the package stops compiling on files nobody deleted.
+
+`--kind` is only needed when a name matches more than one kind; `--state` only
+when one action name is used under more than one substate. Two refusals are
+deliberate: a page's connector cannot be removed on its own (it would leave the
+route pointing at nothing — remove the page), and an ambiguous name is never
+guessed at. What `remove` does **not** do is chase call sites: a deleted action
+that something still dispatches is a compile error you find with the audit. A
+theme extension and a retrofit client have no kind yet.
 
 Both preview by default and only touch disk with `--apply`. `rename` moves the
 files, rewrites the classes, and updates every wiring reference (`AppState`,
@@ -1047,7 +1072,6 @@ Naming the gap is what makes the rest of the graph trustworthy.
 ```bash
 frx watch                                  # dart run build_runner watch --workspace …
 frx watch --package business               # narrow to one package (smaller builder graph)
-frx watch --no-delete-conflicting-outputs  # drop the flag build_runner gets by default
 frx watch --print                          # show the command without running it
 ```
 

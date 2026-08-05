@@ -222,7 +222,7 @@ class FlowDocs {
       final writes = <String>{};
       for (final step in useCase.steps) {
         targets.add('`${step.target}`${step.condition == null ? '' : ' ?'}');
-        final w = flow.actions[step.target]?.writes;
+        final w = flow.actions[step.target]?.writesLabel;
         if (w != null) writes.add('`$w`');
       }
       b.writeln(

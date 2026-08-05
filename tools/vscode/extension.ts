@@ -87,7 +87,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // leave `frx.isMonorepo` false (so: no tree, no watch, no doctor, and every
   // `when: frx.isMonorepo` menu silently off) until the window was reloaded.
   context.subscriptions.push(
-    vscode.workspace.onDidChangeWorkspaceFolders(() => activateMonorepo(context, app)),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      // The cached project answer was for the old set of folders.
+      paths.forgetWorkspaceRoot();
+      activateMonorepo(context, app);
+    }),
   );
 }
 
@@ -140,7 +144,12 @@ function activateMonorepo(context: vscode.ExtensionContext, app: App): void {
       vscode.commands.registerCommand('frx.addSelector', (item?: FrxTreeItem) => create.addSelector(app, item?.frxName)),
       vscode.commands.registerCommand('frx.addNav', () => create.addNav(app)),
     );
-    theWatch.resume();
+    // Reap before resuming, and in that order: a watch left behind by a crashed
+    // window still holds the build lock, so starting a second one would have it
+    // ask the first to exit — which is the shape that produces two half-working
+    // watches. `dispose()` never ran for that first one, and nothing else in the
+    // extension can reach it.
+    void theWatch.reapStaleWatch().catch(() => {}).then(() => theWatch.resume());
     theDoctor.refresh(); // initial audit into the Problems panel
 
     // Auto-refresh on external edits: the tree and the doctor findings depend

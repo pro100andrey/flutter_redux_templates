@@ -95,6 +95,7 @@ class FlowReader {
     return (
       info: ActionInfo(
         className: v.className ?? p.basenameWithoutExtension(file.path),
+        declaresClass: v.className != null,
         mixins: v.mixins,
         isAsync: v.isAsync,
         writes: v.writes,
@@ -274,7 +275,7 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
   String? className;
   List<String> mixins = const [];
   bool isAsync = false;
-  String? writes;
+  List<StateWrite> writes = const [];
   List<DispatchStep> dispatches = const [];
   bool throwsUserException = false;
 
@@ -303,7 +304,7 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
   void visitMethodInvocation(MethodInvocation node) {
     // First write wins: an action that branches still writes one substate, and
     // the outermost call is visited first, so a nested copy cannot shadow it.
-    writes ??= _writesOf(node);
+    if (writes.isEmpty) writes = _writesOf(node);
     super.visitMethodInvocation(node);
   }
 
@@ -329,7 +330,7 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
 /// The deep form is the one frx's own templates emit (`add-field --action`,
 /// the substate scaffolder), so it is the shape most actions in a generated
 /// repo actually have.
-String? _writesOf(MethodInvocation node) {
+List<StateWrite> _writesOf(MethodInvocation node) {
   final fields = node.argumentList.arguments
       .whereType<NamedArgument>()
       .toList();
@@ -338,16 +339,19 @@ String? _writesOf(MethodInvocation node) {
   if (target is PrefixedIdentifier && target.identifier.name == 'copyWith') {
     return _qualify(node.methodName.name, fields);
   }
-  if (node.methodName.name != 'copyWith') return null;
+  if (node.methodName.name != 'copyWith') return const [];
   if (target is PrefixedIdentifier)
     return _qualify(target.identifier.name, fields);
   // Flat: the substate is named by the argument, and its value is a whole
   // replacement — there is no field to qualify with.
-  return fields.firstOrNull?.name.lexeme;
+  final flat = fields.firstOrNull?.name.lexeme;
+  return flat == null ? const [] : [(substate: flat, field: null)];
 }
 
-/// `logIn` + `email` → `logIn.email`. Every field is listed: an action setting
-/// two of them writes both, and dropping the rest would understate it.
-String _qualify(String substate, List<NamedArgument> fields) => fields.isEmpty
-    ? substate
-    : fields.map((f) => '$substate.${f.name.lexeme}').join(', ');
+/// `logIn` + `email` → one [StateWrite] per field. Every field is listed: an
+/// action setting two of them writes both, and dropping the rest would
+/// understate it. With no named field the write replaces the whole substate.
+List<StateWrite> _qualify(String substate, List<NamedArgument> fields) =>
+    fields.isEmpty
+    ? [(substate: substate, field: null)]
+    : [for (final f in fields) (substate: substate, field: f.name.lexeme)];

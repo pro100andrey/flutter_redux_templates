@@ -83,18 +83,17 @@ class GraphReader {
     for (final a in actions.values) {
       addNode(_actionNode(a));
       owners[a.file] = a.id;
-      final writes = a.info.writes;
-      if (writes == null) continue;
-      // `logIn.email, logIn.password` — one edge per substate touched.
-      for (final field in writes.split(', ')) {
-        final substate = field.split('.').first;
-        if (!nodes.containsKey('substate:$substate')) continue;
+      // One edge per substate touched, off the structured writes. This used to
+      // split the display string back apart on the `', '` the renderer joined
+      // it with.
+      for (final w in a.info.writes) {
+        if (!nodes.containsKey('substate:${w.substate}')) continue;
         addEdge(
           GraphEdge(
             from: a.id,
-            to: 'substate:$substate',
+            to: 'substate:${w.substate}',
             kind: EdgeKind.writes,
-            via: field,
+            via: w.label,
           ),
         );
       }
@@ -393,13 +392,22 @@ class GraphReader {
   Map<String, _Action> _actionsOnDisk(FlowReader reader) {
     final out = <String, _Action>{};
     if (!workspace.businessRedux.existsSync()) return out;
-    for (final dir
-        in workspace.businessRedux.listSync().whereType<Directory>()) {
+    // `substateDirsIn`, which is where the rule lives. This used to walk the
+    // directory itself and skip `isSubstateDir` entirely, so an `actions/`
+    // under `redux/services/` would have been read as a substate's; the first
+    // fix applied the rule but spelled it here, which is the same duplication
+    // one level down.
+    for (final dir in workspace.substateDirsIn()) {
       final actionsDir = Directory(p.join(dir.path, 'actions'));
       if (!actionsDir.existsSync()) continue;
       final substate = Casing.parse(p.basename(dir.path)).camel;
       for (final file in sourceIndex.filesUnder(actionsDir)) {
         final read = reader.readActionWithImports(file);
+        // A file here need not hold an action. The template's own idiom is a
+        // `mixin … on Action` with the shared `reduce()`, and a mixin is never
+        // dispatched — so a node for it could only ever be reported as reached
+        // by nobody.
+        if (!read.info.declaresClass) continue;
         out[p.canonicalize(file.path)] = _Action(
           id: 'action:$substate.${read.info.className}',
           substate: substate,
@@ -439,7 +447,11 @@ class GraphReader {
     required bool Function(String) hasSubstate,
     required Map<String, String> owners,
   }) {
-    final file = File(p.join(appState.file.parent.path, 'selectors.dart'));
+    // `FrxWorkspace.selectorsFile`, whose doc says it exists so a command
+    // holding a workspace need not locate `AppState` to find the file beside
+    // it. This located `AppState` to find it anyway — a third spelling of one
+    // path.
+    final file = workspace.selectorsFile;
     if (!file.existsSync()) return;
 
     final byClass = <String, List<_Action>>{};
