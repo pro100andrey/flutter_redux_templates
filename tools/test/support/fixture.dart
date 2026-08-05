@@ -33,6 +33,29 @@ class Fixture {
   String read(String relative) => file(relative).readAsStringSync();
 
   void _write() {
+    // --- workspace root ------------------------------------------------------
+    // The fixture had no root pubspec, so it modelled a set of packages rather
+    // than a workspace. `add-package` splices into the `workspace:` list, and a
+    // fixture with no list to splice into would have failed for a reason the
+    // real repo cannot have. The comment is here on purpose: the splice is a
+    // `yaml_edit` edit precisely so prose like this survives it.
+    _put('pubspec.yaml', '''
+name: frx_fixture
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+
+# Pub workspaces. Each listed directory holds a pubspec with
+# `resolution: workspace`.
+workspace:
+  - models
+  - http_client
+  - ui
+  - business
+  - app
+''');
+
     // --- business ------------------------------------------------------------
     _put('business/pubspec.yaml', 'name: business\n');
     _put('business/lib/redux/app_state.dart', _appState);

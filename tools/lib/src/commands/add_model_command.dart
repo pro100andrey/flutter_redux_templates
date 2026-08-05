@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
 import '../scaffold/artifact_templates.dart';
+import '../scaffold/package_scaffold.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
@@ -50,6 +51,17 @@ class AddModelCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
+    // `models` is optional, so this is a target-existence check like the one
+    // `add-action` runs on a substate — not a package to conjure. Writing the
+    // file into a directory that is not a package produced a model that
+    // compiled into nothing and a workspace that still did not resolve it.
+    if (!PackageKind.models.existsIn(repo)) {
+      refuse(
+        'There is no "models" package in this workspace. '
+        'Create it with `frx add-package models`, then run this again.',
+      );
+    }
+
     final name = requireName();
     final caseArgs = results['case'] as List<String>;
     if (caseArgs.length == 1) {

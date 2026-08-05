@@ -124,6 +124,12 @@ const INVENTORY: Capability[] = [
     family: 'Create & wire',
   },
   {
+    command: 'frx.addPackage',
+    label: '$(package) Add package…',
+    description: 'Optional workspace member',
+    family: 'Create & wire',
+  },
+  {
     command: 'frx.addThemeExtension',
     label: '$(paintcan) Add theme extension…',
     description: 'ThemeExtension in ui',

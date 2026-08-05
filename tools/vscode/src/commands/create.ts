@@ -462,6 +462,74 @@ interface SerializablePick extends vscode.QuickPickItem {
   serializable: boolean;
 }
 
+/** One row of the `add-package` picker. */
+interface PackagePick extends vscode.QuickPickItem {
+  // Not `kind`: `QuickPickItem` already declares one, typed `QuickPickItemKind`.
+  pkg: string;
+}
+
+/**
+ * The optional workspace members, and what each is for.
+ *
+ * Hand-written rather than derived: `add-package` takes its kind as a
+ * positional, so there is no `--kind` list on the parser for the contract
+ * generator to harvest. If it ever grows one, this table should come from
+ * `KINDS` like the others do.
+ */
+const PACKAGE_KINDS: PackagePick[] = [
+  {
+    pkg: 'models',
+    label: '$(symbol-structure) models',
+    description: 'freezed models and converters shared between packages',
+  },
+  {
+    pkg: 'http_client',
+    label: '$(cloud) http_client',
+    description: 'Dio + Retrofit clients and interceptors',
+  },
+  {
+    pkg: 'storage',
+    label: '$(database) storage',
+    description: 'key-value persistence behind BaseKeyValueStorage',
+  },
+];
+
+/**
+ * Adds an optional workspace member.
+ *
+ * Surfaced because `add-model` and `add-retrofit` refuse when their package is
+ * absent and name this command in the message — a refusal that pointed at
+ * something the editor could not run would be a dead end.
+ *
+ * No file to open afterwards and no build_runner: the new member is not
+ * resolved until `pub get` runs, which is what the closing message says.
+ */
+export async function addPackage(app: App): Promise<void> {
+  const target = await ui.resolveTarget(app.context, undefined);
+  if (!target) return;
+  const { inv, targetDir } = target;
+
+  const pick = await vscode.window.showQuickPick<PackagePick>(PACKAGE_KINDS, {
+    title: 'FRX — add package',
+    placeHolder: 'Which workspace member?',
+    ignoreFocusOut: true,
+  });
+  if (pick === undefined) return;
+
+  const res = await scaffold.runScaffold({
+    inv,
+    args: ['add-package', pick.pkg, '--root', targetDir],
+    cwd: targetDir,
+    afterChange: app.refresh,
+    title: `FRX: add-package ${pick.pkg}…`,
+  });
+  if (!res) return;
+
+  vscode.window.showInformationMessage(
+    `FRX: ${pick.pkg} added — run \`flutter pub get\` before using it.`,
+  );
+}
+
 /** Runs a name-only scaffolder (with an optional serialization prompt for models). */
 async function runSimpleScaffold(app: App, spec: ScaffoldSpec): Promise<void> {
   const target = await ui.resolveTarget(app.context, undefined);

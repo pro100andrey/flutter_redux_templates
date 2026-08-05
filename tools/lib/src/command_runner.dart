@@ -7,6 +7,7 @@ import 'commands/add_nav_command.dart';
 import 'commands/add_enum_command.dart';
 import 'commands/add_field_command.dart';
 import 'commands/add_model_command.dart';
+import 'commands/add_package_command.dart';
 import 'commands/add_page_command.dart';
 import 'commands/add_retrofit_command.dart';
 import 'commands/add_selector_command.dart';
@@ -64,6 +65,7 @@ class FrxRunner extends CommandRunner<int> {
     addCommand(AddServiceCommand());
     addCommand(AddRetrofitCommand());
     addCommand(AddThemeExtensionCommand());
+    addCommand(AddPackageCommand());
     addCommand(AddTabsCommand());
     addCommand(NewCommand());
     addCommand(CreateCommand());
