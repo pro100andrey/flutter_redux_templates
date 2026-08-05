@@ -6,12 +6,19 @@ import '../theme/radii.dart';
 
 /// One choice in a [SegmentedControl].
 class Segment<T> {
-  const Segment({required this.value, required this.icon, required this.label});
+  const Segment({required this.value, required this.label, this.icon});
 
   final T value;
-  final IconData icon;
 
-  /// The control is icon-only, so this is what assistive technology reads.
+  /// Drawn when there is one; otherwise [label] is drawn as text.
+  ///
+  /// Optional because not every fixed set has icons. Light and dark do — a sun
+  /// and a moon read instantly. Languages do not: the honest control for `en`
+  /// versus `uk` shows those two words, and a flag would be wrong anyway
+  /// (a flag is a country, not a language).
+  final IconData? icon;
+
+  /// What assistive technology reads — and what is drawn when [icon] is null.
   final String label;
 }
 
@@ -70,6 +77,10 @@ class _Segment<T> extends StatelessWidget {
   static const double _height = 26;
   static const double _iconSize = 14;
 
+  /// A text segment sets its own width from the label rather than taking
+  /// [_width], which is sized for a 14px glyph and would clip two characters.
+  static const _textPadding = EdgeInsets.symmetric(horizontal: 8);
+
   /// Matches Material's disabled treatment.
   static const _disabledOpacity = 0.38;
 
@@ -77,6 +88,7 @@ class _Segment<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final selected = vm.value == segment.value;
+    final icon = segment.icon;
 
     var ink = selected ? scheme.onSurface : scheme.onSurfaceVariant;
     if (!vm.enabled) {
@@ -93,14 +105,22 @@ class _Segment<T> extends StatelessWidget {
         // A plain box, not `Ink`: `Ink` paints into the nearest Material, which
         // sits below the track's opaque background, so the fill never showed.
         child: Container(
-          width: _width,
+          width: segment.icon == null ? null : _width,
           height: _height,
+          padding: segment.icon == null ? _textPadding : null,
           alignment: .center,
           decoration: BoxDecoration(
             color: selected ? scheme.surfaceContainerHighest : null,
             borderRadius: Radii.segment,
           ),
-          child: Icon(segment.icon, size: _iconSize, color: ink),
+          child: icon == null
+              ? Text(
+                  segment.label,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: ink),
+                )
+              : Icon(icon, size: _iconSize, color: ink),
         ),
       ),
     );

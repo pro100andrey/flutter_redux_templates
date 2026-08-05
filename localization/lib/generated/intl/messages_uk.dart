@@ -48,6 +48,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "logInSubtitle": MessageLookupByLibrary.simpleMessage(
       "Увійдіть, щоб продовжити.",
     ),
+    "logOut": MessageLookupByLibrary.simpleMessage("Вийти"),
     "minimumLengthSymbols": m0,
     "mustContainAtLeastOneLowercase": MessageLookupByLibrary.simpleMessage(
       "Має містити хоча б одну малу літеру",

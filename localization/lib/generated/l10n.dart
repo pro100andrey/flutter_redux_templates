@@ -229,6 +229,11 @@ class S {
     );
   }
 
+  /// `Log out`
+  String get logOut {
+    return Intl.message('Log out', name: 'logOut', desc: '', args: []);
+  }
+
   /// `Passwords do not match`
   String get passwordsDoNotMatch {
     return Intl.message(

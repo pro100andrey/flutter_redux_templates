@@ -1,6 +1,7 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/language/actions/set_language_action.dart';
 import 'package:business/redux/login/actions/log_in_with_email_action.dart';
 import 'package:business/redux/login/actions/set_email_action.dart';
 import 'package:business/redux/login/actions/set_password_action.dart';
@@ -28,6 +29,7 @@ class LogInPageConnector extends StatelessWidget {
       onPressedLogIn: vm.onPressedLogIn,
       onPressedRegister: vm.onPressedRegister,
       theme: vm.theme,
+      language: vm.language,
     ),
   );
 }
@@ -57,6 +59,14 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
       value: theme.mode,
       onChanged: (mode) => dispatchSync(SetThemeModeAction(mode)),
     ),
+    // The dispatch the language slice never had. `AppState.language` was
+    // persisted, selected and read by `MaterialApp.locale` — and nothing
+    // anywhere sent `SetLanguageAction`, so the app restored a language it
+    // could not be told to change.
+    language: FieldVm(
+      value: language.locale,
+      onChanged: (locale) => dispatchSync(SetLanguageAction(locale)),
+    ),
   );
 }
 
@@ -69,7 +79,8 @@ class _Vm extends Vm {
     required this.onPressedForgotPassword,
     required this.onPressedRegister,
     required this.theme,
-  }) : super(equals: [email, password, theme]);
+    required this.language,
+  }) : super(equals: [email, password, theme, language]);
 
   final FieldVm<String?> email;
   final FieldVm<String?> password;
@@ -77,4 +88,5 @@ class _Vm extends Vm {
   final VoidCallback onPressedForgotPassword;
   final VoidCallback onPressedRegister;
   final FieldVm<ThemeMode> theme;
+  final FieldVm<String> language;
 }

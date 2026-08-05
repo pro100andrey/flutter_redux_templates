@@ -21,6 +21,7 @@
     "minimumLengthSymbols": "Мінімальна довжина — {value} символів",
     "mustContainAtLeastOneLowercase": "Має містити хоча б одну малу літеру",
     "mustContainAtLeastOneUppercase": "Має містити хоча б одну велику літеру",
+    "logOut": "Вийти",
     "passwordsDoNotMatch": "Паролі не збігаються",
     "somethingWentWrong": "Щось пішло не так",
     "tryAgainLater": "Спробуйте пізніше.",

@@ -14,6 +14,7 @@ sequenceDiagram
     participant A2 as SetPasswordAction
     participant A3 as LogInWithEmailAction
     participant A4 as SetThemeModeAction
+    participant A5 as SetLanguageAction
     participant ST as AppState
     participant NAV as Router
 
@@ -31,8 +32,7 @@ sequenceDiagram
     UI->>VM: onPressedLogIn()
     VM->>+A3: dispatchAndWait
     Note over A3: WaitingAction · async
-    A3->>ST: copyWith(login)
-    A3--xVM: UserException
+    A3->>ST: copyWith(session)
     A3-->>-VM: ActionStatus
 
     User->>UI: onPressedForgotPassword
@@ -47,16 +47,22 @@ sequenceDiagram
     UI->>VM: theme()
     VM->>A4: dispatchSync
     A4->>ST: copyWith(theme.mode)
+
+    User->>UI: language.onChanged
+    UI->>VM: language()
+    VM->>A5: dispatchSync
+    A5->>ST: copyWith(language.locale)
 ```
 
 | Interaction | Dispatches | Writes |
 | --- | --- | --- |
 | `email.onChanged` | `SetEmailAction` | `login.email` |
 | `password.onChanged` | `SetPasswordAction` | `login.password` |
-| `onPressedLogIn` | `LogInWithEmailAction` | `login` |
+| `onPressedLogIn` | `LogInWithEmailAction` | `session` |
 | `onPressedForgotPassword` | `GoAction.push` | — |
 | `onPressedRegister` | `GoAction.push` | — |
 | `theme.onChanged` | `SetThemeModeAction` | `theme.mode` |
+| `language.onChanged` | `SetLanguageAction` | `language.locale` |
 
 `?` marks a dispatch that only runs under a condition.
 
