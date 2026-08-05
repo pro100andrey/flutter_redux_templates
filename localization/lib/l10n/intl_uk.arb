@@ -21,5 +21,11 @@
     "minimumLengthSymbols": "Мінімальна довжина — {value} символів",
     "mustContainAtLeastOneLowercase": "Має містити хоча б одну малу літеру",
     "mustContainAtLeastOneUppercase": "Має містити хоча б одну велику літеру",
-    "passwordsDoNotMatch": "Паролі не збігаються"
+    "passwordsDoNotMatch": "Паролі не збігаються",
+    "somethingWentWrong": "Щось пішло не так",
+    "tryAgainLater": "Спробуйте пізніше.",
+    "sessionExpired": "Сесія завершилася",
+    "pleaseLogInAgain": "Увійдіть ще раз.",
+    "networkError": "Проблема зі з’єднанням",
+    "checkYourConnection": "Перевірте з’єднання та спробуйте ще раз."
 }

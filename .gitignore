@@ -1,6 +1,13 @@
 # Pub workspace: resolution artifacts are shared at the workspace root.
 .dart_tool/
 
+# `flutter test <pkg> …` run from the workspace root writes its dill cache and
+# unit-test assets here, not into the package's own `build/`. Each package
+# ignores its own (see `app/.gitignore`); nothing ignored the root one, so a
+# single test run left ~50 MB untracked — and `mold pack` put it in
+# `template.g.dart`, taking the shipped archive from 460 KB to 22 MB.
+/build/
+
 # VS Code extension (tools/vscode) build artifacts.
 *.vsix
 node_modules/

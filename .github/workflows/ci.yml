@@ -48,6 +48,17 @@ jobs:
         # its own job below.
         run: dart analyze models storage localization http_client ui business app
 
+      - name: Test
+        # `models` and `http_client` have a pure-Dart closure and run under the
+        # bare `test` runner; the rest pull in Flutter and need `flutter test`.
+        # Split for that reason only — a single `flutter test` over all of them
+        # would work but would boot a Flutter test host for two packages that
+        # do not need one.
+        run: |
+          (cd models && dart test)
+          (cd http_client && dart test)
+          flutter test business ui app
+
       - name: Verify generated code is up to date
         # Regenerate everything and fail if the committed output drifted — a PR
         # that changes a source but forgets to commit the regenerated part is

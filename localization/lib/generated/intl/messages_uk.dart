@@ -28,6 +28,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "appTitle": MessageLookupByLibrary.simpleMessage("Flutter Application 1"),
     "backToLogIn": MessageLookupByLibrary.simpleMessage("Назад до входу"),
     "cancel": MessageLookupByLibrary.simpleMessage("Скасувати"),
+    "checkYourConnection": MessageLookupByLibrary.simpleMessage(
+      "Перевірте з’єднання та спробуйте ще раз.",
+    ),
     "confirmPassword": MessageLookupByLibrary.simpleMessage(
       "Підтвердіть пароль",
     ),
@@ -52,6 +55,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "mustContainAtLeastOneUppercase": MessageLookupByLibrary.simpleMessage(
       "Має містити хоча б одну велику літеру",
     ),
+    "networkError": MessageLookupByLibrary.simpleMessage(
+      "Проблема зі з’єднанням",
+    ),
     "ok": MessageLookupByLibrary.simpleMessage("OK"),
     "password": MessageLookupByLibrary.simpleMessage("Пароль"),
     "passwordsDoNotMatch": MessageLookupByLibrary.simpleMessage(
@@ -60,8 +66,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "pleaseCheckYourNetworkSettings": MessageLookupByLibrary.simpleMessage(
       "Перевірте налаштування мережі.",
     ),
+    "pleaseLogInAgain": MessageLookupByLibrary.simpleMessage(
+      "Увійдіть ще раз.",
+    ),
     "register": MessageLookupByLibrary.simpleMessage("Зареєструватися"),
     "requiredField": MessageLookupByLibrary.simpleMessage("Обов’язкове поле"),
     "resetPassword": MessageLookupByLibrary.simpleMessage("Скинути пароль"),
+    "sessionExpired": MessageLookupByLibrary.simpleMessage("Сесія завершилася"),
+    "somethingWentWrong": MessageLookupByLibrary.simpleMessage(
+      "Щось пішло не так",
+    ),
+    "tryAgainLater": MessageLookupByLibrary.simpleMessage("Спробуйте пізніше."),
   };
 }

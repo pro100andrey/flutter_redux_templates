@@ -19,7 +19,11 @@ class AppDependencies {
   final Store<AppState> _store;
 
   /// Storage backend, opened once in run_env and shared with the Persistor.
-  final KeyValueStorage settings;
+  ///
+  /// Typed on the interface, not on `KeyValueStorage`: the concrete adapter
+  /// reaches path_provider, so a consumer naming it cannot be built without a
+  /// Flutter binding and a real file.
+  final BaseKeyValueStorage settings;
 
   late final connectivity = ConnectivityService(
     listener: ConnectivityDispatcher(store: _store),

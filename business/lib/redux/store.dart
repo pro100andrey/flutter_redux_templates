@@ -13,7 +13,7 @@ late Store<AppState>? _store;
 Store<AppState> newStore({
   required Environment environment,
   required AppState initialState,
-  required KeyValueStorage settings,
+  required BaseKeyValueStorage settings,
   Persistor<AppState>? persistor,
   UserErrorWrapperHandler? userErrorWrapper,
 }) {
@@ -37,7 +37,17 @@ Store<AppState> newStore({
 /// Full boot for the app layer: opens storage, wires the [AppPersistor],
 /// restores the last persisted state, and builds the store. Keeps the storage
 /// backend inside `business` — the app never touches it.
-Future<Store<AppState>> createStore(Environment environment) async {
+///
+/// [onError] turns a thrown object into the title and body the user sees. It is
+/// the app's to supply, because translating is the app's job: `business` names
+/// [LocalizedMessage] and never names `S`, so the arrow between the two
+/// packages keeps pointing one way. Leaving it off means every failure reaches
+/// the user as the raw `toString()` of a Dart object — which is what happened
+/// while `newStore` took this parameter and `createStore` did not forward it.
+Future<Store<AppState>> createStore(
+  Environment environment, {
+  UserErrorWrapperHandler? onError,
+}) async {
   final settings = KeyValueStorage();
   await settings.setupStorage(dbFile: 'settings.db');
 
@@ -49,6 +59,7 @@ Future<Store<AppState>> createStore(Environment environment) async {
     initialState: initialState,
     settings: settings,
     persistor: persistor,
+    userErrorWrapper: onError,
   );
 }
 
@@ -79,7 +90,12 @@ class _MyErrorObserver extends GlobalErrorObserver<AppState> {
     if (customErrorWrapper != null) {
       final message = customErrorWrapper!(error);
       if (message != null) {
-        return UserException(message.message, reason: message.title);
+        // `titleAndContent()` returns (message, reason) when both are set, so
+        // the first argument is the dialog's *title*. These two were the other
+        // way round, which would have rendered a LocalizedMessage's title as
+        // the body and its message as the heading — invisible until now,
+        // because nothing supplied a wrapper for this branch to run.
+        return UserException(message.title, reason: message.message);
       }
     }
 
@@ -87,6 +103,11 @@ class _MyErrorObserver extends GlobalErrorObserver<AppState> {
       return error;
     }
 
+    // Reached only when no wrapper was supplied, or it declined this error.
+    // Both arguments are the same string on purpose: without a translator
+    // there is no title to show, and repeating the text is less confusing
+    // than a heading that says something the body contradicts. The place to
+    // fix this is `createStore(onError:)`, not here.
     return UserException('$error', reason: error.toString());
   }
 }

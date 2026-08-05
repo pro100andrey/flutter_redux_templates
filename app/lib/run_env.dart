@@ -12,6 +12,7 @@ import 'package:pro_pretty_logging/pro_pretty_logging.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'errors.dart';
 import 'navigation/app_router.dart';
 
 bool get isDesktop =>
@@ -34,7 +35,7 @@ Future<void> runEnv(Environment env) async {
 
   prettyLogging(enable: kDebugMode);
 
-  final store = await createStore(env);
+  final store = await createStore(env, onError: translateError);
 
   await (store.dependencies! as AppDependencies).warmUp();
 
