@@ -1,11 +1,11 @@
 import 'package:args/args.dart';
-import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
 import '../scaffold/artifact_templates.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
+import '../model/artifact_files.dart';
 
 /// Scaffolds a plain enum in the `models` package.
 class AddEnumCommand extends WritingCommand {
@@ -45,7 +45,7 @@ class AddEnumCommand extends WritingCommand {
       usageException(e.message);
     }
 
-    final file = p.join(repo.modelsLib.path, '${name.snake}.dart');
+    final file = ArtifactFiles.model(repo, name);
 
     return WritePlan(
       changes: Changeset([

@@ -6,6 +6,7 @@ import '../scaffold/widget_scaffold.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'artifact_name.dart';
+import 'artifact_files.dart';
 
 /// The artifacts `remove` can delete that are *file sets* rather than wiring.
 ///
@@ -174,24 +175,13 @@ class RemovableResolver {
   // --- model / enum ----------------------------------------------------------
 
   RemovableArtifact? _model(Casing name) {
-    final source = File(p.join(repo.modelsLib.path, '${name.snake}.dart'));
+    final source = File(ArtifactFiles.model(repo, name));
     if (!source.existsSync()) return null;
 
     // The generated siblings go with it. Left behind they are the worse half of
     // the failure: `task.freezed.dart` still `part of 'task.dart'`, so the
     // package stops compiling on a file the user never wrote and did not delete.
-    final generated =
-        repo.modelsLib
-            .listSync()
-            .whereType<File>()
-            .map((f) => f.path)
-            .where(
-              (path) =>
-                  FrxWorkspace.isGenerated(path) &&
-                  p.basename(path).startsWith('${name.snake}.'),
-            )
-            .toList()
-          ..sort();
+    final generated = ArtifactFiles.modelGenerated(repo, name);
 
     return RemovableArtifact(
       kind: RemovableKind.model,
@@ -318,7 +308,7 @@ class RemovableResolver {
 
   RemovableArtifact? _service(Casing name) {
     final stem = ArtifactName.serviceStem(name);
-    final dir = Directory(p.join(repo.businessServices.path, stem.snake));
+    final dir = ArtifactFiles.serviceDir(repo, name);
     if (!dir.existsSync()) return null;
 
     final held =
