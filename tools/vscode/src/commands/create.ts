@@ -525,6 +525,17 @@ export async function addPackage(app: App): Promise<void> {
   });
   if (!res) return;
 
+  // The CLI answers "already a member" with an empty plan and exit 0, so a
+  // truthy result is not the same as a package having been created. Saying
+  // "added — run pub get" there sends the user to re-resolve a workspace that
+  // did not change.
+  if (res.stdout.includes('already a workspace member')) {
+    vscode.window.showInformationMessage(
+      `FRX: ${pick.pkg} is already a workspace member — nothing to do.`,
+    );
+    return;
+  }
+
   vscode.window.showInformationMessage(
     `FRX: ${pick.pkg} added — run \`flutter pub get\` before using it.`,
   );

@@ -342,10 +342,13 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   if (node.methodName.name != 'copyWith') return const [];
   if (target is PrefixedIdentifier)
     return _qualify(target.identifier.name, fields);
-  // Flat: the substate is named by the argument, and its value is a whole
-  // replacement — there is no field to qualify with.
-  final flat = fields.firstOrNull?.name.lexeme;
-  return flat == null ? const [] : [(substate: flat, field: null)];
+  // Flat: each argument names a substate, and its value is a whole replacement
+  // — there is no field to qualify with. One write per argument, for the reason
+  // [_qualify] states for the deep form and this branch used to contradict:
+  // `copyWith(session: …, login: …)` writes both, and keeping only the first
+  // understated it. `LogInWithEmailAction` is exactly that shape, and its flow
+  // doc said it touched the session and not the login draft it clears.
+  return [for (final f in fields) (substate: f.name.lexeme, field: null)];
 }
 
 /// `logIn` + `email` → one [StateWrite] per field. Every field is listed: an

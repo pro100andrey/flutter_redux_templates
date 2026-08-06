@@ -214,6 +214,7 @@ writes accepts the flag, and `frx_command_test.dart` fails if one does not.
 frx create my_app                                  # → ./my_app
 frx create my_app --org com.acme --title 'My App'  # identity for a real project
 frx create my_app -t ~/work/my_app --dry-run       # see what it would write
+frx create my_app --without models,http_client     # leave the optional ones out
 ```
 
 Materialises **this monorepo** under a new name: packages, wiring, docs, and
@@ -241,6 +242,34 @@ into `lib/src/template/template.g.dart` and carries its own `mold.yaml`, which i
 where every rename is declared. The source has no placeholders in it — the
 template stays lintable and current by being the thing we actually use, and the
 renaming lives beside it rather than inside it.
+
+**`--without` is what makes the optional packages optional.** `models`,
+`http_client` and `storage` each have an `add-package` that puts them back; until
+`--without` there was no way to produce a project that lacked one, so a project
+that never talks to a server carried two packages it did not use.
+
+```text
+✓ Created "my_app" in my_app
+  322 files · 61 replacements · 1 path(s) renamed
+  com.example.my_app · "My App"
+  without models — `frx add-package <kind>` puts one back
+```
+
+Leaving a package out deletes its directory, drops its `workspace:` entry and
+withdraws the path dependency from every package that declared it — five edits
+that have to agree, or `pub get` fails on the first one missed.
+
+**What may be left out is read off the archive, not listed here**: a package can
+go if no Dart file outside it imports it. So `--without storage` is refused —
+`business` imports it in three places and the project would not compile — and by
+the same rule `http_client` stops being droppable the day something wires it up.
+The refusal names the importing files and writes nothing.
+
+Round-tripping is a test: `create --without models` followed by
+`add-package models` restores `business/pubspec.yaml` and
+`http_client/pubspec.yaml` byte for byte, sorted position included. The root
+pubspec regains the member but not its place in the list — that order is
+dependency order, which nothing can re-derive.
 
 **What it deliberately leaves behind** is this repository's machinery: `tools/`
 (this CLI and the extension — installed once, used across every project it makes)

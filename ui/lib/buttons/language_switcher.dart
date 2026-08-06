@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:localization/localization.dart';
 
 import '../models/value_changed.dart';
 import 'segmented_control.dart';
@@ -17,17 +18,25 @@ import 'theme_switcher.dart';
 /// them through `S.current` would hide each option from exactly the user
 /// looking for it — which is why they are constants here and not l10n keys.
 ///
-/// Two segments because the app ships two locales. A third goes in [supported]
-/// and in `intl_*.arb`; past four or five a segmented control is the wrong
-/// shape and a list is the right one.
+/// **Which locales exist is not this widget's fact.** The segments come from
+/// `S.delegate.supportedLocales` — generated from the ARB files, and what
+/// `MaterialApp` already reads — so adding `intl_de.arb` puts German on the
+/// control rather than making this the one place in the app that has not heard
+/// of it. Only the endonym is not derivable, and that is all [_endonyms] holds.
+///
+/// Two segments because the app ships two locales. Past four or five a
+/// segmented control is the wrong shape and a list is the right one.
 class LanguageSwitcher extends StatelessWidget {
   const LanguageSwitcher({required this.vm, super.key});
 
   final FieldVm<String> vm;
 
-  /// Locale code to the name that language calls itself. Keep in step with
-  /// `S.delegate.supportedLocales`.
-  static const supported = <String, String>{
+  /// Locale code to the name that language calls itself.
+  ///
+  /// A locale missing from here still gets a segment — its code, upper-cased —
+  /// because an unlabelled option a user can still pick beats an option that
+  /// silently is not there.
+  static const _endonyms = <String, String>{
     'en': 'English',
     'uk': 'Українська',
   };
@@ -36,8 +45,13 @@ class LanguageSwitcher extends StatelessWidget {
   Widget build(BuildContext context) => SegmentedControl<String>(
     vm: vm,
     segments: [
-      for (final entry in supported.entries)
-        Segment(value: entry.key, label: entry.value),
+      for (final locale in S.delegate.supportedLocales)
+        Segment(
+          value: locale.languageCode,
+          label:
+              _endonyms[locale.languageCode] ??
+              locale.languageCode.toUpperCase(),
+        ),
     ],
   );
 }

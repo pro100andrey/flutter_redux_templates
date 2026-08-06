@@ -19,8 +19,9 @@ frx add-package <kind>
 ## Which packages are optional
 
 `models` and `http_client` are optional, and a project may have been created
-without them. `app`, `business`, `ui` and `localization` are not — the app does
-not compile without them, so there is nothing to add.
+without them — `frx create --without models,http_client` is what leaves them
+out. `app`, `business`, `ui` and `localization` are not — the app does not
+compile without them, so there is nothing to add.
 
 | kind | holds | written into by |
 | --- | --- | --- |
@@ -30,11 +31,12 @@ not compile without them, so there is nothing to add.
 
 ## What it writes
 
-Five files and one edit, applied together or not at all: the package's
+Five files and two kinds of edit, applied together or not at all: the package's
 `pubspec.yaml` (with `resolution: workspace`, the line that makes it a member),
 `analysis_options.yaml`, `build.yaml` where a builder runs, `.gitignore`,
-`lib/.gitkeep` — and one entry spliced into the root pubspec's `workspace:`
-list.
+`lib/.gitkeep` — one entry spliced into the root pubspec's `workspace:` list,
+and the path dependency spliced into each package that declares it (`business`
+for all three, and `http_client` for `models`).
 
 ## After it runs
 
@@ -45,9 +47,9 @@ its own — build_runner needs the resolution it just invalidated.
 
 ## Before you run it
 
-- Adding the package does not add a **dependency** on it. A package that
-  wants to import `package:models/…` still needs the entry in its own
-  `pubspec.yaml` — nothing writes that yet.
+- It declares the dependency in the packages the template declares it in,
+  and nowhere else. A **different** package that wants to import
+  `package:models/…` still needs the entry in its own `pubspec.yaml`.
 - Asking for a package that is already a member is not an error: it writes
   nothing and says so.
 

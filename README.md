@@ -14,6 +14,10 @@ yours — Android `applicationId` and `namespace`, the Apple bundle identifiers,
 Kotlin package **and its directory**, the app's title on the device and in its own
 AppBar. `--dry-run` shows what it would write first.
 
+`--without models,http_client` leaves out the packages a project may not need;
+`frx add-package <kind>` puts one back later. What may be left out is whatever
+nothing imports, so the refusal is checked rather than remembered.
+
 Cloning works too, but leaves you to rename all of that by hand, and this
 repository's own machinery — the CLI, its CI — comes with it. `frx create`
 brings the product and leaves the machinery behind. See

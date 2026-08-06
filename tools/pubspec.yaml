@@ -26,10 +26,14 @@ dependencies:
   # regeneration command in tools/README.md.
   mold: ^0.1.2
   path: ^1.9.1
-  # `add-package` splices one entry into the root pubspec's `workspace:` list.
-  # The only YAML this CLI writes — everything else it does to a pubspec is a
-  # read. Surgical rather than a re-serialise, so comments and formatting in a
-  # file nobody asked us to touch survive.
+  # Read for the spans `add-package` needs to place a dependency in sorted
+  # position — `yaml_edit` appends, and `sort_pub_dependencies` is on.
+  yaml: ^3.1.3
+  # `add-package` splices entries into the root pubspec's `workspace:` list and
+  # into the `dependencies:` of whoever declares the package. The only YAML this
+  # CLI writes — everything else it does to a pubspec is a read. Surgical rather
+  # than a re-serialise, so comments and formatting in a file nobody asked us to
+  # touch survive.
   yaml_edit: ^2.2.2
 
 dev_dependencies:

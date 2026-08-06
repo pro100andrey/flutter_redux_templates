@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 import 'package:yaml_edit/yaml_edit.dart';
 
 import '../engine/changeset.dart';
@@ -19,6 +20,7 @@ enum PackageKind {
   models(
     'models',
     'Shared freezed models and converters',
+    dependents: {'business', 'http_client'},
     dependencies: {
       'fast_immutable_collections': '^11.2.0',
       'freezed_annotation': '^3.1.0',
@@ -40,6 +42,7 @@ enum PackageKind {
   httpClient(
     'http_client',
     'Dio + Retrofit API clients and interceptors',
+    dependents: {'business'},
     dependencies: {
       'dio': '^5.10.0',
       'fast_immutable_collections': '^11.2.0',
@@ -65,6 +68,7 @@ enum PackageKind {
   storage(
     'storage',
     'Key-value persistence behind BaseKeyValueStorage',
+    dependents: {'business'},
     dependencies: {
       'crypto': '^3.0.7',
       'encrypt': '^5.0.3',
@@ -79,6 +83,7 @@ enum PackageKind {
   const PackageKind(
     this.dir,
     this.summary, {
+    required this.dependents,
     required this.dependencies,
     required this.devDependencies,
     this.build,
@@ -90,6 +95,19 @@ enum PackageKind {
 
   /// One line for `--help` and for the refusal that names this kind.
   final String summary;
+
+  /// The workspace members whose pubspec declares a path dependency on this
+  /// package — transcribed from the template, like [dependencies].
+  ///
+  /// **What `create` declares, in both directions**: adding `http_client` puts
+  /// the entry in `business`, and puts `models` inside `http_client`, because
+  /// this package sits on both ends of that relation.
+  ///
+  /// It is not what an *omission* reads — that derives the same fact from the
+  /// tree it is about to change, so a workspace this catalogue never heard of
+  /// is still left resolvable. A test asserts the two agree for the template;
+  /// that is what keeps this current when a pubspec gains a line.
+  final Set<String> dependents;
 
   final Map<String, String> dependencies;
   final Map<String, String> devDependencies;
@@ -177,9 +195,10 @@ abstract final class PackageScaffold {
 
     final dir = p.join(repo.root.path, kind.dir);
     final root = p.join(repo.root.path, 'pubspec.yaml');
+    final rootBefore = File(root).readAsStringSync();
 
     return [
-      WriteFile(p.join(dir, 'pubspec.yaml'), _pubspec(kind)),
+      WriteFile(p.join(dir, 'pubspec.yaml'), _pubspec(kind, repo)),
       WriteFile(p.join(dir, 'analysis_options.yaml'), _lints(kind)),
       if (kind.build case final build?)
         WriteFile(p.join(dir, 'build.yaml'), build),
@@ -190,10 +209,98 @@ abstract final class PackageScaffold {
       WriteFile(p.join(dir, 'lib', '.gitkeep'), ''),
       EditFile(
         root,
-        before: File(root).readAsStringSync(),
-        after: addToWorkspace(File(root).readAsStringSync(), kind.dir),
+        before: rootBefore,
+        after: addToWorkspace(rootBefore, kind.dir),
       ),
+      // A member nobody may depend on is a directory `pub get` resolves and no
+      // `import` can reach. This used to be the user's to write, and the skill
+      // said so; what it could not say is which pubspec — the answer is on the
+      // kind.
+      ..._declarations(repo, kind),
     ];
+  }
+
+  /// The changes that unmake [kind] a member of the tree at [root]: every
+  /// declaration of it, its `workspace:` entry, and the directory. None when it
+  /// is not there.
+  ///
+  /// The inverse of [create], and what `frx create --without` applies. Kept
+  /// beside it rather than in the command, because the pair is the point: an
+  /// omission that forgot a declaration would leave a pubspec pointing at
+  /// `../models` and a project that does not resolve.
+  static List<Change> omit(String root, PackageKind kind) {
+    final dir = p.join(root, kind.dir);
+    if (!Directory(dir).existsSync()) return const [];
+
+    final rootPubspec = p.join(root, 'pubspec.yaml');
+    final before = File(rootPubspec).readAsStringSync();
+
+    return [
+      ..._withdrawals(root, kind),
+      EditFile(
+        rootPubspec,
+        before: before,
+        after: removeFromWorkspace(before, kind.dir),
+      ),
+      // Last, so an edit to a pubspec *inside* another omitted package (only
+      // `http_client`, which declares `models`) is not written back into a
+      // directory a delete has already taken away. Omissions are applied one
+      // kind at a time for the same reason.
+      DeleteDirectory(dir),
+    ];
+  }
+
+  /// The pubspec edits that declare [kind] where the template declares it, plus
+  /// the ones the new package itself owes.
+  ///
+  /// Both directions of [PackageKind.dependents], because a package is on both
+  /// ends of that relation: creating `http_client` has to declare it in
+  /// `business`, *and* declare `models` inside `http_client`. Reading only the
+  /// first direction is what left a re-added `http_client` unable to import the
+  /// models `add-retrofit` writes against — and `models` had to be re-added
+  /// first for it to happen, which is why the round trip did not catch it.
+  static List<Change> _declarations(FrxWorkspace repo, PackageKind kind) {
+    final edits = <Change>[];
+    for (final dependent in kind.dependents) {
+      // Skips a dependent that is not there: `models` is declared by
+      // `http_client`, which is itself optional, so "who depends on this" and
+      // "who is present" are two questions and only the first is a fixed fact.
+      final file = File(p.join(repo.root.path, dependent, 'pubspec.yaml'));
+      if (!file.existsSync()) continue;
+
+      final before = file.readAsStringSync();
+      final after = addDependency(before, kind.dir);
+      if (after == before) continue;
+
+      edits.add(EditFile(file.path, before: before, after: after));
+    }
+    return edits;
+  }
+
+  /// Every pubspec under [root] that declares [kind], with the declaration gone.
+  ///
+  /// **Found rather than looked up.** [PackageKind.dependents] is what [create]
+  /// declares, because it has nothing to read; an omission has the tree in front
+  /// of it, and a declaration it failed to withdraw is a pubspec pointing at a
+  /// directory that is no longer there — `pub get` fails and the project cannot
+  /// be opened. Deriving it means the guard holds for a workspace whose members
+  /// this catalogue never heard of; that the two agree for the template is a
+  /// test rather than an assumption.
+  static List<Change> _withdrawals(String root, PackageKind kind) {
+    final edits = <Change>[];
+    for (final entity in Directory(root).listSync()) {
+      if (entity is! Directory || p.basename(entity.path) == kind.dir) continue;
+
+      final file = File(p.join(entity.path, 'pubspec.yaml'));
+      if (!file.existsSync()) continue;
+
+      final before = file.readAsStringSync();
+      final after = removeDependency(before, kind.dir);
+      if (after == before) continue;
+
+      edits.add(EditFile(file.path, before: before, after: after));
+    }
+    return edits;
   }
 
   /// [source] with [name] added to the root pubspec's `workspace:` list.
@@ -236,7 +343,160 @@ abstract final class PackageScaffold {
     return editor.toString();
   }
 
-  static String _pubspec(PackageKind kind) {
+  /// [source] with a path dependency on [name] under `dependencies:`.
+  /// Unchanged when it is already declared.
+  ///
+  /// **Inserted in sorted position, not appended**, which is why this is not
+  /// `editor.update(['dependencies', name], …)`: that appends, `pro_lints`
+  /// turns on `sort_pub_dependencies`, and a project would open with an
+  /// analyzer warning in the file this command had just edited.
+  ///
+  /// So the position is read off the YAML — the keys and their spans — and the
+  /// two lines are spliced into the text. A parse-and-re-serialise would place
+  /// them correctly and reflow everything else, and a pubspec is not ours to
+  /// reformat; it is the reason [addToWorkspace] is a splice too.
+  static String addDependency(String source, String name) {
+    final editor = YamlEditor(source);
+    final deps = editor.parseAt([
+      'dependencies',
+    ], orElse: () => wrapAsYamlNode(null));
+
+    if (deps is YamlMap && deps.isNotEmpty) {
+      if (deps.containsKey(name)) return source;
+      return _splice(source, _placeFor(source, deps, name), _entry(name));
+    }
+    if (deps is YamlMap || deps.value == null) {
+      // An empty block, a `dependencies:` with nothing under it, or no key at
+      // all — nothing to sort against, so `yaml_edit` writes the whole block.
+      editor.update(
+        ['dependencies'],
+        {
+          name: {'path': '../$name'},
+        },
+      );
+      return editor.toString();
+    }
+    // Anything else is a shape this does not understand, and overwriting it
+    // would take a list of dependencies away without saying so. [addToWorkspace]
+    // refuses the same class of surprise rather than guessing.
+    throw StateError(
+      'The `dependencies:` of this pubspec is not a map of package names, so '
+      '"$name" cannot be added to it without discarding what is there.',
+    );
+  }
+
+  /// [source] with the dependency on [name] gone. Unchanged when it declares
+  /// none — the idempotency the callers would otherwise each need a rule for.
+  ///
+  /// A splice, and for a sharper reason than [addDependency]'s: `editor.remove`
+  /// takes the blank line after the block with it when the entry removed is the
+  /// last one, so it was not the inverse of an insert in that one position.
+  /// Cutting exactly the lines the entry spans is inverse by construction.
+  static String removeDependency(String source, String name) {
+    final deps = YamlEditor(
+      source,
+    ).parseAt(['dependencies'], orElse: () => wrapAsYamlNode(null));
+    if (deps is! YamlMap) return source;
+
+    for (final entry in deps.nodes.entries) {
+      if ((entry.key as YamlScalar).value != name) continue;
+      final from = _startOfLine(
+        source,
+        (entry.key as YamlScalar).span.start.offset,
+      );
+      final to = _afterLine(source, entry.value.span.end.offset);
+      return source.substring(0, from) + source.substring(to);
+    }
+    return source;
+  }
+
+  /// The two lines a path dependency on [name] is written as.
+  static String _entry(String name) => '  $name:\n    path: ../$name\n';
+
+  /// Where in [source] an entry named [name] belongs, given the existing
+  /// (non-empty) [deps].
+  ///
+  /// **After the last entry that sorts before it**, rather than before the first
+  /// that sorts after. The two differ by exactly one thing: a comment sits above
+  /// the key it annotates, so inserting *before* a key inserts between that key
+  /// and its comment — silently re-parenting prose onto the new entry, in a
+  /// splice whose whole purpose is to leave prose alone.
+  static int _placeFor(String source, YamlMap deps, String name) {
+    YamlNode? previous;
+    for (final entry in deps.nodes.entries) {
+      if (((entry.key as YamlScalar).value as String).compareTo(name) > 0)
+        break;
+      previous = entry.value;
+    }
+    if (previous != null) return _afterLine(source, previous.span.end.offset);
+
+    // It sorts before everything: the top of the block, above the first entry
+    // *and* above the comment lines that belong to it.
+    var at = _startOfLine(source, deps.span.start.offset);
+    while (at > 0) {
+      final previousStart = at == 1 ? 0 : _startOfLine(source, at - 2);
+      final line = source.substring(previousStart, at - 1).trim();
+      if (line.isNotEmpty && !line.startsWith('#')) break;
+      at = previousStart;
+    }
+    return at;
+  }
+
+  /// [source] with [entry] inserted at [at].
+  ///
+  /// A source that does not end in a newline is given one first: [_afterLine]
+  /// answers `source.length` for the last line of such a file, and splicing
+  /// there would run the new entry onto the end of the last one.
+  static String _splice(String source, int at, String entry) =>
+      at == source.length && !source.endsWith('\n')
+      ? '$source\n$entry'
+      : source.substring(0, at) + entry + source.substring(at);
+
+  /// The offset of the first character on the line holding [offset].
+  static int _startOfLine(String source, int offset) {
+    final newline = source.lastIndexOf('\n', offset);
+    return newline < 0 ? 0 : newline + 1;
+  }
+
+  /// The offset just past the end of the line holding [offset], newline
+  /// included — where a following line can be spliced in.
+  ///
+  /// Trailing whitespace is walked back over first, because a block node's span
+  /// may end past its last character: taken literally, the next newline would
+  /// then be the one *after* the line meant, and the splice would land a line
+  /// too low.
+  static int _afterLine(String source, int offset) {
+    var at = offset;
+    while (at > 0 && _isSpace(source.codeUnitAt(at - 1))) {
+      at--;
+    }
+    final newline = source.indexOf('\n', at);
+    return newline < 0 ? source.length : newline + 1;
+  }
+
+  static bool _isSpace(int codeUnit) =>
+      codeUnit == 0x20 ||
+      codeUnit == 0x09 ||
+      codeUnit == 0x0A ||
+      codeUnit == 0x0D;
+
+  /// The optional packages [kind] itself depends on — [PackageKind.dependents]
+  /// read from the other end.
+  static Iterable<PackageKind> _dependsOnOptional(PackageKind kind) =>
+      PackageKind.values.where((other) => other.dependents.contains(kind.dir));
+
+  static String _pubspec(PackageKind kind, FrxWorkspace repo) {
+    // Version constraints and path dependencies in one sorted block, because
+    // `sort_pub_dependencies` does not care which sort of entry it is looking
+    // at. A path dependency on a package that is not in this workspace is left
+    // out: it would resolve to a directory that is not there.
+    final entries = <String, String>{
+      for (final dep in kind.dependencies.entries) dep.key: ' ${dep.value}',
+      for (final other in _dependsOnOptional(kind))
+        if (other.existsIn(repo)) other.dir: '\n    path: ../${other.dir}',
+    };
+    final names = entries.keys.toList()..sort();
+
     final buffer = StringBuffer()
       ..writeln('name: ${kind.dir}')
       ..writeln('description: The ${kind.dir} package.')
@@ -252,7 +512,9 @@ abstract final class PackageScaffold {
       ..writeln('resolution: workspace')
       ..writeln()
       ..writeln('dependencies:');
-    kind.dependencies.forEach((k, v) => buffer.writeln('  $k: $v'));
+    for (final dep in names) {
+      buffer.writeln('  $dep:${entries[dep]}');
+    }
     buffer
       ..writeln()
       ..writeln('dev_dependencies:');

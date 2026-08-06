@@ -22,10 +22,14 @@ class Segment<T> {
   final String label;
 }
 
-/// Icon-only segmented control over a fixed set of values.
+/// Segmented control over a fixed set of values, drawn as icons or as text.
+///
+/// Which one is per [Segment]: it draws [Segment.icon] where there is one and
+/// [Segment.label] where there is not, so a theme switcher gets a sun and a
+/// moon and a language switcher gets "English" and "Українська".
 ///
 /// Selection is [FieldVm.value]; a tap reports through [FieldVm.onChanged].
-/// `enabled: false` dims the icons and drops the handler.
+/// `enabled: false` dims the segments and drops the handler.
 ///
 /// Every value must have a segment. A [FieldVm.value] outside [segments] leaves
 /// none of them selected, which reads as a broken control rather than as a
@@ -105,9 +109,9 @@ class _Segment<T> extends StatelessWidget {
         // A plain box, not `Ink`: `Ink` paints into the nearest Material, which
         // sits below the track's opaque background, so the fill never showed.
         child: Container(
-          width: segment.icon == null ? null : _width,
+          width: icon == null ? null : _width,
           height: _height,
-          padding: segment.icon == null ? _textPadding : null,
+          padding: icon == null ? _textPadding : null,
           alignment: .center,
           decoration: BoxDecoration(
             color: selected ? scheme.surfaceContainerHighest : null,

@@ -211,6 +211,20 @@ class SomeAction extends Action {
       );
     });
 
+    test('the flat form lists every substate too, not only the first', () {
+      // What `LogInWithEmailAction` does: the token in and the draft out, in
+      // one reduce. Keeping `fields.first` documented it as touching the
+      // session alone — the same understatement the deep form is tested
+      // against two tests up, in the branch that had no test.
+      expect(
+        writesOf(
+          'state.copyWith(session: SessionState(token: t), '
+          'login: const LoginState())',
+        ),
+        'session, login',
+      );
+    });
+
     test('the outermost copyWith wins over the one nested inside it', () {
       // Both are visited; without first-write-wins the inner `email` would
       // shadow the substate the action actually replaces.

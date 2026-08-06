@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:tools/src/scaffold/package_scaffold.dart';
+import 'package:yaml/yaml.dart';
 
 import 'support/fixture.dart';
 import 'support/in_process.dart';
@@ -23,6 +24,25 @@ workspace:
   - ui
   - business
   - app
+''';
+
+/// A dependency block with the shapes that make placement non-trivial: a
+/// one-line entry, a two-line `sdk:` entry, a two-line `path:` entry, and a
+/// `dev_dependencies:` block right after the one being edited.
+const _businessPubspec = '''
+name: business
+publish_to: none
+
+dependencies:
+  async_redux: ^28.0.0
+  flutter:
+    sdk: flutter
+  logging: ^1.3.0
+  storage:
+    path: ../storage
+
+dev_dependencies:
+  pro_lints: ^6.1.0
 ''';
 
 void main() {
@@ -86,6 +106,172 @@ void main() {
     });
   });
 
+  group('addDependency', () {
+    test('inserts in sorted position, not at the end', () {
+      final out = PackageScaffold.addDependency(_businessPubspec, 'models');
+
+      expect(out, contains('  models:\n    path: ../models\n'));
+      expect(
+        out.indexOf('models:'),
+        allOf(
+          greaterThan(out.indexOf('logging:')),
+          lessThan(out.indexOf('storage:')),
+        ),
+        reason:
+            '`pro_lints` turns on sort_pub_dependencies — an appended entry '
+            'is a warning in a file the command has just written',
+      );
+    });
+
+    test('sorts before every existing entry', () {
+      final out = PackageScaffold.addDependency(_businessPubspec, 'aaa');
+
+      expect(out.indexOf('aaa:'), lessThan(out.indexOf('async_redux:')));
+    });
+
+    test('sorts after every existing entry, above dev_dependencies', () {
+      final out = PackageScaffold.addDependency(_businessPubspec, 'zzz');
+
+      expect(
+        out.indexOf('zzz:'),
+        allOf(
+          greaterThan(out.indexOf('storage:')),
+          lessThan(out.indexOf('dev_dependencies:')),
+        ),
+        reason: 'the last entry is a two-line one — its span ends a line up',
+      );
+    });
+
+    test('a pubspec with no dependencies block gets one', () {
+      final out = PackageScaffold.addDependency('name: business\n', 'models');
+
+      expect(out, contains('dependencies:'));
+      expect(out, contains('../models'));
+    });
+
+    test('a source with no trailing newline still gets whole lines', () {
+      // `_afterLine` answers `source.length` for the last line of such a file,
+      // and a splice there ran the new entry onto the end of the old one.
+      const noNewline = 'name: b\n\ndependencies:\n  logging: ^1.3.0';
+      final out = PackageScaffold.addDependency(noNewline, 'zzz');
+
+      expect(out, contains('  logging: ^1.3.0\n  zzz:\n'));
+      expect(
+        () => loadYaml(out),
+        returnsNormally,
+        reason: 'the result has to still be YAML',
+      );
+    });
+
+    test('leaves a comment with the key it annotates', () {
+      // The splice exists so prose survives; inserting *before* the next key
+      // put the new entry between that key and the comment above it.
+      const commented =
+          'name: b\n'
+          'dependencies:\n'
+          '  async_redux: ^28.0.0\n'
+          '  # keep this pinned\n'
+          '  zzz: ^1.0.0\n';
+      final out = PackageScaffold.addDependency(commented, 'models');
+
+      expect(out, contains('# keep this pinned\n  zzz: ^1.0.0'));
+    });
+
+    test('an entry that sorts first goes above the block comment', () {
+      const commented =
+          'name: b\n'
+          'dependencies:\n'
+          '  # the whole block is pinned\n'
+          '  zzz: ^1.0.0\n';
+      final out = PackageScaffold.addDependency(commented, 'aaa');
+
+      expect(out, contains('# the whole block is pinned\n  zzz: ^1.0.0'));
+      expect(out.indexOf('aaa:'), lessThan(out.indexOf('# the whole')));
+    });
+
+    test('refuses a dependencies block that is not a map of names', () {
+      // `addToWorkspace` refuses the same class of surprise. Overwriting would
+      // take a list of dependencies away and exit 0.
+      expect(
+        () => PackageScaffold.addDependency(
+          'name: b\ndependencies:\n  - a\n  - b\n',
+          'models',
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('the sole dependency can be removed and re-added', () {
+      const one =
+          'name: b\n'
+          'dependencies:\n'
+          '  models:\n'
+          '    path: ../models\n'
+          '\n'
+          'dev_dependencies:\n'
+          '  x: ^1.0.0\n';
+      final empty = PackageScaffold.removeDependency(one, 'models');
+
+      expect(
+        empty,
+        isNot(contains('{}')),
+        reason: 'an emptied block used to be re-serialised as a flow map',
+      );
+      expect(
+        PackageScaffold.addDependency(empty, 'models'),
+        one,
+        reason: 'and then threw "No element" on the way back',
+      );
+    });
+
+    test('removing the last entry keeps the blank line after the block', () {
+      // Both entries are path dependencies, because that is the only shape
+      // `addDependency` writes — the inverse is only claimed for what it wrote.
+      const two =
+          'name: b\n'
+          'dependencies:\n'
+          '  models:\n'
+          '    path: ../models\n'
+          '  zzz:\n'
+          '    path: ../zzz\n'
+          '\n'
+          'dev_dependencies:\n'
+          '  x: ^1.0.0\n';
+      final out = PackageScaffold.removeDependency(two, 'zzz');
+
+      expect(out, contains('path: ../models\n\ndev_dependencies:'));
+      expect(
+        PackageScaffold.addDependency(out, 'zzz'),
+        two,
+        reason: 'inverse in the last position too, not only mid-block',
+      );
+    });
+
+    test('is idempotent — one already declared changes nothing', () {
+      final once = PackageScaffold.addDependency(_businessPubspec, 'models');
+      expect(PackageScaffold.addDependency(once, 'models'), once);
+    });
+
+    test('removeDependency is the inverse', () {
+      final added = PackageScaffold.addDependency(_businessPubspec, 'models');
+      expect(
+        PackageScaffold.removeDependency(added, 'models'),
+        _businessPubspec,
+      );
+    });
+
+    test('removing one that is not declared changes nothing', () {
+      expect(
+        PackageScaffold.removeDependency(_businessPubspec, 'nope'),
+        _businessPubspec,
+      );
+      expect(
+        PackageScaffold.removeDependency('name: business\n', 'models'),
+        'name: business\n',
+      );
+    });
+  });
+
   group('add-package', () {
     test('writes a resolvable member and registers it', () async {
       prune('models');
@@ -113,6 +299,55 @@ void main() {
       // to hold a pubspec.
       expect(fx.read('models/pubspec.yaml'), contains('resolution: workspace'));
       expect(fx.read('pubspec.yaml'), contains('- models'));
+
+      // And the entry that makes it importable. Both of its dependents, not
+      // just the obvious one: `http_client` declares `models` as well.
+      expect(fx.read('business/pubspec.yaml'), contains('path: ../models'));
+      expect(fx.read('http_client/pubspec.yaml'), contains('path: ../models'));
+    });
+
+    test('a package declares the optional ones it depends on', () async {
+      // `models` first, so `http_client` is absent when models is added and
+      // gets no edit — the order in which the second package has to declare the
+      // first itself. The other order happened to work, which is why the
+      // create/add round trip did not catch this.
+      prune('models');
+      prune('http_client');
+      expect(
+        (await runInProcess(fx, [
+          'add-package',
+          'models',
+          '--no-format',
+        ])).exitCode,
+        0,
+      );
+      final r = await runInProcess(fx, [
+        'add-package',
+        'http_client',
+        '--no-format',
+      ]);
+
+      expect(r.exitCode, 0, reason: r.stderr);
+      expect(
+        fx.read('http_client/pubspec.yaml'),
+        contains('path: ../models'),
+        reason: 'add-retrofit writes `package:models/…` imports into it',
+      );
+    });
+
+    test('and leaves out one that is not in the workspace', () async {
+      // The inverse: `models` really is absent, so declaring it would point at
+      // a directory that is not there and fail `pub get`.
+      prune('models');
+      prune('http_client');
+      final r = await runInProcess(fx, [
+        'add-package',
+        'http_client',
+        '--no-format',
+      ]);
+
+      expect(r.exitCode, 0, reason: r.stderr);
+      expect(fx.read('http_client/pubspec.yaml'), isNot(contains('../models')));
     });
 
     test('storage writes no build.yaml, because it runs no builder', () async {
