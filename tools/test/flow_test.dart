@@ -237,6 +237,13 @@ class SomeAction extends Action {
     test('a call that is not a copyWith writes nothing', () {
       expect(writesOf('state.rebuild(logIn: v)'), isNull);
     });
+
+    test('a copyWith on something that is not state writes nothing', () {
+      // Every other shape here names its receiver and the flat one did not, so
+      // `task.copyWith(title: t, done: true)` inside a reducer read as a write
+      // of two AppState substates called `title` and `done`.
+      expect(writesOf('task.copyWith(title: t, done: true)'), isNull);
+    });
   });
 
   group('renderSequence', () {

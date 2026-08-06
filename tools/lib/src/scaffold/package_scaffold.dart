@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -35,6 +36,14 @@ enum PackageKind {
       'test': '^1.25.0',
     },
     build: _freezedBuild,
+    lintExcludes: [
+      '**/*.g.dart',
+      '**/*.freezed.dart',
+      // Its sources sit in folders (`converters/`), and the single-star globs
+      // do not reach a generated file one level down.
+      '**/**/*.g.dart',
+      '**/**/*.freezed.dart',
+    ],
   ),
 
   /// The HTTP layer — Dio, Retrofit clients and interceptors. `add-retrofit`
@@ -342,6 +351,59 @@ abstract final class PackageScaffold {
     editor.remove(['workspace', at]);
     return editor.toString();
   }
+
+  /// For each package in [omitted], the Dart files in [files] — an archive or a
+  /// tree, keyed by `/`-separated relative path — that import it.
+  ///
+  /// **The safety rule of leaving a package out**, and derived rather than
+  /// declared: a package can go when nothing outside it names it. `storage` is
+  /// optional in the same sense `models` is — its own pubspec, its own
+  /// `add-package` — and `business` imports it in four places, so dropping it
+  /// produces a project that does not compile. A list of what may be dropped
+  /// would be a second copy of that fact and would go stale the first time
+  /// somebody wires `http_client` up.
+  ///
+  /// **A package being omitted is not an importer**, however much it imports.
+  /// `http_client` declares `models` and `add-retrofit` writes
+  /// `package:models/…` into it; counting that would refuse
+  /// `--without models,http_client` — the combination the option exists for —
+  /// naming files inside a directory the same run is deleting.
+  ///
+  /// Bytes rather than strings, and content rather than a parse: the planned
+  /// shape this used to read carries no content at all for an entry mold copies
+  /// verbatim, so a Dart file in that class was invisible to the one check
+  /// standing between `--without` and a project that does not compile.
+  static Map<PackageKind, List<String>> importersOf(
+    Map<String, List<int>> files,
+    List<PackageKind> omitted,
+  ) {
+    if (omitted.isEmpty) return const {};
+
+    final found = {for (final kind in omitted) kind: <String>[]};
+    for (final entry in files.entries) {
+      if (!entry.key.endsWith('.dart')) continue;
+      if (omitted.any((kind) => isUnder(kind.dir, entry.key))) continue;
+
+      // Malformed input is replaced rather than thrown on: a file that does not
+      // decode is not one an import can be read out of, and the audit is what
+      // reports it.
+      final source = utf8.decode(entry.value, allowMalformed: true);
+      for (final kind in omitted) {
+        if (source.contains('package:${kind.dir}/')) {
+          found[kind]!.add(entry.key);
+        }
+      }
+    }
+
+    for (final importers in found.values) {
+      importers.sort();
+    }
+    return found..removeWhere((_, importers) => importers.isEmpty);
+  }
+
+  /// Whether the relative [path] sits under the package directory [dir].
+  /// Archive paths are `/`-separated whatever the host is.
+  static bool isUnder(String dir, String path) => path.startsWith('$dir/');
 
   /// [source] with a path dependency on [name] under `dependencies:`.
   /// Unchanged when it is already declared.

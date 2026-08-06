@@ -24,6 +24,13 @@ import 'theme_switcher.dart';
 /// control rather than making this the one place in the app that has not heard
 /// of it. Only the endonym is not derivable, and that is all [_endonyms] holds.
 ///
+/// **A locale is a bare language code here**, because that is what the app
+/// models: `language.locale` is a `String`, and `MaterialApp` turns it back
+/// with `Locale(vm.locale)`, which takes one subtag. Two region-qualified ARBs
+/// for one language — `pt_BR` and `pt_PT` — therefore collapse to one segment
+/// rather than two that both say `pt`; widening that is a change to the state
+/// field and the `MaterialApp` line, not to this control.
+///
 /// Two segments because the app ships two locales. Past four or five a
 /// segmented control is the wrong shape and a list is the right one.
 class LanguageSwitcher extends StatelessWidget {
@@ -45,13 +52,21 @@ class LanguageSwitcher extends StatelessWidget {
   Widget build(BuildContext context) => SegmentedControl<String>(
     vm: vm,
     segments: [
-      for (final locale in S.delegate.supportedLocales)
-        Segment(
-          value: locale.languageCode,
-          label:
-              _endonyms[locale.languageCode] ??
-              locale.languageCode.toUpperCase(),
-        ),
+      for (final code in _codes)
+        Segment(value: code, label: _endonyms[code] ?? code.toUpperCase()),
     ],
   );
+
+  /// The supported language codes, in order, without repeats.
+  ///
+  /// Two segments holding the same value would both read as selected and
+  /// dispatch the same action, which is worse than one — see the class doc for
+  /// why the region subtag is dropped rather than carried.
+  static List<String> get _codes {
+    final seen = <String>{};
+    return [
+      for (final locale in S.delegate.supportedLocales)
+        if (seen.add(locale.languageCode)) locale.languageCode,
+    ];
+  }
 }

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/scaffold/package_scaffold.dart';
 import 'package:yaml/yaml.dart';
@@ -103,6 +105,135 @@ void main() {
         PackageScaffold.removeFromWorkspace(_rootPubspec, 'nope'),
         _rootPubspec,
       );
+    });
+  });
+
+  /// The catalogue transcribes each optional package from the real thing, and
+  /// nothing re-derived it: bump a constraint in `models/pubspec.yaml` and
+  /// `add-package models` goes on writing the old one, in a package the round
+  /// trip does not compare because `--without` never wrote it either.
+  ///
+  /// A test rather than a `doctor` check, for the reason the skills and the
+  /// template use one: a project made by `frx create` carries neither the
+  /// catalogue nor the packages to compare it against.
+  group('the catalogue matches the template', () {
+    final repoRoot = p.dirname(Directory.current.absolute.path);
+
+    YamlMap? load(PackageKind kind, String file) {
+      final f = File(p.join(repoRoot, kind.dir, file));
+      if (!f.existsSync()) return null;
+      return loadYaml(f.readAsStringSync()) as YamlMap;
+    }
+
+    for (final kind in PackageKind.values) {
+      test('${kind.dir} — the lint excludes', () {
+        final options = load(kind, 'analysis_options.yaml');
+        if (options == null) return; // pruned from this checkout
+        expect(
+          (options['analyzer'] as YamlMap)['exclude'],
+          orderedEquals(kind.lintExcludes),
+          reason: 'PackageKind.${kind.name}.lintExcludes has drifted',
+        );
+      });
+
+      test('${kind.dir} — the version constraints', () {
+        final pubspec = load(kind, 'pubspec.yaml');
+        if (pubspec == null) return;
+        // Path dependencies are `dependents` read from the other end, and the
+        // create/add round trip is what holds those.
+        Map<String, String> versioned(String block) => {
+          for (final e in (pubspec[block] as YamlMap).entries)
+            if (e.value is String) '${e.key}': '${e.value}',
+        };
+
+        expect(versioned('dependencies'), kind.dependencies);
+        expect(versioned('dev_dependencies'), kind.devDependencies);
+      });
+    }
+  });
+
+  group('importersOf — what may be left out', () {
+    Map<String, List<int>> tree(Map<String, String> sources) => {
+      for (final e in sources.entries) e.key: utf8.encode(e.value),
+    };
+
+    test('names the files outside the package that import it', () {
+      final found = PackageScaffold.importersOf(
+        tree({
+          'business/lib/persistor.dart':
+              "import 'package:storage/storage.dart';",
+          'ui/lib/pages/home_page.dart':
+              "import 'package:flutter/material.dart';",
+        }),
+        [PackageKind.storage],
+      );
+
+      expect(found[PackageKind.storage], ['business/lib/persistor.dart']);
+    });
+
+    test("a package's own files are not importers of itself", () {
+      final found = PackageScaffold.importersOf(
+        tree({
+          'storage/test/x_test.dart': "import 'package:storage/storage.dart';",
+        }),
+        [PackageKind.storage],
+      );
+
+      expect(found, isEmpty);
+    });
+
+    test('nor are the other packages going out in the same run', () {
+      // `http_client` declares `models` and `add-retrofit` writes
+      // `package:models/…` into it. Counting that refused
+      // `--without models,http_client` — the pairing the option exists for —
+      // naming files inside a directory the same run deletes.
+      final sources = tree({
+        'http_client/lib/api/auth.dart': "import 'package:models/user.dart';",
+      });
+
+      expect(
+        PackageScaffold.importersOf(sources, [
+          PackageKind.models,
+          PackageKind.httpClient,
+        ]),
+        isEmpty,
+      );
+      expect(
+        PackageScaffold.importersOf(sources, [PackageKind.models]),
+        {
+          PackageKind.models: ['http_client/lib/api/auth.dart'],
+        },
+        reason: 'dropping models alone really would break http_client',
+      );
+    });
+
+    test('a file that does not decode is scanned, not skipped', () {
+      // The planned-file shape this used to read carries no content for an
+      // entry mold copies verbatim, so a Dart file in that class was invisible
+      // to the one check standing between `--without` and a broken project.
+      final found = PackageScaffold.importersOf(
+        {
+          'business/lib/odd.dart': [
+            0xFF,
+            0xFE,
+            ...utf8.encode("import 'package:storage/storage.dart';"),
+          ],
+        },
+        [PackageKind.storage],
+      );
+
+      expect(found[PackageKind.storage], ['business/lib/odd.dart']);
+    });
+
+    test('non-Dart files are not read for imports', () {
+      final found = PackageScaffold.importersOf(
+        tree({
+          'README.md': 'Uses `package:storage/storage.dart` for persistence.',
+        }),
+        [PackageKind.storage],
+      );
+
+      expect(found, isEmpty);
     });
   });
 

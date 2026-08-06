@@ -58,14 +58,21 @@ class SegmentedControl<T> extends StatelessWidget {
         borderRadius: Radii.control,
         border: .all(color: context.colors.borderStrong),
       ),
-      child: Row(
-        mainAxisSize: .min,
-        children: [
-          for (final (index, segment) in segments.indexed) ...[
-            if (index > 0) const SizedBox(width: _gap),
-            _Segment(vm: vm, segment: segment),
+      // Scrollable rather than overflowing: the track is laid out inside a
+      // width-capped container, and three text segments at a large text scale
+      // do not fit it. `shrinkWrap` semantics come from `mainAxisSize: .min`,
+      // so a control that does fit still hugs its content.
+      child: SingleChildScrollView(
+        scrollDirection: .horizontal,
+        child: Row(
+          mainAxisSize: .min,
+          children: [
+            for (final (index, segment) in segments.indexed) ...[
+              if (index > 0) const SizedBox(width: _gap),
+              _Segment(vm: vm, segment: segment),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -84,6 +91,14 @@ class _Segment<T> extends StatelessWidget {
   /// A text segment sets its own width from the label rather than taking
   /// [_width], which is sized for a 14px glyph and would clip two characters.
   static const _textPadding = EdgeInsets.symmetric(horizontal: 8);
+
+  /// The tallest a segment grows before the row starts scrolling instead.
+  ///
+  /// An icon segment is a fixed [_height] box, and a text one used to be too —
+  /// which caps the label at whatever fits 26 logical pixels. At an
+  /// accessibility text scale `labelMedium` is taller than that, so the label
+  /// overflowed its own box vertically while the row overflowed horizontally.
+  static const double _maxHeight = 44;
 
   /// Matches Material's disabled treatment.
   static const _disabledOpacity = 0.38;
@@ -110,7 +125,13 @@ class _Segment<T> extends StatelessWidget {
         // sits below the track's opaque background, so the fill never showed.
         child: Container(
           width: icon == null ? null : _width,
-          height: _height,
+          height: icon == null ? null : _height,
+          constraints: icon == null
+              ? const BoxConstraints(
+                  minHeight: _height,
+                  maxHeight: _maxHeight,
+                )
+              : null,
           padding: icon == null ? _textPadding : null,
           alignment: .center,
           decoration: BoxDecoration(
@@ -120,6 +141,11 @@ class _Segment<T> extends StatelessWidget {
           child: icon == null
               ? Text(
                   segment.label,
+                  // One line, ellipsised. The control sits in a `Row` inside a
+                  // width-capped container, so a long endonym or a large text
+                  // scale is a RenderFlex overflow rather than a wrap.
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
                   ).textTheme.labelMedium?.copyWith(color: ink),

@@ -529,7 +529,13 @@ export async function addPackage(app: App): Promise<void> {
   // truthy result is not the same as a package having been created. Saying
   // "added — run pub get" there sends the user to re-resolve a workspace that
   // did not change.
-  if (res.stdout.includes('already a workspace member')) {
+  //
+  // Read off the plan rather than off the CLI's prose: `<pkg>/pubspec.yaml` is
+  // the file that makes a directory a member, and every writing command prints
+  // what it wrote in the same `create <path>` shape. A reworded sentence would
+  // have turned a string match silently false.
+  const created = queries.createdFile(res.stdout, targetDir, `${pick.pkg}/pubspec.yaml`);
+  if (!created) {
     vscode.window.showInformationMessage(
       `FRX: ${pick.pkg} is already a workspace member — nothing to do.`,
     );

@@ -51,6 +51,11 @@ class AddModelCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
+    // The name first: a usage error is about the command line and this is
+    // about the workspace, so checking the workspace first answered `frx
+    // add-model` with no argument by sending the user to create a package.
+    final name = requireName();
+
     // `models` is optional, so this is a target-existence check like the one
     // `add-action` runs on a substate — not a package to conjure. Writing the
     // file into a directory that is not a package produced a model that
@@ -61,8 +66,6 @@ class AddModelCommand extends WritingCommand {
         'Create it with `frx add-package models`, then run this again.',
       );
     }
-
-    final name = requireName();
     final caseArgs = results['case'] as List<String>;
     if (caseArgs.length == 1) {
       usageException('A union needs at least two --case values.');

@@ -122,19 +122,26 @@ class CreateCommand extends Command<int> {
         PackageKind.byName(name)!,
     ];
 
+    // Decoded once and handed to all three readers below. Two of them used to
+    // decode it themselves, which is half a megabyte of base64 per call.
+    final bytes = base64Decode(kFrxTemplateBase64);
+
     try {
       // Planned in both cases, and then applied. The plan is the unpack minus
       // the writes, so running it first costs one in-memory substitution pass
       // and buys the same honest counts on both paths — a report that only knew
       // how to describe a rehearsal would have to guess at the real thing.
       final plan = const Unbundler().plan(
-        bytes: base64Decode(kFrxTemplateBase64),
+        bytes: bytes,
         targetDir: target,
         vars: vars,
         onWarning: warnings.add,
       );
 
-      final reached = _importersOf(plan, omitted: without);
+      final reached = PackageScaffold.importersOf(
+        const ArchiveReader().read(bytes).files,
+        without,
+      );
       if (reached.isNotEmpty) {
         _refuse(reached, target: target, asJson: asJson);
         return 70;
@@ -142,7 +149,7 @@ class CreateCommand extends Command<int> {
 
       if (applying) {
         await const Unbundler().unbundleBytes(
-          source: base64Decode(kFrxTemplateBase64),
+          source: bytes,
           targetDir: target,
           vars: vars,
         );
@@ -206,14 +213,16 @@ class CreateCommand extends Command<int> {
         ..writeln(
           restoreErrors.isEmpty
               ? '  The project was created with every package — nothing was '
-                    'pruned. `frx create --without` again, or delete it and '
-                    'start over.'
+                    'pruned. Delete $target and start over; `create` refuses '
+                    'a target that is not empty, so re-running it here will '
+                    'not get past the directory that is now in the way.'
               : '  The rollback did not fully succeed:\n'
                     '${restoreErrors.map((e) => '    $e').join('\n')}',
         );
       return false;
     }
-    await settle(transaction, format: false);
+    // No `settle`: its two steps are `dart format` on what was written and the
+    // `docs/flows` refresh, and this transaction only deletes and edits YAML.
     return true;
   }
 
@@ -272,35 +281,9 @@ class CreateCommand extends Command<int> {
     if (omitted.isEmpty) return plan.files;
     return [
       for (final file in plan.files)
-        if (!omitted.any((k) => p.isWithin(k.dir, file.to))) file,
+        if (!omitted.any((kind) => PackageScaffold.isUnder(kind.dir, file.to)))
+          file,
     ];
-  }
-
-  /// For each omitted package, the Dart files outside it that import it.
-  ///
-  /// **Derived from the archive rather than declared**, which is the whole
-  /// safety of `--without`: `storage` is optional in the same sense the other
-  /// two are — it has its own pubspec and `add-package` can create it — and
-  /// `business` imports it in three places, so leaving it out produces a project
-  /// that does not compile. A hardcoded list of what may be dropped would be a
-  /// second copy of that fact, and would go stale the first time somebody wires
-  /// `http_client` up.
-  static Map<PackageKind, List<String>> _importersOf(
-    UnpackPlan plan, {
-    required List<PackageKind> omitted,
-  }) {
-    final found = <PackageKind, List<String>>{};
-    for (final kind in omitted) {
-      final importers = [
-        for (final file in plan.files)
-          if (file.to.endsWith('.dart') &&
-              !p.isWithin(kind.dir, file.to) &&
-              (file.after ?? '').contains("package:${kind.dir}/"))
-            file.to,
-      ]..sort();
-      if (importers.isNotEmpty) found[kind] = importers;
-    }
-    return found;
   }
 
   /// Say what was (or would be) created.

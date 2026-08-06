@@ -348,6 +348,14 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   // `copyWith(session: …, login: …)` writes both, and keeping only the first
   // understated it. `LogInWithEmailAction` is exactly that shape, and its flow
   // doc said it touched the session and not the login draft it clears.
+  //
+  // **Only on `state` itself.** Every other shape here names the receiver, and
+  // this one did not: a reducer's `task.copyWith(title: t, done: true)` was read
+  // as a write of two AppState substates called `title` and `done`. Harmless
+  // while the branch kept one argument and wrong twice over once it kept all of
+  // them — and `visitMethodInvocation` takes the first `copyWith` it sees, so a
+  // local one earlier in the body shadowed the real write entirely.
+  if (target is! SimpleIdentifier || target.name != 'state') return const [];
   return [for (final f in fields) (substate: f.name.lexeme, field: null)];
 }
 

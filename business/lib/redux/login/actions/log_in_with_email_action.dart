@@ -48,6 +48,9 @@ Future<String> _logInWithEmailRequest({
   required String email,
   required String password,
 }) async {
+  // Call the server and return the token off its response. Until
+  // this line goes, ANY email and password are accepted and the session is
+  // real — the whole app downstream of a token behaves as if someone logged in.
   await Future<dynamic>.delayed(const Duration(seconds: 2));
 
   return 'placeholder-session-token';
