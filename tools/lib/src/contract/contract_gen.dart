@@ -1,5 +1,12 @@
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+
 import '../audit/finding.dart';
 import '../command_runner.dart';
+import '../model/page_artifact.dart';
+import '../scaffold/package_scaffold.dart';
+import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 
 /// The CLI's contract, emitted as TypeScript the extension imports.
@@ -119,9 +126,134 @@ class ContractGen {
       ..writeln('export const EXIT = {')
       ..writeln('  usage: ${FrxRunner.exitUsage},')
       ..writeln('  failure: ${FrxRunner.exitFailure},')
+      ..writeln('} as const;')
+      ..writeln()
+      ..write(_packages())
+      ..writeln()
+      ..write(_layout())
+      ..writeln()
+      ..write(_namingCases());
+    return b.toString();
+  }
+
+  /// The optional workspace members `add-package` knows how to create.
+  ///
+  /// The editor had its own copy — three rows of directory and blurb — with the
+  /// comment "hand-written rather than derived: `add-package` takes its kind as
+  /// a positional, so there is no `--kind` list for the generator to harvest".
+  /// True of the parser and beside the point: the catalogue is an enum, and an
+  /// enum is data whether or not a flag happens to expose it.
+  static String _packages() {
+    final b = StringBuffer()
+      ..writeln('/**')
+      ..writeln(' * The optional workspace members `add-package` creates.')
+      ..writeln(' *')
+      ..writeln(' * `dir` is the argument the command takes and the folder it')
+      ..writeln(' * writes; `summary` is the CLI\'s own one-liner for it.')
+      ..writeln(' */')
+      ..writeln('export const PACKAGES = [');
+    for (final kind in PackageKind.values) {
+      b.writeln(
+        "  { dir: '${kind.dir}', summary: '${_escape(kind.summary)}' },",
+      );
+    }
+    b
+      ..writeln('] as const;')
+      ..writeln()
+      ..writeln('/** One optional package\'s directory, as a union. */')
+      ..writeln("export type PackageDir = (typeof PACKAGES)[number]['dir'];");
+    return b.toString();
+  }
+
+  /// Where the conventional files live, for the providers that key on a path.
+  ///
+  /// **Read off `FrxWorkspace` and `PageArtifact` rather than transcribed**: the
+  /// generator builds a workspace at a sentinel root and asks it, so a directory
+  /// that moves in Dart moves here. `codelens.ts` had the layout spelled out in
+  /// four regexes and two `path.join`s, which is the same class of copy as the
+  /// `--kind` sets — a lens that silently stops appearing is how it would have
+  /// been noticed.
+  static String _layout() {
+    // A sentinel root the relative paths are taken against. Nothing touches the
+    // filesystem: every one of these getters is a `join`.
+    const root = '/__frx__';
+    final repo = FrxWorkspace(Directory(root));
+    String rel(Directory dir) =>
+        p.url.joinAll(p.split(p.relative(dir.path, from: root)));
+
+    // The suffixes, asked of the artifact that states them rather than typed
+    // out: `PageArtifact` names the classes, and the files are those in snake.
+    final page = PageArtifact(Casing.parse('sample_name'));
+    String suffix(String className, String stem) =>
+        '_${Casing.parse(className.substring(stem.length)).snake}.dart';
+
+    final b = StringBuffer()
+      ..writeln('/**')
+      ..writeln(' * Where the conventional files live, slash-separated and')
+      ..writeln(' * relative to the repo root.')
+      ..writeln(' *')
+      ..writeln(' * Join with the platform separator before touching disk.')
+      ..writeln(' */')
+      ..writeln('export const LAYOUT = {')
+      ..writeln("  pages: '${rel(repo.uiPages)}',")
+      ..writeln("  connectors: '${rel(repo.appConnectors)}',")
+      ..writeln("  redux: '${rel(repo.businessRedux)}',")
+      ..writeln("  pageSuffix: '${suffix(page.pageClass, 'SampleName')}',")
+      ..writeln(
+        "  connectorSuffix: '${suffix(page.connectorClass, 'SampleName')}',",
+      )
+      ..writeln("  stateSuffix: '_state.dart',")
       ..writeln('} as const;');
     return b.toString();
   }
+
+  /// Worked examples of the CLI's casing, for the extension's own tests.
+  ///
+  /// **The one part of the contract that cannot be a value.** `naming.ts`
+  /// re-implements `Casing` because a conversion is an algorithm, and there is
+  /// no emitting an algorithm as data; calling the CLI per keystroke to
+  /// validate a name is not a trade worth making. What *can* cross the seam is
+  /// evidence: the CLI's own answers for a corpus chosen to hit the cases the
+  /// two implementations could differ on, asserted by
+  /// `vscode/test/naming.test.ts`. Drift becomes a failing test rather than a
+  /// picker that quietly proposes the wrong class name.
+  static String _namingCases() {
+    // snake_case only, because that is the input class the extension gets:
+    // `camelOf` and `pascalOf` are fed folder names off disk. `Casing` accepts
+    // any spelling and the two really do differ on `ABCWidget` — asserting a
+    // case neither side is asked would be inventing a disagreement.
+    const corpus = [
+      'my_profile',
+      'log_in',
+      'a',
+      'theme',
+      'user2_fa',
+      'my__profile',
+      'log_in_with_email',
+    ];
+    final b = StringBuffer()
+      ..writeln('/**')
+      ..writeln(' * What the CLI\'s `Casing` answers, for `naming.test.ts`.')
+      ..writeln(' *')
+      ..writeln(' * `naming.ts` re-implements the conversion because an')
+      ..writeln(' * algorithm is not emittable as data. This is how the two')
+      ..writeln(' * are held together: snake_case in, since that is what the')
+      ..writeln(' * editor is ever handed.')
+      ..writeln(' */')
+      ..writeln('export const NAMING_CASES = [');
+    for (final input in corpus) {
+      final c = Casing.parse(input);
+      b.writeln(
+        "  { input: '$input', camel: '${c.camel}', pascal: '${c.pascal}', "
+        "snake: '${c.snake}' },",
+      );
+    }
+    b.writeln('] as const;');
+    return b.toString();
+  }
+
+  static String _escape(String s) =>
+      s.replaceAll(r'\', r'\\').replaceAll("'", r"\'");
 
   /// The remedy ids.
   ///

@@ -4,7 +4,7 @@
 // these; the FRX overlay and "New here" menu delegate to them.
 import * as vscode from 'vscode';
 
-import { KINDS, type Kind } from '../generated/contract';
+import { KINDS, PACKAGES, type Kind, type PackageDir } from '../generated/contract';
 
 import type { App } from '../app';
 import * as config from '../config';
@@ -465,34 +465,29 @@ interface SerializablePick extends vscode.QuickPickItem {
 /** One row of the `add-package` picker. */
 interface PackagePick extends vscode.QuickPickItem {
   // Not `kind`: `QuickPickItem` already declares one, typed `QuickPickItemKind`.
-  pkg: string;
+  pkg: PackageDir;
 }
 
 /**
- * The optional workspace members, and what each is for.
+ * The codicon each optional package reads as.
  *
- * Hand-written rather than derived: `add-package` takes its kind as a
- * positional, so there is no `--kind` list on the parser for the contract
- * generator to harvest. If it ever grows one, this table should come from
- * `KINDS` like the others do.
+ * The only part of the row that is the editor's: the directory and the blurb
+ * come off `PackageKind`, the same way `KINDS` comes off each parser. It is a
+ * `Record` over the union for the reason the `--kind` blurbs are — a fourth
+ * package added in Dart stops this compiling until somebody picks its icon,
+ * where the hand-kept list it replaces would have gone on offering three.
  */
-const PACKAGE_KINDS: PackagePick[] = [
-  {
-    pkg: 'models',
-    label: '$(symbol-structure) models',
-    description: 'freezed models and converters shared between packages',
-  },
-  {
-    pkg: 'http_client',
-    label: '$(cloud) http_client',
-    description: 'Dio + Retrofit clients and interceptors',
-  },
-  {
-    pkg: 'storage',
-    label: '$(database) storage',
-    description: 'key-value persistence behind BaseKeyValueStorage',
-  },
-];
+const PACKAGE_ICONS: Record<PackageDir, string> = {
+  models: '$(symbol-structure)',
+  http_client: '$(cloud)',
+  storage: '$(database)',
+};
+
+const PACKAGE_KINDS: PackagePick[] = PACKAGES.map((p) => ({
+  pkg: p.dir,
+  label: `${PACKAGE_ICONS[p.dir]} ${p.dir}`,
+  description: p.summary,
+}));
 
 /**
  * Adds an optional workspace member.
