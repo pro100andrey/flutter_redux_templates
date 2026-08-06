@@ -50,8 +50,8 @@ the creation commands only — `rename` and `remove` are refused with the reason
   started the next one.
 - **Deletion goes through `frx remove`, not `rm`.** It knows a substate, a page,
   an action, a model or enum, a widget, a connector and a service, and it deletes
-  the *set*: a widget's mirrored preview, a service's dispatcher, a model's
-  `.freezed.dart` and `.g.dart`. That set is the whole point — `rm` takes the
+  the *set*: a service's dispatcher, a model's `.freezed.dart` and `.g.dart`,
+  a substate's whole folder. That set is the whole point — `rm` takes the
   file you name and leaves the rest, and the generated halves it leaves stop the
   package compiling on a file you never wrote. What `remove` does not do is chase
   the code that used the artifact, so the audit still follows. A theme extension
@@ -69,8 +69,9 @@ the creation commands only — `rename` and `remove` are refused with the reason
 - **`ui` is data-driven and knows no domain.** A widget draws what it is handed;
   the connector is the seam where a domain value becomes a primitive, a formatted
   string or a `ui`-local render model. A component with its own lifecycle earns a
-  file in a family folder, which is what gives it a preview and a name — inside a
-  page it has neither, and the next screen that needs it copies it.
+  file in a family folder, which is what gives it a name anything else can
+  reach — inside a page it has none, and the next screen that needs it copies
+  it.
 
 ## Writing the body, not just the file
 

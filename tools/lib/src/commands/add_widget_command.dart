@@ -7,8 +7,7 @@ import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
 
-/// Scaffolds a widget in the `ui` package, plus its previews in the mirrored
-/// `ui/lib/previews/` tree.
+/// Scaffolds a widget in the `ui` package.
 class AddWidgetCommand extends WritingCommand {
   @override
   void describeArgs(ArgParser parser) {
@@ -39,8 +38,7 @@ class AddWidgetCommand extends WritingCommand {
   String get name => 'add-widget';
 
   @override
-  String get description =>
-      'Scaffold a widget (+ its previews) in the ui package.';
+  String get description => 'Scaffold a widget in the ui package.';
 
   @override
   String get invocation => 'frx add-widget <name> --dir <folder> [-k <kind>]';
@@ -56,13 +54,9 @@ class AddWidgetCommand extends WritingCommand {
 
     final scaffold = WidgetScaffold(name: name, kind: kind, dir: dir);
     final widgetFile = p.join(repo.uiLib.path, dir, scaffold.fileName);
-    final previewFile = p.join(repo.uiPreviews.path, dir, scaffold.fileName);
 
     return WritePlan(
-      changes: Changeset([
-        WriteFile(widgetFile, scaffold.widget()),
-        WriteFile(previewFile, scaffold.preview()),
-      ]),
+      changes: Changeset([WriteFile(widgetFile, scaffold.widget())]),
       header: 'Widget (${kind.name}) "${scaffold.className}"',
     );
   }
@@ -93,7 +87,8 @@ class AddWidgetCommand extends WritingCommand {
     if (repo.widgetDirs().contains(raw)) return raw;
 
     // One path segment: a folder, not a path. Keeps `--dir ../../etc` and
-    // nested trees out — the previews mirror assumes one level under lib/.
+    // nested trees out — a widget folder sits one level under lib/, which is
+    // what the relative imports the scaffold writes are computed against.
     final Casing parsed;
     try {
       parsed = Casing.parse(raw);
@@ -110,8 +105,6 @@ class AddWidgetCommand extends WritingCommand {
   }
 
   static String _whyNot(String dir) => switch (dir) {
-    'previews' =>
-      'It mirrors the package — a widget there would preview itself.',
     'pages' => 'A page is scaffolded by `frx add-page`, which wires its route.',
     _ => 'It holds $dir, not widgets.',
   };

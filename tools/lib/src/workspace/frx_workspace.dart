@@ -176,14 +176,6 @@ class FrxWorkspace {
   Directory get uiPages => _dir(['ui', 'lib', 'pages']);
   Directory get uiLib => _dir(['ui', 'lib']);
 
-  /// Where previews mirror the package: previews for `ui/lib/<dir>/<name>.dart`
-  /// live in `ui/lib/previews/<dir>/<name>.dart`.
-  ///
-  /// The tree must stay under `lib/` — the widget previewer imports each file
-  /// by its `package:` URI, and a file outside `lib/` has none, which crashes
-  /// the tool rather than being skipped.
-  Directory get uiPreviews => _dir(['ui', 'lib', 'previews']);
-
   /// Directories under `ui/lib/` that hold widgets, by folder name, sorted.
   ///
   /// Backs both `--dir` completion and the extension's folder picker, so the
@@ -208,15 +200,12 @@ class FrxWorkspace {
   }
 
   /// Folders under `ui/lib/` that are not widget homes: generated output, the
-  /// theme layer, view-models, the previews mirror, and `pages/` — a page is
-  /// scaffolded by `add-page`, which also wires its route.
+  /// theme layer, view-models, and `pages/` — a page is scaffolded by
+  /// `add-page`, which also wires its route.
   ///
   /// Both a filter for [widgetDirs] and a guard for `add-widget --dir`: a
   /// folder that is not worth suggesting is not worth writing into either.
-  /// Without the second use, `--dir previews` would put a widget inside its own
-  /// mirror and its preview in `previews/previews/`.
   static const notWidgetDirs = {
-    'previews',
     'theme',
     'models',
     'generated',

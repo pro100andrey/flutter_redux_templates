@@ -154,9 +154,9 @@ void main() {
     });
 
     test('a directory created after a miss is still found', () {
-      final dir = Directory(p.join(root.path, 'previews'));
+      final dir = Directory(p.join(root.path, 'flows'));
       expect(index.filesUnder(dir), isEmpty);
-      put('previews/a.dart', '');
+      put('flows/a.dart', '');
       expect(index.filesUnder(dir), hasLength(1));
     });
 

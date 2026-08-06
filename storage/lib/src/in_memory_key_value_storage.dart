@@ -5,9 +5,9 @@ import 'base_key_value_storage.dart';
 ///
 /// It is the second adapter, and that is its point: one implementation behind
 /// an interface is a seam nobody can use. `KeyValueStorage` reaches
-/// path_provider and a real sembast file, so a test, a preview, or a run
-/// that should forget everything on exit had no way to build an
-/// `AppPersistor` or a store at all.
+/// path_provider and a real sembast file, so a test, or a run that should
+/// forget everything on exit, had no way to build an `AppPersistor` or a store
+/// at all.
 ///
 /// Ships in `lib/` rather than in a test helper because the consumers that
 /// need it — `AppPersistor`, `AppDependencies`, `newStore` — live in another

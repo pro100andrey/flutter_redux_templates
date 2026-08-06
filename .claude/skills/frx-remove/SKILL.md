@@ -22,9 +22,9 @@ frx remove <name> [--kind <kind>] --apply
   than one, and `--state` when an action name is used under more than one
   substate.
 - Reach for it instead of `rm`, which deletes the file you name and leaves
-  the rest of the set: a widget's mirrored preview, a service's dispatcher,
-  a model's `.freezed.dart` and `.g.dart` — and those two stop the package
-  compiling once their source is gone.
+  the rest of the set: a service's dispatcher, a model's `.freezed.dart`
+  and `.g.dart` — and those two stop the package compiling once their
+  source is gone.
 - It deletes the artifact and unwires what registered it. It does not chase
   the code that used it: what still dispatches a deleted action or imports
   a deleted model is yours to fix, so run the audit after.

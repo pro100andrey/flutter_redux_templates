@@ -29,7 +29,7 @@ import '../flow/flow_docs.dart';
 import '../model/page_artifact.dart';
 import '../model/placement.dart';
 import '../model/substate_artifact.dart';
-import '../preview/vm_reader.dart';
+import '../ast/vm_reader.dart';
 import '../redux/app_state_source.dart';
 import '../redux/store_source.dart';
 import '../routing/routes_source.dart';
@@ -70,7 +70,6 @@ const auditChecks = <Check>[
   Check('routes-and-connectors', checkRoutesAndConnectors),
   Check('generated-parts', checkGeneratedParts),
   Check('flow-docs', checkFlowDocs),
-  Check('preview-mirror', checkPreviewMirror),
   Check('placement', checkPlacement),
   Check('view-model-equality', checkViewModels),
   Check('agent-hooks', checkAgentHooks),
@@ -629,41 +628,6 @@ void checkFlowDocs(FrxWorkspace repo, List<Finding> into) {
         // A missing file can't be squiggled; the rest can.
         file: d.kind == DocDriftKind.missing ? null : d.path,
         fix: const FlowDocsFix(),
-      ),
-    );
-  }
-}
-
-/// Previews in `ui/lib/previews/` whose widget is gone.
-///
-/// The mirror's one weakness: move `inputs/foo.dart` to `fields/` by hand and
-/// its preview stays behind, still compiling — nothing imports the previews
-/// tree, so neither the app build nor a rebuild notices.
-///
-/// Only the orphan direction is checked. "Widget has no preview" is a
-/// coverage goal, not a defect, and reporting it would bury the real
-/// findings under one warning per widget written before previews existed.
-///
-/// Opt-in: no `previews/` directory, nothing to say.
-void checkPreviewMirror(FrxWorkspace repo, List<Finding> into) {
-  final previews = repo.uiPreviews;
-  // Generated output included: a `.g.dart` under `previews/` is still a preview
-  // whose widget can go missing, and the sweep reported one before the listing
-  // moved behind the index.
-  for (final file in sourceIndex.filesUnder(previews, includeGenerated: true)) {
-    // previews/<dir>/<name>.dart mirrors <dir>/<name>.dart.
-    final mirrored = p.relative(file.path, from: previews.path);
-    // A file straight in previews/ mirrors nothing — that is where shared
-    // preview infrastructure (sample values, wrappers) belongs. Only entries
-    // one level down, in a folder, reflect a widget.
-    if (p.split(mirrored).length < 2) continue;
-    final widget = File(p.join(repo.uiLib.path, mirrored));
-    if (widget.existsSync()) continue;
-    into.add(
-      Finding.warn(
-        '${p.relative(file.path)} previews a widget that is not at '
-        '${p.relative(widget.path)} — the widget moved or was deleted.',
-        file: file.path,
       ),
     );
   }

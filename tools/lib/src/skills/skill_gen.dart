@@ -163,8 +163,8 @@ the creation commands only — `rename` and `remove` are refused with the reason
   started the next one.
 - **Deletion goes through `frx remove`, not `rm`.** It knows a substate, a page,
   an action, a model or enum, a widget, a connector and a service, and it deletes
-  the *set*: a widget's mirrored preview, a service's dispatcher, a model's
-  `.freezed.dart` and `.g.dart`. That set is the whole point — `rm` takes the
+  the *set*: a service's dispatcher, a model's `.freezed.dart` and `.g.dart`,
+  a substate's whole folder. That set is the whole point — `rm` takes the
   file you name and leaves the rest, and the generated halves it leaves stop the
   package compiling on a file you never wrote. What `remove` does not do is chase
   the code that used the artifact, so the audit still follows. A theme extension
@@ -182,8 +182,9 @@ the creation commands only — `rename` and `remove` are refused with the reason
 - **`ui` is data-driven and knows no domain.** A widget draws what it is handed;
   the connector is the seam where a domain value becomes a primitive, a formatted
   string or a `ui`-local render model. A component with its own lifecycle earns a
-  file in a family folder, which is what gives it a preview and a name — inside a
-  page it has neither, and the next screen that needs it copies it.
+  file in a family folder, which is what gives it a name anything else can
+  reach — inside a page it has none, and the next screen that needs it copies
+  it.
 
 ## Writing the body, not just the file
 
@@ -804,30 +805,18 @@ Anything that depends on the domain or the data — an option's label, a formatt
 date, a pluralised count — arrives as a finished `String`, resolved in the
 connector where the locale and the domain both live. `ChoiceItemVm.label` puts it
 in one line: *label is data, not design*.
-
-Every widget is scaffolded with previews into a mirrored tree under
-`ui/lib/previews/`, which is what gives it a name and a rendering anything else
-can reach:
-
-```dart
-@AppPreview(name: 'primary', group: 'Button')
-Widget buttonPrimaryPreview() =>
-    Button.primary(label: 'Primary', onPressed: () {});
-```
 ''',
     traps: [
       '`--dir` is required and open-ended: a name that does not exist creates '
           'the folder. Ask `frx list-widget-dirs` which already hold widgets '
           'instead of inventing a home.',
-      'Previews are scaffolded alongside into a mirrored tree, so a widget '
-          'moved or deleted by hand leaves its preview behind.',
       '`-k` picks what it takes in: `field` takes a `FieldVm`, `choice` a '
           '`ChoiceVm`, `action` is a labelled button, `view` draws a render '
           'model, `container` wraps children.',
       'A component with its own lifecycle earns a file in a family folder — '
           'never a private `StatefulWidget` inside a page. Hidden there it has '
-          'no preview and no name anything else can reach, so the next screen '
-          'that needs it copies it instead. There is not one in the package.',
+          'no name anything else can reach, so the next screen that needs it '
+          'copies it instead. There is not one in the package.',
     ],
   ),
   'add-connector': _Situation(
@@ -932,8 +921,8 @@ its own — build_runner needs the resolution it just invalidated.
           'more than one, and `--state` when an action name is used under more '
           'than one substate.',
       'Reach for it instead of `rm`, which deletes the file you name and '
-          'leaves the rest of the set: a widget\'s mirrored preview, a '
-          'service\'s dispatcher, a model\'s `.freezed.dart` and `.g.dart` — '
+          'leaves the rest of the set: a service\'s dispatcher, a model\'s '
+          '`.freezed.dart` and `.g.dart` — '
           'and those two stop the package compiling once their source is gone.',
       'It deletes the artifact and unwires what registered it. It does not '
           'chase the code that used it: what still dispatches a deleted action '

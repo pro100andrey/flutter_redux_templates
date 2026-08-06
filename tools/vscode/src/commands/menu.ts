@@ -90,7 +90,7 @@ const INVENTORY: Capability[] = [
   {
     command: 'frx.addWidget',
     label: '$(symbol-misc) Add widget…',
-    description: 'Widget + its previews, by archetype and folder',
+    description: 'Widget in the ui package, by archetype and folder',
     family: 'Create & wire',
   },
   {

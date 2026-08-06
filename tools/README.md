@@ -68,7 +68,7 @@ Every command has a short alias (in parentheses).
 | `add-enum` | `ae` | Plain enum in `models` |
 | `add-service` | `asvc` | Service + Redux dispatcher pair |
 | `add-retrofit` | `ar` | Retrofit `@RestApi` client |
-| `add-widget` | `aw` | Widget + its previews in `ui` — `-k` picks the archetype, `--dir` the folder |
+| `add-widget` | `aw` | Widget in `ui` — `-k` picks the archetype, `--dir` the folder |
 | `add-connector` | `ac` | A `StoreConnector` in `app` for a dumb widget |
 | `add-nav` | `an` | Wire a navigation hop between two pages — callback, dispatch, params |
 | `add-theme-extension` | `ate` | `ThemeExtension` in `ui` |
@@ -497,27 +497,22 @@ has nothing to say about a service that never got composed.
 ### Widgets
 
 ```bash
-frx add-widget exercise_card -k view --dir cards   # widget + its previews
+frx add-widget exercise_card -k view --dir cards   # → ExerciseCard
 frx add-widget pin -k field --dir inputs           # → PinFormField
 frx list-widget-dirs                               # folders already in use
 ```
 
-Two files per widget: the widget in `ui/lib/<dir>/`, and its previews in
-`ui/lib/previews/<dir>/`. Nothing imports the previews tree, so it stays out of
-the app's compile graph — and the widget file never imports preview machinery.
-The tree has to stay under `lib/`: the previewer imports each file by its
-`package:` URI, and a file outside `lib/` has none, which crashes it.
+One file per widget, in `ui/lib/<dir>/`.
 
-`-k` picks what the widget takes in, which primitive it wraps, and which states
-its previews enumerate:
+`-k` picks what the widget takes in and which primitive it wraps:
 
-| `-k` | Takes | Wraps | Class | Previews |
-| --- | --- | --- | --- | --- |
-| `field` | `FieldVm<T>` | `InputFormField` | `<Name>FormField` | default · error · disabled |
-| `choice` | `ChoiceVm<T>` | `ChoiceFormField` | `<Name>FormField` | selected · empty · disabled |
-| `action` | label + `VoidCallback?` | `Button` | `<Name>Button` | default · disabled |
-| `view` | a render model | — | `<Name>` (+ `<Name>Vm`) | default · not tappable |
-| `container` | `child` | — | `<Name>` | default |
+| `-k` | Takes | Wraps | Class |
+| --- | --- | --- | --- |
+| `field` | `FieldVm<T>` | `InputFormField` | `<Name>FormField` |
+| `choice` | `ChoiceVm<T>` | `ChoiceFormField` | `<Name>FormField` |
+| `action` | label + `VoidCallback?` | `Button` | `<Name>Button` |
+| `view` | a render model | — | `<Name>` (+ `<Name>Vm`) |
+| `container` | `child` | — | `<Name>` |
 
 A widget that fits none of them is a sign the package is missing a primitive.
 The suffix is added, not doubled: `pin`, `pin_field` and `pin_form_field` all
@@ -527,8 +522,8 @@ yield `PinFormField`.
 every real widget was placed by hand into a folder named for what it *is*.
 Completion and the editor's picker list the folders already in use; a name that
 does not exist yet creates one (`lower_snake_case`), and the folders that hold
-something other than widgets — `previews`, `theme`, `models`, `generated`,
-`l10n`, `pages` — are refused.
+something other than widgets — `theme`, `models`, `generated`, `l10n`, `pages`
+— are refused.
 
 ### A feature at a time — `frx batch`
 
@@ -650,7 +645,7 @@ frx remove intro --kind page --apply
 
 frx remove ArchiveTask --apply                   # an action; the kind is auto-detected
 frx remove Reset --state tasks --apply           # ...unless the name is used under two substates
-frx remove TaskTile --kind widget --apply        # widget + its mirrored preview
+frx remove TaskTile --kind widget --apply        # the widget file
 frx remove Task --kind model --apply             # model/enum + its .freezed.dart and .g.dart
 frx remove Sync --kind service --apply           # the service folder and its dispatcher
 ```
@@ -661,10 +656,10 @@ and removing one is mostly unwiring. An **action**, **model** (or enum),
 **widget**, **connector** and **service** are file sets found on disk, because
 the `add-*` that wrote them wired nothing central.
 
-For those five the point is the *set*, which is what `rm` gets wrong: a widget's
-preview lives in a mirror tree, a service's dispatcher sits beside it, and a
-model leaves `.freezed.dart` / `.g.dart` siblings that are `part of` a file that
-no longer exists — so the package stops compiling on files nobody deleted.
+For those five the point is the *set*, which is what `rm` gets wrong: a
+service's dispatcher sits beside it, and a model leaves `.freezed.dart` /
+`.g.dart` siblings that are `part of` a file that no longer exists — so the
+package stops compiling on files nobody deleted.
 
 `--kind` is only needed when a name matches more than one kind; `--state` only
 when one action name is used under more than one substate. Two refusals are
@@ -724,7 +719,6 @@ that is wired, compiles, and sits in the wrong place.
 | A route with no connector, or a `@RoutePage` connector not registered | — |
 | A `part` whose generated file is absent, in any of the codegen packages (`business`, `http_client`, `ui`, `app`, `models`) | `build_runner` |
 | `docs/flows/` drifted from the sources (only when the folder exists) | `flow-docs` |
-| A preview in `ui/lib/previews/` whose widget moved or was deleted | — |
 | The change log naming a substate `AppState` no longer composes, missing one it does, or printing a name other than the field it watches | — |
 | More than one list in `store.dart` shaped like the change log, so frx will not guess which | — |
 | A file frx read but the analyzer could only recover a tree from | — |
@@ -736,10 +730,6 @@ Every other finding is a function of the file tree, which is why the editor
 re-audits on file events; a finding about a running process appears and
 vanishes with no file changing, so the status chip would keep showing it long
 after it stopped being true.
-
-The preview check only looks for orphans. "Widget has no preview" is a
-coverage goal rather than a defect, and reporting it would bury the real
-findings under one warning per widget written before previews existed.
 
 #### The folder a substate leaves behind
 
@@ -1214,7 +1204,7 @@ corrected:
 | `add-field` | the `Select…` getter (`--no-selector` opts out) | what reads it |
 | `add-substate` | state, starter actions, the `AppState` field + `initial()` entry, the selectors facade, the change log entry | what dispatches the actions |
 | `add-page` | page, connector, `AutoRoute` entry, auth-area membership | any navigation **to** it (that is `add-nav`) |
-| `add-widget` | the widget and its previews | where it is used |
+| `add-widget` | the widget | where it is used |
 | `add-action` | the action | whatever dispatches it |
 | `add-retrofit` | the client | anything that calls it |
 | `add-action -k waiting` | the action **and** the substate's `isWaiting` getter | whatever dispatches it |
@@ -1248,7 +1238,8 @@ lib/src/
                identifier is never confused with a word inside a string;
                SourceIndex — read+parse a file once per read scope, and the
                rule for when a tree has to be clean. The reader tier and the
-               audit both go through it
+               audit both go through it; VmReader — a view-model's constructor
+               parameters, read out of source, for the equality check
   workspace/   FrxWorkspace — resolve the repo root & packages once;
                isGenerated() / packageRootOf() / notSubstateDirs live here
   model/       SubstateArtifact, PageArtifact  — the SINGLE home for naming
@@ -1266,8 +1257,6 @@ lib/src/
                a remedy is named once, and one check runs on its own
   flow/        FlowReader + RouteMapReader (read behaviour out of the AST),
                mermaid renderers, FlowDocs (the docs/flows export & its check)
-  preview/     VmReader — a view-model's constructor parameters, read out of
-               source. Groundwork: tested, but no command consumes it yet
   graph/       GraphReader — joins every reader above into one AppGraph,
                with the seams it could not follow named rather than dropped
   scaffold/    ArtifactTemplates + the substate/page/tabs scaffolders,

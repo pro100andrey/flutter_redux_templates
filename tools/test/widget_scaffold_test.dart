@@ -62,13 +62,6 @@ void main() {
         contains("import '../inputs/input_form_field.dart';"),
       );
     });
-
-    test('the preview reaches its widget through the mirror', () {
-      expect(
-        make('exercise_card', WidgetKind.view, dir: 'cards').preview(),
-        contains("import '../../cards/exercise_card.dart';"),
-      );
-    });
   });
 
   group('conventions the templates carry', () {
@@ -84,38 +77,12 @@ void main() {
       expect(source, contains('final VoidCallback? onTap;'));
       expect(source, isNot(contains('onTap;\n\n  @override\n  List<Object?>')));
     });
-
-    test('a widget file never imports preview machinery', () {
-      for (final kind in WidgetKind.values) {
-        expect(
-          make('thing', kind, dir: 'tiles').widget(),
-          isNot(contains('preview.dart')),
-          reason: '$kind must stay out of the app compile graph',
-        );
-      }
-    });
-
-    test('every kind previews more than one state', () {
-      for (final kind in WidgetKind.values) {
-        final previews = '@AppPreview'
-            .allMatches(make('thing', kind, dir: 'tiles').preview())
-            .length;
-        expect(
-          previews,
-          kind == WidgetKind.container ? 1 : greaterThan(1),
-          reason: '$kind should enumerate the states worth eyeballing',
-        );
-      }
-    });
   });
 
-  group('both files parse', () {
+  group('the file parses', () {
     for (final kind in WidgetKind.values) {
       test('${kind.name} widget', () {
         expectParses(make('thing', kind, dir: 'tiles').widget());
-      });
-      test('${kind.name} preview', () {
-        expectParses(make('thing', kind, dir: 'tiles').preview());
       });
     }
   });

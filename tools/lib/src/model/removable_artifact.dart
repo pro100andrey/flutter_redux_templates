@@ -22,9 +22,9 @@ import 'artifact_name.dart';
 /// class name convention to read backwards.
 ///
 /// What this buys over `rm`, which is what the traced runs reached for 60+ times
-/// across six builds: the *set*. A widget's preview mirrors it in another tree, a
-/// service is two files in a folder, and a model leaves `.freezed.dart` and
-/// `.g.dart` siblings that do not compile once their source is gone.
+/// across six builds: the *set*. A service is two files in a folder, and a model
+/// leaves `.freezed.dart` and `.g.dart` siblings that do not compile once their
+/// source is gone.
 enum RemovableKind {
   /// `business/lib/redux/<substate>/actions/<snake>_action.dart` — one file,
   /// under whichever substate owns it.
@@ -35,7 +35,7 @@ enum RemovableKind {
   /// the outside a deleted freezed model and a deleted enum are the same job.
   model,
 
-  /// `ui/lib/<dir>/<file>.dart` and its preview under `ui/lib/previews/<dir>/`.
+  /// `ui/lib/<dir>/<file>.dart` — one file.
   ///
   /// The basename is the widget's *class* in snake case, not the name it was
   /// scaffolded from: `-k field` turns `Pin` into `PinFormField`. Said here
@@ -91,8 +91,8 @@ class RemovableArtifact {
   final List<String> directories;
 
   /// Paths the convention predicts but the disk does not have. Narrated rather
-  /// than treated as an error: a widget whose preview was already deleted is
-  /// still a widget worth removing, and saying so is more useful than refusing.
+  /// than treated as an error: an artifact missing one of its files is still
+  /// worth removing, and saying so is more useful than refusing.
   final List<String> missing;
 
   /// What is left dangling, in the closing note. `remove` deletes an artifact;
@@ -263,8 +263,6 @@ class RemovableResolver {
 
     final hit = hits.single;
     final widget = p.join(repo.uiLib.path, hit.dir, hit.file);
-    final preview = p.join(repo.uiPreviews.path, hit.dir, hit.file);
-    final hasPreview = File(preview).existsSync();
     // The class, read back off the file that was found — so the report names
     // what is being deleted rather than what was typed.
     final className = _pascalOf(hit.file.substring(0, hit.file.length - 5));
@@ -274,11 +272,7 @@ class RemovableResolver {
       name: name,
       className: className,
       header: 'Remove widget "$className"  (ui/lib/${hit.dir})',
-      files: [widget, if (hasPreview) preview],
-      // A preview left behind imports a file that is gone, and the previewer
-      // loads every file in the tree — so it fails on the whole mirror, not just
-      // this entry. Worth naming even when it is already absent.
-      missing: [if (!hasPreview) preview],
+      files: [widget],
       dangles: 'anything that built it no longer compiles',
     );
   }

@@ -11,8 +11,8 @@ import 'support/fixture.dart';
 /// property under test is that removal takes the whole *set* the scaffolder
 /// wrote. That is the difference from `rm`, which the traced runs reached for
 /// sixty-odd times across six builds: `rm` deletes the path it is handed, and
-/// the halves it leaves — a widget's mirrored preview, a model's `.freezed.dart`
-/// — are what stops the package compiling.
+/// the halves it leaves — a model's `.freezed.dart`, a service's dispatcher —
+/// are what stops the package compiling.
 void main() {
   late Fixture fx;
 
@@ -24,24 +24,14 @@ void main() {
     expect(res.exitCode, 0, reason: '${args.join(' ')}\n${res.stderr}');
   }
 
-  test('a widget goes with its mirrored preview', () async {
+  test('a widget round-trips through the name that created it', () async {
+    // `-k view` adds no suffix, so this is the plain case; the suffixed kinds
+    // are what `placement_test.dart` walks.
     await ok(['add-widget', 'TaskTile', '--dir', 'tiles', '--no-format']);
     expect(fx.file('ui/lib/tiles/task_tile.dart').existsSync(), isTrue);
-    expect(
-      fx.file('ui/lib/previews/tiles/task_tile.dart').existsSync(),
-      isTrue,
-      reason: 'add-widget writes the preview; the round trip needs it there',
-    );
 
     await ok(['remove', 'TaskTile', '--kind', 'widget', '--apply']);
     expect(fx.file('ui/lib/tiles/task_tile.dart').existsSync(), isFalse);
-    expect(
-      fx.file('ui/lib/previews/tiles/task_tile.dart').existsSync(),
-      isFalse,
-      reason:
-          'the preview is the half `rm` leaves — it imports a file that is '
-          'gone, and the previewer loads the whole mirror tree',
-    );
   });
 
   test('a model goes with its generated siblings', () async {

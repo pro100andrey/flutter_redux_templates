@@ -1,7 +1,7 @@
 import 'package:test/test.dart';
-import 'package:tools/src/preview/vm_reader.dart';
+import 'package:tools/src/ast/vm_reader.dart';
 
-/// Reading a render model out of source is what a generated preview is built
+/// Reading a render model out of source is what the view-model equality check
 /// from: the fields decide the sample values and which variants are worth
 /// showing, and `props` decides whether the model tells the truth in `==`.
 void main() {
@@ -236,7 +236,7 @@ abstract class LogInState with _\$LogInState {
 
   test('a class with a no-argument constructor is not a view-model', () {
     // Marker classes and private-constructor singletons live in the same
-    // files as widgets. Accepting them would hand a preview generator a model
+    // files as widgets. Accepting them would hand a consumer a model
     // with nothing to draw.
     const markers = '''
 class StyledSnackbar {

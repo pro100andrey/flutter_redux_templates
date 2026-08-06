@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 
-import '../ast/source_index.dart';
+import 'source_index.dart';
 
 /// One constructor parameter of a view-model.
 class VmField {
@@ -68,7 +68,7 @@ class VmField {
   }
 }
 
-/// A render model as read from source: what a preview has to construct.
+/// A render model as read from source.
 class ViewModel {
   const ViewModel({
     required this.className,
@@ -178,13 +178,13 @@ abstract final class VmReader {
     );
   }
 
-  /// The constructor a preview would call: the unnamed one whose parameters are
+  /// The constructor a caller would use: the unnamed one whose parameters are
   /// all field-initialising (`this.x`).
   ///
   /// At least one parameter is required. Without that, every marker class and
   /// private-constructor singleton in a file — `StyledSnackbar._()`,
   /// `const Foo()` — reads as a view-model with nothing in it, and a caller
-  /// generating previews for whatever [read] returns would pick them up.
+  /// a consumer of whatever [read] returns would pick them up.
   ///
   /// A widget is excluded by its `super.key`, which is not field-initialising;
   /// one written without a key would qualify, which is the other reason callers
