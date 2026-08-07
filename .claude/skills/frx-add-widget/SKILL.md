@@ -54,6 +54,9 @@ in one line: *label is data, not design*.
 
 ## Before you run it
 
+- It writes the file; what the widget is *handed* is the part that goes
+  wrong. `data-driven-widgets` carries it — the render model, where it
+  lives, and what belongs in its equality.
 - `--dir` is required and open-ended: a name that does not exist creates
   the folder. Ask `frx list-widget-dirs` which already hold widgets instead
   of inventing a home.

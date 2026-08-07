@@ -71,7 +71,11 @@ the creation commands only — `rename` and `remove` are refused with the reason
   string or a `ui`-local render model. A component with its own lifecycle earns a
   file in a family folder, which is what gives it a name anything else can
   reach — inside a page it has none, and the next screen that needs it copies
-  it.
+  it. **How a widget is fed — the render model, where it lives, and what goes in
+  its equality — is `data-driven-widgets`.** That skill fires on the situation;
+  it is the one to have read before writing a widget or a `fromStore`, because a
+  view-model that compares wrong does not crash, it redraws everything or shows
+  a moment that has passed.
 
 ## Writing the body, not just the file
 
