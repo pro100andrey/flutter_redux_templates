@@ -308,6 +308,13 @@ const _notInTheOverlay = {
 
 /// CLI commands the extension deliberately does not surface, and why.
 const _notInTheEditor = {
+  // The editor reaches it the way a user would want it reached: `doctor`
+  // reports skills that are not what this frx generates, and the finding
+  // carries the `skills` remedy, so it arrives as a quick-fix in the Problems
+  // panel rather than as a button somebody has to think to press. A palette
+  // entry would be a second way to do a thing whose whole trigger is the
+  // audit noticing.
+  'update-skills',
   // A stdin wizard. The editor offers each scaffolder by name instead, and a
   // QuickPick cannot drive a prompt loop over a pipe.
   'new',

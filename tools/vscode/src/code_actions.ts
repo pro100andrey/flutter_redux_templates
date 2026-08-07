@@ -15,6 +15,7 @@ const LABELS: Record<FixId, string> = {
   build_runner: 'FRX: generate missing code (doctor --fix)',
   orphan: 'FRX: remove orphan substate (doctor --fix)',
   'flow-docs': 'FRX: regenerate docs/flows (doctor --fix)',
+  skills: 'FRX: update .claude/skills for this frx (doctor --fix)',
 };
 
 export class FrxCodeActionProvider implements vscode.CodeActionProvider {

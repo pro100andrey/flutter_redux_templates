@@ -161,6 +161,25 @@ class SubstateScaffold {
     ),
   ]);
 
+  /// How the `Add<Pascal>Action` reducer reaches its own slice.
+  ///
+  /// `tasks.table` — through the facade — because that is how a reducer reads
+  /// here and it is the only read `frx graph` can see; the scaffolder used to
+  /// emit `state.tasks.table`, which is the shape the router tells an agent not
+  /// to write.
+  ///
+  /// **Except when the name is taken.** Inside `reduce()` the `byId` local and
+  /// the base class's `state`/`deps`/`env` are in scope, and a substate named
+  /// for one of them shadows the facade getter — `byId.table` would resolve to
+  /// the local `IMap` and not to the slice. There the qualified form is the
+  /// correct one. (The action's own payload field is `_items`, which is why it
+  /// is not on this list: a leading underscore is not a name a substate can
+  /// have.)
+  Expression get _tableRead =>
+      const {'byId', 'state', 'deps', 'env', 'store'}.contains(_camel)
+      ? refer('state').property(_camel)
+      : refer(_camel);
+
   Library _tableState() => _stateLibrary([
     _named(
       'table',
@@ -214,7 +233,15 @@ class SubstateScaffold {
             '  /// Returns [IMap<int, Object>] table\n'
             '  IMap<int, Object> get table => _state.$_camel.table;\n\n'
             '  /// Returns [Object] value by id\n'
-            '  Object byId(int id) => table[id]!;\n',
+            '  Object byId(int id) => table[id]!;\n\n'
+            // The state declares `view` and the facade did not expose it, so
+            // the one ordering a table has was reachable only as
+            // `state.<slice>.view` — the spelling this architecture's own rule
+            // forbids, and the one a reducer written to that rule cannot use.
+            // `search` had the getter all along; `table` was the copy that
+            // missed it.
+            '  /// Returns the ordered view of the table\n'
+            '  IList<int> get view => _state.$_camel.view;\n',
           ),
           imports: [_fic, '${_snake}/actions/retrieve_${_snake}_action.dart'],
         );
@@ -282,14 +309,22 @@ class SubstateScaffold {
           (c) => c
             ..name = 'Add${_pascal}Action'
             ..extend = _houseAction
+            // Private, and positional because a private named parameter is not
+            // a thing a caller can pass. **The name is the point.** `Action`
+            // mixes in `Selectors`, which gains a getter per substate, so a
+            // public field here collides with the facade the same command
+            // generates: `frx add-substate items -k table` wrote
+            // `AddItemsAction.items` over `Selectors.items` and the analyzer
+            // refused it — `'IList<Object> Function()' isn't a valid override
+            // of 'SelectItems Function()'`. A leading underscore cannot be a
+            // substate's camel name, so this collision is not merely unlikely,
+            // it is unreachable.
             ..constructors.add(
               Constructor(
-                (ctor) => ctor.optionalParameters.add(
+                (ctor) => ctor.requiredParameters.add(
                   Parameter(
                     (p) => p
-                      ..name = 'items'
-                      ..named = true
-                      ..required = true
+                      ..name = '_items'
                       ..toThis = true,
                   ),
                 ),
@@ -298,7 +333,7 @@ class SubstateScaffold {
             ..fields.add(
               Field(
                 (f) => f
-                  ..name = 'items'
+                  ..name = '_items'
                   ..modifier = FieldModifier.final$
                   ..type = _iList(refer('Object')),
               ),
@@ -317,15 +352,14 @@ class SubstateScaffold {
                               refer('int'),
                               refer('Object'),
                             ).newInstanceNamed('fromValues', [], {
-                              'values': refer('items'),
+                              'values': refer('_items'),
                               'keyMapper': refer('_idOf'),
                             }),
                           )
                           .statement,
                       declareFinal('updated')
                           .assign(
-                            refer('state')
-                                .property(_camel)
+                            _tableRead
                                 .property('table')
                                 .property('addAll')
                                 .call([refer('byId')]),

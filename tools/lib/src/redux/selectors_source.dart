@@ -142,6 +142,149 @@ class SelectorsSource {
     );
   }
 
+  /// Edits that carry a retyped getter's type into the methods derived from it.
+  ///
+  /// `add-substate -k table` writes two members out of one fact:
+  ///
+  /// ```dart
+  /// IMap<int, Object> get table => _state.tasks.table;
+  /// Object byId(int id) => table[id]!;
+  /// ```
+  ///
+  /// Retyping `table` to `IMap<int, Task>` left `byId` returning `Object`. It
+  /// compiles — everything is an `Object` — so nothing failed; every caller
+  /// simply had to cast, and the facade said the element type was unknown when
+  /// the field above it said otherwise. `--force` promises "its selector getter
+  /// to match", and a method that is that getter's own accessor is inside the
+  /// promise however the sentence was worded.
+  ///
+  /// **Derived from the body, not from the name.** A method qualifies when it
+  /// indexes the getter — `<getter>[…]` — which is the shape the scaffolder
+  /// writes and the only one whose element type is knowable without resolution.
+  /// A `byId` that reads something else is somebody's own, and is left alone.
+  List<Edit> _accessorEdits(
+    ExtensionTypeDeclaration ext,
+    String getterName, {
+    required String from,
+    required String to,
+  }) {
+    final before = _typeArgsOf(from);
+    final after = _typeArgsOf(to);
+    // Both sides have to be the same shape of generic for a positional
+    // correspondence between their arguments to mean anything.
+    if (before == null || after == null || before.length != after.length) {
+      return const [];
+    }
+
+    // A map, and only a map: the correspondence below is positional by *role*,
+    // which is a fact about `IMap<K, V>` and not about generics in general.
+    if (before.length != 2) return const [];
+    final (oldKey, oldValue) = (before[0], before[1]);
+    final (newKey, newValue) = (after[0], after[1]);
+
+    final body = ext.body;
+    final members = body is BlockClassBody
+        ? body.members
+        : const <ClassMember>[];
+
+    final edits = <Edit>[];
+    for (final member in members.whereType<MethodDeclaration>()) {
+      if (member.isGetter || member.isSetter) continue;
+      if (!_indexes(member.body.toSource(), getterName)) continue;
+
+      // By role, never by value. Looking the old type up in the argument list
+      // maps both of them to the first match when a map's key and value types
+      // are the same: `IMap<int, int>` retyped to `IMap<String, Task>` turned
+      // `int byId(int id)` into `String byId(String id)` over a `Task`-valued
+      // map. The return type is the value; what indexes it is the key.
+      void carry(TypeAnnotation? annotation, String from, String to) {
+        if (annotation == null || from == to) return;
+        if (annotation.toSource() != from) return;
+        edits.add(Edit.replace(annotation.offset, annotation.end, to));
+      }
+
+      carry(member.returnType, oldValue, newValue);
+      final params = member.parameters?.parameters ?? const <FormalParameter>[];
+      // Optional and named parameters are `RegularFormalParameter` here too —
+      // this analyzer carries the default on a `defaultClause` rather than in
+      // a wrapper node — so `byId({required int id})` is reached like any
+      // other, and is not left half-migrated with its key type behind.
+      for (final parameter in params.whereType<RegularFormalParameter>()) {
+        carry(parameter.type, oldKey, newKey);
+      }
+
+      // The doc line names the type too — `/// Returns [Object] value by id`.
+      final doc = member.documentationComment;
+      if (doc == null) continue;
+      for (final token in doc.tokens) {
+        for (final (from, to) in [(oldValue, newValue), (oldKey, newKey)]) {
+          if (from == to) continue;
+          final at = token.lexeme.indexOf('[$from]');
+          if (at < 0) continue;
+          edits.add(
+            Edit.replace(
+              token.offset + at + 1,
+              token.offset + at + 1 + from.length,
+              to,
+            ),
+          );
+        }
+      }
+    }
+    return edits;
+  }
+
+  /// Whether [source] indexes [getter] — `getter[…]`, and not `subgetter[…]`.
+  ///
+  /// The substring test this replaces matched any name *ending* in the getter's,
+  /// so a hand-written `_state.tasks.subtable[id]` counted as an accessor of
+  /// `table` and was retyped over a collection that never changed.
+  static bool _indexes(String source, String getter) {
+    for (
+      var at = source.indexOf('$getter[');
+      at >= 0;
+      at = source.indexOf('$getter[', at + 1)
+    ) {
+      if (at == 0) return true;
+      final before = source.codeUnitAt(at - 1);
+      final isIdentifierChar =
+          (before >= 0x30 && before <= 0x39) ||
+          (before >= 0x41 && before <= 0x5A) ||
+          (before >= 0x61 && before <= 0x7A) ||
+          before == 0x5F || // _
+          before == 0x24; // $
+      if (!isIdentifierChar) return true;
+    }
+    return false;
+  }
+
+  /// `IMap<int, Task>` → `['int', 'Task']`; null when [type] is not generic.
+  ///
+  /// Split on depth, not on every comma: `IMap<int, IList<Task>>` has two
+  /// arguments and three commas' worth of nesting between them.
+  static List<String>? _typeArgsOf(String type) {
+    final open = type.indexOf('<');
+    if (open < 0 || !type.trimRight().endsWith('>')) return null;
+
+    final inner = type.substring(open + 1, type.lastIndexOf('>'));
+    final args = <String>[];
+    final buffer = StringBuffer();
+    var depth = 0;
+    for (final rune in inner.runes) {
+      final ch = String.fromCharCode(rune);
+      if (ch == '<') depth++;
+      if (ch == '>') depth--;
+      if (ch == ',' && depth == 0) {
+        args.add(buffer.toString().trim());
+        buffer.clear();
+        continue;
+      }
+      buffer.write(ch);
+    }
+    args.add(buffer.toString().trim());
+    return args;
+  }
+
   /// Adds a `<returnType> get <getterName> => <expr>;` getter to the
   /// `Select<Pascal>` extension type (before its closing `}`) — a computed
   /// selector on an existing substate. Idempotent when a getter of that name is
@@ -207,6 +350,9 @@ class SelectorsSource {
           );
         }
       }
+      edits.addAll(
+        _accessorEdits(ext, getterName, from: declared, to: returnType),
+      );
       final added = addImports(applyEdits(content, edits), imports);
       return SelectorsAddResult(
         source: added.source,

@@ -97,7 +97,7 @@ docs:
 # from the CLI. `make check` catches a stale tree, because
 # skills_freshness_test.dart is part of `dart test`.
 skills:
-	dart run bin/gen_skills.dart
+	dart run bin/frx.dart update-skills --root ..
 
 # The extension's generated constants — the `--kind` sets, the marker path and
 # the doctor remedy ids, written from the CLI's own ArgParsers so the editor

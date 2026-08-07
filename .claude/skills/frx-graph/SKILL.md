@@ -21,6 +21,12 @@ frx graph [--json] [--focus <artifact>] [--direction inbound]
 - The `unresolved` section matters as much as the edges: a missing edge and
   a relation that does not exist look identical, so the gaps are named
   rather than dropped.
+- **"No dispatcher found" is not always dead code.** The walk starts at
+  connectors, actions and service dispatchers, so an action dispatched from
+  anywhere else — the boot in `run_env.dart` being the one the template
+  itself needs — is reported as reached by nobody. Check where it is
+  dispatched before deleting it; a substate's `Retrieve…Action` is the
+  expected case.
 
 ## Flags
 

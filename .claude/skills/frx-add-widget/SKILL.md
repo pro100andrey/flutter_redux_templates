@@ -63,6 +63,17 @@ in one line: *label is data, not design*.
 - `-k` picks what it takes in: `field` takes a `FieldVm`, `choice` a
   `ChoiceVm`, `action` is a labelled button, `view` draws a render model,
   `container` wraps children.
+- **The kind adds a suffix to the name**, and the file is named after the
+  resulting class: `-k field Pin` writes `PinFormField` in
+  `pin_form_field.dart`, `-k action Submit` writes `SubmitButton`. `view`
+  and `container` add none. Adding it yourself is harmless — the suffix is
+  idempotent — but a name that reads right in the command can come out
+  different on disk, so check the plan before `--apply` if the spelling
+  matters.
+- None of the kinds wraps `SegmentedControl`. A control over a set the
+  design fixes is `-k view` plus a `FieldVm` — `ThemeSwitcher` and
+  `LanguageSwitcher` are the precedent, and `data-driven-widgets` says why
+  it is not a `ChoiceVm`.
 - A component with its own lifecycle earns a file in a family folder —
   never a private `StatefulWidget` inside a page. Hidden there it has no
   name anything else can reach, so the next screen that needs it copies it

@@ -265,6 +265,7 @@ class ContractGen {
     BuildRunnerFix(''),
     OrphanFix(''),
     FlowDocsFix(),
+    SkillsFix(),
   ].map((f) => "'${_idOf(f)}'").join(', ');
 
   /// The compile-time guard the list needs.
@@ -277,5 +278,6 @@ class ContractGen {
     BuildRunnerFix() => fix.id,
     OrphanFix() => fix.id,
     FlowDocsFix() => fix.id,
+    SkillsFix() => fix.id,
   };
 }

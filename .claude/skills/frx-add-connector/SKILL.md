@@ -88,6 +88,11 @@ before it is handed over.
 
 ## Before you run it
 
+- Converting a domain value here means **naming its type here**, and `app`
+  does not depend on `models` out of the box — no connector in the template
+  converts one. Add `models` to `app/pubspec.yaml` and run `flutter pub
+  get`; `frx add-package` creates a workspace member and does not draw a
+  dependency edge between two that exist.
 - The suffix is optional and idempotent: `Toolbar` and `ToolbarConnector`
   scaffold the same artifact. Do not strip it yourself, and do not add it —
   pass the name as you have it. `frx remove` reads the same rule, so

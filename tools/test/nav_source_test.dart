@@ -209,7 +209,10 @@ class ItemPageConnector extends StatelessWidget {
             pageClass: 'CatalogPage',
           )
           .source;
-      expect(source, contains('GoAction.replace(ItemRoute())'));
+      // `const`, because the route takes nothing: `pro_lints` has
+      // `prefer_const_constructors` on, so the un-const form was scaffolded
+      // code this repository's own analyzer refuses.
+      expect(source, contains('GoAction.replace(const ItemRoute())'));
     });
 
     test('a connector frx did not write is refused, not mangled', () {

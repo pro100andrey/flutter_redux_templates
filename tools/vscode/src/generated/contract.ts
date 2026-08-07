@@ -35,7 +35,7 @@ export type Kind<K extends keyof typeof KINDS> = (typeof KINDS)[K][number];
  * additive only, since an older extension has to keep
  * working against a newer CLI.
  */
-export const FIX_IDS = ['build_runner', 'orphan', 'flow-docs'] as const;
+export const FIX_IDS = ['build_runner', 'orphan', 'flow-docs', 'skills'] as const;
 
 export type FixId = (typeof FIX_IDS)[number];
 

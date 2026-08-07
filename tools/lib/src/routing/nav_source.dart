@@ -128,16 +128,20 @@ class NavSource {
       throw StateError('`_Factory.fromStore` does not return a `_Vm(...)`');
     }
     final lambda = params.map((p) => p.name).join(', ');
+    // `const` exactly when the route takes nothing. `pro_lints` turns on
+    // `prefer_const_constructors`, so a scaffolded `GoAction.push(TasksRoute())`
+    // was code this repository's own analyzer refuses — and with arguments the
+    // keyword would be wrong, so it cannot simply always be there.
+    final route = args.isEmpty ? 'const $routeType()' : '$routeType($args)';
+    final dispatched = 'GoAction.$method($route)';
     edits.add(
       insertIntoList(
         elements: created.arguments.arguments,
         closer: created.arguments.rightParenthesis,
-        element:
-            '$callback: ($lambda) => '
-            'dispatch(GoAction.$method($routeType($args)))',
+        element: '$callback: ($lambda) => dispatch($dispatched)',
       ),
     );
-    changes.add('dispatch(GoAction.$method($routeType($args)))');
+    changes.add('dispatch($dispatched)');
 
     // `builder: (context, vm) => CatalogPage(onTapItem: vm.onTapItem)`. The
     // page gains an argument, so a `const` construction cannot stay const.

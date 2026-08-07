@@ -14,9 +14,16 @@ import 'package:tools/src/skills/skill_gen.dart';
 /// repository has already been burned by, in the editor extension, where a
 /// hand-kept list of the surface drifted to eight of ten entries.
 ///
-/// It is a test rather than a `doctor` check because it belongs to this
-/// repository: a project made by `frx create` carries the skills but not the
-/// generator, so there is nothing there to re-derive them from.
+/// It is a test **as well as** a `doctor` check, and the division moved once.
+/// The original reason for having no check — "a project made by `frx create`
+/// carries the skills but not the generator, so there is nothing there to
+/// re-derive them from" — stopped being true when `SkillGen` moved into `lib/`:
+/// the generator is inside every installed binary, and `frx update-skills` is
+/// how a project asks it. `checkSkills` is the check that fell out of that.
+///
+/// What stays here is what only this repository can assert: that the skills
+/// *committed* to it are current, which is a claim about a commit rather than
+/// about a working tree, and so belongs to CI.
 void main() {
   test('.claude/skills matches the CLI commands', () {
     final repoRoot = p.dirname(Directory.current.absolute.path);
@@ -65,10 +72,17 @@ void main() {
         .map((n) => n.substring(4))
         .toSet();
 
-    // The three the router names instead: `create` makes the project this runs
-    // in, `new` is an interactive dialogue an agent cannot drive, and
-    // `completions` configures a shell.
-    const notReachedForMidTask = {'create', 'new', 'completions'};
+    // The four the router names instead: `create` makes the project this runs
+    // in, `new` is an interactive dialogue an agent cannot drive,
+    // `completions` configures a shell, and `update-skills` writes the skills
+    // themselves — a skill describing it would be the tree explaining how it
+    // is regenerated, and `doctor` reports staleness anyway.
+    const notReachedForMidTask = {
+      'create',
+      'new',
+      'completions',
+      'update-skills',
+    };
 
     final runnerCommands = {
       for (final c in FrxRunner().commands.values)

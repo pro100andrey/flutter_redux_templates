@@ -25,7 +25,8 @@ and every rule below stops holding at once.
 The whole chain, in three fragments:
 
 ```dart
-// ui/lib/tiles/task_tile.dart — the widget and its render model, together.
+// ui/lib/<family>/task_tile.dart — the widget and its render model,
+// together. `frx list-widget-dirs` says which families exist.
 final class TaskTileVm extends Equatable {
   const TaskTileVm({required this.title, required this.due, this.onTap});
 
@@ -104,10 +105,15 @@ a screen's `_Vm` is private, so nothing can reach into it.
 
 ## A widget is a part, and parts compose
 
-`ui/lib/` is a folder per kind of part — `alerts`, `buttons`, `containers`,
-`forms`, `indicators`, `inputs`, `overlays`, `scrolls`, `tiles` — and that
-taxonomy is the rule made physical. **A widget that fits none of them is a sign
-the package is missing a primitive**, not a sign to write a bigger widget.
+`ui/lib/` is a folder per kind of part, and that taxonomy is the rule made
+physical. **A widget that fits none of them is a sign the package is missing a
+primitive**, not a sign to write a bigger widget.
+
+**Ask which folders exist — do not take a list from here.** `frx
+list-widget-dirs` answers it, and the answer moves: it reports only folders that
+already hold a widget, so a folder emptied by a deletion stops being offered the
+moment it stops being a home. A list written into this file was wrong within a
+day of being written.
 
 Build the new thing out of what is there. Three of the five archetypes
 `frx add-widget` scaffolds do nothing else:
@@ -139,17 +145,15 @@ already knows which one and offers it first:
 | `view` | **no fixed home — decide** |
 
 `view` has none on purpose: a card, a tile, a row and a header are all views,
-and there is no answer that fits them. This template puts its card in
-`containers/app_card.dart` and its tile in `tiles/`, so "cards go in `cards/`"
-is not a rule here — the taxonomy is what `frx list-widget-dirs` reports, and
-today that is `alerts`, `buttons`, `containers`, `forms`, `indicators`,
-`inputs`, `overlays`, `scrolls`, `tiles`.
+and there is no answer that fits all of them. The card in this package lives in
+`containers/app_card.dart`, so "cards go in `cards/`" is not a rule here. Run
+`frx list-widget-dirs` and place the widget with the family it belongs to.
 
 **Ask before inventing.** `--dir` is open-ended — a name that does not exist
 creates the folder, in `lower_snake_case` — so the failure is not being refused,
-it is quietly starting `cards/` beside an established `tiles/` and splitting one
-family in two. Run `frx list-widget-dirs`; create a folder when the widget is
-genuinely a new kind of part.
+it is quietly starting a second folder beside an established one and splitting a
+family in two. Run `frx list-widget-dirs` first; create a folder only when the
+widget is genuinely a new kind of part.
 
 The folders that are not widget homes are refused outright: `theme`, `models`,
 `generated`, `l10n`, `pages`.
