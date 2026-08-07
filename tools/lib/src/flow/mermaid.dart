@@ -14,7 +14,13 @@ String renderSequence(PageFlow flow) {
   b.writeln('    autonumber');
   b.writeln('    actor User');
   b.writeln('    participant UI as ${_esc(flow.pageClass)}');
-  b.writeln('    participant VM as ${_esc(flow.connectorClass)}');
+  // One lane per connector that actually holds a view-model. A page connected
+  // in one place has exactly the one it always had; a page composed of regions
+  // gets a lane each, which is the difference between "this screen dispatches
+  // nothing" and "its frame dispatches nothing and its six regions do".
+  for (final entry in ids.connectors.entries) {
+    b.writeln('    participant ${entry.value} as ${_esc(entry.key)}');
+  }
   for (final entry in ids.actions.entries) {
     b.writeln('    participant ${entry.value} as ${_esc(entry.key)}');
   }
@@ -22,10 +28,11 @@ String renderSequence(PageFlow flow) {
   if (ids.usesRouter) b.writeln('    participant NAV as Router');
 
   for (final useCase in flow.useCases) {
+    final from = ids.laneOf(useCase);
     b.writeln();
-    b.writeln('    User->>UI: ${_esc(useCase.label)}');
-    b.writeln('    UI->>VM: ${_esc(useCase.name)}()');
-    _writeSteps(b, useCase.steps, flow, ids, from: 'VM', indent: '    ');
+    b.writeln('    User->>UI: ${_esc(useCase.qualifiedLabel)}');
+    b.writeln('    UI->>$from: ${_esc(useCase.name)}()');
+    _writeSteps(b, useCase.steps, flow, ids, from: from, indent: '    ');
   }
 
   return b.toString().trimRight();
@@ -109,6 +116,24 @@ String? _notesFor(ActionInfo? action) {
 /// Stable, mermaid-safe participant ids.
 class _ParticipantIds {
   _ParticipantIds(PageFlow flow) {
+    // The route connector keeps the id `VM` it has always had, so a page with
+    // no regions renders byte-for-byte as before. Only a composed page gains
+    // lanes, and only for the regions that dispatch something — a region that
+    // draws state and calls nothing has no interaction to put on a lane.
+    _routeConnector = flow.connectorClass;
+    connectors[flow.connectorClass] = 'VM';
+    var lane = 0;
+    for (final useCase in flow.useCases) {
+      final owner = useCase.owner;
+      if (owner != null) connectors.putIfAbsent(owner, () => 'R${++lane}');
+    }
+    if (connectors.length > 1 && !flow.useCases.any((u) => u.owner == null)) {
+      // The frame holds no view-model of its own — the composition case. Its
+      // lane would be an empty column captioned with the one class in the
+      // drawing that does nothing.
+      connectors.remove(flow.connectorClass);
+    }
+
     var n = 0;
     for (final useCase in flow.useCases) {
       for (final step in useCase.steps) {
@@ -128,9 +153,18 @@ class _ParticipantIds {
     }
   }
 
+  /// The route connector's class — the lane a use case with no owner sits in.
+  late final String _routeConnector;
+
+  /// Connector class → lane id, in the order the regions are reached.
+  final Map<String, String> connectors = {};
   final Map<String, String> actions = {};
   bool usesState = false;
   bool usesRouter = false;
+
+  /// The lane [useCase] is dispatched from.
+  String laneOf(UseCase useCase) =>
+      connectors[useCase.owner ?? _routeConnector] ?? connectors.values.first;
 }
 
 /// Mermaid message text is newline- and semicolon-delimited; keep it on one

@@ -32,7 +32,7 @@ sequenceDiagram
     UI->>VM: onPressedLogIn()
     VM->>+A3: dispatchAndWait
     Note over A3: WaitingAction · async
-    A3->>ST: copyWith(session)
+    A3->>ST: copyWith(session, login)
     A3-->>-VM: ActionStatus
 
     User->>UI: onPressedForgotPassword
@@ -58,7 +58,7 @@ sequenceDiagram
 | --- | --- | --- |
 | `email.onChanged` | `SetEmailAction` | `login.email` |
 | `password.onChanged` | `SetPasswordAction` | `login.password` |
-| `onPressedLogIn` | `LogInWithEmailAction` | `session` |
+| `onPressedLogIn` | `LogInWithEmailAction` | `session, login` |
 | `onPressedForgotPassword` | `GoAction.push` | — |
 | `onPressedRegister` | `GoAction.push` | — |
 | `theme.onChanged` | `SetThemeModeAction` | `theme.mode` |
