@@ -7,6 +7,7 @@ import 'commands/add_nav_command.dart';
 import 'commands/add_enum_command.dart';
 import 'commands/add_field_command.dart';
 import 'commands/add_model_command.dart';
+import 'commands/add_package_command.dart';
 import 'commands/add_page_command.dart';
 import 'commands/add_retrofit_command.dart';
 import 'commands/add_selector_command.dart';
@@ -28,6 +29,7 @@ import 'commands/list_substates_command.dart';
 import 'commands/new_command.dart';
 import 'commands/remove_command.dart';
 import 'commands/rename_command.dart';
+import 'commands/update_skills_command.dart';
 import 'commands/watch_command.dart';
 import 'commands/which_command.dart';
 import 'config/frx_config.dart';
@@ -64,6 +66,7 @@ class FrxRunner extends CommandRunner<int> {
     addCommand(AddServiceCommand());
     addCommand(AddRetrofitCommand());
     addCommand(AddThemeExtensionCommand());
+    addCommand(AddPackageCommand());
     addCommand(AddTabsCommand());
     addCommand(NewCommand());
     addCommand(CreateCommand());
@@ -76,6 +79,7 @@ class FrxRunner extends CommandRunner<int> {
     addCommand(CompleteCommand());
     addCommand(FlowCommand());
     addCommand(GraphCommand());
+    addCommand(UpdateSkillsCommand());
     addCommand(DoctorCommand());
   }
 

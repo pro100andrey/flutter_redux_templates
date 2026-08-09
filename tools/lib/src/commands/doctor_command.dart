@@ -12,6 +12,7 @@ import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
 import '../util/console.dart';
+import '../skills/skill_gen.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
 import 'wiring.dart';
@@ -32,7 +33,11 @@ class DoctorCommand extends Command<int> {
         'fix',
         negatable: false,
         help:
-            'Repair auto-fixable findings: run build_runner for missing parts '
+            'Repair auto-fixable findings: run build_runner for missing '
+            'parts, remove orphan substate folders, regenerate docs/flows and '
+            'rewrite .claude/skills. It applies without a preview — '
+            '`frx update-skills --dry-run --diff` is the one that shows the '
+            'skill changes first.'
             'and remove orphan substate folders.',
       )
       ..addFlag(
@@ -101,6 +106,7 @@ class DoctorCommand extends Command<int> {
     final buildRunner = <String>{};
     final orphans = <String>{};
     var flowDocs = false;
+    var skills = false;
     for (final fix in fixes) {
       switch (fix) {
         case BuildRunnerFix(:final package):
@@ -109,6 +115,8 @@ class DoctorCommand extends Command<int> {
           orphans.add(folder);
         case FlowDocsFix():
           flowDocs = true;
+        case SkillsFix():
+          skills = true;
       }
     }
 
@@ -137,6 +145,11 @@ class DoctorCommand extends Command<int> {
     // Last: the docs describe the code, so regenerate them only once the code
     // has stopped moving — an orphan removed above must not survive in a flow.
     if (flowDocs) _regenerateFlowDocs(repo);
+
+    // Last, and independent of everything above: the skills are a function of
+    // the CLI, not of the tree, so nothing another remedy does can change what
+    // they should say.
+    if (skills) await _regenerateSkills(repo);
 
     console.out
       ..writeln()
@@ -216,6 +229,17 @@ class DoctorCommand extends Command<int> {
       repoRoot: repo.root,
     );
     console.out.writeln('  ✓ removed orphan redux/$folder${p.separator}');
+  }
+
+  /// The same changeset `frx update-skills` previews, applied.
+  Future<void> _regenerateSkills(FrxWorkspace repo) async {
+    final changes = SkillGen.changesIn(repo.root);
+    if (changes.isEmpty) return;
+    final applied = await apply(Changeset(changes), format: false);
+    console.out.writeln(
+      '  ✓ ${applied.written.length} skill file(s) written'
+      '${applied.removed.isEmpty ? '' : ', ${applied.removed.length} removed'}.',
+    );
   }
 
   /// Rewrites `docs/flows/` from the current sources.

@@ -36,7 +36,7 @@ const KIND_BLURB: Record<ArtifactKind, string> = {
   page: 'the page, its connector and the route',
   action: 'the ReduxAction file under its substate',
   model: 'the model or enum, with its generated siblings',
-  widget: 'the widget and its mirrored preview',
+  widget: 'the widget file',
   connector: 'the standalone StoreConnector',
   service: 'the service folder and its dispatcher',
 };

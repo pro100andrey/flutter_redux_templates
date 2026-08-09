@@ -26,7 +26,7 @@ frx doctor [arguments]
 
 ```
 -h, --help    Print this usage information.
-    --fix     Repair auto-fixable findings: run build_runner for missing parts and remove orphan substate folders.
+    --fix     Repair auto-fixable findings: run build_runner for missing parts, remove orphan substate folders, regenerate docs/flows and rewrite .claude/skills. It applies without a preview — `frx update-skills --dry-run --diff` is the one that shows the skill changes first.and remove orphan substate folders.
     --json    Emit findings as JSON ({findings:[{severity,message,file,fix,rule}]}) instead of the report. Read-only (ignores --fix).
     --root    Repo root to search from.
 ```

@@ -157,7 +157,14 @@ void main() {
       final script = File(
         p.join(Directory.systemTemp.path, 'build_runner_decoy.sh'),
       )..writeAsStringSync('sleep 30\n');
-      final decoy = await Process.start('sh', [script.path, 'watch']);
+      // Started *inside the fixture*: a watch is only this build's partner
+      // when it is watching this tree, and one running anywhere else is
+      // another project's — which is what `frx batch -b` used to hand the
+      // build to, reporting success and generating nothing.
+      final decoy = await Process.start('sh', [
+        script.path,
+        'watch',
+      ], workingDirectory: fx.root.path);
       addTearDown(() {
         decoy.kill(ProcessSignal.sigkill);
         if (script.existsSync()) script.deleteSync();

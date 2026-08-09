@@ -111,6 +111,40 @@ void main() {
     expect(buildRunnerWatchPid(), isNotNull);
   }, testOn: 'posix');
 
+  test('a watch in another tree is not this tree\'s build', () async {
+    // What a probe project measured: `frx batch -b` stood down for a watch
+    // running in a different repository two directories away, reported
+    // "handing the build to it", exited 0, and generated nothing here.
+    final elsewhere = Directory.systemTemp.createTempSync('frx_other_');
+    final script = File(p.join(elsewhere.path, 'build_runner_far.sh'))
+      ..writeAsStringSync('sleep 20\n');
+    final live = await Process.start('sh', [
+      script.path,
+      'watch',
+    ], workingDirectory: elsewhere.path);
+    addTearDown(() {
+      live.kill(ProcessSignal.sigkill);
+      if (elsewhere.existsSync()) elsewhere.deleteSync(recursive: true);
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    expect(
+      buildRunnerWatchPid(),
+      isNotNull,
+      reason: 'unscoped, it is still a running watch',
+    );
+    expect(
+      buildRunnerWatchPid(within: Directory.current.path),
+      isNot(live.pid),
+      reason: 'it is watching somewhere else, so it is not our build partner',
+    );
+    expect(
+      buildRunnerWatchPid(within: elsewhere.path),
+      live.pid,
+      reason: 'and it is very much the build partner of the tree it is in',
+    );
+  }, testOn: 'mac-os || linux');
+
   test('a command that merely mentions both words is not a watch', () async {
     // `tail -f build_runner-watch.log` and friends: the words are there, the
     // shape is not. Counting one as a live watch would make frx refuse to

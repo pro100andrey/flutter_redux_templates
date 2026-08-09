@@ -14,6 +14,10 @@ yours — Android `applicationId` and `namespace`, the Apple bundle identifiers,
 Kotlin package **and its directory**, the app's title on the device and in its own
 AppBar. `--dry-run` shows what it would write first.
 
+`--without models,http_client` leaves out the packages a project may not need;
+`frx add-package <kind>` puts one back later. What may be left out is whatever
+nothing imports, so the refusal is checked rather than remembered.
+
 Cloning works too, but leaves you to rename all of that by hand, and this
 repository's own machinery — the CLI, its CI — comes with it. `frx create`
 brings the product and leaves the machinery behind. See
@@ -137,7 +141,7 @@ dart run bin/frx.dart <command>     # or `dart install .` to get `frx` on PATH
 | `add-action` | `ReduxAction` into a substate (sync / async / waiting, `--mixin` debounce / throttle / retry / …) |
 | `add-field` | Add a field to an existing substate's `@freezed` state (`--default`, `--action` scaffolds its setter, and a `Select` getter unless `--no-selector`) |
 | `add-selector` | Add a computed getter to a substate's `Select<Pascal>` facade (`--type`, `--expr`) |
-| `add-widget` | Widget + its previews in `ui` — `-k field\|choice\|action\|view\|container` picks what it takes in and which primitive it wraps; `--dir` names the folder (required) |
+| `add-widget` | Widget in `ui` — `-k field\|choice\|action\|view\|container` picks what it takes in and which primitive it wraps; `--dir` names the folder (required) |
 | `add-connector` | A `StoreConnector` in `app` for a dumb widget |
 | `add-nav` | Wire a navigation hop between two pages — the `_Vm` callback, the `GoAction` dispatch, the page parameter, typed route args |
 | `add-model` / `add-retrofit` | freezed model (`--case` ×N → sealed union) / Retrofit client |
@@ -232,52 +236,6 @@ graph to compile) instead of `--workspace`:
 cd business && dart run build_runner build   # edited a freezed model
 cd app && dart run build_runner build        # added a route
 ```
-
-### Widget previews
-
-```bash
-cd ui && flutter widget-preview start
-```
-
-**Run it from `ui`, not from `app`.** The previewer scans only the package it is
-started in — it does not follow workspace dependencies. Started in `app` it
-finds zero previews in `ui` and shows an empty list, with no error to explain
-why.
-
-Previews use `@AppPreview` from [`ui/lib/theme/preview.dart`](ui/lib/theme/preview.dart),
-not `@Preview` directly:
-
-```dart
-@AppPreview(group: 'Button', name: 'Primary', size: Size(260, 80))
-Widget previewPrimary() =>
-    Button.primary(label: 'Click Me', onPressed: () {});
-```
-
-It is `@Preview` with this app's themes already attached. Widgets here read
-theme-varying tokens through `context.colors`, a `ThemeExtension` — under a
-bare `ThemeData` it resolves to null and takes the widget down. Carrying the
-theme on the annotation makes a preview without it impossible to write,
-instead of something each author has to remember.
-
-Note that `theme:` on `@Preview` is a `PreviewThemeData Function()`, not a
-`PreviewThemeData`. Passing the value is a compile error twice over — wrong
-type, and a method call inside a constant expression — which is the other half
-of why the custom annotation exists.
-
-**Previews live in `ui/lib/previews/`, mirroring the package**: the previews for
-`ui/lib/buttons/button.dart` sit in `ui/lib/previews/buttons/button.dart`.
-Nothing imports that tree, so it never reaches the app's compile graph — a
-broken fixture fails `dart analyze` but not `flutter build`. Keeping them out of
-the widget file also keeps production code from importing
-`package:flutter/widget_previews.dart`.
-
-The tree must stay under `lib/`. The previewer imports each file by its
-`package:` URI, and a file outside `lib/` has none — `flutter widget-preview`
-crashes on it rather than skipping it.
-
-`frx add-widget` writes both files, so a scaffolded widget arrives with its
-states already enumerated. `frx doctor` reports a preview whose widget moved or
-was deleted — the one thing a tree nobody imports cannot notice on its own.
 
 ### Creating state
 
@@ -398,12 +356,10 @@ class _Vm extends Vm {
 
 For standalone widgets (not pages) use `frx add-widget` + `frx add-connector`.
 
-`add-widget` writes two files: the widget in `ui/lib/<dir>/`, and its previews
-in `ui/lib/previews/<dir>/`. Nothing imports the previews tree, so it stays out
-of the app's compile graph — and the widget file never imports preview
-machinery. `--dir` is required: the folder says what the widget *is*, and the
-old default left `ui/lib/widgets/` empty while every real widget was placed by
-hand. Completion lists the folders already in use; a new name creates one.
+`add-widget` writes the widget into `ui/lib/<dir>/`. `--dir` is required: the
+folder says what the widget *is*, and the old default left `ui/lib/widgets/`
+empty while every real widget was placed by hand. Completion lists the folders
+already in use; a new name creates one.
 More on connectors: [AsyncRedux documentation](https://asyncredux.com/flutter/category/connector).
 
 ### Navigation
@@ -441,8 +397,8 @@ fields, so `/item/:id` yields `void Function(int) onTapItem` and
 ```bash
 frx doctor          # audit: wiring drift, orphans, ungenerated code, stale
                     # docs/flows, misplaced declarations, the empty folder a
-                    # removed substate leaves behind, previews left behind by a
-                    # moved widget, a watch that outlived its IDE
+                    # removed substate leaves behind, a watch that outlived
+                    # its IDE
 frx doctor --fix    # auto-repair: run codegen, remove orphan substates and
                     # empty artifact folders, regenerate docs/flows
 frx remove my_profile --apply   # delete any artifact and unwire it (kind auto-detected)

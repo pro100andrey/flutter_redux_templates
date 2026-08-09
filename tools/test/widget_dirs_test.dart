@@ -52,11 +52,6 @@ void main() {
     expect(dirs(), isNot(anyElement(isIn(['theme', 'models', 'generated']))));
   });
 
-  test('the previews mirror is excluded, not offered as a home', () {
-    put('ui/lib/previews/buttons/button.dart');
-    expect(dirs(), isNot(contains('previews')));
-  });
-
   test('the list is sorted, so the picker order is stable', () {
     put('ui/lib/tiles/a.dart');
     put('ui/lib/alerts/a.dart');
@@ -73,10 +68,9 @@ void main() {
   test(
     'a non-widget folder is refused as --dir, not just unsuggested',
     () async {
-      // The exclusion list governs what is offered; without it also guarding the
-      // command, `--dir previews` writes a widget into its own mirror and its
-      // preview into previews/previews/.
-      for (final dir in ['previews', 'pages', 'theme', 'models']) {
+      // The exclusion list governs what is offered; without it also guarding
+      // the command, `--dir theme` drops a widget into the theme layer.
+      for (final dir in ['pages', 'theme', 'models']) {
         final res = await runFrx(fx, [
           'add-widget',
           'card',

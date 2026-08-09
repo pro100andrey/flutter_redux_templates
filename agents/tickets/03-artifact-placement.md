@@ -17,9 +17,8 @@ only because they were written to agree. Nothing tested that they still did.
       comes back empty
 - [x] `RemovableResolver` reads the widget naming rule instead of re-deriving it
 - [x] The suffix rules are stated once and read both ways
-- [~] "Each artifact kind answers which files am I from one place" — only the
-      *naming* moved. `model`, `enum` and `service` still join their own paths
-      at the add sites; see Notes.
+- [x] "Each artifact kind answers which files am I from one place" — the naming
+      moved first; the paths followed in `ArtifactFiles`, see Notes.
 
 ## Notes
 
@@ -37,6 +36,10 @@ scaffolder began stripping twice while removal stripped once, and `service` was
 declared to have "no suffix rule" when `add-service` writes `class <Name>Service`
 — so `SyncService` made `SyncServiceService`.
 
-**Left open deliberately.** The remaining duplication is `'<snake>.dart'` joined
-to a `FrxWorkspace` directory, with no suffix rule left to get backwards, and
-`codelens.ts` still derives the layout in TypeScript — that belongs with #06.
+**Both leftovers are closed now.** `ArtifactFiles` joins the stem to the
+directory for the four kinds that have no wiring of their own — `add-model`,
+`add-enum`, `add-service`, `add-retrofit` — and `RemovableResolver` reads the
+same. That the two agreed was a property of two expressions and held by the
+round-trip test; it is a property of one expression now, which is what the test
+was standing in for. `codelens.ts` deriving the layout in TypeScript went with
+#06, as this said it should.

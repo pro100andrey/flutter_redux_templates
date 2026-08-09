@@ -4,7 +4,7 @@
 // these; the FRX overlay and "New here" menu delegate to them.
 import * as vscode from 'vscode';
 
-import { KINDS, type Kind } from '../generated/contract';
+import { KINDS, PACKAGES, type Kind, type PackageDir } from '../generated/contract';
 
 import type { App } from '../app';
 import * as config from '../config';
@@ -460,6 +460,86 @@ export function addSimple(app: App, which: SimpleScaffold): Promise<void> {
 /** A "plain or with JSON?" row. */
 interface SerializablePick extends vscode.QuickPickItem {
   serializable: boolean;
+}
+
+/** One row of the `add-package` picker. */
+interface PackagePick extends vscode.QuickPickItem {
+  // Not `kind`: `QuickPickItem` already declares one, typed `QuickPickItemKind`.
+  pkg: PackageDir;
+}
+
+/**
+ * The codicon each optional package reads as.
+ *
+ * The only part of the row that is the editor's: the directory and the blurb
+ * come off `PackageKind`, the same way `KINDS` comes off each parser. It is a
+ * `Record` over the union for the reason the `--kind` blurbs are — a fourth
+ * package added in Dart stops this compiling until somebody picks its icon,
+ * where the hand-kept list it replaces would have gone on offering three.
+ */
+const PACKAGE_ICONS: Record<PackageDir, string> = {
+  models: '$(symbol-structure)',
+  http_client: '$(cloud)',
+  storage: '$(database)',
+};
+
+const PACKAGE_KINDS: PackagePick[] = PACKAGES.map((p) => ({
+  pkg: p.dir,
+  label: `${PACKAGE_ICONS[p.dir]} ${p.dir}`,
+  description: p.summary,
+}));
+
+/**
+ * Adds an optional workspace member.
+ *
+ * Surfaced because `add-model` and `add-retrofit` refuse when their package is
+ * absent and name this command in the message — a refusal that pointed at
+ * something the editor could not run would be a dead end.
+ *
+ * No file to open afterwards and no build_runner: the new member is not
+ * resolved until `pub get` runs, which is what the closing message says.
+ */
+export async function addPackage(app: App): Promise<void> {
+  const target = await ui.resolveTarget(app.context, undefined);
+  if (!target) return;
+  const { inv, targetDir } = target;
+
+  const pick = await vscode.window.showQuickPick<PackagePick>(PACKAGE_KINDS, {
+    title: 'FRX — add package',
+    placeHolder: 'Which workspace member?',
+    ignoreFocusOut: true,
+  });
+  if (pick === undefined) return;
+
+  const res = await scaffold.runScaffold({
+    inv,
+    args: ['add-package', pick.pkg, '--root', targetDir],
+    cwd: targetDir,
+    afterChange: app.refresh,
+    title: `FRX: add-package ${pick.pkg}…`,
+  });
+  if (!res) return;
+
+  // The CLI answers "already a member" with an empty plan and exit 0, so a
+  // truthy result is not the same as a package having been created. Saying
+  // "added — run pub get" there sends the user to re-resolve a workspace that
+  // did not change.
+  //
+  // Read off the plan rather than off the CLI's prose: `<pkg>/pubspec.yaml` is
+  // the file that makes a directory a member, and every writing command prints
+  // what it wrote in the same `create <path>` shape. A reworded sentence would
+  // have turned a string match silently false.
+  const created = queries.createdFile(res.stdout, targetDir, `${pick.pkg}/pubspec.yaml`);
+  if (!created) {
+    vscode.window.showInformationMessage(
+      `FRX: ${pick.pkg} is already a workspace member — nothing to do.`,
+    );
+    return;
+  }
+
+  vscode.window.showInformationMessage(
+    `FRX: ${pick.pkg} added — run \`flutter pub get\` before using it.`,
+  );
 }
 
 /** Runs a name-only scaffolder (with an optional serialization prompt for models). */

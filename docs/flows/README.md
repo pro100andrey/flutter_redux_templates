@@ -32,8 +32,8 @@ Solid arrow: `push`. Dashed: `pop` (drawn back to the only screen that pushes it
 | Screen | Path | Logged out | Use cases | Flow |
 | --- | --- | --- | --- | --- |
 | `SplashPage` _(initial)_ | `/splash` | no | 0 | [splash](splash.md) |
-| `LogInPage` | `/login` | yes | 6 | [logIn](logIn.md) |
+| `LogInPage` | `/login` | yes | 7 | [logIn](logIn.md) |
 | `RegistrationPage` | `/registration` | yes | 5 | [registration](registration.md) |
 | `ForgotPasswordPage` | `/forgot-password` | yes | 3 | [forgotPassword](forgotPassword.md) |
 | `ResetPasswordPage` | `/reset-password` | yes | 4 | [resetPassword](resetPassword.md) |
-| `HomePage` | `/home` | no | 0 | [home](home.md) |
+| `HomePage` | `/home` | no | 1 | [home](home.md) |

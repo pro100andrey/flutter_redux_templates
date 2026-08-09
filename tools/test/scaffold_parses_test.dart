@@ -59,6 +59,53 @@ void main() {
         files.forEach((path, source) => expectParses(source, reason: path));
       });
 
+      test('the action payload cannot collide with the facade', () {
+        // `Action` mixes in `Selectors`, so a public `items` field on
+        // `AddItemsAction` overrode `Selectors.items` and the analyzer refused
+        // it. A leading underscore is not a name a substate can have.
+        final source = SubstateScaffold(
+          Casing.parse('items'),
+          kind: SubstateKind.table,
+        ).files().entries.firstWhere((e) => e.key.contains('add_')).value;
+
+        expect(source, contains('final IList<Object> _items;'));
+        expect(source, isNot(contains('this.items')));
+      });
+
+      test('a table reducer reads through the facade', () {
+        final source = SubstateScaffold(
+          Casing.parse('tasks'),
+          kind: SubstateKind.table,
+        ).files().entries.firstWhere((e) => e.key.contains('add_')).value;
+
+        expect(source, contains('tasks.table.addAll(byId)'));
+        expect(
+          source,
+          isNot(contains('state.tasks.table')),
+          reason: 'the facade read is the only one `frx graph` can see',
+        );
+      });
+
+      test('unless the substate name is one the reducer already binds', () {
+        // `byId` is the reducer's own local and `state` comes from the base
+        // class; a substate named for either shadows the facade getter, and
+        // `byId.table` would resolve to the local `IMap` rather than the slice.
+        for (final taken in const ['byId', 'state']) {
+          final source = SubstateScaffold(
+            Casing.parse(taken),
+            kind: SubstateKind.table,
+          ).files().entries.firstWhere((e) => e.key.contains('add_')).value;
+
+          expect(
+            source,
+            contains('state.$taken.table.addAll(byId)'),
+            reason:
+                '"$taken" is in scope inside reduce(), so the bare read is it',
+          );
+          expectParses(source, reason: taken);
+        }
+      });
+
       test('the ${kind.name} selector block parses once wrapped', () {
         // `selectorBlock()` is the one raw string inside the code_builder
         // scaffolder — `dart_style` never sees it, so nothing else would catch

@@ -1,6 +1,6 @@
 {
   "name": "frx",
-  "displayName": "FRX — Flutter Redux Scaffolder",
+  "displayName": "FRX \u2014 Flutter Redux Scaffolder",
   "description": "Scaffold AsyncRedux substates and auto_route pages via the frx CLI, with a build_runner watch toggle.",
   "version": "0.1.7",
   "publisher": "pro100dev",
@@ -31,87 +31,92 @@
     "commands": [
       {
         "command": "frx.addSubstate",
-        "title": "Add Substate…",
+        "title": "Add Substate\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addPage",
-        "title": "Add Page…",
+        "title": "Add Page\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addTabs",
-        "title": "Add Tabs…",
+        "title": "Add Tabs\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addAction",
-        "title": "Add Action…",
+        "title": "Add Action\u2026",
         "category": "FRX",
         "icon": "$(zap)"
       },
       {
         "command": "frx.addNav",
-        "title": "Wire navigation…",
+        "title": "Wire navigation\u2026",
         "category": "FRX",
         "icon": "$(arrow-right)"
       },
       {
         "command": "frx.addWidget",
-        "title": "Add Widget…",
+        "title": "Add Widget\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addConnector",
-        "title": "Add Connector…",
+        "title": "Add Connector\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addModel",
-        "title": "Add Model…",
+        "title": "Add Model\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addEnum",
-        "title": "Add Enum…",
+        "title": "Add Enum\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addService",
-        "title": "Add Service…",
+        "title": "Add Service\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addRetrofit",
-        "title": "Add Retrofit Client…",
+        "title": "Add Retrofit Client\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addThemeExtension",
-        "title": "Add Theme Extension…",
+        "title": "Add Theme Extension\u2026",
+        "category": "FRX"
+      },
+      {
+        "command": "frx.addPackage",
+        "title": "Add Package\u2026",
         "category": "FRX"
       },
       {
         "command": "frx.addField",
-        "title": "Add field…",
+        "title": "Add field\u2026",
         "category": "FRX",
         "icon": "$(add)"
       },
       {
         "command": "frx.addSelector",
-        "title": "Add selector…",
+        "title": "Add selector\u2026",
         "category": "FRX",
         "icon": "$(filter)"
       },
       {
         "command": "frx.rename",
-        "title": "Rename…",
+        "title": "Rename\u2026",
         "category": "FRX",
         "icon": "$(edit)"
       },
       {
         "command": "frx.remove",
-        "title": "Remove…",
+        "title": "Remove\u2026",
         "category": "FRX",
         "icon": "$(trash)"
       },
@@ -141,7 +146,7 @@
       },
       {
         "command": "frx.flow",
-        "title": "Flow…",
+        "title": "Flow\u2026",
         "category": "FRX",
         "icon": "$(git-merge)"
       },
@@ -158,7 +163,7 @@
       },
       {
         "command": "frx.doctorFix",
-        "title": "Doctor — fix",
+        "title": "Doctor \u2014 fix",
         "category": "FRX"
       },
       {
@@ -173,7 +178,7 @@
       },
       {
         "command": "frx.menu",
-        "title": "Actions…",
+        "title": "Actions\u2026",
         "category": "FRX"
       },
       {
@@ -247,6 +252,10 @@
         },
         {
           "command": "frx.addThemeExtension",
+          "when": "frx.isMonorepo"
+        },
+        {
+          "command": "frx.addPackage",
           "when": "frx.isMonorepo"
         },
         {
@@ -399,12 +408,12 @@
             "Offer a button to run `build_runner` after scaffolding.",
             "Never run `build_runner`; do it yourself."
           ],
-          "markdownDescription": "Whether to generate code (freezed part, auto_route class) after scaffolding a substate or page. Ignored while the `build_runner watch` toggle is running — the watch regenerates on save."
+          "markdownDescription": "Whether to generate code (freezed part, auto_route class) after scaffolding a substate or page. Ignored while the `build_runner watch` toggle is running \u2014 the watch regenerates on save."
         },
         "frx.editorRename": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Let **F2** on a substate/page symbol (its state class, `Select…`, route, connector, or field) rename the whole artifact via `frx rename`. Turn off to always use the Dart extension's plain rename; the **FRX: Rename…** command still works either way."
+          "markdownDescription": "Let **F2** on a substate/page symbol (its state class, `Select\u2026`, route, connector, or field) rename the whole artifact via `frx rename`. Turn off to always use the Dart extension's plain rename; the **FRX: Rename\u2026** command still works either way."
         }
       }
     }

@@ -183,8 +183,8 @@ class SourceIndex {
   ) {
     final cached = _listings[key];
     if (cached != null) return cached;
-    // A directory that is not there is not cached: `docs/flows/` and
-    // `ui/lib/previews/` are opt-in, and a run that creates one must see it.
+    // A directory that is not there is not cached: `docs/flows/` is opt-in, and
+    // a run that creates it must see it.
     if (!dir.existsSync()) return const [];
     // Sorted: a listing feeds node order in `frx graph` and section order in
     // the docs export, and `listSync` promises no order at all — so the same

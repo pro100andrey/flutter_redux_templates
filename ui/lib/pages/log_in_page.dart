@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:localization/localization.dart';
 
 import '../buttons/button.dart';
+import '../buttons/language_switcher.dart';
 import '../buttons/theme_switcher.dart';
 import '../containers/auth_from_container.dart';
 import '../forms/base_form.dart';
@@ -18,6 +19,7 @@ class LogInPage extends StatelessWidget {
     required this.onPressedForgotPassword,
     required this.onPressedRegister,
     required this.theme,
+    required this.language,
     super.key,
   });
 
@@ -28,13 +30,27 @@ class LogInPage extends StatelessWidget {
   final VoidCallback onPressedRegister;
   final FieldVm<ThemeMode> theme;
 
+  /// Locale code — `en`, `uk`. See [LanguageSwitcher] for why the app state
+  /// carries a code rather than a `Locale`.
+  final FieldVm<String> language;
+
   @override
   Widget build(BuildContext context) => Scaffold(
     body: BaseForm(
       builder: (context, form) => AuthFormContainer(
         title: S.current.logIn,
         subtitle: S.current.logInSubtitle,
-        trailing: ThemeSwitcher(vm: theme),
+        // Both switchers sit above the form because they are the two things a
+        // user may need *before* they can read it — the wrong language or an
+        // unreadable contrast is not something to fix after logging in.
+        trailing: Row(
+          mainAxisSize: .min,
+          spacing: AppSpacing.sm,
+          children: [
+            LanguageSwitcher(vm: language),
+            ThemeSwitcher(vm: theme),
+          ],
+        ),
         children: [
           Gaps.lg,
           EmailFormField(vm: email),

@@ -4,6 +4,25 @@
 
 `app/lib/connectors/home_page_connector.dart`
 
-_HomePageConnector exposes no dispatching callbacks yet._
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as HomePage
+    participant VM as HomePageConnector
+    participant A1 as SetTokenAction
+    participant ST as AppState
+
+    User->>UI: onPressedLogOut
+    UI->>VM: onPressedLogOut()
+    VM->>A1: dispatchSync
+    A1->>ST: copyWith(session.token)
+```
+
+| Interaction | Dispatches | Writes |
+| --- | --- | --- |
+| `onPressedLogOut` | `SetTokenAction` | `session.token` |
+
+`?` marks a dispatch that only runs under a condition.
 
 [← all flows](README.md)

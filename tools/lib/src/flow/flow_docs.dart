@@ -226,7 +226,7 @@ class FlowDocs {
         if (w != null) writes.add('`$w`');
       }
       b.writeln(
-        '| `${useCase.label}` '
+        '| `${useCase.qualifiedLabel}` '
         '| ${targets.join(', ')} '
         '| ${writes.isEmpty ? '—' : writes.join(', ')} |',
       );

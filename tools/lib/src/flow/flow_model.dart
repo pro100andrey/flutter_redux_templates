@@ -81,12 +81,21 @@ class DispatchStep {
 
 /// One user-facing interaction: a view-model callback and what it dispatches.
 class UseCase {
-  const UseCase({required this.name, required this.steps});
+  const UseCase({required this.name, required this.steps, this.owner});
 
   /// The `_Vm` field the widget calls, e.g. `onPressedRegister`.
   final String name;
 
   final List<DispatchStep> steps;
+
+  /// The connector that declares it, when that is not the page's own.
+  ///
+  /// Null for a use case on the route connector itself, which is every use case
+  /// on a page that connects to the store in one place. A page composed of
+  /// regions has one per region instead, and saying which is the whole value: a
+  /// diagram that attributed sixteen interactions to a connector holding no
+  /// view-model would be a tidier drawing of something untrue.
+  final String? owner;
 
   /// How to name this interaction in a diagram: `email.onChanged` when every
   /// step came from the same inner callback, else just the field name.
@@ -96,9 +105,29 @@ class UseCase {
     return steps.every((s) => s.trigger == trigger) ? '$name.$trigger' : name;
   }
 
+  /// [label] with the region in front of it, where there is one.
+  ///
+  /// The lane already says which connector handles the call, but the line above
+  /// it says what the *user* did — and a composed screen has eight regions with
+  /// an `onOpen` each. Three identical `onOpen` rows, distinguishable only by
+  /// which lane the next arrow lands in, is a smaller version of the problem
+  /// this traversal exists to fix.
+  ///
+  /// The `Connector` suffix is dropped: the reader is looking at a screen, not
+  /// at a class list, and `ActiveFront ▸ onOpen` reads as a place on it.
+  String get qualifiedLabel {
+    final owner = this.owner;
+    if (owner == null) return label;
+    final region = owner.endsWith('Connector')
+        ? owner.substring(0, owner.length - 'Connector'.length)
+        : owner;
+    return '$region ▸ $label';
+  }
+
   Map<String, Object?> toJson() => {
     'name': name,
     'label': label,
+    if (owner != null) 'owner': owner,
     'steps': [for (final s in steps) s.toJson()],
   };
 }
@@ -192,6 +221,7 @@ class PageFlow {
     required this.useCases,
     required this.actions,
     this.connectorFile,
+    this.regions = const [],
   });
 
   /// The page's base name, e.g. `registration`.
@@ -206,6 +236,15 @@ class PageFlow {
 
   final String? connectorFile;
 
+  /// The nested connectors this page is composed of, in the order they are
+  /// reached, excluding the route connector itself.
+  ///
+  /// A page that connects to the store in one place has none. A page that hands
+  /// its slots to region connectors has one entry per region actually reached —
+  /// which is what a reader needs to tell "this page dispatches nothing" from
+  /// "the frame dispatches nothing and its six regions do".
+  final List<String> regions;
+
   bool get isEmpty => useCases.isEmpty;
 
   Map<String, Object?> toJson() => {
@@ -213,6 +252,7 @@ class PageFlow {
     'connectorClass': connectorClass,
     'pageClass': pageClass,
     if (connectorFile != null) 'connectorFile': connectorFile,
+    if (regions.isNotEmpty) 'regions': regions,
     'useCases': [for (final u in useCases) u.toJson()],
     'actions': {for (final e in actions.entries) e.key: e.value.toJson()},
   };

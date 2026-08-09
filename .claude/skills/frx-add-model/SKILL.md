@@ -17,6 +17,10 @@ frx add-model <name> [--serializable] [-c <case> …]
 
 ## Before you run it
 
+- It writes `factory Task({required int id})` and stops. **The fields are
+  yours to add**, by hand, in the factory it wrote — `add-field` is for a
+  substate's state class and refuses a model. Then run `build_runner` in
+  `models`, or nothing compiles: a freezed model is half generated.
 - `-c <case>` twice or more makes it a sealed union with one factory per
   case. Three answers as three cases beat a nullable field with a flag
   beside it.

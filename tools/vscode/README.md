@@ -323,8 +323,8 @@ conditions are evaluated synchronously.
 **FRX: Add Widget…** asks three things: the name, the archetype, and the folder.
 
 The archetype (`view`, `field`, `choice`, `action`, `container`) decides what
-the widget takes in, which primitive it wraps, and which states its previews
-enumerate — so it is asked before the folder, whose suggestion depends on it.
+the widget takes in and which primitive it wraps — so it is asked before the
+folder, whose suggestion depends on it.
 
 The folder picker is a live `QuickPick` over `frx list-widget-dirs --json`: the
 folders already in use, the archetype's usual home first and labelled as such.

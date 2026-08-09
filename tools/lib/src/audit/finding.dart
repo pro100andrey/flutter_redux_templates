@@ -62,6 +62,18 @@ class FlowDocsFix extends Fix {
   String get id => 'flow-docs';
 }
 
+/// Rewrite `.claude/skills/` from the frx that is running.
+///
+/// Carries nothing, for [FlowDocsFix]'s reason: the tree is a pure function of
+/// the CLI's own commands, so one stale skill and thirty are the same single
+/// rewrite.
+class SkillsFix extends Fix {
+  const SkillsFix();
+
+  @override
+  String get id => 'skills';
+}
+
 /// A single problem the audit found.
 class Finding {
   const Finding(this.severity, this.message, {this.file, this.fix, this.rule});

@@ -73,6 +73,189 @@ void main() {
     );
   });
 
+  group('the accessors derived from a retyped getter follow it', () {
+    /// A `-k table` facade: the getter and the `byId` written from its type.
+    Future<void> tableSubstate() async {
+      await ok(['add-substate', 'tasks', '-k', 'table', '--no-format']);
+    }
+
+    test(
+      'byId carries the map value type, and its parameter the key',
+      () async {
+        await tableSubstate();
+        final before = fx.read('business/lib/redux/selectors.dart');
+        expect(
+          before,
+          contains('Object byId(int id)'),
+          reason: 'the scaffolded shape this is about to retype',
+        );
+
+        await ok([
+          'add-field',
+          'tasks',
+          'table:IMap<String, Task>',
+          '-d',
+          'IMapConst<String, Task>({})',
+          '--force',
+          '--no-format',
+        ]);
+
+        final after = fx.read('business/lib/redux/selectors.dart');
+        expect(after, contains('IMap<String, Task> get table'));
+        expect(
+          after,
+          contains('Task byId(String id)'),
+          reason:
+              'byId indexes the table, so its types are the table\'s — leaving '
+              'Object compiled and made every caller cast',
+        );
+        expect(after, isNot(contains('Object byId')));
+      },
+    );
+
+    test('and so does the doc line above it', () async {
+      await tableSubstate();
+      await ok([
+        'add-field',
+        'tasks',
+        'table:IMap<int, Task>',
+        '-d',
+        'IMapConst<int, Task>({})',
+        '--force',
+        '--no-format',
+      ]);
+
+      final after = fx.read('business/lib/redux/selectors.dart');
+      expect(after, isNot(contains('/// Returns [Object] value by id')));
+      expect(after, contains('[Task] value by id'));
+    });
+
+    test('a key and value of the same type do not cross', () async {
+      await tableSubstate();
+      final path = 'business/lib/redux/selectors.dart';
+      // The state after one retype to a map whose key and value match: looking
+      // the old type up in the argument list finds index 0 for both, so the
+      // return type took the *key*'s replacement.
+      fx
+          .file(path)
+          .writeAsStringSync(
+            fx
+                .read(path)
+                .replaceFirst(
+                  'IMap<int, Object> get table',
+                  'IMap<int, int> get table',
+                )
+                .replaceFirst('Object byId(int id)', 'int byId(int id)'),
+          );
+
+      await ok([
+        'add-field',
+        'tasks',
+        'table:IMap<String, Task>',
+        '-d',
+        'IMapConst<String, Task>({})',
+        '--force',
+        '--no-format',
+      ]);
+
+      expect(fx.read(path), contains('Task byId(String id)'));
+    });
+
+    test('a named parameter is carried too, not left behind', () async {
+      await tableSubstate();
+      final path = 'business/lib/redux/selectors.dart';
+      fx
+          .file(path)
+          .writeAsStringSync(
+            fx
+                .read(path)
+                .replaceFirst(
+                  'Object byId(int id) => table[id]!;',
+                  'Object byId({required int id}) => table[id]!;',
+                ),
+          );
+
+      await ok([
+        'add-field',
+        'tasks',
+        'table:IMap<String, Task>',
+        '-d',
+        'IMapConst<String, Task>({})',
+        '--force',
+        '--no-format',
+      ]);
+
+      expect(
+        fx.read(path),
+        contains('Task byId({required String id})'),
+        reason: 'carrying the return type and not the key half-migrates it',
+      );
+    });
+
+    test('a name that merely ends in the getter is not its accessor', () async {
+      await tableSubstate();
+      final path = 'business/lib/redux/selectors.dart';
+      fx
+          .file(path)
+          .writeAsStringSync(
+            fx
+                .read(path)
+                .replaceFirst(
+                  'Object byId(int id) => table[id]!;',
+                  'Object byId(int id) => table[id]!;\n'
+                      '  Object rowOf(int id) => _state.tasks.subtable[id];',
+                ),
+          );
+
+      await ok([
+        'add-field',
+        'tasks',
+        'table:IMap<String, Task>',
+        '-d',
+        'IMapConst<String, Task>({})',
+        '--force',
+        '--no-format',
+      ]);
+
+      expect(
+        fx.read(path),
+        contains('Object rowOf(int id)'),
+        reason: '"subtable[" contains "table[" and is not the same collection',
+      );
+    });
+
+    test('a method that does not read the getter is left alone', () async {
+      await tableSubstate();
+      // Somebody's own accessor over something else. It happens to be called
+      // byId and to return Object; the rule is what the body reads, not what
+      // the member is called.
+      final path = 'business/lib/redux/selectors.dart';
+      fx
+          .file(path)
+          .writeAsStringSync(
+            fx
+                .read(path)
+                .replaceFirst(
+                  'Object byId(int id) => table[id]!;',
+                  'Object byId(int id) => table[id]!;\n'
+                      '  Object mine(int id) => _state.tasks.view[id];',
+                ),
+          );
+
+      await ok([
+        'add-field',
+        'tasks',
+        'table:IMap<int, Task>',
+        '-d',
+        'IMapConst<int, Task>({})',
+        '--force',
+        '--no-format',
+      ]);
+
+      expect(fx.read(path), contains('Object mine(int id)'));
+    });
+  });
+
   test('a type this project defines brings its import', () async {
     // The half that made the retype useless on its own: `IMap<int, Task>`
     // without `package:models/task.dart` is a file that does not compile, and

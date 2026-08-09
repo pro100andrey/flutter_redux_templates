@@ -93,11 +93,69 @@ class BuildStep {
 /// saying it was handled.
 ///
 /// Windows has no `pgrep`; there this reports null and behaviour is unchanged.
-int? buildRunnerWatchPid() {
-  for (final watch in _watchProcesses()) {
-    if (!watch.orphaned) return watch.pid;
+int? buildRunnerWatchPid({String? within}) {
+  for (final watch in _watchProcesses(needCwd: within != null)) {
+    if (watch.orphaned) continue;
+    if (!_watches(watch, within)) continue;
+    return watch.pid;
   }
   return null;
+}
+
+/// The repository [step] belongs to, or null when it cannot be found.
+///
+/// The workspace and not the package: a watch started in `business/` is this
+/// repo's build even when the step is about `app/`.
+///
+/// Found by walking up for the marker rather than by taking the package's
+/// parent. `packageRootOf` falls back to a file's own directory when it finds
+/// no pubspec, and one level up from *that* is a directory somewhere inside
+/// `lib/` — against which a watch running at the repo root reads as another
+/// repository's, and frx builds over a live watch instead of standing down.
+/// Null when the walk fails, which [_watches] reads as "stand down for
+/// anything", the safe direction.
+String? _workspaceOf(BuildStep step) {
+  try {
+    return FrxWorkspace.locate(startDir: step.packageRoot).root.path;
+  } on Object {
+    return null;
+  }
+}
+
+/// Whether [watch] is watching the tree at [within] — true for every watch when
+/// no tree is named.
+///
+/// **A watch in another repository is not this repository's build.** `pgrep`
+/// finds every `build_runner watch` on the machine, and standing down for one
+/// meant handing the build to a process that generates nothing here: the run
+/// reports "handing the build to it rather than stopping it", exits 0, and the
+/// generated files never appear. Measured in a probe project whose build was
+/// handed to a watch running in the template repo two directories away.
+bool _watches(_Watch watch, String? within) {
+  if (within == null) return true;
+  final cwd = watch.cwd;
+  // A watch whose directory cannot be read is treated as this repo's, which is
+  // the safe direction: standing down needlessly costs a rebuild the developer
+  // can ask for, and building into a live watch's output is what corrupts it.
+  if (cwd == null) return true;
+  final root = _realPath(within);
+  final at = _realPath(cwd);
+  return at == root || p.isWithin(root, at);
+}
+
+/// [path] with symlinks resolved, falling back to normalisation.
+///
+/// `p.canonicalize` normalises and does not follow links, and both sides of
+/// this comparison arrive by different routes: a repo the developer reached
+/// through a symlink, against a working directory read out of `lsof` or
+/// `/proc`, which is always the real one. On macOS that alone is enough to make
+/// every temp directory disagree with itself — `/var/…` against `/private/var/…`.
+String _realPath(String path) {
+  try {
+    return Directory(path).resolveSymbolicLinksSync();
+  } on FileSystemException {
+    return p.canonicalize(path);
+  }
 }
 
 /// PIDs of `build_runner watch` processes that have outlived their launcher.
@@ -106,13 +164,13 @@ int? buildRunnerWatchPid() {
 /// watch whose terminal or IDE died keeps running and regenerating nothing,
 /// which looks exactly like a working setup until you notice the generated
 /// file is stale. Reported by `frx doctor` so it can be found before that.
-List<int> orphanedBuildRunnerWatchPids() => [
-  for (final watch in _watchProcesses())
-    if (watch.orphaned) watch.pid,
+List<int> orphanedBuildRunnerWatchPids({String? within}) => [
+  for (final watch in _watchProcesses(needCwd: within != null))
+    if (watch.orphaned && _watches(watch, within)) watch.pid,
 ];
 
-/// One running watch, and whether its launcher is gone.
-typedef _Watch = ({int pid, bool orphaned});
+/// One running watch, whether its launcher is gone, and what it is watching.
+typedef _Watch = ({int pid, bool orphaned, String? cwd});
 
 /// Every running `build_runner watch`, with the orphan question answered.
 ///
@@ -126,7 +184,7 @@ typedef _Watch = ({int pid, bool orphaned});
 ///
 /// Windows has no `pgrep`; there this is empty and both callers behave as if
 /// no watch were running.
-List<_Watch> _watchProcesses() {
+List<_Watch> _watchProcesses({bool needCwd = false}) {
   if (Platform.isWindows) return const [];
   try {
     final found = Process.runSync('pgrep', ['-f', r'build_runner[^ ]* watch']);
@@ -141,14 +199,63 @@ List<_Watch> _watchProcesses() {
     // and one for whatever their parents turned out to be.
     final watches = _describe(pids);
     final parents = _describe([for (final w in watches.values) w.ppid]);
+    // Only when a caller is going to compare it: on macOS this forks `lsof`,
+    // which without a network timeout can block on a stale mount — and the
+    // orphan check, which runs on every audit, does not scope by tree.
+    final cwds = needCwd ? _cwds(pids) : const <int, String>{};
     return [
       for (final pid in pids)
         if (watches[pid] case final self?)
-          (pid: pid, orphaned: _isOrphan(self, parents[self.ppid])),
+          (
+            pid: pid,
+            orphaned: _isOrphan(self, parents[self.ppid]),
+            cwd: cwds[pid],
+          ),
     ];
   } on ProcessException {
     return const [];
   }
+}
+
+/// Each process's working directory, keyed by pid — which package a watch is
+/// actually watching.
+///
+/// `ps` does not carry it on either platform, so this is the one fact that
+/// needs a per-OS route: `/proc` on Linux, one batched `lsof` on macOS. A pid
+/// that answers neither is simply absent, and [_watches] reads that as "cannot
+/// tell", not as "not ours".
+Map<int, String> _cwds(Iterable<int> pids) {
+  final out = <int, String>{};
+  if (Platform.isLinux) {
+    for (final pid in pids) {
+      try {
+        out[pid] = Link('/proc/$pid/cwd').targetSync();
+      } on FileSystemException {
+        continue;
+      }
+    }
+    return out;
+  }
+  if (!Platform.isMacOS) return out;
+  try {
+    final res = Process.runSync('lsof', [
+      '-a',
+      '-d',
+      'cwd',
+      '-p',
+      pids.join(','),
+      '-Fn',
+    ]);
+    int? current;
+    for (final line in const LineSplitter().convert(res.stdout as String)) {
+      if (line.startsWith('p')) current = int.tryParse(line.substring(1));
+      if (line.startsWith('n') && current != null)
+        out[current] = line.substring(1);
+    }
+  } on ProcessException {
+    return out;
+  }
+  return out;
 }
 
 /// A process's parent and session, keyed by pid. Absent when `ps` did not see it.
@@ -248,7 +355,9 @@ Future<Built> runBuild(
 }) async {
   final rel = p.relative(step.packageRoot);
   final byHand = buildCommandLine(step);
-  final watchPid = watching == null ? buildRunnerWatchPid() : null;
+  final watchPid = watching == null
+      ? buildRunnerWatchPid(within: _workspaceOf(step))
+      : null;
 
   if (watching ?? (watchPid != null)) {
     final who = watchPid == null ? '' : ' (pid $watchPid)';

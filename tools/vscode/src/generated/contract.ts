@@ -35,7 +35,7 @@ export type Kind<K extends keyof typeof KINDS> = (typeof KINDS)[K][number];
  * additive only, since an older extension has to keep
  * working against a newer CLI.
  */
-export const FIX_IDS = ['build_runner', 'orphan', 'flow-docs'] as const;
+export const FIX_IDS = ['build_runner', 'orphan', 'flow-docs', 'skills'] as const;
 
 export type FixId = (typeof FIX_IDS)[number];
 
@@ -50,3 +50,51 @@ export const EXIT = {
   usage: 64,
   failure: 70,
 } as const;
+
+/**
+ * The optional workspace members `add-package` creates.
+ *
+ * `dir` is the argument the command takes and the folder it
+ * writes; `summary` is the CLI's own one-liner for it.
+ */
+export const PACKAGES = [
+  { dir: 'models', summary: 'Shared freezed models and converters' },
+  { dir: 'http_client', summary: 'Dio + Retrofit API clients and interceptors' },
+  { dir: 'storage', summary: 'Key-value persistence behind BaseKeyValueStorage' },
+] as const;
+
+/** One optional package's directory, as a union. */
+export type PackageDir = (typeof PACKAGES)[number]['dir'];
+
+/**
+ * Where the conventional files live, slash-separated and
+ * relative to the repo root.
+ *
+ * Join with the platform separator before touching disk.
+ */
+export const LAYOUT = {
+  pages: 'ui/lib/pages',
+  connectors: 'app/lib/connectors',
+  redux: 'business/lib/redux',
+  pageSuffix: '_page.dart',
+  connectorSuffix: '_page_connector.dart',
+  stateSuffix: '_state.dart',
+} as const;
+
+/**
+ * What the CLI's `Casing` answers, for `naming.test.ts`.
+ *
+ * `naming.ts` re-implements the conversion because an
+ * algorithm is not emittable as data. This is how the two
+ * are held together: snake_case in, since that is what the
+ * editor is ever handed.
+ */
+export const NAMING_CASES = [
+  { input: 'my_profile', camel: 'myProfile', pascal: 'MyProfile', snake: 'my_profile' },
+  { input: 'log_in', camel: 'logIn', pascal: 'LogIn', snake: 'log_in' },
+  { input: 'a', camel: 'a', pascal: 'A', snake: 'a' },
+  { input: 'theme', camel: 'theme', pascal: 'Theme', snake: 'theme' },
+  { input: 'user2_fa', camel: 'user2Fa', pascal: 'User2Fa', snake: 'user2_fa' },
+  { input: 'my__profile', camel: 'myProfile', pascal: 'MyProfile', snake: 'my_profile' },
+  { input: 'log_in_with_email', camel: 'logInWithEmail', pascal: 'LogInWithEmail', snake: 'log_in_with_email' },
+] as const;

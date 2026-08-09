@@ -31,6 +31,30 @@ by `Record<Kind<'x'>, …>`, so the compiler enforces it — verified rather tha
 assumed: adding a fourth substate kind fails `tsc` until somebody writes what it
 does.
 
-**Still hand-written in the extension, and each needs its own decision about
-what the CLI should emit:** `naming.ts` (the casing rules), `codelens.ts` (the
-file layout), `menu.ts` (28 label/description pairs).
+**The three that were still hand-written have had their decision**, and it was
+a different one each time:
+
+- `codelens.ts` — **generated.** `LAYOUT` carries the conventional directories
+  and file suffixes, read off `FrxWorkspace` and `PageArtifact` at a sentinel
+  root, so a folder that moves in Dart moves here. This was the quiet one: a
+  renamed directory did not break the file, the lens just stopped appearing.
+- `naming.ts` — **kept, and pinned by evidence.** A casing conversion is an
+  algorithm, and an algorithm is not emittable as data; calling the CLI per
+  keystroke to validate a name is not a trade worth making. `NAMING_CASES` is
+  the CLI's own answer for the input class the editor is handed (snake, off
+  disk), asserted by `vscode/test/naming.test.ts`.
+- `menu.ts` — **kept, and it is not a copy of a contract.** The set of command
+  ids is already pinned by `extension_contract_test`, harder than generation
+  would pin it. What is left is label, codicon and a row description, which are
+  the editor's register: `add-widget`'s help is an imperative for a terminal
+  and a QuickPick row wants a noun phrase.
+
+A fourth copy turned up while doing it: `PACKAGE_KINDS` in `create.ts`, three
+rows of directory and blurb, carrying its own justification ("`add-package`
+takes its kind as a positional, so there is no `--kind` list to harvest") —
+true of the parser and beside the point, since the catalogue is an enum. Now
+`PACKAGES`, with the codicons a `Record` over the union so a fourth package
+fails `tsc` until somebody picks one.
+
+Both removals are pinned the way `ARTIFACT_KINDS` is: a test whose job is to
+stop the duplicate coming back.

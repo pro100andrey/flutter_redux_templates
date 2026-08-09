@@ -44,6 +44,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "logInSubtitle": MessageLookupByLibrary.simpleMessage(
       "Sign in to continue.",
     ),
+    "logOut": MessageLookupByLibrary.simpleMessage("Log out"),
     "minimumLengthSymbols": m0,
     "mustContainAtLeastOneLowercase": MessageLookupByLibrary.simpleMessage(
       "Must contain at least one lowercase",

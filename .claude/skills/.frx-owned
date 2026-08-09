@@ -1,0 +1,36 @@
+# Written by `frx update-skills`. Do not edit.
+#
+# Every directory below is frx's to rewrite and to remove.
+# Anything in .claude/skills/ that is not listed here is
+# yours, and frx will not touch it.
+version: 0.1.8
+asyncredux-in-this-template
+data-driven-widgets
+frx-add-action
+frx-add-connector
+frx-add-enum
+frx-add-field
+frx-add-model
+frx-add-nav
+frx-add-package
+frx-add-page
+frx-add-retrofit
+frx-add-selector
+frx-add-service
+frx-add-substate
+frx-add-tabs
+frx-add-theme-extension
+frx-add-widget
+frx-batch
+frx-doctor
+frx-flow
+frx-graph
+frx-list-mixins
+frx-list-routes
+frx-list-substates
+frx-list-widget-dirs
+frx-remove
+frx-rename
+frx-watch
+frx-which
+wiring-artifacts

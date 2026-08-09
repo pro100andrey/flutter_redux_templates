@@ -78,6 +78,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('frx.addService', () => create.addSimple(app, 'service')),
     vscode.commands.registerCommand('frx.addRetrofit', () => create.addSimple(app, 'retrofit')),
     vscode.commands.registerCommand('frx.addThemeExtension', () => create.addSimple(app, 'themeExtension')),
+    vscode.commands.registerCommand('frx.addPackage', () => create.addPackage(app)),
   );
 
   activateMonorepo(context, app);

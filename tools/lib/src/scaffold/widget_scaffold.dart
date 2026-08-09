@@ -2,10 +2,9 @@ import '../util/casing.dart';
 
 /// The shapes a widget in the `ui` package comes in.
 ///
-/// The kind decides three things at once: what the widget takes in, which
-/// primitive it is built from, and which states its previews enumerate. It is
-/// not a style — a widget that fits none of these is a sign the package is
-/// missing a primitive.
+/// The kind decides two things at once: what the widget takes in and which
+/// primitive it is built from. It is not a style — a widget that fits none of
+/// these is a sign the package is missing a primitive.
 enum WidgetKind {
   /// Takes a `FieldVm<T>`; wraps `InputFormField`.
   field,
@@ -46,11 +45,7 @@ enum WidgetKind {
   };
 }
 
-/// The two files a widget is made of: the widget itself, and its previews in
-/// the mirrored `lib/previews/` tree.
-///
-/// Nothing imports the preview file, so it stays out of the app's compile
-/// graph — which is also why the widget file never imports preview machinery.
+/// The one file a widget is made of.
 class WidgetScaffold {
   WidgetScaffold({required Casing name, required this.kind, required this.dir})
     : name = _stripSuffix(name, kind);
@@ -60,8 +55,7 @@ class WidgetScaffold {
   final Casing name;
   final WidgetKind kind;
 
-  /// The folder under `ui/lib/`, e.g. `inputs`. Also where the preview mirror
-  /// puts its copy.
+  /// The folder under `ui/lib/`, e.g. `inputs`.
   final String dir;
 
   /// `PinFormField`, `SubmitButton`, `ExerciseCard`.
@@ -96,7 +90,7 @@ class WidgetScaffold {
       '${stem.pascal}${_suffixFor(kind).pascalOrEmpty}';
 
   /// The basename `add-widget <typed> --kind <kind>` writes, and the one
-  /// `remove` has to look for. Also the preview's basename in the mirror.
+  /// `remove` has to look for.
   static String fileNameFor(Casing typed, WidgetKind kind) =>
       '${_snakeOf(classNameFor(typed, kind))}.dart';
 
@@ -118,23 +112,12 @@ class WidgetScaffold {
   String _sibling(String target, String file) =>
       dir == target ? file : '../$target/$file';
 
-  /// The same, from `ui/lib/previews/<dir>/` — always two levels up.
-  String _fromPreview(String target, String file) => '../../$target/$file';
-
   String widget() => switch (kind) {
     WidgetKind.field => _fieldWidget(),
     WidgetKind.choice => _choiceWidget(),
     WidgetKind.action => _actionWidget(),
     WidgetKind.view => _viewWidget(),
     WidgetKind.container => _containerWidget(),
-  };
-
-  String preview() => switch (kind) {
-    WidgetKind.field => _fieldPreview(),
-    WidgetKind.choice => _choicePreview(),
-    WidgetKind.action => _actionPreview(),
-    WidgetKind.view => _viewPreview(),
-    WidgetKind.container => _containerPreview(),
   };
 
   // --- widgets --------------------------------------------------------------
@@ -281,101 +264,6 @@ class $className extends StatelessWidget {
       // TODO(frx): AppCard is the package's card treatment.
       Padding(padding: padding, child: child);
 }
-''';
-
-  // --- previews -------------------------------------------------------------
-
-  String get _previewFn => name.camel + _suffixFor(kind).pascalOrEmpty;
-
-  String _previewHeader(List<String> imports) =>
-      '''
-import 'package:flutter/widgets.dart';
-
-${imports.map((i) => "import '$i';").join('\n')}
-''';
-
-  String _fieldPreview() =>
-      '''
-${_previewHeader([_fromPreview(dir, fileName), _fromPreview('models', 'value_changed.dart'), _fromPreview('theme', 'preview.dart')])}
-@AppPreview(name: 'default', group: '$className')
-Widget ${_previewFn}Preview() =>
-    const $className(vm: FieldVm(value: 'Value', onChanged: _ignore));
-
-@AppPreview(name: 'error', group: '$className')
-Widget ${_previewFn}ErrorPreview() => const $className(
-  vm: FieldVm(value: null, onChanged: _ignore, error: 'Required'),
-);
-
-@AppPreview(name: 'disabled', group: '$className')
-Widget ${_previewFn}DisabledPreview() => const $className(
-  vm: FieldVm(value: 'Value', onChanged: _ignore, enabled: false),
-);
-
-void _ignore($_valueType _) {}
-''';
-
-  String _choicePreview() =>
-      '''
-${_previewHeader([_fromPreview(dir, fileName), _fromPreview('models', 'value_changed.dart'), _fromPreview('theme', 'preview.dart')])}
-const _items = [
-  ChoiceItemVm(value: 'one', label: 'One'),
-  ChoiceItemVm(value: 'two', label: 'Two'),
-];
-
-@AppPreview(name: 'selected', group: '$className')
-Widget ${_previewFn}Preview() => const $className(
-  vm: ChoiceVm(value: 'one', items: _items, onChanged: _ignore),
-);
-
-/// A value outside the items — the control reads as "nothing picked".
-@AppPreview(name: 'empty', group: '$className')
-Widget ${_previewFn}EmptyPreview() => const $className(
-  vm: ChoiceVm(value: null, items: _items, onChanged: _ignore),
-);
-
-@AppPreview(name: 'disabled', group: '$className')
-Widget ${_previewFn}DisabledPreview() => const $className(
-  vm: ChoiceVm(
-    value: 'one',
-    items: _items,
-    enabled: false,
-    onChanged: _ignore,
-  ),
-);
-
-void _ignore($_valueType _) {}
-''';
-
-  String _actionPreview() =>
-      '''
-${_previewHeader([_fromPreview(dir, fileName), _fromPreview('theme', 'preview.dart')])}
-@AppPreview(name: 'default', group: '$className')
-Widget ${_previewFn}Preview() => $className(onPressed: () {});
-
-/// Null `onPressed` is the disabled state — there is no `enabled` flag.
-@AppPreview(name: 'disabled', group: '$className')
-Widget ${_previewFn}DisabledPreview() => const $className(onPressed: null);
-''';
-
-  String _viewPreview() =>
-      '''
-${_previewHeader([_fromPreview(dir, fileName), _fromPreview('theme', 'preview.dart')])}
-const _sample = $vmClassName(id: '1', title: '$className');
-
-@AppPreview(name: 'default', group: '$className')
-Widget ${_previewFn}Preview() => $className(vm: _sample, onTap: () {});
-
-/// No handler — the composer gave it none, so it does not react to a tap.
-@AppPreview(name: 'not tappable', group: '$className')
-Widget ${_previewFn}FlatPreview() => const $className(vm: _sample);
-''';
-
-  String _containerPreview() =>
-      '''
-${_previewHeader([_fromPreview(dir, fileName), _fromPreview('theme', 'preview.dart')])}
-@AppPreview(name: 'default', group: '$className')
-Widget ${_previewFn}Preview() =>
-    const $className(child: Text('Content'));
 ''';
 
   // --- naming ---------------------------------------------------------------

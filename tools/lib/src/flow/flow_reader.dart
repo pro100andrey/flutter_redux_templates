@@ -23,40 +23,112 @@ class FlowReader {
 
   /// Build the flow for [connectorFile] — its `_Vm` callbacks, the actions they
   /// dispatch, and what each of those actions does.
+  /// **It descends into the connectors the page is composed of.** A route
+  /// connector need not hold a view-model at all: a page split into regions
+  /// hands each slot a connector of its own, and the frame is then a `build`
+  /// that constructs six widgets and reads nothing. Stopping at the route
+  /// connector reported such a page as having no interactions — not "the frame
+  /// has none", which is true, but "the page has none", which is the opposite
+  /// of why the split was made. The regions are where every callback went.
+  ///
+  /// Depth is not bounded. The composition that prompted this is three deep —
+  /// a page, a content region switching between eight views, and a rail taking
+  /// a project picker as a slot — and "one level" would be a number chosen to
+  /// fit one app.
   PageFlow read({
     required File connectorFile,
     required String page,
     required String connectorClass,
     required String pageClass,
   }) {
-    final unit = sourceIndex.unitFor(connectorFile);
-
-    final vm = _VmVisitor();
-    unit.accept(vm);
-
-    // Resolve every `package:business/...` import to a file on disk so a
-    // dispatched action can be looked up by class name.
-    final actionFiles = _actionFilesFrom(unit, connectorFile.parent);
-
+    final useCases = <UseCase>[];
     final actions = <String, ActionInfo>{};
-    for (final useCase in vm.useCases) {
-      for (final step in useCase.steps) {
-        if (step.isNavigation || actions.containsKey(step.target)) continue;
-        final file = actionFiles[step.target];
-        actions[step.target] = file == null
-            ? ActionInfo(className: step.target)
-            : readAction(file);
+    final regions = <String>[];
+
+    // Keyed by canonical path: a region reachable through two slots is one
+    // region, and a cycle between two connectors is a stack overflow.
+    final seen = <String>{};
+
+    void walk(File file, String? owner) {
+      if (!seen.add(p.canonicalize(file.path))) return;
+
+      final unit = sourceIndex.unitFor(file);
+
+      final vm = _VmVisitor();
+      unit.accept(vm);
+
+      // Resolve every `package:business/...` import to a file on disk so a
+      // dispatched action can be looked up by class name.
+      final actionFiles = _actionFilesFrom(unit, file.parent);
+
+      for (final useCase in vm.useCases) {
+        useCases.add(
+          owner == null
+              ? useCase
+              : UseCase(name: useCase.name, steps: useCase.steps, owner: owner),
+        );
+        for (final step in useCase.steps) {
+          if (step.isNavigation || actions.containsKey(step.target)) continue;
+          final actionFile = actionFiles[step.target];
+          actions[step.target] = actionFile == null
+              ? ActionInfo(className: step.target)
+              : readAction(actionFile);
+        }
+      }
+
+      // Depth-first in source order, so the regions read down the page the way
+      // its slots are written.
+      for (final nested in _connectorsIn(unit, file.parent).entries) {
+        if (seen.contains(p.canonicalize(nested.value.path))) continue;
+        regions.add(nested.key);
+        walk(nested.value, nested.key);
       }
     }
+
+    walk(connectorFile, null);
 
     return PageFlow(
       page: page,
       connectorClass: connectorClass,
       pageClass: pageClass,
-      useCases: vm.useCases,
+      useCases: useCases,
       actions: actions,
       connectorFile: connectorFile.path,
+      regions: regions,
     );
+  }
+
+  /// The connector classes constructed inside [unit], by class name, in source
+  /// order — each resolved to the file its import points at.
+  ///
+  /// **Constructions, not imports.** A connector importing another proves
+  /// nothing about composition: a sidebar imports six action files it never
+  /// builds. What makes a region part of a page is that the page's connector
+  /// *builds* it — as a slot argument, or inside the `switch` a content region
+  /// uses to pick one of eight views.
+  ///
+  /// Both node shapes are collected. `const Foo()` parses as an
+  /// [InstanceCreationExpression]; a bare `Foo()` cannot be told from a function
+  /// call without resolution and arrives as a [MethodInvocation] — the same
+  /// ambiguity the dispatch reader already lives with.
+  ///
+  /// Only `app`'s connectors can appear: `ui` does not depend on `app`, so a
+  /// slot is filled where the widget tree is assembled and nowhere else.
+  Map<String, File> _connectorsIn(CompilationUnit unit, Directory from) {
+    final built = <String>{};
+    unit.accept(_ConnectorVisitor(built));
+    if (built.isEmpty) return const {};
+
+    final files = <String, File>{};
+    for (final directive in unit.directives.whereType<ImportDirective>()) {
+      final uri = directive.uri.stringValue;
+      if (uri == null || !uri.endsWith('_connector.dart')) continue;
+      final file = _resolveImport(uri, from);
+      if (file == null || !file.existsSync()) continue;
+      final cls = firstClassNameIn(sourceIndex.unitFor(file));
+      if (cls != null && built.contains(cls)) files[cls] = file;
+    }
+    return files;
   }
 
   /// Every `dispatch*(...)` in [file], paired with the action files its imports
@@ -145,6 +217,33 @@ class FlowReader {
         rest.substring(slash + 1),
       ),
     );
+  }
+}
+
+/// Collects the names of every `<Something>Connector` constructed in a tree.
+///
+/// A name test rather than a type test, because frx parses without resolution.
+/// The suffix is the convention `add-connector` and `add-page` both write and
+/// `remove` reads back, so it is the rule the rest of the CLI already keys on.
+class _ConnectorVisitor extends RecursiveAstVisitor<void> {
+  _ConnectorVisitor(this.into);
+
+  final Set<String> into;
+
+  void _record(String name) {
+    if (name.endsWith('Connector')) into.add(name);
+  }
+
+  @override
+  void visitInstanceCreationExpression(InstanceCreationExpression node) {
+    _record(node.constructorName.type.name.lexeme);
+    super.visitInstanceCreationExpression(node);
+  }
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    if (node.target == null) _record(node.methodName.name);
+    super.visitMethodInvocation(node);
   }
 }
 
@@ -342,10 +441,21 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   if (node.methodName.name != 'copyWith') return const [];
   if (target is PrefixedIdentifier)
     return _qualify(target.identifier.name, fields);
-  // Flat: the substate is named by the argument, and its value is a whole
-  // replacement — there is no field to qualify with.
-  final flat = fields.firstOrNull?.name.lexeme;
-  return flat == null ? const [] : [(substate: flat, field: null)];
+  // Flat: each argument names a substate, and its value is a whole replacement
+  // — there is no field to qualify with. One write per argument, for the reason
+  // [_qualify] states for the deep form and this branch used to contradict:
+  // `copyWith(session: …, login: …)` writes both, and keeping only the first
+  // understated it. `LogInWithEmailAction` is exactly that shape, and its flow
+  // doc said it touched the session and not the login draft it clears.
+  //
+  // **Only on `state` itself.** Every other shape here names the receiver, and
+  // this one did not: a reducer's `task.copyWith(title: t, done: true)` was read
+  // as a write of two AppState substates called `title` and `done`. Harmless
+  // while the branch kept one argument and wrong twice over once it kept all of
+  // them — and `visitMethodInvocation` takes the first `copyWith` it sees, so a
+  // local one earlier in the body shadowed the real write entirely.
+  if (target is! SimpleIdentifier || target.name != 'state') return const [];
+  return [for (final f in fields) (substate: f.name.lexeme, field: null)];
 }
 
 /// `logIn` + `email` → one [StateWrite] per field. Every field is listed: an

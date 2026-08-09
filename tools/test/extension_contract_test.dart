@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/command_runner.dart';
+import 'package:tools/src/scaffold/package_scaffold.dart';
 
 /// The contract between the CLI and the VS Code extension, checked from the
 /// side that owns it.
@@ -203,6 +204,61 @@ void main() {
     );
   });
 
+  test('the editor derives its package list rather than declaring it', () {
+    // The copy this replaces carried its own reason: "hand-written rather than
+    // derived — `add-package` takes its kind as a positional, so there is no
+    // `--kind` list for the generator to harvest". True of the parser and beside
+    // the point; the catalogue is an enum, and an enum is data whether or not a
+    // flag exposes it. `PACKAGES` is that enum, and this is the check that the
+    // editor still reads it rather than listing three rows again.
+    final create = File(
+      p.join(vscode.path, 'src', 'commands', 'create.ts'),
+    ).readAsStringSync();
+    for (final kind in PackageKind.values) {
+      expect(
+        RegExp("pkg:\\s*'${kind.dir}'").hasMatch(create),
+        isFalse,
+        reason:
+            'create.ts declares the "${kind.dir}" row itself. Map it out of '
+            'PACKAGES, so a fourth package cannot be offered as three.',
+      );
+    }
+    expect(
+      create,
+      contains('PACKAGES.map('),
+      reason: 'the picker has stopped reading the generated catalogue',
+    );
+  });
+
+  test('the editor keeps no second statement of the file layout', () {
+    // `codelens.ts` matched `\\connectors\\(\\w+)_page_connector.dart` and joined
+    // `ui/lib/pages` by hand. Renaming a directory in Dart does not break that
+    // — the lens just stops appearing, on a provider nobody re-tests after
+    // moving a folder. It reads `LAYOUT` now, which this pins.
+    final codelens = File(
+      p.join(vscode.path, 'src', 'codelens.ts'),
+    ).readAsStringSync();
+    //
+    // The file's own header still *describes* the three shapes in prose, which
+    // is what a header is for, so this looks for the code forms only: a joined
+    // path and a regex literal, neither of which reads as English.
+    for (final literal in const [
+      "'ui', 'lib', 'pages'",
+      "'app', 'lib', 'connectors'",
+      r'_page_connector\.dart',
+      r'_state\.dart',
+    ]) {
+      expect(
+        codelens,
+        isNot(contains(literal)),
+        reason:
+            'codelens.ts spells out "$literal" instead of reading LAYOUT — '
+            'the layout is the CLI\'s to state.',
+      );
+    }
+    expect(codelens, contains('LAYOUT.'));
+  });
+
   test('the editor keeps no copy of the non-substate folder list', () {
     // There was one, and it was deliberate: the "New here" folder entry had a
     // right-clicked folder and no resolved workspace, so it could not consult
@@ -252,6 +308,13 @@ const _notInTheOverlay = {
 
 /// CLI commands the extension deliberately does not surface, and why.
 const _notInTheEditor = {
+  // The editor reaches it the way a user would want it reached: `doctor`
+  // reports skills that are not what this frx generates, and the finding
+  // carries the `skills` remedy, so it arrives as a quick-fix in the Problems
+  // panel rather than as a button somebody has to think to press. A palette
+  // entry would be a second way to do a thing whose whole trigger is the
+  // audit noticing.
+  'update-skills',
   // A stdin wizard. The editor offers each scaffolder by name instead, and a
   // QuickPick cannot drive a prompt loop over a pipe.
   'new',

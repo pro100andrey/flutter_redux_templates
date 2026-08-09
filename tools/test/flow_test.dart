@@ -94,7 +94,238 @@ PageFlow _read() {
   );
 }
 
+/// A page connector that holds no view-model at all, handing each slot to a
+/// region connector — the shape a screen takes once its view-model has been
+/// split. `frame` builds two regions; one of them takes a third as its own slot.
+({Directory root, File connector}) _composed() {
+  final root = Directory.systemTemp.createTempSync('frx_regions_');
+  addTearDown(() => root.deleteSync(recursive: true));
+
+  void put(String rel, String content) => File(p.join(root.path, rel))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(content);
+
+  put('app/lib/navigation/app_router.dart', '// router\n');
+
+  put('business/lib/redux/console/actions/set_view_action.dart', '''
+class SetViewAction extends Action {
+  SetViewAction(this.value);
+  final String value;
+  @override
+  AppState reduce() => state.copyWith.console(view: value);
+}
+''');
+  put('business/lib/redux/console/actions/pick_project_action.dart', '''
+class PickProjectAction extends Action {
+  PickProjectAction(this.id);
+  final String id;
+  @override
+  AppState reduce() => state.copyWith.console(projectId: id);
+}
+''');
+
+  // The frame: no StoreConnector, no _Vm — just two slots.
+  put('app/lib/connectors/console_page_connector.dart', '''
+import 'package:ui/pages/console_page.dart';
+
+import 'console_sidebar_connector.dart';
+import 'console_content_connector.dart';
+
+@RoutePage()
+class ConsolePageConnector extends StatelessWidget {
+  const ConsolePageConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => const ConsolePage(
+    sidebar: ConsoleSidebarConnector(),
+    content: ConsoleContentConnector(),
+  );
+}
+''');
+
+  // A region that dispatches, and takes a region of its own as a slot.
+  put('app/lib/connectors/console_sidebar_connector.dart', '''
+import 'package:business/redux/console/actions/set_view_action.dart';
+
+import 'project_selector_connector.dart';
+
+class ConsoleSidebarConnector extends StatelessWidget {
+  const ConsoleSidebarConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    builder: (context, vm) => ConsoleSidebar(
+      projectSelector: const ProjectSelectorConnector(),
+      onSelect: vm.onSelectView,
+    ),
+  );
+}
+
+class _Factory extends VmFactory<AppState, ConsoleSidebarConnector, _Vm>
+    with Selectors {
+  @override
+  _Vm fromStore() =>
+      _Vm(onSelectView: (v) => dispatch(SetViewAction(v)));
+}
+''');
+
+  put('app/lib/connectors/project_selector_connector.dart', '''
+import 'package:business/redux/console/actions/pick_project_action.dart';
+
+class ProjectSelectorConnector extends StatelessWidget {
+  const ProjectSelectorConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    builder: (context, vm) => ProjectSelector(onPick: vm.onPick),
+  );
+}
+
+class _Factory extends VmFactory<AppState, ProjectSelectorConnector, _Vm>
+    with Selectors {
+  @override
+  _Vm fromStore() => _Vm(onPick: (id) => dispatch(PickProjectAction(id)));
+}
+''');
+
+  // Reached through a `switch`, the way a content region picks one of N views.
+  put('app/lib/connectors/console_content_connector.dart', '''
+import 'event_log_connector.dart';
+
+class ConsoleContentConnector extends StatelessWidget {
+  const ConsoleContentConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    builder: (context, vm) => ConsoleContent(
+      child: switch (vm.view) {
+        ConsoleView.log => const EventLogConnector(),
+      },
+    ),
+  );
+}
+''');
+
+  // A region that draws state and dispatches nothing.
+  put('app/lib/connectors/event_log_connector.dart', '''
+class EventLogConnector extends StatelessWidget {
+  const EventLogConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    builder: (context, vm) => EventLog(lines: vm.lines),
+  );
+}
+''');
+
+  return (
+    root: root,
+    connector: File(
+      p.join(root.path, 'app/lib/connectors/console_page_connector.dart'),
+    ),
+  );
+}
+
+PageFlow _readComposed() {
+  final ws = _composed();
+  return FlowReader(FrxWorkspace.locate(startDir: ws.root.path)).read(
+    connectorFile: ws.connector,
+    page: 'console',
+    connectorClass: 'ConsolePageConnector',
+    pageClass: 'ConsolePage',
+  );
+}
+
 void main() {
+  group('a page composed of regions', () {
+    test('finds the callbacks the frame does not hold', () {
+      final flow = _readComposed();
+
+      expect(
+        flow.isEmpty,
+        isFalse,
+        reason:
+            'the frame holds no _Vm, which used to read as "this page '
+            'dispatches nothing" rather than "look in the regions"',
+      );
+      expect(
+        flow.useCases.map((u) => u.name),
+        ['onSelectView', 'onPick'],
+        reason: 'depth-first, in the order the slots are written',
+      );
+    });
+
+    test('says which region each one belongs to', () {
+      final flow = _readComposed();
+      expect(
+        {for (final u in flow.useCases) u.name: u.owner},
+        {
+          'onSelectView': 'ConsoleSidebarConnector',
+          'onPick': 'ProjectSelectorConnector',
+        },
+      );
+    });
+
+    test('follows a region reached through a switch, and one nested twice', () {
+      final flow = _readComposed();
+      expect(
+        flow.regions,
+        [
+          'ConsoleSidebarConnector',
+          'ProjectSelectorConnector',
+          'ConsoleContentConnector',
+          'EventLogConnector',
+        ],
+        reason:
+            'EventLogConnector is only reachable through a switch expression '
+            'inside another region, and dispatches nothing itself',
+      );
+    });
+
+    test('reads the actions through each region\'s own imports', () {
+      final flow = _readComposed();
+      expect(
+        flow.actions.keys,
+        containsAll(['SetViewAction', 'PickProjectAction']),
+      );
+      expect(flow.actions['SetViewAction']!.writesLabel, 'console.view');
+      expect(
+        flow.actions['PickProjectAction']!.writesLabel,
+        'console.projectId',
+      );
+    });
+
+    test('gives every dispatching region a lane of its own', () {
+      final out = renderSequence(_readComposed());
+
+      expect(out, contains('participant R1 as ConsoleSidebarConnector'));
+      expect(out, contains('participant R2 as ProjectSelectorConnector'));
+      expect(
+        out,
+        isNot(contains('as ConsolePageConnector')),
+        reason:
+            'the frame holds no view-model — its lane would be an empty column '
+            'captioned with the one class in the drawing that does nothing',
+      );
+      expect(out, contains('UI->>R1: onSelectView()'));
+      expect(out, contains('UI->>R2: onPick()'));
+    });
+
+    test('names the region above the lane, not only in it', () {
+      // Eight regions with an `onOpen` each rendered eight identical user
+      // lines, told apart only by which lane the next arrow landed in.
+      final out = renderSequence(_readComposed());
+
+      expect(out, contains('User->>UI: ConsoleSidebar ▸ onSelectView'));
+      expect(out, contains('User->>UI: ProjectSelector ▸ onPick'));
+    });
+
+    test('a region that dispatches nothing gets no lane', () {
+      final out = renderSequence(_readComposed());
+      expect(out, isNot(contains('EventLogConnector')));
+    });
+  });
+
   group('FlowReader', () {
     test(
       'reads one use case per dispatching _Vm callback, skipping the rest',
@@ -211,6 +442,20 @@ class SomeAction extends Action {
       );
     });
 
+    test('the flat form lists every substate too, not only the first', () {
+      // What `LogInWithEmailAction` does: the token in and the draft out, in
+      // one reduce. Keeping `fields.first` documented it as touching the
+      // session alone — the same understatement the deep form is tested
+      // against two tests up, in the branch that had no test.
+      expect(
+        writesOf(
+          'state.copyWith(session: SessionState(token: t), '
+          'login: const LoginState())',
+        ),
+        'session, login',
+      );
+    });
+
     test('the outermost copyWith wins over the one nested inside it', () {
       // Both are visited; without first-write-wins the inner `email` would
       // shadow the substate the action actually replaces.
@@ -222,6 +467,13 @@ class SomeAction extends Action {
 
     test('a call that is not a copyWith writes nothing', () {
       expect(writesOf('state.rebuild(logIn: v)'), isNull);
+    });
+
+    test('a copyWith on something that is not state writes nothing', () {
+      // Every other shape here names its receiver and the flat one did not, so
+      // `task.copyWith(title: t, done: true)` inside a reducer read as a write
+      // of two AppState substates called `title` and `done`.
+      expect(writesOf('task.copyWith(title: t, done: true)'), isNull);
     });
   });
 

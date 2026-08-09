@@ -8,7 +8,7 @@ description: >-
 
 # `frx add-widget`
 
-Scaffold a widget (+ its previews) in the ui package.
+Scaffold a widget in the ui package.
 
 ```
 frx add-widget <name> --dir <folder> [-k <kind>]
@@ -52,30 +52,32 @@ date, a pluralised count — arrives as a finished `String`, resolved in the
 connector where the locale and the domain both live. `ChoiceItemVm.label` puts it
 in one line: *label is data, not design*.
 
-Every widget is scaffolded with previews into a mirrored tree under
-`ui/lib/previews/`, which is what gives it a name and a rendering anything else
-can reach:
-
-```dart
-@AppPreview(name: 'primary', group: 'Button')
-Widget buttonPrimaryPreview() =>
-    Button.primary(label: 'Primary', onPressed: () {});
-```
-
 ## Before you run it
 
+- It writes the file; what the widget is *handed* is the part that goes
+  wrong. `data-driven-widgets` carries it — the render model, where it
+  lives, and what belongs in its equality.
 - `--dir` is required and open-ended: a name that does not exist creates
   the folder. Ask `frx list-widget-dirs` which already hold widgets instead
   of inventing a home.
-- Previews are scaffolded alongside into a mirrored tree, so a widget moved
-  or deleted by hand leaves its preview behind.
 - `-k` picks what it takes in: `field` takes a `FieldVm`, `choice` a
   `ChoiceVm`, `action` is a labelled button, `view` draws a render model,
   `container` wraps children.
+- **The kind adds a suffix to the name**, and the file is named after the
+  resulting class: `-k field Pin` writes `PinFormField` in
+  `pin_form_field.dart`, `-k action Submit` writes `SubmitButton`. `view`
+  and `container` add none. Adding it yourself is harmless — the suffix is
+  idempotent — but a name that reads right in the command can come out
+  different on disk, so check the plan before `--apply` if the spelling
+  matters.
+- None of the kinds wraps `SegmentedControl`. A control over a set the
+  design fixes is `-k view` plus a `FieldVm` — `ThemeSwitcher` and
+  `LanguageSwitcher` are the precedent, and `data-driven-widgets` says why
+  it is not a `ChoiceVm`.
 - A component with its own lifecycle earns a file in a family folder —
   never a private `StatefulWidget` inside a page. Hidden there it has no
-  preview and no name anything else can reach, so the next screen that
-  needs it copies it instead. There is not one in the package.
+  name anything else can reach, so the next screen that needs it copies it
+  instead. There is not one in the package.
 
 ## Flags
 

@@ -46,6 +46,18 @@ interface Capability {
 /**
  * Every capability, exactly once.
  *
+ * **Hand-written, and that is the answer rather than a gap.** The other copies
+ * of the CLI's contract in this extension became generated — `KINDS`, the
+ * marker, the exit codes, `PACKAGES`, `LAYOUT` — because each was a *value* the
+ * CLI is the author of. This is not one. What could be generated is the set of
+ * command ids, and that is already pinned harder than generation would pin it:
+ * `extension_contract_test.dart` fails when a declared command is missing from
+ * the palette or from here, so the copy cannot be short. What is left is the
+ * label, the codicon and the one-line description, and those are the editor's
+ * register, not the CLI's — `add-widget`'s help says "Scaffold a widget in the
+ * ui package", which is an imperative for a terminal, where a QuickPick row
+ * wants a noun phrase. Generating them would put terminal prose in a menu.
+ *
  * Two commands are deliberately absent, both for the same reason: the rule's
  * subject is capabilities of the *tooling* — things that change the code or
  * reveal something about it — and a control that acts on the tooling's own UI is
@@ -90,7 +102,7 @@ const INVENTORY: Capability[] = [
   {
     command: 'frx.addWidget',
     label: '$(symbol-misc) Add widget…',
-    description: 'Widget + its previews, by archetype and folder',
+    description: 'Widget in the ui package, by archetype and folder',
     family: 'Create & wire',
   },
   {
@@ -121,6 +133,12 @@ const INVENTORY: Capability[] = [
     command: 'frx.addRetrofit',
     label: '$(cloud) Add Retrofit client…',
     description: 'Retrofit @RestApi client',
+    family: 'Create & wire',
+  },
+  {
+    command: 'frx.addPackage',
+    label: '$(package) Add package…',
+    description: 'Optional workspace member',
     family: 'Create & wire',
   },
   {

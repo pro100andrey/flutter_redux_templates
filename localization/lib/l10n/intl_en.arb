@@ -21,6 +21,7 @@
     "minimumLengthSymbols": "Minimum length {value} symbols",
     "mustContainAtLeastOneLowercase": "Must contain at least one lowercase",
     "mustContainAtLeastOneUppercase": "Must contain at least one uppercase",
+    "logOut": "Log out",
     "passwordsDoNotMatch": "Passwords do not match",
     "somethingWentWrong": "Something went wrong",
     "tryAgainLater": "Please try again later.",
