@@ -1,10 +1,10 @@
 name: Release
 
-# One tag releases both halves of the tool: the `frx` CLI as a native binary per
-# platform, and the VSCode extension to both marketplaces. They share a version
-# on purpose — the extension reads the CLI's contract (`--kind` sets, doctor
-# remedy ids, the marker path) out of generated constants, so a version pair that
-# can drift is a pair that will, and the symptom is an editor offering a kind the
+# One tag builds both halves of the tool: the `frx` CLI as a native binary per
+# platform, and the VSCode extension as a `.vsix`. They share a version on
+# purpose — the extension reads the CLI's contract (`--kind` sets, doctor remedy
+# ids, the marker path) out of generated constants, so a version pair that can
+# drift is a pair that will, and the symptom is an editor offering a kind the
 # installed binary rejects.
 #
 #   git tag v0.3.0 && git push origin v0.3.0
@@ -13,10 +13,11 @@ name: Release
 # tools/pubspec.yaml, tools/lib/src/version.dart and tools/vscode/package.json.
 # Bump them in the commit the tag points at, not after.
 #
-# Secrets, both optional — a missing one skips its publish step rather than
-# failing the release, so the binaries still ship:
-#   VSCE_PAT   Azure DevOps PAT for the Visual Studio Marketplace
-#   OVSX_PAT   open-vsx.org token (Cursor / Windsurf / VSCodium install from there)
+# Nothing is published anywhere and no secrets are needed. The release is the
+# artifact: five archives, a `checksums.txt` and the `.vsix`. The extension goes
+# to the Marketplace by hand, from the manage page — which is also the only route
+# Cursor, Windsurf and VSCodium have, since Microsoft's marketplace does not
+# serve them.
 
 on:
   push:
@@ -286,43 +287,7 @@ jobs:
 
             ## Install the extension
 
-            Search **FRX** in the VSCode Marketplace or Open VSX, or install the
-            attached `.vsix` with `code --install-extension frx-${{ needs.verify.outputs.version }}.vsix`.
-
-  marketplace:
-    name: Publish extension
-    needs: [verify, vsix]
-    if: github.event_name == 'push' && needs.verify.outputs.prerelease == 'false'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: vsix
-
-      # Both publishes take the already-built VSIX rather than re-packaging, so
-      # what reaches the marketplaces is byte-identical to the asset attached to
-      # the release — the one a Cursor user may have installed by hand.
-      #
-      # A missing token skips its step. The two marketplaces are set up
-      # independently and months apart in practice, and a release should not fail
-      # because the second one has not been arranged yet.
-      - name: Visual Studio Marketplace
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          if [ -z "$VSCE_PAT" ]; then
-            echo "::warning::VSCE_PAT is not set — skipping the Visual Studio Marketplace"
-            exit 0
-          fi
-          npx --yes @vscode/vsce publish --packagePath "frx-${{ needs.verify.outputs.version }}.vsix"
-
-      - name: Open VSX
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: |
-          if [ -z "$OVSX_PAT" ]; then
-            echo "::warning::OVSX_PAT is not set — skipping Open VSX (Cursor, Windsurf and VSCodium install from there)"
-            exit 0
-          fi
-          npx --yes ovsx publish "frx-${{ needs.verify.outputs.version }}.vsix" -p "$OVSX_PAT"
+            Search **FRX** in the VSCode Marketplace, or install the attached
+            `.vsix` with `code --install-extension frx-${{ needs.verify.outputs.version }}.vsix`
+            — which is also the route for Cursor, Windsurf and VSCodium, none of
+            which can reach Microsoft's marketplace.

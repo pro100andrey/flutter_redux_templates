@@ -26,10 +26,9 @@ elsewhere, `--no-modify-path` to leave your shell profile alone (`-Version`,
 put it on `PATH` yourself. From a checkout of this repository,
 `dart install --source path tools` builds it from source instead.
 
-Then the [VSCode extension](tools/vscode/) — search **FRX** in the Marketplace or
-Open VSX. It finds the binary in either install location without a `PATH` edit,
-which matters because an editor launched from the Dock never sees your shell's
-`PATH`.
+Then the [VSCode extension](tools/vscode/) — search **FRX** in the Marketplace.
+It finds the binary in either install location without a `PATH` edit, which
+matters because an editor launched from the Dock never sees your shell's `PATH`.
 
 ## Start a project from it
 
@@ -227,10 +226,11 @@ a **Flow** sequence diagram and **Navigation map** in the markdown preview, a
 **Map** webview of the whole wiring graph, and `frx doctor` findings mirrored into
 the Problems panel.
 
-Install it by searching **FRX** in the VSCode Marketplace, or in Open VSX if you
-are on Cursor, Windsurf or VSCodium; every release also attaches a `.vsix`. See
-its [README](tools/vscode/README.md) for the details and how to build one
-yourself.
+Install it by searching **FRX** in the VSCode Marketplace. Cursor, Windsurf and
+VSCodium cannot reach that marketplace, so there the route is the `.vsix`
+attached to every [release](https://github.com/pro100andrey/flutter_redux_templates/releases):
+`code --install-extension frx-<version>.vsix`. See its
+[README](tools/vscode/README.md) for the details and how to build one yourself.
 
 ### Code generation & build workflow
 

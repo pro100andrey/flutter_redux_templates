@@ -938,11 +938,22 @@ git tag v0.3.0 && git push origin v0.3.0
 
 `.github/workflows/release.yml` refuses the tag unless those three already agree
 with it, then compiles `frx` for macOS (arm64, x64), Linux (x64, arm64) and
-Windows (x64), attaches the archives and the VSIX to a GitHub release with a
-`checksums.txt`, and publishes the extension to the **Visual Studio Marketplace**
-(`VSCE_PAT`) and **Open VSX** (`OVSX_PAT`) — the latter being where Cursor,
-Windsurf and VSCodium install from. Both publishes take the release's own VSIX
-rather than re-packaging, so what the marketplaces serve is byte-identical to the
-attached asset. A missing token skips its marketplace with a warning instead of
-failing the release; a tag with a `-suffix` ships as a prerelease and publishes to
-neither.
+Windows (x64) and attaches the archives and the VSIX to a GitHub release with a
+`checksums.txt`. A tag with a `-suffix` ships as a prerelease, which `install.sh`
+does not resolve to.
+
+**It publishes nothing, and needs no secrets.** The Marketplace copy is uploaded
+by hand — [manage page](https://marketplace.visualstudio.com/manage) → the `frx`
+extension → **Update**, with the `.vsix` taken off the release. Automating it
+needs a PAT, a PAT needs an Azure DevOps organisation, and a new organisation now
+has to be linked to an Azure subscription; the job that did it is in the history
+if that ever becomes worth arranging.
+
+So the step to remember after tagging is the upload. Nothing fails if it is
+forgotten — the release is complete either way — which is exactly why it is worth
+writing down: the symptom is a Marketplace listing quietly three versions behind.
+
+**Cursor, Windsurf and VSCodium** cannot install from Microsoft's marketplace at
+all — its licence permits only Microsoft's own products. For those the `.vsix` on
+each release is the only route: `code --install-extension frx-<version>.vsix`, or
+the Extensions view's `…` menu → **Install from VSIX…**.

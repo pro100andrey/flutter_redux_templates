@@ -2,10 +2,10 @@
 
 The Marketplace renders this as the extension's **Changelog** tab.
 
-The extension and the `frx` CLI share a version and ship on one tag — the editor
-reads the CLI's contract out of generated constants, so a version pair that can
-drift will. Entries here therefore cover both halves, and CLI-only changes are
-marked as such.
+The extension and the `frx` CLI share a version and are built on one tag — the
+editor reads the CLI's contract out of generated constants, so a version pair
+that can drift will. Entries here therefore cover both halves, and CLI-only
+changes are marked as such.
 
 ## 0.3.0
 
@@ -60,8 +60,7 @@ marked as such.
 ## 0.2.0
 
 - Everything up to this point. The extension was distributed as a `.vsix` from
-  the repository; this is the first version prepared for the Marketplace and Open
-  VSX, with the icon, categories and workspace-trust declaration a listing needs.
-  See the
+  the repository; this is the first version prepared for the Marketplace, with
+  the icon, categories and workspace-trust declaration a listing needs. See the
   [commit history](https://github.com/pro100andrey/flutter_redux_templates/commits/main/tools/vscode)
   for what came before.
