@@ -44,6 +44,7 @@ class FlowReader {
     final useCases = <UseCase>[];
     final actions = <String, ActionInfo>{};
     final regions = <String>[];
+    final untraced = <UntracedDispatch>[];
 
     // Keyed by canonical path: a region reachable through two slots is one
     // region, and a cycle between two connectors is a stack overflow.
@@ -54,8 +55,30 @@ class FlowReader {
 
       final unit = sourceIndex.unitFor(file);
 
-      final vm = _VmVisitor();
+      final vm = _VmVisitor(_localFunctionBodies(unit));
       unit.accept(vm);
+
+      // What the file dispatches, against what the walk got to. The difference
+      // is reported rather than dropped: a region with no use case gets no lane
+      // and vanishes, and a map that is quietly six regions short is read as a
+      // map of a page that is small. See [UntracedDispatch].
+      //
+      // Compared as *sets of call sites*, never as counts. One helper reached
+      // from two `_Vm` fields is a shape `_VmVisitor` supports on purpose, and
+      // it makes attributions outnumber call sites — subtracting tallies then
+      // reads as "nothing missing" and hides a genuinely unreachable dispatch
+      // elsewhere in the same file.
+      final all = _DispatchVisitor();
+      unit.accept(all);
+      final missed = all.callSites.difference(vm.attributed);
+      if (missed.isNotEmpty) {
+        untraced.add(
+          UntracedDispatch(
+            connectorClass: owner ?? connectorClass,
+            count: missed.length,
+          ),
+        );
+      }
 
       // Resolve every `package:business/...` import to a file on disk so a
       // dispatched action can be looked up by class name.
@@ -95,6 +118,7 @@ class FlowReader {
       actions: actions,
       connectorFile: connectorFile.path,
       regions: regions,
+      untraced: untraced,
     );
   }
 
@@ -220,6 +244,23 @@ class FlowReader {
   }
 }
 
+/// Reports every variable a destructuring pattern declares.
+///
+/// `for (final (i, t) in rows.indexed)` is the shape that made this necessary:
+/// both `i` and `t` are bindings, and either could shadow a method the walk
+/// would otherwise follow into.
+class _PatternVariables extends RecursiveAstVisitor<void> {
+  _PatternVariables(this.onName);
+
+  final void Function(String) onName;
+
+  @override
+  void visitDeclaredVariablePattern(DeclaredVariablePattern node) {
+    onName(node.name.lexeme);
+    super.visitDeclaredVariablePattern(node);
+  }
+}
+
 /// Collects the names of every `<Something>Connector` constructed in a tree.
 ///
 /// A name test rather than a type test, because frx parses without resolution.
@@ -247,15 +288,196 @@ class _ConnectorVisitor extends RecursiveAstVisitor<void> {
   }
 }
 
-/// Collects every `dispatch*(...)` inside whatever it is pointed at.
+/// Every function-like declaration in a unit that a callback could be built by,
+/// keyed by name: the members of every class, and the top-level functions.
+///
+/// Parse-only, so this is a name table and not a resolution. Two members with
+/// the same name in two classes of one file collapse into one entry — the last
+/// wins. That is the same ambiguity the rest of this file already lives with
+/// (`Foo()` cannot be told from a function call either), and the shape it
+/// mis-resolves — one connector file declaring two factories with a same-named
+/// private helper — puts both helpers in the same view-model anyway.
+Map<String, AstNode> _localFunctionBodies(CompilationUnit unit) {
+  final out = <String, AstNode>{};
+  for (final decl in unit.declarations) {
+    if (decl is FunctionDeclaration) {
+      out[decl.name.lexeme] = decl.functionExpression.body;
+    } else if (decl is ClassDeclaration) {
+      final body = decl.body;
+      if (body is! BlockClassBody) continue;
+      for (final member in body.members) {
+        if (member is MethodDeclaration) out[member.name.lexeme] = member.body;
+      }
+    }
+  }
+  return out;
+}
+
+/// Collects every `dispatch*(...)` inside whatever it is pointed at, **and
+/// inside the members it calls out to**.
 ///
 /// [_root] bounds the upward walks (condition / trigger) so they never escape
 /// the subtree we were handed.
+///
+/// ## Why it follows calls
+///
+/// A view-model field's value is not always written where the field is. The
+/// moment a list row needs a callback, the row gets built by a helper:
+///
+/// ```dart
+/// ItemVm _item(TaskView task) =>
+///     ItemVm(id: task.id.value, onTap: () => dispatch(OpenTaskAction(...)));
+///
+/// @override
+/// _Vm fromStore() => _Vm(view: ViewVm(tasks: [for (final t in rows) _item(t)]));
+/// ```
+///
+/// Reading only the subtree of the `_Vm` argument finds no dispatch here, so
+/// the region reports no interactions — and a region with no interactions gets
+/// no lane, so it leaves the diagram entirely. The loss is silent and it is not
+/// small: measured on one page, six of eleven regions were missing, and the
+/// nine dispatches that went with them were the ones the map is read for.
+///
+/// [_locals] is the name table to follow into; without one this reads a single
+/// subtree exactly as it used to. [_visited] is shared down the recursion, so a
+/// helper reached twice is read once and two helpers calling each other
+/// terminate.
+///
+/// ## Why a name is not enough
+///
+/// The table is keyed by name and the file is parsed, not resolved, so a name
+/// standing in the source is not evidence that it refers to the declaration of
+/// that name. Anything nearer binds first:
+///
+/// ```dart
+/// void reset() => dispatch(ResetAction());       // a method
+/// _Vm fromStore() {
+///   final reset = 'label';                       // …and a local that shadows it
+///   return _Vm(caption: reset);                  // NOT a dispatch
+/// }
+/// ```
+///
+/// Following that produced a use case for `caption` dispatching `ResetAction`,
+/// which no run of the program can do. That is worse than the gap this class
+/// was written to close: a missing region is a map that is short, and an invented
+/// one is a map that is wrong, and only the second survives being checked
+/// against the code. So a name is followed only when nothing between it and the
+/// unit root binds it — [_boundNearby].
 class _DispatchVisitor extends RecursiveAstVisitor<void> {
-  _DispatchVisitor([this._root]);
+  _DispatchVisitor([this._root, this._locals = const {}, Set<String>? visited])
+    : _visited = visited ?? <String>{};
 
   final AstNode? _root;
+  final Map<String, AstNode> _locals;
+  final Set<String> _visited;
   final steps = <DispatchStep>[];
+
+  /// Source offsets of the `dispatch*(` call sites [steps] came from.
+  ///
+  /// The identity of a dispatch is where it is written, and the accounting in
+  /// [FlowReader.read] needs exactly that. Counting [steps] instead compared a
+  /// tally of *attributions* against a tally of *call sites*: one helper reached
+  /// from two `_Vm` fields is two attributions of one site, which made the
+  /// subtraction go negative and swallow a real gap elsewhere in the same file —
+  /// the failure `UntracedDispatch` exists to prevent, reintroduced inside it.
+  final callSites = <int>{};
+
+  /// Read [name]'s body, if it is a local function we have not been through.
+  ///
+  /// The nested visitor is rooted at that body rather than at ours: `trigger`
+  /// and `condition` are read by walking up from the dispatch, and the answer
+  /// that matters is the one local to where the closure is written — `onTap`
+  /// for the example above, which is inside the helper and not visible from the
+  /// call site.
+  void _follow(String name, AstNode at) {
+    final body = _locals[name];
+    if (body == null || _boundNearby(name, at)) return;
+    if (!_visited.add(name)) return;
+    final v = _DispatchVisitor(body, _locals, _visited);
+    body.accept(v);
+    steps.addAll(v.steps);
+    callSites.addAll(v.callSites);
+  }
+
+  /// Whether [name] is bound by something between [at] and the unit root.
+  ///
+  /// Parameters, local variables, pattern variables, catch clauses, loop
+  /// variables — every binder Dart lets shadow a member with. Walking outwards
+  /// is enough because a binding that is not on this ancestor chain is not in
+  /// scope here, and a member the chain does not shadow is the one the name
+  /// means.
+  static bool _boundNearby(String name, AstNode at) {
+    for (AstNode? n = at; n != null; n = n.parent) {
+      if (_bindsIn(n, name)) return true;
+    }
+    return false;
+  }
+
+  static bool _bindsIn(AstNode node, String name) {
+    if (node is FunctionExpression) {
+      return _inParams(node.parameters, name);
+    }
+    if (node is MethodDeclaration) return _inParams(node.parameters, name);
+    if (node is FunctionDeclaration) {
+      return _inParams(node.functionExpression.parameters, name);
+    }
+    if (node is CatchClause) {
+      return node.exceptionParameter?.name.lexeme == name ||
+          node.stackTraceParameter?.name.lexeme == name;
+    }
+    if (node is Block) {
+      // A `var`/`final` anywhere in the enclosing block, not only before this
+      // point: Dart hoists local declarations over their whole block, so a name
+      // declared later still shadows the member here (and referring to it early
+      // is a compile error, not a call to the member).
+      for (final statement in node.statements) {
+        if (statement is VariableDeclarationStatement &&
+            statement.variables.variables.any((v) => v.name.lexeme == name)) {
+          return true;
+        }
+        if (statement is FunctionDeclarationStatement &&
+            statement.functionDeclaration.name.lexeme == name) {
+          return true;
+        }
+      }
+    }
+    if (node is ForStatement) {
+      final parts = node.forLoopParts;
+      if (parts is ForPartsWithDeclarations) {
+        return parts.variables.variables.any((v) => v.name.lexeme == name);
+      }
+      if (parts is ForEachPartsWithDeclaration) {
+        return parts.loopVariable.name.lexeme == name;
+      }
+      if (parts is ForEachPartsWithPattern) {
+        return _patternBinds(parts.pattern, name);
+      }
+    }
+    if (node is ForElement) {
+      final parts = node.forLoopParts;
+      if (parts is ForEachPartsWithDeclaration) {
+        return parts.loopVariable.name.lexeme == name;
+      }
+      if (parts is ForEachPartsWithPattern) {
+        return _patternBinds(parts.pattern, name);
+      }
+      if (parts is ForPartsWithDeclarations) {
+        return parts.variables.variables.any((v) => v.name.lexeme == name);
+      }
+    }
+    return false;
+  }
+
+  static bool _inParams(FormalParameterList? params, String name) =>
+      params?.parameters.any((p) => p.name?.lexeme == name) ?? false;
+
+  /// Any variable a destructuring pattern introduces — `for (final (i, t) in …)`
+  /// binds both `i` and `t`.
+  static bool _patternBinds(AstNode pattern, String name) {
+    var found = false;
+    pattern.accept(_PatternVariables((n) => found |= n == name));
+    return found;
+  }
 
   @override
   void visitMethodInvocation(MethodInvocation node) {
@@ -267,8 +489,39 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
     final target = node.target;
     if (kind != null && (target == null || target is SimpleIdentifier)) {
       steps.add(_stepFrom(node, kind));
+      callSites.add(node.offset);
+    } else if (target == null) {
+      // `_item(task)` — a helper on the factory, or a top-level one. Also the
+      // shape a constructor call takes without resolution, which is why the
+      // name table decides: only something this file declares as a function is
+      // followed.
+      _follow(node.methodName.name, node);
     }
     super.visitMethodInvocation(node);
+  }
+
+  @override
+  void visitSimpleIdentifier(SimpleIdentifier node) {
+    // A tear-off — `onTap: _openTask` — is the same hop with the parentheses
+    // left off, and loses the dispatch the same way.
+    //
+    // Guarded down to identifiers that stand for themselves. The `methodName` of
+    // an invocation is handled above; either side of a `.` belongs to something
+    // else — the right-hand side is a member of another object, and the
+    // left-hand side is that object, so `session.userName` beside a `session()`
+    // method used to be read as a call to it.
+    //
+    // An argument *label* needs no guard: `onTap:` is a token on the
+    // [NamedArgument], not an identifier node, so it never arrives here.
+    final parent = node.parent;
+    final isInvocationName =
+        parent is MethodInvocation && parent.methodName == node;
+    final isPartOfDotted =
+        (parent is PropertyAccess && parent.propertyName == node) ||
+        parent is PrefixedIdentifier ||
+        (parent is MethodInvocation && parent.target == node);
+    if (!isInvocationName && !isPartOfDotted) _follow(node.name, node);
+    super.visitSimpleIdentifier(node);
   }
 
   DispatchStep _stepFrom(MethodInvocation node, DispatchKind kind) {
@@ -351,16 +604,32 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
 
 /// Finds the `_Vm(...)` construction and treats each named argument as one
 /// user-facing interaction.
+///
+/// Each argument is read with the file's own function table in hand, so a
+/// callback assembled by a helper on the factory is followed rather than
+/// missed — see [_DispatchVisitor].
 class _VmVisitor extends RecursiveAstVisitor<void> {
+  _VmVisitor(this._locals);
+
+  final Map<String, AstNode> _locals;
   final useCases = <UseCase>[];
+
+  /// Every `dispatch*(` call site any use case here accounts for.
+  ///
+  /// A set and not a count, because the same site legitimately answers for two
+  /// fields — see the accounting in [FlowReader.read].
+  final attributed = <int>{};
 
   @override
   void visitMethodInvocation(MethodInvocation node) {
     if (node.target == null && node.methodName.name == '_Vm') {
       for (final a in node.argumentList.arguments.whereType<NamedArgument>()) {
-        final v = _DispatchVisitor(a.argumentExpression);
+        // A visited set per argument, not per file: two fields may legitimately
+        // both go through the same row helper, and each is its own use case.
+        final v = _DispatchVisitor(a.argumentExpression, _locals);
         a.argumentExpression.accept(v);
         if (v.steps.isEmpty) continue;
+        attributed.addAll(v.callSites);
         useCases.add(UseCase(name: a.name.lexeme, steps: v.steps));
       }
     }

@@ -126,9 +126,35 @@ class FlowCommand extends Command<int> with NameArg {
     }
 
     if (flow.isEmpty) {
+      // "Nothing to diagram" is a claim about the code, and it has to be earned.
+      // A page whose every dispatch was written in a shape the reader does not
+      // follow reaches here too, and saying the same sentence turns a gap in the
+      // reader into a statement about the page — the purest form of the failure
+      // `untraced` exists to prevent.
+      if (flow.untraced.isEmpty) {
+        console.out.writeln(
+          '${artifact.connectorClass} has no dispatching callbacks — '
+          'nothing to diagram yet.',
+        );
+        return 0;
+      }
+      // Stated as what it is — nothing was drawn, and these files dispatch —
+      // rather than as a diagnosis. Part of what is counted here is a callback
+      // the reader could not follow; part of it never was a callback, such as a
+      // `StoreConnector(onInit: …)` that dispatches on open. Naming a cause the
+      // tool cannot tell apart would be guessing in the one output added to stop
+      // guesses being read as facts.
       console.out.writeln(
-        '${artifact.connectorClass} has no dispatching callbacks — '
-        'nothing to diagram yet.',
+        '${artifact.connectorClass}: no interaction to diagram, and these '
+        'files dispatch anyway:',
+      );
+      for (final gap in flow.untraced) {
+        console.out.writeln('  ${gap.connectorClass}  ${gap.calls}');
+      }
+      console.out.writeln(
+        '\nWhat gets drawn is a dispatch reachable from a `_Vm(...)` argument '
+        'through the functions the file declares. A callback kept in a field, '
+        'or a dispatch that belongs to no callback at all, is outside that.',
       );
       return 0;
     }

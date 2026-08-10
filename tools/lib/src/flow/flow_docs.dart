@@ -200,9 +200,36 @@ class FlowDocs {
       ..writeln();
 
     if (flow.isEmpty) {
+      // The same distinction the CLI draws, in the artifact that outlives the
+      // terminal. "Exposes no dispatching callbacks" is a claim about the code;
+      // when the file does dispatch and none of it could be followed, the claim
+      // is false, and this is the copy that gets committed, read later by
+      // somebody who was not here, and gated on by `frx doctor`.
+      if (flow.untraced.isEmpty) {
+        b
+          ..writeln(
+            '_${flow.connectorClass} exposes no dispatching callbacks yet._',
+          )
+          ..writeln()
+          ..writeln('[← all flows](README.md)');
+        return b.toString();
+      }
       b
         ..writeln(
-          '_${flow.connectorClass} exposes no dispatching callbacks yet._',
+          '_No view-model callback could be followed here, and these files '
+          'dispatch anyway — so this page has interactions that are **not '
+          'drawn**:_',
+        )
+        ..writeln();
+      for (final gap in flow.untraced) {
+        b.writeln('- `${gap.connectorClass}` — ${gap.calls}');
+      }
+      b
+        ..writeln()
+        ..writeln(
+          '_A dispatch is followed from a `_Vm(...)` argument through the '
+          'functions the file declares. One held in a field, or reached any '
+          'other way, is outside that._',
         )
         ..writeln()
         ..writeln('[← all flows](README.md)');
