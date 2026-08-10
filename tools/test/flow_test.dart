@@ -347,16 +347,33 @@ class _Factory extends VmFactory<AppState, ShadowedConnector, _Vm>
   void reset() => dispatch(ResetAction());
   void session() => dispatch(ResetAction());
   void refresh() => dispatch(ResetAction());
+  void pair() => dispatch(ResetAction());
+  void matched() => dispatch(ResetAction());
+  void arm() => dispatch(ResetAction());
 
   String _row(String refresh) => refresh;
 
   @override
   _Vm fromStore() {
     final reset = 'Reset';
+    final (pair, _) = ('Pair', 0);
+    final label = state.console.label;
     return _Vm(
       caption: reset,
       user: session.userName,
       row: _row('now'),
+      destructured: pair,
+      // The pattern variables are read *inside* the argument, which is the
+      // subtree the walk actually visits — bound in a `switch` arm and behind a
+      // `when` guard, and both spelled like a method that dispatches.
+      armed: switch (label) {
+        String arm => arm,
+        _ => '',
+      },
+      guarded: switch (label) {
+        String matched when matched.isNotEmpty => matched,
+        _ => '',
+      },
     );
   }
 }
@@ -618,15 +635,16 @@ void main() {
         flow.useCases.map((u) => '${u.name}: ${u.steps.map((s) => s.target)}'),
         isEmpty,
         reason:
-            'a local variable `reset`, a `session.userName` read and a `refresh` '
-            'parameter each collide with a method that dispatches, and none of '
-            'the three is a call to it',
+            'a plain local, a destructuring `final (pair, _)`, an `if-case` '
+            'variable, a `switch` arm variable, a `session.userName` read and a '
+            '`refresh` parameter each collide with a dispatching method, and '
+            'none of the six is a call to it',
       );
       // And the methods do dispatch, so the file is not accidentally quiet:
       // they are reported as undrawn instead of attributed to a callback.
       expect(
         {for (final u in flow.untraced) u.connectorClass: u.count},
-        {'ShadowedConnector': 3},
+        {'ShadowedConnector': 6},
       );
     });
 
