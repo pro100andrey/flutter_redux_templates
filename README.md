@@ -149,7 +149,7 @@ dart run bin/frx.dart <command>     # or `dart install .` to get `frx` on PATH
 | `add-service` | Service + Redux dispatcher pair |
 | `add-theme-extension` | `ThemeExtension` in `ui` |
 | `batch` | Wire a declared list of artifacts (JSON file or stdin) in **one transaction** |
-| `remove` | Delete a substate/page **and unwire it** (previews first; `--apply` applies) |
+| `remove` | Delete an artifact **and unwire it** — substate, page, action, model, widget, connector, service, or a state field (`--kind field`, which takes its `Select` getter and setter action too); previews first, `--apply` applies |
 | `rename` | Rename a substate/page — files, classes, **every wiring reference** (previews first) |
 | `list-substates` / `list-routes` | Inventory, human table or `--json` |
 | `list-widget-dirs` | The `ui/lib` folders that hold widgets — what `add-widget --dir` suggests |
@@ -402,6 +402,9 @@ frx doctor          # audit: wiring drift, orphans, ungenerated code, stale
 frx doctor --fix    # auto-repair: run codegen, remove orphan substates and
                     # empty artifact folders, regenerate docs/flows
 frx remove my_profile --apply   # delete any artifact and unwire it (kind auto-detected)
+frx remove value --kind field --state my_profile --apply
+                    # a field is the one kind that is asked for rather than
+                    # detected; it goes with its Select getter and its setter
 ```
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the same gate on

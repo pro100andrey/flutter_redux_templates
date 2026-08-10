@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
 import '../model/selector_shape.dart';
 import '../ast/source_index.dart';
+import '../scaffold/type_imports.dart';
 import 'ast_edit.dart';
 
 /// The outcome of adding a getter to a `Select<Pascal>` extension type.
@@ -234,11 +234,20 @@ class SelectorsSource {
     return edits;
   }
 
-  /// Whether [source] indexes [getter] — `getter[…]`, and not `subgetter[…]`.
+  /// Whether [source] indexes [getter] *itself* — a bare `getter[…]`, not
+  /// `subgetter[…]` and not `something.getter[…]`.
   ///
   /// The substring test this replaces matched any name *ending* in the getter's,
   /// so a hand-written `_state.tasks.subtable[id]` counted as an accessor of
   /// `table` and was retyped over a collection that never changed.
+  ///
+  /// **A leading `.` disqualifies it too**, and that is not the same rule as the
+  /// one above. `Object? labelFor(int id) => _state.labels.table[id];` written
+  /// inside `SelectTasks` indexes *another slice's* identically-named
+  /// collection; it survives `SelectTasks.table` and must not be judged by it.
+  /// The cost of getting this wrong is asymmetric: in [_accessorEdits] a false
+  /// positive rewrites a type annotation, in [removeSelector] it deletes a
+  /// hand-written method and reports it as intended.
   static bool _indexes(String source, String getter) {
     for (
       var at = source.indexOf('$getter[');
@@ -252,7 +261,8 @@ class SelectorsSource {
           (before >= 0x41 && before <= 0x5A) ||
           (before >= 0x61 && before <= 0x7A) ||
           before == 0x5F || // _
-          before == 0x24; // $
+          before == 0x24 || // $
+          before == 0x2E; // . — a member of something else, not this getter
       if (!isIdentifierChar) return true;
     }
     return false;
@@ -390,20 +400,72 @@ class SelectorsSource {
     );
   }
 
-  /// Shared package imports the selector facade may carry, mapped to a symbol
-  /// that proves one is still needed. A block for a `search`/`table` substate
-  /// pulls in fast_immutable_collections for its `IList`/`IMap` getters; once
-  /// the last such block is gone the import is dead and must be pruned or it
-  /// trips `unused_import`. Relative model imports are folder-scoped instead
-  /// (see [unwire]); this registry is only for shared package imports, so a new
-  /// one added to a selector block needs an entry here.
-  static const _sharedImportProbes = {
-    'package:fast_immutable_collections/fast_immutable_collections.dart': [
-      'IList',
-      'IMap',
-      'ISet',
-    ],
+  /// Shared package imports the selector facade may carry, each with what
+  /// proves it is still needed. A block for a `search`/`table` substate pulls in
+  /// fast_immutable_collections for its `IList`/`IMap` getters; once the last
+  /// such block is gone the import is dead and must be pruned or it trips
+  /// `unused_import`. Relative model imports are folder-scoped instead (see
+  /// [unwire]).
+  ///
+  /// Asked of [TypeImports] rather than restated here. It was restated, and the
+  /// two copies drifted the moment the second one was written: this file's
+  /// pattern dropped the trailing `\b` so `IListConst` and `IMapOfSets` keep the
+  /// import alive, the other kept it, and the same `selectors.dart` then got
+  /// opposite answers depending on whether a field or a whole substate was
+  /// removed. A new shared import needs one entry, in [TypeImports].
+  static final Map<String, ImportProbe> _sharedImportProbes = {
+    for (final uri in [TypeImports.fastImmutableCollections])
+      if (TypeImports.probeFor(uri) case final probe?) uri: probe,
   };
+
+  /// Removes the getter [getterName] from [selectorType], the methods derived
+  /// from it, and any import in [prune] it was the last user of. The inverse of
+  /// the getter half of [addSelector].
+  ///
+  /// `found: false` when the type or the getter is not there — a field removed
+  /// with `--no-selector`, or one whose facade the project never grew, is not
+  /// an error to report.
+  ///
+  /// [prune] is the caller's because the question is what the *field* needed,
+  /// which is read off the declaration in the state file — a getter's own
+  /// return type says the same thing here, but only one of the two callers is
+  /// holding a repository to resolve a model import against.
+  Unwired removeSelector({
+    required String selectorType,
+    required String getterName,
+    Map<String, ImportProbe> prune = const {},
+  }) {
+    final content = sourceIndex.sourceOf(file);
+    // Strict, like every other splice: see [StateSource.removeField].
+    final unit = sourceIndex.unitToEdit(file);
+
+    final ext = _extensionType(unit, selectorType);
+    if (ext == null) return Unwired.absent(content);
+    final getter = _getters(ext.body, getterName).firstOrNull;
+    if (getter == null) return Unwired.absent(content);
+
+    final edits = <Edit>[removeDeclaration(content, getter)];
+    final changes = <String>['$selectorType.$getterName'];
+
+    // The accessors derived from it go too: `Object byId(int id) =>
+    // table[id]!;` does not compile once `table` is gone, and a facade left
+    // like that is the half-job this command exists to avoid. Same rule
+    // [_accessorEdits] retypes by — a method qualifies by *indexing* the
+    // getter, so a `byId` that reads something else is somebody's own and
+    // stays.
+    for (final member in _members(ext.body).whereType<MethodDeclaration>()) {
+      if (member.isGetter || member.isSetter) continue;
+      if (!_indexes(member.body.toSource(), getterName)) continue;
+      edits.add(removeDeclaration(content, member));
+      changes.add('$selectorType.${member.name.lexeme}()');
+    }
+
+    final pruned = pruneImports(applyEdits(content, edits), prune);
+    return Unwired(
+      source: pruned.source,
+      changes: [...changes, ...pruned.changes],
+    );
+  }
 
   /// Removes a substate's selectors: the `Select<Pascal>` extension type, the
   /// two facade getters (`Select.<field>` and `Selectors.<field>`), the model
@@ -454,53 +516,77 @@ class SelectorsSource {
     }
 
     // Apply the structural removals, then prune shared package imports that no
-    // other selector references anymore. Re-parsed (not offset-spliced) so the
+    // other selector references anymore. [pruneImports] re-parses, so the
     // "still used?" check runs against the post-removal text.
-    var source = applyEdits(content, edits);
-    final surviving = parseString(
-      content: source,
-      throwIfDiagnostics: false,
-    ).unit;
-    // The non-import body — pruning imports never changes it, so compute it once
-    // and search it for each probe symbol (the import line can't self-match).
-    // Collect all prune edits against the same parse and apply them in one
-    // batch: applyEdits splices highest-offset-first, so several disjoint import
-    // removals stay correct (a per-import applyEdits loop would use stale
-    // offsets after the first splice).
-    final body = _withoutImports(source, surviving);
-    final pruneEdits = <Edit>[];
-    for (final imp in surviving.directives.whereType<ImportDirective>()) {
-      final probes = _sharedImportProbes[imp.uri.stringValue ?? ''];
-      if (probes == null) continue;
-      // Prefix match (no trailing boundary) so `IList` also covers the const
-      // constructors `IListConst` / `IMapConst`.
-      if (!probes.any((s) => RegExp('\\b$s').hasMatch(body))) {
-        pruneEdits.add(removeDirective(source, imp));
-        changes.add("import '${imp.uri.stringValue}'");
-      }
-    }
+    final pruned = pruneImports(
+      applyEdits(content, edits),
+      _sharedImportProbes,
+    );
 
     return Unwired(
-      source: pruneEdits.isEmpty ? source : applyEdits(source, pruneEdits),
-      changes: changes,
+      source: pruned.source,
+      changes: [...changes, ...pruned.changes],
     );
   }
 
-  /// [source] with its import directives blanked out, so a symbol search for
-  /// "is this import still used?" can't match an import line itself.
-  String _withoutImports(String source, CompilationUnit unit) =>
-      applyEdits(source, [
-        for (final imp in unit.directives.whereType<ImportDirective>())
-          Edit.replace(imp.offset, imp.end, ''),
-      ]);
+  Iterable<MethodDeclaration> _getters(ClassBody body, String name) =>
+      _members(body).whereType<MethodDeclaration>().where(
+        (m) => m.isGetter && m.name.lexeme == name,
+      );
 
-  Iterable<MethodDeclaration> _getters(ClassBody body, String name) {
-    final members = body is BlockClassBody
-        ? body.members
-        : const <ClassMember>[];
-    return members.whereType<MethodDeclaration>().where(
-      (m) => m.isGetter && m.name.lexeme == name,
-    );
+  List<ClassMember> _members(ClassBody body) =>
+      body is BlockClassBody ? body.members : const <ClassMember>[];
+
+  /// The members of [selectorType] that still read [getterName] and are not the
+  /// derived accessors [removeSelector] takes with it.
+  ///
+  /// The facade is the one file of this architecture the guard *allows* a hand
+  /// edit to, precisely because a selector whose body needs statements is
+  /// written by hand — so a sibling reading the getter is normal, and it is not
+  /// frx's to delete. This repository's own template ships one:
+  ///
+  /// ```dart
+  /// String? get token => _state.session.token;
+  /// bool get isAvailable => token != null;
+  /// ```
+  ///
+  /// Removing `token` and reporting success left `isAvailable` reading a
+  /// declaration that was gone, and `SelectComposites.canEnterApp` sits on top
+  /// of it — so the `business` package stopped compiling, including the
+  /// `build_runner` step the plan's own closing line prescribes.
+  List<String> readersOf({
+    required String selectorType,
+    required String getterName,
+  }) {
+    final unit = sourceIndex.unitFor(file);
+    final ext = _extensionType(unit, selectorType);
+    if (ext == null) return const [];
+
+    final names = <String>[];
+    for (final member in _members(ext.body).whereType<MethodDeclaration>()) {
+      if (member.isGetter && member.name.lexeme == getterName) continue;
+      final body = member.body.toSource();
+      // The accessors written from the getter go with it; every other reader
+      // is somebody's own and is reported instead.
+      if (_indexes(body, getterName)) continue;
+      if (!_reads(body, getterName)) continue;
+      names.add(
+        member.isGetter ? member.name.lexeme : '${member.name.lexeme}()',
+      );
+    }
+    return names;
+  }
+
+  /// Whether [source] reads [name] as a bare identifier — `token != null`, and
+  /// not `_state.session.token`, which names the state's field rather than this
+  /// getter and survives the getter's removal.
+  static bool _reads(String source, String name) {
+    for (final match in RegExp(
+      '\\b${RegExp.escape(name)}\\b',
+    ).allMatches(source)) {
+      if (match.start == 0 || source[match.start - 1] != '.') return true;
+    }
+    return false;
   }
 
   ExtensionTypeDeclaration? _extensionType(CompilationUnit unit, String name) {

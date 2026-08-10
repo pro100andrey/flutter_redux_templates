@@ -310,6 +310,11 @@ the creation commands only — `rename` and `remove` are refused with the reason
   package compiling on a file you never wrote. What `remove` does not do is chase
   the code that used the artifact, so the audit still follows. A theme extension
   and a retrofit client have no kind yet; those two are still `rm` plus the audit.
+  A **field** of a substate is `frx remove <field> --kind field --state <slice>`,
+  and it is the one deletion `rm` cannot even attempt: the field is a line inside
+  a file that stays, and the guard refuses the hand edit that would take it out.
+  A slice made with the default kind arrives carrying `value` — this is how it
+  leaves, with its `Select…` getter and its setter action.
 - **Around a live `build_runner watch`, commands stand down.** They hand the
   build over rather than starting a second one. The fact is reported in the
   command's own result (`--json` carries it as `build.handedToWatch`), not by the
@@ -741,6 +746,11 @@ spelled — not `state.copyWith(todos: state.todos.copyWith(…))`.
       '`IList` / `IMap` / `ISet` types auto-import '
           '`fast_immutable_collections`. `--action` scaffolds the '
           '`Set<Field>Action` setter and never clobbers an existing one.',
+      'Taking one out is `frx remove <field> --kind field --state <slice>` — '
+          'the inverse of this command, and the only way: the state file '
+          'refuses a hand edit in either direction. It takes the factory '
+          'parameter, the facade getter and the `Set<Field>Action` together, '
+          'and prunes an import nothing else needs.',
     ],
   ),
   'add-selector': _Situation(
@@ -1082,13 +1092,25 @@ its own — build_runner needs the resolution it just invalidated.
     ],
   ),
   'remove': _Situation(
-    'Deleting any artifact — a state slice, a screen, an action, a model, a '
-    'widget, a connector, a service — with everything that points at it.',
+    'Deleting any artifact — a state slice, a field on one, a screen, an '
+    'action, a model, a widget, a connector, a service — with everything that '
+    'points at it.',
     traps: [
       'Previews by default; `--apply` is what touches disk.',
       'The kind is auto-detected; pass `--kind` only when the name matches '
           'more than one, and `--state` when an action name is used under more '
           'than one substate.',
+      'A **field** is the exception: it is never auto-detected, so it is '
+          '`--kind field` every time, plus `--state` unless one slice alone '
+          'has a field of that name. It takes the factory parameter, the '
+          '`Select…` getter and the `Set<Field>Action` together — and it is '
+          'the only way out of a field, since the state file refuses a hand '
+          'edit.',
+      'Removing a field is **refused** while something still reads it — a '
+          'computed getter on the state class, a hand-written selector over '
+          'it. Rewrite those first: a selector body is yours to edit, so that '
+          'is the end you start from. Actions that merely assign the field are '
+          'named in the plan and left alone; fix them after.',
       'Reach for it instead of `rm`, which deletes the file you name and '
           'leaves the rest of the set: a service\'s dispatcher, a model\'s '
           '`.freezed.dart` and `.g.dart` — '

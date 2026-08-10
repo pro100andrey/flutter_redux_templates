@@ -110,6 +110,7 @@ how a field arrives without the Select getter that comes with it.
 
   frx add-field <substate> <name>:<type>           # nullable, or pass --default
   frx add-field <substate> <name>:<type> --action  # also its setter action
+  frx remove <name> --kind field --state <substate> --apply   # take one out
 
 Collections are IList / IMap / ISet. Run \`frx help add-field\` for the flags.
 EOF
@@ -139,6 +140,10 @@ carries wiring — the Select getter on the facade, the import a collection type
 needs — and only \`add-field\` writes that.
 
   frx add-field <substate> <name>:<type>
+  frx remove <name> --kind field --state <substate> --apply   # take one out
+
+Removing a field is the same rule read backwards: the getter, the setter action
+and the import go with it, and none of that is visible from inside this file.
 
 If you are changing something that is not a field, say so by editing through the
 Edit tool, which refuses for the same reason and names it.
@@ -158,10 +163,11 @@ case "$path" in
     cat >&2 <<EOF
 The shape of this file belongs to frx. A field added here by hand arrives without
 the wiring that comes with it — the Select getter on the facade, and the import a
-collection type needs.
+collection type needs. A field *deleted* here by hand leaves all of it behind.
 
   frx add-field $slice <name>:<type>           # nullable, or pass --default
   frx add-field $slice <name>:<type> --action  # also its setter action
+  frx remove <name> --kind field --state $slice --apply   # take one out
 
 Run \`frx help add-field\` for the flags. Collections are IList / IMap / ISet.
 EOF

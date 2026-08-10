@@ -268,6 +268,57 @@ Edit importInsertion(List<ImportDirective> imports, String uri) {
       : Edit.insert(imports.last.end, "\n\nimport '$uri';");
 }
 
+/// Whether an import is still needed by the source it was pruned from, given
+/// that source with its own import block blanked out.
+///
+/// A predicate rather than a pattern because the two questions it answers are
+/// not the same shape. "Does anything still say `IList`" is a regex; "does
+/// anything still name a type that lives in `result.dart`" is a lookup against
+/// the project — a sealed union's cases sit in the file its union names, and no
+/// pattern derived from the URI alone knows that.
+typedef ImportProbe = bool Function(String body);
+
+/// Removes each import [probes] names that nothing outside the import block
+/// still needs — the inverse of [addImports], for an edit that took the last
+/// user of a type away.
+///
+/// An import with no entry in [probes] is left alone, so this can only ever
+/// prune what a caller has claimed to understand — pruning by "does the name
+/// appear" alone would take `freezed_annotation` out of every file, since
+/// nothing spells `FreezedAnnotation`.
+///
+/// The probe runs against [source] with its import directives blanked out: an
+/// import line names its own type, and matching that would keep every import
+/// alive forever. Every removal is computed against one parse and applied in
+/// one batch, because [applyEdits] splices highest-offset-first and a
+/// per-import apply loop would carry stale offsets after the first splice.
+({String source, List<String> changes}) pruneImports(
+  String source,
+  Map<String, ImportProbe> probes,
+) {
+  if (probes.isEmpty) return (source: source, changes: const []);
+
+  final unit = parseString(content: source, throwIfDiagnostics: false).unit;
+  final imports = unit.directives.whereType<ImportDirective>().toList();
+  final body = applyEdits(source, [
+    for (final imp in imports) Edit.replace(imp.offset, imp.end, ''),
+  ]);
+
+  final edits = <Edit>[];
+  final changes = <String>[];
+  for (final imp in imports) {
+    final uri = imp.uri.stringValue ?? '';
+    final probe = probes[uri];
+    if (probe == null || probe(body)) continue;
+    edits.add(removeDirective(source, imp));
+    changes.add("import '$uri'");
+  }
+
+  return edits.isEmpty
+      ? (source: source, changes: const [])
+      : (source: applyEdits(source, edits), changes: changes);
+}
+
 /// Adds every one of [uris] that [source] does not already import, and reports
 /// the ones it added.
 ///

@@ -84,6 +84,149 @@ class StateSource {
     );
   }
 
+  /// Removes field [name] from the factory of [className], along with any
+  /// import in [prune] the removed declaration was the last user of.
+  ///
+  /// The inverse of [addField], and the only way this file loses a field: the
+  /// guard refuses hand edits here, so a field the scaffolder put in — the
+  /// `value` every `--kind value` slice arrives with — had no way out at all.
+  /// `remove --kind action` deletes the setter and leaves the field; `rm`
+  /// cannot open the file.
+  ///
+  /// `found: false` when the class has no such field, which the caller reports
+  /// rather than treating as done: nothing was removed, and saying "removed"
+  /// about a name that was never there hides a typo.
+  Unwired removeField({
+    required String className,
+    required String name,
+    Map<String, ImportProbe> prune = const {},
+  }) {
+    final content = sourceIndex.sourceOf(file);
+    // [SourceIndex.unitToEdit], not `unitFor`: every edit below is a character
+    // offset read off this tree, and offsets from a tree the analyzer recovered
+    // out of broken source do not describe the file they land in.
+    final unit = sourceIndex.unitToEdit(file);
+    final params = _redirectingFactory(
+      _stateClass(unit, className),
+      className,
+    ).parameters;
+
+    final param = params.parameters
+        .where((p) => p.name?.lexeme == name)
+        .firstOrNull;
+    if (param == null) return Unwired.absent(content);
+
+    final edit = _emptiesItsGroup(params, param)
+        ? _removeGroup(content, params)
+        : removeListItem(content, param);
+
+    // Pruned after the removal, never before: whether the import is still
+    // needed is a question about the text that remains.
+    final pruned = pruneImports(applyEdits(content, [edit]), prune);
+    return Unwired(
+      source: pruned.source,
+      changes: ['field: ${param.toSource()}', ...pruned.changes],
+    );
+  }
+
+  /// Whether [param] is the last one inside its delimiters — the `{…}` of a
+  /// named group or the `[…]` of an optional positional one.
+  ///
+  /// Counted within the group, not across the list. `parameters.length == 1`
+  /// reads as the same question and is a different one: for
+  /// `const factory CheckoutState(int id, {Payment? fallback})` it counts two
+  /// and leaves `(int id, {})` behind — an empty group does not parse, and the
+  /// file this writes is one the guard will not let anybody repair by hand.
+  static bool _emptiesItsGroup(FormalParameterList params, FormalParameter p) {
+    if (params.leftDelimiter == null || params.rightDelimiter == null) {
+      return false;
+    }
+    final group = params.parameters.where(
+      (other) => other.isNamed == p.isNamed,
+    );
+    return group.length == 1;
+  }
+
+  /// Removes a group's delimiters and everything in them, taking the comma that
+  /// separated it from the positional parameters before it.
+  ///
+  /// `(int id, {Payment? fallback})` → `(int id)`. Leaving the comma parses —
+  /// a trailing comma is legal — but writes `(int id, )` into a file that is
+  /// only formatted when `--format` is on.
+  static Edit _removeGroup(String source, FormalParameterList params) {
+    var start = params.leftDelimiter!.offset;
+    var before = start;
+    while (before > 0 &&
+        (source[before - 1] == ' ' || source[before - 1] == '\t')) {
+      before--;
+    }
+    if (before > 0 && source[before - 1] == ',') start = before - 1;
+    return Edit.replace(start, params.rightDelimiter!.end, '');
+  }
+
+  /// The members of [className] whose source still names [field] — a computed
+  /// getter over it, a method reading it.
+  ///
+  /// Asked before the field is taken out, because nothing else will catch them:
+  /// the guard refuses a hand edit to this file, so a `bool get isAuthenticated
+  /// => token != null;` left behind is a state class that does not compile and
+  /// that its owner is not allowed to fix. Named rather than deleted — the
+  /// factory is frx's to write, a member somebody added is not.
+  List<String> readersOf({required String className, required String field}) {
+    final unit = sourceIndex.unitFor(file);
+    final cls = classNamed(unit, className);
+    final body = cls?.body;
+    if (body is! BlockClassBody) return const [];
+
+    final names = <String>[];
+    for (final member in body.members) {
+      if (member is ConstructorDeclaration) continue;
+      if (!_mentions(member.toSource(), field)) continue;
+      names.add(switch (member) {
+        MethodDeclaration(:final name) => name.lexeme,
+        FieldDeclaration(:final fields) => fields.variables.first.name.lexeme,
+        _ => member.toSource(),
+      });
+    }
+    return names;
+  }
+
+  /// Whether [source] names [identifier] as a word of its own — not as the tail
+  /// of `other.$identifier` and not inside a longer name.
+  static bool _mentions(String source, String identifier) {
+    for (final match in RegExp(
+      '\\b${RegExp.escape(identifier)}\\b',
+    ).allMatches(source)) {
+      final at = match.start;
+      if (at == 0 || source[at - 1] != '.') return true;
+    }
+    return false;
+  }
+
+  /// The source of field [name]'s declaration — `@Default(0) int count` — or
+  /// null when the class has no such field.
+  ///
+  /// Asked before a removal, by the caller that has to work out which imports
+  /// the field was the reason for. That question is answered from the
+  /// declaration's own text (see `ImportProbes`), and after the removal there
+  /// is no declaration left to read it from.
+  ///
+  /// [SourceIndex.unitFor] and not `unitToEdit`, though an edit follows: what
+  /// this returns is *text*, and no offset of it reaches a splice. The strict
+  /// parse is [removeField]'s, where the offsets are taken — and it is also
+  /// what lets `remove` search a project holding one unparseable slice.
+  String? declarationOf({required String className, required String name}) {
+    final unit = sourceIndex.unitFor(file);
+    final factory = _redirectingFactory(
+      _stateClass(unit, className),
+      className,
+    );
+    return factory.parameters.parameters
+        .where((p) => p.name?.lexeme == name)
+        .firstOrNull
+        ?.toSource();
+  }
+
   /// The `@Default(...)` expression on field [name], or null when it has none.
   ///
   /// Asked before a retype, which rebuilds the declaration from scratch: a

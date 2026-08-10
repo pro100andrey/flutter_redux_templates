@@ -56,6 +56,11 @@ the creation commands only — `rename` and `remove` are refused with the reason
   package compiling on a file you never wrote. What `remove` does not do is chase
   the code that used the artifact, so the audit still follows. A theme extension
   and a retrofit client have no kind yet; those two are still `rm` plus the audit.
+  A **field** of a substate is `frx remove <field> --kind field --state <slice>`,
+  and it is the one deletion `rm` cannot even attempt: the field is a line inside
+  a file that stays, and the guard refuses the hand edit that would take it out.
+  A slice made with the default kind arrives carrying `value` — this is how it
+  leaves, with its `Select…` getter and its setter action.
 - **Around a live `build_runner watch`, commands stand down.** They hand the
   build over rather than starting a second one. The fact is reported in the
   command's own result (`--json` carries it as `build.handedToWatch`), not by the

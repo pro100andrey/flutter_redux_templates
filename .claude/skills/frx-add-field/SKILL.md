@@ -77,6 +77,11 @@ spelled — not `state.copyWith(todos: state.todos.copyWith(…))`.
 - `IList` / `IMap` / `ISet` types auto-import `fast_immutable_collections`.
   `--action` scaffolds the `Set<Field>Action` setter and never clobbers an
   existing one.
+- Taking one out is `frx remove <field> --kind field --state <slice>` — the
+  inverse of this command, and the only way: the state file refuses a hand
+  edit in either direction. It takes the factory parameter, the facade
+  getter and the `Set<Field>Action` together, and prunes an import nothing
+  else needs.
 
 ## Flags
 

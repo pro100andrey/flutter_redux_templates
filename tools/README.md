@@ -78,7 +78,7 @@ Every command has a short alias (in parentheses).
 | `add-field` | `af` | Add a field to a substate's `@freezed` state (+ setter) |
 | `add-selector` | `asel` | Add a computed getter to a substate's `Select<Pascal>` |
 | `rename` | `mv` | Rename a substate/page — files, classes, **every** wiring reference |
-| `remove` | `rm` | Delete any artifact — substate, page, action, model, widget, connector, service — **and unwire it** |
+| `remove` | `rm` | Delete any artifact — substate, page, state field, action, model, widget, connector, service — **and unwire it** |
 | **Inspect** | | |
 | `list-substates` | `ls` | Substates composed into `AppState` (table or `--json`) |
 | `list-routes` | `lr` | Routes registered in `AppRouter` (table or `--json`) |
@@ -648,11 +648,12 @@ frx remove Reset --state tasks --apply           # ...unless the name is used un
 frx remove TaskTile --kind widget --apply        # the widget file
 frx remove Task --kind model --apply             # model/enum + its .freezed.dart and .g.dart
 frx remove Sync --kind service --apply           # the service folder and its dispatcher
+frx remove value --kind field --state boot --apply   # a field, its getter and its setter
 ```
 
-`remove` takes seven kinds, resolved two ways. A **substate** and a **page** are
-found by what the project declares — an `AppState` field, an `AppRouter` route —
-and removing one is mostly unwiring. An **action**, **model** (or enum),
+`remove` takes eight kinds, resolved three ways. A **substate** and a **page**
+are found by what the project declares — an `AppState` field, an `AppRouter`
+route — and removing one is mostly unwiring. An **action**, **model** (or enum),
 **widget**, **connector** and **service** are file sets found on disk, because
 the `add-*` that wrote them wired nothing central.
 
@@ -661,13 +662,27 @@ service's dispatcher sits beside it, and a model leaves `.freezed.dart` /
 `.g.dart` siblings that are `part of` a file that no longer exists — so the
 package stops compiling on files nobody deleted.
 
-`--kind` is only needed when a name matches more than one kind; `--state` only
-when one action name is used under more than one substate. Two refusals are
-deliberate: a page's connector cannot be removed on its own (it would leave the
-route pointing at nothing — remove the page), and an ambiguous name is never
-guessed at. What `remove` does **not** do is chase call sites: a deleted action
-that something still dispatches is a compile error you find with the audit. A
-theme extension and a retrofit client have no kind yet.
+A **field** is the third way and the only kind `rm` cannot even attempt: it is a
+line inside a file that stays, and the guard refuses the hand edit that would
+take it out. It is addressed by slice and name rather than detected — `--kind
+field` every time, and `--state` unless exactly one slice has a field of that
+name — because a field is spelled like a substate's own field, and detecting one
+would put `--kind page` between you and a page whose name a field happens to
+share. It takes the factory parameter, the `Select…` getter (and the accessors
+derived from it), the `Set<Field>Action`, and an import nothing else needs. It
+**refuses** when a member still reads the field — a computed getter on the state
+class, a hand-written selector — because those two files are not equally
+repairable afterwards: the facade may be edited by hand, the state file may not.
+
+`--kind` is otherwise only needed when a name matches more than one kind;
+`--state` also disambiguates an action name used under more than one substate.
+Two refusals are deliberate: a page's connector cannot be removed on its own (it
+would leave the route pointing at nothing — remove the page), and an ambiguous
+name is never guessed at. What `remove` does **not** do is chase call sites: a
+deleted action that something still dispatches is a compile error you find with
+the audit — for a field, the slice's own actions that still assign it are at
+least named in the plan. A theme extension and a retrofit client have no kind
+yet.
 
 Both preview by default and only touch disk with `--apply`. `rename` moves the
 files, rewrites the classes, and updates every wiring reference (`AppState`,
