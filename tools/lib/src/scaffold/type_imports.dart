@@ -174,7 +174,6 @@ abstract final class ProjectTypeImports {
       return false;
     };
   }
-
 }
 
 /// The packages a file generated into `business` may name a type from.
@@ -210,7 +209,8 @@ abstract final class _ImportablePackages {
     final business = repo.businessLib.parent;
     for (final dep in _pathDeps(business)) {
       final lib = Directory(p.join(dep.path, 'lib'));
-      if (lib.existsSync()) dirs.putIfAbsent(p.canonicalize(lib.path), () => lib);
+      if (lib.existsSync())
+        dirs.putIfAbsent(p.canonicalize(lib.path), () => lib);
     }
 
     final packages = <_ImportablePackage>[];
@@ -353,9 +353,15 @@ class _ImportablePackage {
   static RegExp _declarationText(String identifier) {
     final name = RegExp.escape(identifier);
     return RegExp(
-      r'(?:class|mixin|enum|extension\s+type(?:\s+const)?)\s+' '$name' r'\b'
-      r'|typedef[^;\n]*\b' '$name' r'\b'
-      r'|=\s*' '$name' r'\s*[;(<]',
+      r'(?:class|mixin|enum|extension\s+type(?:\s+const)?)\s+'
+      '$name'
+      r'\b'
+      r'|typedef[^;\n]*\b'
+      '$name'
+      r'\b'
+      r'|=\s*'
+      '$name'
+      r'\s*[;(<]',
     );
   }
 
@@ -480,13 +486,14 @@ class _ImportablePackage {
       // nobody is allowed to put back by hand. So a new declaration kind
       // belongs here before it belongs anywhere.
       if (switch (declaration) {
-        ClassDeclaration(:final namePart) ||
-        ExtensionTypeDeclaration(:final namePart) ||
-        EnumDeclaration(:final namePart) => namePart.typeName.lexeme,
-        MixinDeclaration(:final name) || TypeAlias(:final name) => name.lexeme,
-        _ => null,
-      }
-      case final String declared)
+            ClassDeclaration(:final namePart) ||
+            ExtensionTypeDeclaration(:final namePart) ||
+            EnumDeclaration(:final namePart) => namePart.typeName.lexeme,
+            MixinDeclaration(:final name) ||
+            TypeAlias(:final name) => name.lexeme,
+            _ => null,
+          }
+          case final String declared)
         declared,
   };
 
@@ -499,18 +506,19 @@ class _ImportablePackage {
   /// `contains('Result')`. They were two functions walking the same members for
   /// the same statement, which is how a resolver ends up agreeing with itself
   /// only by coincidence.
-  static Set<String> _redirectOwners(CompilationUnit unit, String identifier) =>
-      {
-        for (final declaration
-            in unit.declarations.whereType<ClassDeclaration>())
-          if (switch (declaration.body) {
-            BlockClassBody(:final members) => members,
-            _ => const <ClassMember>[],
-          }.whereType<ConstructorDeclaration>().any(
-            (m) => m.redirectedConstructor?.type.name.lexeme == identifier,
-          ))
-            declaration.namePart.typeName.lexeme,
-      };
+  static Set<String> _redirectOwners(
+    CompilationUnit unit,
+    String identifier,
+  ) => {
+    for (final declaration in unit.declarations.whereType<ClassDeclaration>())
+      if (switch (declaration.body) {
+        BlockClassBody(:final members) => members,
+        _ => const <ClassMember>[],
+      }.whereType<ConstructorDeclaration>().any(
+        (m) => m.redirectedConstructor?.type.name.lexeme == identifier,
+      ))
+        declaration.namePart.typeName.lexeme,
+  };
 }
 
 /// The imports a *removed* snippet may have been the last user of, each with

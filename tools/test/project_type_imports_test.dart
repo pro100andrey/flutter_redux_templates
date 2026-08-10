@@ -63,14 +63,20 @@ class MemoryDigest {}
 
     test('follows a chain of re-exports', () {
       put('packages/tm_memory/lib/tm_memory.dart', "export 'src/all.dart';\n");
-      put('packages/tm_memory/lib/src/all.dart', "export 'application/digest.dart';\n");
+      put(
+        'packages/tm_memory/lib/src/all.dart',
+        "export 'application/digest.dart';\n",
+      );
       expect(importsFor('MemoryDigest'), ['package:tm_memory/tm_memory.dart']);
     });
 
     test('a declaration nothing exports resolves to nothing', () {
       // Reachable on disk, unreachable by import. Answering with the private
       // path would be the one thing this module promises never to do.
-      put('packages/tm_memory/lib/src/application/secret.dart', 'class Hidden {}\n');
+      put(
+        'packages/tm_memory/lib/src/application/secret.dart',
+        'class Hidden {}\n',
+      );
       expect(importsFor('Hidden'), isEmpty);
     });
 
@@ -92,22 +98,28 @@ class MemoryDigestInternals {}
       });
 
       test('show admits the name it lists', () {
-        put('packages/tm_memory/lib/tm_memory.dart',
-            "export 'src/application/digest.dart' show MemoryDigest;\n");
+        put(
+          'packages/tm_memory/lib/tm_memory.dart',
+          "export 'src/application/digest.dart' show MemoryDigest;\n",
+        );
         expect(importsFor('MemoryDigest'), [
           'package:tm_memory/tm_memory.dart',
         ]);
       });
 
       test('show excludes the sibling it does not', () {
-        put('packages/tm_memory/lib/tm_memory.dart',
-            "export 'src/application/digest.dart' show MemoryDigest;\n");
+        put(
+          'packages/tm_memory/lib/tm_memory.dart',
+          "export 'src/application/digest.dart' show MemoryDigest;\n",
+        );
         expect(importsFor('MemoryDigestInternals'), isEmpty);
       });
 
       test('hide excludes the name it lists', () {
-        put('packages/tm_memory/lib/tm_memory.dart',
-            "export 'src/application/digest.dart' hide MemoryDigest;\n");
+        put(
+          'packages/tm_memory/lib/tm_memory.dart',
+          "export 'src/application/digest.dart' hide MemoryDigest;\n",
+        );
         expect(importsFor('MemoryDigest'), isEmpty);
         expect(importsFor('MemoryDigestInternals'), [
           'package:tm_memory/tm_memory.dart',
@@ -117,8 +129,10 @@ class MemoryDigestInternals {}
       test('show of a union admits its cases', () {
         // `ResultSuccess` is not a name a combinator can list — it is a
         // constructor redirect on `Result`, and `show Result` carries it.
-        put('packages/tm_memory/lib/tm_memory.dart',
-            "export 'src/application/result.dart' show Result;\n");
+        put(
+          'packages/tm_memory/lib/tm_memory.dart',
+          "export 'src/application/result.dart' show Result;\n",
+        );
         put('packages/tm_memory/lib/src/application/result.dart', '''
 sealed class Result with _\$Result {
   const factory Result.success() = ResultSuccess;
@@ -208,11 +222,9 @@ sealed class Result with _\$Result {
         business({'models': '../models'});
         put('models/pubspec.yaml', 'name: models\n');
         put('models/lib/shape.dart', '$source\n');
-        expect(
-          importsFor('Shape?'),
-          ['package:models/shape.dart'],
-          reason: source,
-        );
+        expect(importsFor('Shape?'), [
+          'package:models/shape.dart',
+        ], reason: source);
       });
     });
 
