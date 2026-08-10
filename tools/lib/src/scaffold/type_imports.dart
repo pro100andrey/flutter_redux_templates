@@ -21,8 +21,10 @@ library;
 
 import 'dart:io';
 
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/source_index.dart';
 import '../redux/ast_edit.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
@@ -104,73 +106,150 @@ abstract final class ProjectTypeImports {
   static final _identifier = RegExp(r'\b([A-Z][A-Za-z0-9_]*)\b');
 
   /// The imports [snippets] need from this repository's own packages.
-  static List<String> forAll(FrxWorkspace repo, Iterable<String?> snippets) =>
-      resolve(repo, snippets).keys.toList()..sort();
-
-  /// The same lookup, keeping the identifier each import was found *for*.
   ///
-  /// The identifier is what a caller pruning the import needs, and deriving it
-  /// back from the URI is lossy in a way that matters: `IOSSettings` writes
-  /// `iossettings.dart`, and `Casing.parse('iossettings').pascal` is
-  /// `Iossettings` — a symbol nothing spells, so the import reads as unused and
-  /// is taken out from under live code. Carried forward, it cannot drift.
-  static Map<String, Set<String>> resolve(
-    FrxWorkspace repo,
-    Iterable<String?> snippets,
-  ) {
+  /// The file, not the identifier it was found for. Both callers want the
+  /// import: one adds it, the other asks [probeFor] whether it is still needed
+  /// — and that question is about everything the *file* supplies, not about the
+  /// one name that happened to lead there. Carrying the identifiers as well was
+  /// how the prune side got its own second answer to "what does this file
+  /// hold", and the two disagreed.
+  static List<String> forAll(FrxWorkspace repo, Iterable<String?> snippets) {
     final models = repo.modelsLib;
-    if (!models.existsSync()) return const {};
+    if (!models.existsSync()) return const [];
     final package = _packageName(models.parent);
-    if (package == null) return const {};
+    if (package == null) return const [];
 
-    final found = <String, Set<String>>{};
+    final memo = <String, String?>{};
+    final found = <String>{};
     for (final snippet in snippets.nonNulls) {
       for (final match in _identifier.allMatches(snippet)) {
-        final identifier = match.group(1)!;
-        final file = _fileFor(models, identifier);
-        if (file == null) continue;
-        found.putIfAbsent('package:$package/$file', () => {}).add(identifier);
+        final file = _fileFor(models, match.group(1)!, memo);
+        if (file != null) found.add('package:$package/$file');
       }
     }
-    return found;
+    return found.toList()..sort();
   }
 
-  /// What proves one of these imports is still needed by [body].
+  /// What proves the import of model file [basename] is still needed by [body].
   ///
-  /// Not "does `Task` still appear". A model file holds the type it is named
-  /// after **and every case of it** when that type is a sealed union — `frx
-  /// add-model Result -c loading -c success` writes `Result`, `ResultLoading`
-  /// and `ResultSuccess` into `result.dart` — and a probe that only knew the
-  /// union's own name pruned the import out from under a surviving case.
-  ///
-  /// So a name that *starts with* one of [identifiers] counts too, unless it has
-  /// a model file of its own: `TaskList` lives in `task_list.dart` and keeps
-  /// that import alive, not `task.dart`'s.
-  static ImportProbe probeFor(FrxWorkspace repo, Set<String> identifiers) {
+  /// The same resolution read backwards: an identifier in [body] keeps the
+  /// import alive when it resolves to *that file*. Not "does `Result` still
+  /// appear" — a union's cases are supplied by the file its union names, so
+  /// `ResultSuccess` alone keeps `result.dart`, and not "does anything starting
+  /// with `Task` appear", which was the guess this replaces and which kept
+  /// `task.dart` alive for a surviving `TaskList`.
+  static ImportProbe probeFor(FrxWorkspace repo, String basename) {
     final models = repo.modelsLib;
+    // One memo for the whole probe: a state file names dozens of identifiers
+    // and most of them are not models at all, so a miss must be paid once.
+    final memo = <String, String?>{};
     return (body) {
       for (final match in _identifier.allMatches(body)) {
-        final id = match.group(1)!;
-        for (final name in identifiers) {
-          if (id == name) return true;
-          if (id.startsWith(name) && _fileFor(models, id) == null) return true;
-        }
+        if (_fileFor(models, match.group(1)!, memo) == basename) return true;
       }
       return false;
     };
   }
 
-  /// The model file basename [identifier] would be declared in, or null when
-  /// this project has no such file (or the name is not one [Casing] reads).
-  static String? _fileFor(Directory models, String identifier) {
+  /// The model file basename that supplies [identifier], or null when this
+  /// project has none.
+  ///
+  /// Two questions, in cost order. **By name** — `Task` is in `task.dart` —
+  /// which is the convention `add-model` writes and costs one `existsSync`.
+  /// **By declaration**, when that misses: a file supplies more names than the
+  /// one it is called after, and the case that matters is the sealed union,
+  /// where `add-model Result -c success` writes
+  ///
+  /// ```dart
+  /// sealed class Result with _$Result {
+  ///   const factory Result.success() = ResultSuccess;
+  /// }
+  /// ```
+  ///
+  /// `ResultSuccess` is declared in the generated part and reached through
+  /// `result.dart`, so the name-based lookup asked for a `result_success.dart`
+  /// that does not exist and `add-field last:ResultSuccess?` wrote a field with
+  /// nothing importing its type. The redirect is the statement that ties the
+  /// two, and it is in the source file rather than the generated one — so this
+  /// answers before `build_runner` has ever run.
+  ///
+  /// [memo] holds both hits and misses: the second question reads the whole
+  /// models directory, and a snippet naming `String`, `IList` and `Default`
+  /// would otherwise pay for it once per word.
+  static String? _fileFor(
+    Directory models,
+    String identifier,
+    Map<String, String?> memo,
+  ) => memo.putIfAbsent(
+    identifier,
+    () => _byName(models, identifier) ?? _byDeclaration(models, identifier),
+  );
+
+  static String? _byName(Directory models, String identifier) {
     final String snake;
     try {
       snake = Casing.parse(identifier).snake;
     } on FormatException {
       return null;
     }
-    final file = File(p.join(models.path, '$snake.dart'));
-    return file.existsSync() ? '$snake.dart' : null;
+    return File(p.join(models.path, '$snake.dart')).existsSync()
+        ? '$snake.dart'
+        : null;
+  }
+
+  /// The model file that declares [identifier] — or redirects a factory to it,
+  /// which is how a freezed union names its cases.
+  ///
+  /// Text first: [SourceIndex.unitIf] reads each file and parses only the ones
+  /// that contain the word at all, so a miss costs reads and no parses.
+  /// Generated files are not searched — `result.freezed.dart` declares the case
+  /// too, and importing *it* is not how anybody reaches the class.
+  static String? _byDeclaration(Directory models, String identifier) {
+    for (final file in sourceIndex.filesUnder(models, recursive: false)) {
+      final unit = sourceIndex.unitIf(file, (s) => s.contains(identifier));
+      if (unit == null) continue;
+      if (_declares(unit, identifier)) return p.basename(file.path);
+    }
+    return null;
+  }
+
+  static bool _declares(CompilationUnit unit, String identifier) {
+    for (final declaration in unit.declarations) {
+      // Each kind carries its own name, and the analyzer 14 spelling differs
+      // between them — `namePart.typeName` for the ones that can be augmented,
+      // a plain `name` for the rest. There is no shared supertype to ask, so
+      // the list is spelled out.
+      //
+      // A kind missing from it is **not** symmetric between the two directions
+      // this resolver serves. Adding: a missed import is a compile error naming
+      // the type, which is loud. Pruning: the probe reads "nothing here needs
+      // that file" and takes a live import out — silent, and in a state file
+      // nobody is allowed to put back by hand. So a new declaration kind
+      // belongs here before it belongs anywhere.
+      final declared = switch (declaration) {
+        ClassDeclaration(:final namePart) ||
+        ExtensionTypeDeclaration(:final namePart) ||
+        EnumDeclaration(:final namePart) => namePart.typeName.lexeme,
+        MixinDeclaration(:final name) || TypeAlias(:final name) => name.lexeme,
+        _ => null,
+      };
+      if (declared == identifier) return true;
+
+      // `const factory Result.success() = ResultSuccess;` — the case class is
+      // generated, and this is where the source says its name.
+      if (declaration is ClassDeclaration) {
+        final body = declaration.body;
+        final members = body is BlockClassBody
+            ? body.members
+            : const <ClassMember>[];
+        for (final member in members.whereType<ConstructorDeclaration>()) {
+          if (member.redirectedConstructor?.type.name.lexeme == identifier) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   /// The `name:` of the pubspec in [dir], or null when there is none to read.
@@ -212,8 +291,11 @@ abstract final class ImportProbes {
       final probe = TypeImports.probeFor(uri);
       if (probe != null) probes[uri] = probe;
     }
-    for (final entry in ProjectTypeImports.resolve(repo, snippets).entries) {
-      probes[entry.key] = ProjectTypeImports.probeFor(repo, entry.value);
+    // Keyed by the file, asked by the file: the identifiers the removed snippet
+    // happened to name are not the only ones it supplies, and the probe has to
+    // answer for all of them.
+    for (final uri in ProjectTypeImports.forAll(repo, snippets)) {
+      probes[uri] = ProjectTypeImports.probeFor(repo, p.basename(uri));
     }
     return probes;
   }

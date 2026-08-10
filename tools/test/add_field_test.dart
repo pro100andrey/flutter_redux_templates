@@ -107,6 +107,47 @@ void main() {
     );
   });
 
+  test('a union case brings the file its union is named after', () async {
+    // The hole the name-based lookup left: `add-model Result -c success` writes
+    // `Result`, and the case class only as the redirect target
+    //
+    //   const factory Result.success() = ResultSuccess;
+    //
+    // so `ResultSuccess` is reached through `result.dart` and there is no
+    // `result_success.dart` to find. Measured before the fix: the field landed
+    // in all three files with nothing importing its type.
+    await runFrx(fx, ['add-model', 'Result', '-c', 'loading', '-c', 'success']);
+    final res = await runFrx(fx, [
+      'add-field',
+      'log_in',
+      'last:ResultSuccess?',
+      '--action',
+    ]);
+    expect(res.exitCode, 0, reason: res.stderr.toString());
+
+    expect(state(), contains('ResultSuccess? last'));
+    expect(state(), contains("import 'package:models/result.dart';"));
+    expect(
+      fx.read('business/lib/redux/selectors.dart'),
+      contains("import 'package:models/result.dart';"),
+    );
+    expect(
+      fx
+          .file('business/lib/redux/log_in/actions/set_last_action.dart')
+          .readAsStringSync(),
+      contains("import 'package:models/result.dart';"),
+    );
+  });
+
+  test('a type no file in models supplies brings no import', () async {
+    // The other side of the same lookup: a capitalised name that is not a model
+    // must not pull in whatever file happens to mention it.
+    final res = await runFrx(fx, ['add-field', 'log_in', 'when:DateTime?']);
+    expect(res.exitCode, 0, reason: res.stderr.toString());
+    expect(state(), contains('DateTime? when'));
+    expect(state(), isNot(contains('package:models/')));
+  });
+
   test('--action never clobbers an existing setter', () async {
     final setter = fx.file(
       'business/lib/redux/log_in/actions/set_nickname_action.dart',
@@ -152,6 +193,17 @@ void main() {
     final res = await runFrx(fx, ['add-field', 'nope', 'x:String?']);
     expect(res.exitCode, 70);
     expect(res.stderr, contains('nope'));
+  });
+
+  test('an unknown substate is a clean error under --force too', () async {
+    // `--force` asks the state file what the field currently defaults to, and
+    // that read used to happen *above* the guard: the same typo exited 255 with
+    // a PathNotFoundException instead of 70 with the sentence. A guard that
+    // holds for only some flag combinations is not a guard.
+    final res = await runFrx(fx, ['add-field', 'nope', 'x:String?', '--force']);
+    expect(res.exitCode, 70, reason: res.stderr.toString());
+    expect(res.stderr, contains('nope'));
+    expect(res.stderr, isNot(contains('Unhandled exception')));
   });
 
   String selectors() => fx.read('business/lib/redux/selectors.dart');
