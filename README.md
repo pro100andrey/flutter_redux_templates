@@ -2,10 +2,38 @@
 
 This repository provides a structured Flutter application framework based on [AsyncRedux](https://asyncredux.com/flutter/intro) state management. It is designed for building medium to large-scale applications efficiently.
 
+## Install the `frx` CLI
+
+One line, and no Dart SDK needed — the binary is self-contained, this whole
+template embedded in it. It downloads the release for your platform, verifies it
+against the release's `checksums.txt`, and lands in `~/.frx/bin`
+(`%LOCALAPPDATA%\frx\bin` on Windows):
+
+```bash
+# macOS · Linux
+curl -fsSL https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/tools/scripts/install.sh | sh
+```
+
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/tools/scripts/install.ps1 | iex
+```
+
+Pass `--version 0.2.0` for a specific release, `--dir <path>` to install
+elsewhere, `--no-modify-path` to leave your shell profile alone (`-Version`,
+`-Dir`, `-NoModifyPath` on Windows). Or take an archive from
+[Releases](https://github.com/pro100andrey/flutter_redux_templates/releases) and
+put it on `PATH` yourself. From a checkout of this repository,
+`dart install --source path tools` builds it from source instead.
+
+Then the [VSCode extension](tools/vscode/) — search **FRX** in the Marketplace or
+Open VSX. It finds the binary in either install location without a `PATH` edit,
+which matters because an editor launched from the Dock never sees your shell's
+`PATH`.
+
 ## Start a project from it
 
 ```bash
-dart install --source path tools          # once: puts `frx` on your PATH
 frx create my_app --org com.acme --title 'My App'
 ```
 
@@ -121,6 +149,9 @@ generates every artifact of this architecture *and* wires it in by editing the
 source AST (AppState field + `initial()` entry, `AutoRoute` registration, the
 selectors facade), so nothing is connected by hand:
 
+If you have not installed it yet, see [Install the `frx` CLI](#install-the-frx-cli)
+above. Working *on* the CLI, from this checkout, is a different loop:
+
 ```bash
 cd tools && make install PROFILE=Flutter   # `frx` on PATH + the VSIX in that profile
 ```
@@ -194,8 +225,12 @@ by name in the Command Palette plus a status-bar **frx** action overlay, a
 access, click-to-open throughout), **F2** on a symbol renaming the whole artifact,
 a **Flow** sequence diagram and **Navigation map** in the markdown preview, a
 **Map** webview of the whole wiring graph, and `frx doctor` findings mirrored into
-the Problems panel. See its [README](tools/vscode/README.md) for the details and
-how to build the VSIX.
+the Problems panel.
+
+Install it by searching **FRX** in the VSCode Marketplace, or in Open VSX if you
+are on Cursor, Windsurf or VSCodium; every release also attaches a `.vsix`. See
+its [README](tools/vscode/README.md) for the details and how to build one
+yourself.
 
 ### Code generation & build workflow
 

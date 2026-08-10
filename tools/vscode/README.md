@@ -1,6 +1,8 @@
 # FRX — VSCode extension
 
-An editor wrapper around the [`frx`](../) scaffolding CLI:
+An editor wrapper around the
+[`frx`](https://github.com/pro100andrey/flutter_redux_templates/tree/main/tools)
+scaffolding CLI:
 
 - **Every capability by name in the Command Palette** — type `FRX:` and the whole
   inventory is there, searchable and bindable to a key.
@@ -20,6 +22,41 @@ The CLI does the real work (file generation + AST wiring). This extension adds
 the affordances a terminal can't: it resolves the CLI even when VSCode has no
 shell PATH, prompts before overwriting, opens the new file, and runs (or, with
 watch on, skips) `build_runner`.
+
+---
+
+## Install the frx CLI
+
+The extension is a front end; the binary is what edits your code. One line, no
+Dart SDK needed — it downloads the release for your platform, checks it against
+the release's `checksums.txt`, and puts it in `~/.frx/bin`
+(`%LOCALAPPDATA%\frx\bin` on Windows):
+
+```bash
+# macOS · Linux
+curl -fsSL https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/tools/scripts/install.sh | sh
+```
+
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/tools/scripts/install.ps1 | iex
+```
+
+**The `PATH` edit is for your terminal, not for this extension.** The extension
+looks for the *file* in both install directories regardless of what `PATH` says —
+which is the point, because a Dock- or Start-menu-launched editor never sees your
+shell's `PATH` (see [How it runs the CLI](#how-it-runs-the-cli)).
+
+Other ways in: download an archive from
+[Releases](https://github.com/pro100andrey/flutter_redux_templates/releases),
+`dart install .` in `tools/` from a checkout, or point `frx.path` at a binary you
+put wherever you like. And with none of them, the extension still works from a
+clone by running the CLI from source — correct, but seconds per call instead of
+milliseconds.
+
+**Without a project** the extension stays out of the way: everything is gated on
+`frx.isMonorepo`, so in an unrelated repository there is no tree, no status bar
+item and no commands. `frx create <name>` writes a project that satisfies it.
 
 ---
 
@@ -84,7 +121,7 @@ about to write, and in a template a selector can be API offered to whoever
 builds on it — so `doctor` stays quiet, and an ambient tree shows it without
 claiming a defect. A selector read only by another selector nothing reads is
 marked too (`read only by selectors nothing reads`); see
-[the CLI's notes](../README.md#which-selectors-nothing-reads) for how that is
+[the CLI's notes](https://github.com/pro100andrey/flutter_redux_templates/blob/main/tools/README.md#which-selectors-nothing-reads) for how that is
 worked out and where it deliberately guesses "used".
 
 A substate only offers an expand arrow when something is under it; async_redux's
@@ -213,7 +250,7 @@ a plan replacing another could not close "the plan tab" without closing the tab
 its replacement had just opened. A fresh path has neither problem.
 
 And the document is built from the CLI's
-[machine plan](../README.md#machine-readable-output) (`rename --json`), not by
+[machine plan](https://github.com/pro100andrey/flutter_redux_templates/blob/main/tools/README.md#machine-readable-output) (`rename --json`), not by
 re-parsing the human report: rendering a table needs the plan as data.
 
 Discarding leaves nothing written; closing the tab forgets it.
@@ -545,7 +582,7 @@ that runs `frx doctor --fix` and re-audits. Report-only findings (a route
 without a connector, say) carry no fix.
 
 **One fixable finding has no lightbulb, and cannot.** An
-[empty artifact folder](../README.md#the-folder-a-substate-leaves-behind) is
+[empty artifact folder](https://github.com/pro100andrey/flutter_redux_templates/blob/main/tools/README.md#the-folder-a-substate-leaves-behind) is
 fixable but anchors on no file — the Problems panel squiggles files, not
 directories — so the chip counts it and Problems cannot show it. It is named in
 the overlay's **Doctor** report (the FRX output channel) and cleared by **Doctor
@@ -663,7 +700,7 @@ invocation in order:
 flowchart TD
     need(["a command needs frx"]) --> setting{"frx.path set?"}
     setting -->|yes| run["spawn it by absolute path"]
-    setting -->|no| look["look for an frx <i>file</i>:<br>every PATH directory, then<br>dart install's bin dir for this platform"]
+    setting -->|no| look["look for an frx <i>file</i>:<br>every PATH directory, then<br>dart install's bin dir, then ~/.frx/bin"]
     look --> found{"a file found?"}
     found -->|yes| ver{"frx --version answers?"}
     ver -->|yes| run
@@ -673,13 +710,22 @@ flowchart TD
 
 1. **`frx.path` setting** — an explicit path to the executable, if you set one.
 2. **An installed binary**, found as a *file*: each directory on `PATH` first, so
-   a deliberately arranged `PATH` still decides which binary wins, then the
-   directory `dart install` writes to for this platform —
-   `~/.local/state/Dart/install/bin` on Linux,
-   `~/Library/Application Support/Dart/install/bin` on macOS,
-   `%LOCALAPPDATA%\Dart\install\bin` on Windows. It is then run **by absolute
-   path**, and confirmed with `frx --version` (which also rejects an unrelated
-   tool that happens to be named `frx`).
+   a deliberately arranged `PATH` still decides which binary wins, then the two
+   directories frx installs into —
+
+   | | Linux | macOS | Windows |
+   | --- | --- | --- | --- |
+   | `dart install` | `~/.local/state/Dart/install/bin` | `~/Library/Application Support/Dart/install/bin` | `%LOCALAPPDATA%\Dart\install\bin` |
+   | `install.sh` / `install.ps1` | `~/.frx/bin` | `~/.frx/bin` | `%LOCALAPPDATA%\frx\bin` |
+
+   It is then run **by absolute path**, and confirmed with `frx --version` (which
+   also rejects an unrelated tool that happens to be named `frx`).
+
+   `dart install`'s directory is searched first. The two collide only on a
+   machine that has both, and there the `dart install` binary was built from a
+   checkout — by somebody working on frx itself, whose next question is whether
+   the change they just made behaves. A downloaded release answering that
+   question is the one wrong answer with no visible symptom.
 3. **`dart run …/tools/bin/frx.dart`** — zero-install fallback. The extension
    finds the monorepo's `tools/` package (from the workspace or from its own
    location) and runs the CLI from source. Works straight from a fresh clone,
@@ -711,9 +757,13 @@ tells you which of the three you are on:
 $ /home/you/.local/state/Dart/install/bin/frx graph --json --root /repo   (cwd: /repo)
 ```
 
+Either install puts you on the fast path, and the extension finds both with no
+`PATH` edit:
+
 ```bash
-cd tools
-dart install .      # the fast path; the extension finds it with no PATH edit
+curl -fsSL https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/tools/scripts/install.sh | sh
+# …or, from a checkout:
+cd tools && dart install .
 ```
 
 ## Project detection
@@ -864,16 +914,35 @@ npm install                              # pulls in @vscode/vsce
 npm run package                          # → frx-<version>.vsix
 
 # Install the built VSIX into VSCode:
-code --install-extension frx-0.1.6.vsix
-# …or: npm run install:vsix
+npm run install:vsix                     # reads the version out of package.json
 ```
 
 You can also install a `.vsix` from the UI: **Extensions** view → `…` menu →
-**Install from VSIX…**.
+**Install from VSIX…**. From the monorepo, `make ext PROFILE=<name>` does
+compile → package → install into a named VSCode profile in one step — which
+matters, because a VSIX installed into the Default profile is invisible while you
+work in another one.
 
-To bump the packaged version, edit `version` in `package.json` (the VSIX
-filename tracks it) and update the `install:vsix` script accordingly.
+## Releasing
 
-> Publishing to the Marketplace additionally needs a real `publisher` id and an
-> access token (`vsce publish`). For local/team use, distributing the `.vsix`
-> file is enough — no Marketplace account required.
+One tag ships the CLI and the extension together, because the extension reads the
+CLI's contract out of generated constants and a version pair that can drift will:
+
+```bash
+# bump all three, in one commit:
+#   tools/pubspec.yaml            version:
+#   tools/lib/src/version.dart    frxVersion
+#   tools/vscode/package.json     version
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+`.github/workflows/release.yml` refuses the tag unless those three already agree
+with it, then compiles `frx` for macOS (arm64, x64), Linux (x64, arm64) and
+Windows (x64), attaches the archives and the VSIX to a GitHub release with a
+`checksums.txt`, and publishes the extension to the **Visual Studio Marketplace**
+(`VSCE_PAT`) and **Open VSX** (`OVSX_PAT`) — the latter being where Cursor,
+Windsurf and VSCodium install from. Both publishes take the release's own VSIX
+rather than re-packaging, so what the marketplaces serve is byte-identical to the
+attached asset. A missing token skips its marketplace with a warning instead of
+failing the release; a tag with a `-suffix` ships as a prerelease and publishes to
+neither.

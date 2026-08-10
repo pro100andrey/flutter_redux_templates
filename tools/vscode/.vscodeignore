@@ -12,3 +12,7 @@ tsconfig.json
 *.vsix
 .gitignore
 .eslintrc*
+# The icon's source. `media/icon.png` is rendered from it and is what the
+# manifest points at; shipping the SVG too would put a second, unused copy of the
+# artwork in every install.
+media/*.svg

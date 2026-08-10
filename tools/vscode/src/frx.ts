@@ -47,8 +47,9 @@ export interface RunResult {
  * Resolve how to run frx, trying in order:
  *   1. the `frx.path` setting (explicit binary),
  *   2. an installed binary — searched for as a *file*, through the PATH
- *      directories and then the directory `dart install` writes to, and invoked
- *      by its absolute path,
+ *      directories and then the two directories frx is installed into (`dart
+ *      install`'s, then the one-line installer's `~/.frx/bin`), and invoked by
+ *      its absolute path,
  *   3. `dart run <repo>/tools/bin/frx.dart` (zero-install; works straight from
  *      a fresh clone as long as the Dart SDK is on PATH).
  *
@@ -157,7 +158,10 @@ function warnAboutDartRun(): void {
   output().appendLine(
     'FRX: no installed `frx` found — falling back to `dart run`, which ' +
       're-compiles the CLI on every call (seconds, against milliseconds for the ' +
-      'binary). Run `dart install .` in tools/, or set `frx.path`.',
+      'binary). Install the binary — on macOS/Linux `curl -fsSL ' +
+      'https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/tools/scripts/install.sh | sh`, ' +
+      'on Windows the same for install.ps1 piped to `iex`, or `dart install .` in ' +
+      'tools/ from a checkout — or set `frx.path`.',
   );
 }
 

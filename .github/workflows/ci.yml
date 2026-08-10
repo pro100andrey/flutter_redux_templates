@@ -113,6 +113,45 @@ jobs:
         # tests shell out to `dart run bin/frx.dart` against a temp fixture repo.
         run: dart test
 
+  installers:
+    name: install scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The two scripts nobody runs from a checkout: they are fetched over curl and
+    # executed on a machine that has never seen this repository, so a typo in
+    # them is discovered by a stranger during their first minute with the tool.
+    # Nothing else in CI reads them — the release workflow only publishes the
+    # assets they download.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        # `-s sh`, matching the shebang: the script must run under dash, ash and
+        # whatever else is /bin/sh, so bashisms are the defect being looked for.
+        run: shellcheck -s sh tools/scripts/install.sh
+
+      - name: PowerShell parse + analyse
+        shell: pwsh
+        # A parse error in install.ps1 cannot be caught by running it — the
+        # failure mode is `irm | iex` aborting on a machine with no PowerShell
+        # developer tooling. PSScriptAnalyzer additionally catches the ones that
+        # parse: an unapproved verb, a cmdlet that does not exist.
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "$PWD/tools/scripts/install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop
+          $found = Invoke-ScriptAnalyzer -Path tools/scripts/install.ps1
+          # Warnings are printed, not gated. Several of them are style rules an
+          # installer is right to break — `Write-Host` is exactly how a script
+          # that talks to a person should talk to them, and PSScriptAnalyzer
+          # objects to it in every script alike. Errors are the ones that mean
+          # the script does not do what it says.
+          if ($found) { $found | Format-Table -AutoSize | Out-String | Write-Host }
+          if ($found | Where-Object Severity -eq 'Error') { exit 1 }
+          Write-Host "install.ps1 parses and analyses clean"
+
   extension:
     name: VS Code extension
     runs-on: ubuntu-latest

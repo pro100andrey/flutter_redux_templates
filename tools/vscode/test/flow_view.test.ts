@@ -33,7 +33,17 @@ test('buildMarkdown: a diagram cannot close its own fence', () => {
 });
 
 test("nothing is vendored — mermaid is the platform's", () => {
-  assert.ok(!fs.existsSync(path.join(ROOT, 'media')), 'no media/ directory');
+  // This used to assert that `media/` did not exist at all, which was a proxy
+  // for the claim and stopped being one the moment the extension needed a
+  // marketplace icon. The claim itself is that no *library* is shipped: the
+  // preview renders mermaid because VSCode 1.121 renders mermaid, and a vendored
+  // copy would be a second renderer to keep in step with the first.
+  const media = path.join(ROOT, 'media');
+  const strays = fs.existsSync(media)
+    ? fs.readdirSync(media).filter((f) => !/\.(png|svg|jpg|gif)$/i.test(f))
+    : [];
+  assert.deepStrictEqual(strays, [], 'media/ holds artwork only, no code');
+
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   // 1.121 is the release that merged `mermaid-markdown-features` in; below it
   // the preview shows our diagram as a plain code block, so this floor is

@@ -17,6 +17,25 @@ precise character-offset splices and normalized with `dart format`.
 
 ## Install & run
 
+**To just use frx, install the binary — you do not need this checkout, or a Dart
+SDK:**
+
+```bash
+# macOS · Linux
+curl -fsSL https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/tools/scripts/install.sh | sh
+```
+
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/tools/scripts/install.ps1 | iex
+```
+
+It resolves the latest release, verifies the download against that release's
+`checksums.txt`, and installs into `~/.frx/bin` (`%LOCALAPPDATA%\frx\bin`),
+offering to put that on your `PATH`. `--version`, `--dir` and `--no-modify-path`
+override each step; `FRX_DOWNLOAD_BASE` points it at an internal mirror of the
+release assets. The rest of this section is for working **on** frx.
+
 `tools/` is a **standalone package** (kept out of the pub workspace so its heavy
 `analyzer` dependency stays isolated), so it has its own `pubspec.yaml`.
 

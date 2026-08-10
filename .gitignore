@@ -12,6 +12,10 @@
 *.vsix
 node_modules/
 
+# `make dist` — a native frx binary for this machine. The released ones are built
+# by .github/workflows/release.yml, one runner per platform.
+/tools/dist/
+
 # Agent tooling: the committed parts (skills) ship with a clone; only the
 # per-machine settings stay out. Ignoring the whole `.claude` directory meant a
 # skill placed there reached nobody, and this is a template people clone.

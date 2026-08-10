@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { dartInstallBinDirs, findInstalledFrx } from '../src/discover';
+import { dartInstallBinDirs, findInstalledFrx, installerBinDirs } from '../src/discover';
 import type { DiscoveryEnv } from '../src/discover';
 
 /// Finding the installed CLI.
@@ -120,6 +120,79 @@ test('Windows without LOCALAPPDATA has no install directory to offer', () => {
   assert.deepStrictEqual(
     dartInstallBinDirs(env({ platform: 'win32', homedir: 'C:\\Users\\dev' })),
     [],
+  );
+});
+
+test('the installer directory is searched even when PATH lacks it', () => {
+  // `install.sh` offers to add ~/.frx/bin to the shell profile — and the shell
+  // profile is exactly what a GUI-launched editor never reads. For anyone who
+  // took the one-line install, this is the case, not an edge of it.
+  assert.strictEqual(
+    findInstalledFrx(
+      env({ pathVar: '/usr/bin:/bin', files: ['/home/dev/.frx/bin/frx'] }),
+    ),
+    '/home/dev/.frx/bin/frx',
+  );
+});
+
+test('a locally built frx beats a downloaded one', () => {
+  // Both installed, neither on PATH. The `dart install` binary came from a
+  // checkout, so its owner is working on frx and is about to ask whether the
+  // change they just made behaves — a downloaded release answering that question
+  // is the one wrong answer with no visible symptom.
+  assert.strictEqual(
+    findInstalledFrx(
+      env({
+        files: [
+          '/home/dev/.frx/bin/frx',
+          '/home/dev/.local/state/Dart/install/bin/frx',
+        ],
+      }),
+    ),
+    '/home/dev/.local/state/Dart/install/bin/frx',
+  );
+});
+
+test('installer directories, per platform', () => {
+  // The paths install.sh and install.ps1 actually write to. Nothing generates
+  // these from the scripts, so this test is the whole of what keeps them in step.
+  assert.deepStrictEqual(
+    installerBinDirs(env({ platform: 'darwin', homedir: '/Users/dev' })),
+    ['/Users/dev/.frx/bin'],
+  );
+  assert.deepStrictEqual(
+    installerBinDirs(env({ platform: 'linux', homedir: '/home/dev' })),
+    ['/home/dev/.frx/bin'],
+  );
+  assert.deepStrictEqual(
+    installerBinDirs(
+      env({
+        platform: 'win32',
+        homedir: 'C:\\Users\\dev',
+        localAppData: 'C:\\Users\\dev\\AppData\\Local',
+      }),
+    ),
+    ['C:\\Users\\dev\\AppData\\Local\\frx\\bin'],
+  );
+  assert.deepStrictEqual(
+    installerBinDirs(env({ platform: 'win32', homedir: 'C:\\Users\\dev' })),
+    [],
+    'no LOCALAPPDATA means no directory to offer, not a guess at one',
+  );
+});
+
+test('Windows: the installer directory holds frx.exe', () => {
+  assert.strictEqual(
+    findInstalledFrx(
+      env({
+        platform: 'win32',
+        homedir: 'C:\\Users\\dev',
+        localAppData: 'C:\\Users\\dev\\AppData\\Local',
+        pathVar: 'C:\\Windows',
+        files: ['C:\\Users\\dev\\AppData\\Local\\frx\\bin\\frx.exe'],
+      }),
+    ),
+    'C:\\Users\\dev\\AppData\\Local\\frx\\bin\\frx.exe',
   );
 });
 

@@ -40,6 +40,37 @@ void main() {
     );
   });
 
+  test('the extension declares the same version', () {
+    // A third statement of the same fact, and the one that reaches users who
+    // never see this repository. The release ships both halves under one tag,
+    // and the editor reads the CLI's contract out of generated constants — the
+    // `--kind` sets, the doctor remedy ids — so a marketplace build paired with
+    // an older binary offers kinds that binary rejects. The release workflow
+    // refuses a tag the three disagree with; this catches the drift at the
+    // commit that introduces it, which is where it is cheap to fix.
+    final manifest = File(
+      p.join(toolsRoot, 'vscode', 'package.json'),
+    ).readAsStringSync();
+    final declared = RegExp(
+      r'^\s*"version"\s*:\s*"([^"]+)"',
+      multiLine: true,
+    ).firstMatch(manifest);
+
+    expect(
+      declared,
+      isNotNull,
+      reason: 'no `"version"` in vscode/package.json',
+    );
+    expect(
+      declared!.group(1),
+      frxVersion,
+      reason:
+          'the extension and the CLI ship on one tag, and their versions have '
+          'parted. Change all three: tools/pubspec.yaml, '
+          'tools/lib/src/version.dart and tools/vscode/package.json.',
+    );
+  });
+
   test('the version is a version', () {
     // Cheap, and it catches the paste that drops a digit or leaves a `^`.
     expect(
