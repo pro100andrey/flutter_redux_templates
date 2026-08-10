@@ -24,18 +24,21 @@ void main() {
       ..writeAsStringSync(body);
   }
 
-  Future<List<String>> findings() async {
+  Future<List<Map<String, Object?>>> findings() async {
     final r = await runInProcess(fx, ['doctor', '--json']);
-    return [
-      for (final f
-          in ((jsonDecode(r.stdout) as Map)['findings'] as List)
-              .cast<Map<String, Object?>>())
-        '${f['message']}',
-    ];
+    return ((jsonDecode(r.stdout) as Map)['findings'] as List)
+        .cast<Map<String, Object?>>();
   }
 
-  Future<Iterable<String>> aboutEquality() async =>
-      (await findings()).where((m) => m.contains('outside the equality'));
+  /// Findings of this rule, by rule id rather than by a phrase in the message.
+  ///
+  /// Matching prose meant the helper decided what counted, and it decided
+  /// wrongly the moment the message grew a second wording: a real finding about
+  /// a field compared only through `ids.length` was filtered out of a test
+  /// asserting that very finding.
+  Future<Iterable<String>> aboutEquality() async => (await findings())
+      .where((f) => f['rule'] == 'field-outside-equality')
+      .map((f) => '${f['message']}');
 
   test('a value field left out of super(equals:) is reported', () async {
     connector('''
@@ -97,6 +100,8 @@ class _Vm extends Vm {
     test(
       'a computed equals list is left unread rather than half-read',
       () async {
+        // The one honest unknown: a spread can carry the very field that looks
+        // missing, so reporting the visible part would invent findings.
         connector('''
 class _Vm extends Vm {
   _Vm({required this.a, required this.b}) : super(equals: [a, ...more]);
@@ -108,6 +113,95 @@ class _Vm extends Vm {
         expect(await aboutEquality(), isEmpty);
       },
     );
+  });
+
+  group('an element that is not a field name does not silence the class', () {
+    // All-or-nothing was right for a spread and wrong for everything else: any
+    // element the reader could not name turned the whole list unreadable, and
+    // an unreadable list reports nothing. So one `1` in the list excused every
+    // field in the class from being compared — the rule was silenced by the
+    // kind of edit nobody thinks of as touching a rule.
+    //
+    // Each case below leaves `ids` genuinely uncompared: two view-models
+    // differing only in it are `==`, the connector's rebuild stops there, and
+    // the screen keeps showing the old list.
+    const cases = <(String, String)>[
+      ('an int literal', '[view, 1]'),
+      ('a property of another object', '[view, other.hashCode]'),
+      ('a string literal', "[view, 'v2']"),
+      ('a call', '[view, ids.hashCode.toString()]'),
+    ];
+
+    for (final (what, list) in cases) {
+      test('$what still leaves ids reported', () async {
+        connector('''
+class _Vm extends Vm {
+  _Vm({required this.view, required this.ids}) : super(equals: $list);
+
+  final String view;
+  final List<String> ids;
+}
+''');
+        final reported = await aboutEquality();
+        expect(reported, hasLength(1), reason: 'ids is compared by nothing');
+        expect(reported.single, contains('_Vm.ids'));
+      });
+    }
+
+    test('a field sharing a name with somebody else\'s member is not called '
+        'derived', () async {
+      // `user.id` reads `user`; `id` is a member of it and names nothing here.
+      // Recording both made an unrelated field `id` be reported as compared
+      // through something derived from it — the finding still true, its wording
+      // false, and the wording is the entire reason it was added.
+      connector('''
+class _Vm extends Vm {
+  _Vm({required this.user, required this.id}) : super(equals: [user.id]);
+
+  final String user;
+  final String id;
+}
+''');
+      final reported = await aboutEquality();
+      expect(reported, hasLength(2), reason: 'neither field is compared');
+      // `user` is read, just not compared — `user.id` is derived from it, and
+      // that is the wording it earns. `id` is a member of `user` and appears
+      // here by coincidence of spelling; calling it derived would point the
+      // reader at a line that says nothing about it.
+      expect(
+        reported.singleWhere((m) => m.contains('_Vm.user')),
+        contains('only through'),
+      );
+      expect(
+        reported.singleWhere((m) => m.contains('_Vm.id')),
+        contains('outside the equality'),
+      );
+    });
+
+    test('a field compared only through a property of itself is named as '
+        'that, not as absent', () async {
+      // `ids.length` is not nothing — the author did reach for `ids`. It is
+      // also not a comparison of `ids`: two lists of the same length and
+      // different contents are equal by it, which is the failure this rule is
+      // about. Saying "is outside the equality" of a field spelled right there
+      // in the list reads as the tool being wrong, so it says which it is.
+      connector('''
+class _Vm extends Vm {
+  _Vm({required this.view, required this.ids}) : super(equals: [view, ids.length]);
+
+  final String view;
+  final List<String> ids;
+}
+''');
+      final reported = await aboutEquality();
+      expect(reported, hasLength(1));
+      expect(reported.single, contains('_Vm.ids'));
+      expect(
+        reported.single,
+        contains('only through'),
+        reason: 'the message distinguishes a partial comparison from none',
+      );
+    });
   });
 
   test(

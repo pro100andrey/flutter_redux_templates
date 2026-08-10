@@ -321,11 +321,21 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
       }
       for (final vm in VmReader.of(file)) {
         for (final field in vm.fieldsOutsideEquality) {
+          // Two ways to be uncompared, and telling a reader which one saves the
+          // argument. A field absent from the list is an oversight; a field
+          // present only as `ids.length` is a decision that does not do what it
+          // looks like — and calling that one "outside the equality" when it is
+          // spelled right there reads as the tool not having looked.
+          final how = vm.comparedOnlyDerived(field)
+              ? 'is compared only through something derived from it, so two of '
+                    'them differing in it but not in that derived value compare '
+                    'equal and the rebuild is lost.'
+              : 'is outside the equality it declares, so two of them differing '
+                    'only in it compare equal and the rebuild is lost.';
           into.add(
             Finding.warn(
               '${p.relative(file.path)} — ${vm.className}.${field.name} '
-              '(${field.type}) is outside the equality it declares, so two of '
-              'them differing only in it compare equal and the rebuild is lost.',
+              '(${field.type}) $how',
               file: file.path,
               rule: rule.id,
             ),
