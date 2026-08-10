@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/source_index.dart';
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
 import '../model/substate_artifact.dart';
@@ -86,7 +87,16 @@ class AddFieldCommand extends WritingCommand {
   }
 
   @override
-  Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
+  Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async =>
+      inSourceIndex(() => _plan(repo, results));
+
+  /// One snapshot for the whole plan.
+  ///
+  /// The same type is asked about three times — the state file, the facade and
+  /// the setter each import it independently — and answering "which model file
+  /// supplies `ResultSuccess`" reads `models/lib`. Outside a scope every lookup
+  /// builds its own index, so that directory was walked once per question.
+  WritePlan _plan(FrxWorkspace repo, ArgResults results) {
     final substate = requireCasing(0);
     final (field, type) = requireSpec(1);
 
@@ -100,28 +110,11 @@ class AddFieldCommand extends WritingCommand {
       );
     }
 
-    // Retyping rebuilds the declaration from what this invocation was given, so
-    // an `@Default(...)` the old one carried and this one does not is dropped —
-    // silently changing `AppState.initial()` for every reader. Nullable types do
-    // not require `--default`, which is exactly where it would slip through, so
-    // the ask is made explicit rather than inferred.
-    if ((results['force'] as bool) && defaultExpr == null) {
-      final existing =
-          StateSource(
-            SubstateArtifact(substate).stateFile(repo.businessRedux),
-          ).defaultOf(
-            className: SubstateArtifact(substate).stateType,
-            name: field.camel,
-          );
-      if (existing != null) {
-        usageException(
-          'Field "${field.camel}" currently defaults to `$existing`, and '
-          '--force would drop it. Pass --default to say what it should be, or '
-          '--default \'$existing\' to keep it.',
-        );
-      }
-    }
-
+    // Before anything reads the file. The `--force` check below parses it, and
+    // it used to run first: `add-field <typo> x:int? --force` died with an
+    // unhandled PathNotFoundException and a stack trace, where the same typo
+    // without `--force` got the refusal two lines down. A guard that only holds
+    // for some flag combinations is not a guard.
     final artifact = SubstateArtifact(substate);
     final stateFile = artifact.stateFile(repo.businessRedux);
     if (!stateFile.existsSync()) {
@@ -129,6 +122,24 @@ class AddFieldCommand extends WritingCommand {
         'Substate "${substate.snake}" has no ${p.relative(stateFile.path)} — '
         'is the name right? (see `frx list-substates`).',
       );
+    }
+
+    // Retyping rebuilds the declaration from what this invocation was given, so
+    // an `@Default(...)` the old one carried and this one does not is dropped —
+    // silently changing `AppState.initial()` for every reader. Nullable types do
+    // not require `--default`, which is exactly where it would slip through, so
+    // the ask is made explicit rather than inferred.
+    if ((results['force'] as bool) && defaultExpr == null) {
+      final existing = StateSource(
+        stateFile,
+      ).defaultOf(className: artifact.stateType, name: field.camel);
+      if (existing != null) {
+        usageException(
+          'Field "${field.camel}" currently defaults to `$existing`, and '
+          '--force would drop it. Pass --default to say what it should be, or '
+          '--default \'$existing\' to keep it.',
+        );
+      }
     }
 
     // The field's type and its `@Default(...)` both land in the state file, so
