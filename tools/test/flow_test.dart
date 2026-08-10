@@ -124,12 +124,32 @@ class PickProjectAction extends Action {
 }
 ''');
 
-  // The frame: no StoreConnector, no _Vm — just two slots.
+  put('business/lib/redux/console/actions/open_task_action.dart', '''
+class OpenTaskAction extends Action {
+  OpenTaskAction(this.id);
+  final String id;
+  @override
+  AppState reduce() => state.copyWith.console(openTaskId: id);
+}
+''');
+
+  put('business/lib/redux/console/actions/reject_task_action.dart', '''
+class RejectTaskAction extends Action {
+  RejectTaskAction(this.id);
+  final String id;
+  @override
+  AppState reduce() => state.copyWith.console(rejectedId: id);
+}
+''');
+
+  // The frame: no StoreConnector, no _Vm — just four slots.
   put('app/lib/connectors/console_page_connector.dart', '''
 import 'package:ui/pages/console_page.dart';
 
 import 'console_sidebar_connector.dart';
 import 'console_content_connector.dart';
+import 'task_drawer_connector.dart';
+import 'human_queue_connector.dart';
 
 @RoutePage()
 class ConsolePageConnector extends StatelessWidget {
@@ -139,6 +159,41 @@ class ConsolePageConnector extends StatelessWidget {
   Widget build(BuildContext context) => const ConsolePage(
     sidebar: ConsoleSidebarConnector(),
     content: ConsoleContentConnector(),
+    drawer: TaskDrawerConnector(),
+    queue: HumanQueueConnector(),
+  );
+}
+''');
+
+  // A region whose rows are built by a helper on the factory.
+  //
+  // Not an exotic shape: it is what you reach for the moment a list row needs a
+  // callback, which is roughly the second thing that happens to a connector
+  // after `add-connector` writes it. The dispatch is two hops from the `_Vm`
+  // argument — through `_item`, then through the `onTap` closure it returns.
+  put('app/lib/connectors/task_drawer_connector.dart', '''
+import 'package:business/redux/console/actions/open_task_action.dart';
+
+class TaskDrawerConnector extends StatelessWidget {
+  const TaskDrawerConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    builder: (context, vm) => TaskDrawer(view: vm.view),
+  );
+}
+
+class _Factory extends VmFactory<AppState, TaskDrawerConnector, _Vm>
+    with Selectors {
+  ItemVm _item(TaskView task, int rank) => ItemVm(
+    id: task.id.value,
+    rank: rank,
+    onTap: () => dispatch(OpenTaskAction(task.id.value)),
+  );
+
+  @override
+  _Vm fromStore() => _Vm(
+    view: ViewVm(tasks: [for (final (i, t) in rows.indexed) _item(t, i + 1)]),
   );
 }
 ''');
@@ -206,6 +261,32 @@ class ConsoleContentConnector extends StatelessWidget {
 }
 ''');
 
+  // A region the reader still cannot follow: the callback is held in a *field*
+  // of the factory, and the name table only carries functions. Kept in the
+  // fixture on purpose — it is the case the report exists for, and if a later
+  // change teaches the walk to follow fields, the test below fails and says so
+  // rather than the report quietly having nothing left to describe.
+  put('app/lib/connectors/human_queue_connector.dart', '''
+import 'package:business/redux/console/actions/reject_task_action.dart';
+
+class HumanQueueConnector extends StatelessWidget {
+  const HumanQueueConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    builder: (context, vm) => HumanQueue(onReject: vm.onReject),
+  );
+}
+
+class _Factory extends VmFactory<AppState, HumanQueueConnector, _Vm>
+    with Selectors {
+  late final _reject = (String id) => dispatch(RejectTaskAction(id));
+
+  @override
+  _Vm fromStore() => _Vm(onReject: _reject);
+}
+''');
+
   // A region that draws state and dispatches nothing.
   put('app/lib/connectors/event_log_connector.dart', '''
 class EventLogConnector extends StatelessWidget {
@@ -223,6 +304,150 @@ class EventLogConnector extends StatelessWidget {
     connector: File(
       p.join(root.path, 'app/lib/connectors/console_page_connector.dart'),
     ),
+  );
+}
+
+/// A connector where three ordinary names collide with three dispatching
+/// methods: a local variable, the left-hand side of a `.`, and a parameter.
+///
+/// All three are legal Dart that means something else entirely, and all three
+/// were read as calls to the method.
+({Directory root, File connector}) _shadowed() {
+  final root = Directory.systemTemp.createTempSync('frx_shadow_');
+  addTearDown(() => root.deleteSync(recursive: true));
+
+  void put(String rel, String content) => File(p.join(root.path, rel))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(content);
+
+  put('app/lib/navigation/app_router.dart', '// router\n');
+
+  put('business/lib/redux/console/actions/reset_action.dart', '''
+class ResetAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.console(view: '');
+}
+''');
+
+  put('app/lib/connectors/shadowed_connector.dart', '''
+import 'package:business/redux/console/actions/reset_action.dart';
+
+@RoutePage()
+class ShadowedConnector extends StatelessWidget {
+  const ShadowedConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    builder: (context, vm) => Shadowed(vm: vm),
+  );
+}
+
+class _Factory extends VmFactory<AppState, ShadowedConnector, _Vm>
+    with Selectors {
+  void reset() => dispatch(ResetAction());
+  void session() => dispatch(ResetAction());
+  void refresh() => dispatch(ResetAction());
+
+  String _row(String refresh) => refresh;
+
+  @override
+  _Vm fromStore() {
+    final reset = 'Reset';
+    return _Vm(
+      caption: reset,
+      user: session.userName,
+      row: _row('now'),
+    );
+  }
+}
+''');
+
+  return (
+    root: root,
+    connector: File(
+      p.join(root.path, 'app/lib/connectors/shadowed_connector.dart'),
+    ),
+  );
+}
+
+/// One helper answering for two `_Vm` fields, beside a dispatch nothing
+/// reaches — the pair that made counting go wrong.
+({Directory root, File connector}) _sharedHelper() {
+  final root = Directory.systemTemp.createTempSync('frx_shared_');
+  addTearDown(() => root.deleteSync(recursive: true));
+
+  void put(String rel, String content) => File(p.join(root.path, rel))
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(content);
+
+  put('app/lib/navigation/app_router.dart', '// router\n');
+  put('business/lib/redux/console/actions/a_action.dart', '''
+class AAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.console(a: 1);
+}
+''');
+  put('business/lib/redux/console/actions/b_action.dart', '''
+class BAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.console(b: 1);
+}
+''');
+
+  put('app/lib/connectors/shared_connector.dart', '''
+import 'package:business/redux/console/actions/a_action.dart';
+import 'package:business/redux/console/actions/b_action.dart';
+
+@RoutePage()
+class SharedConnector extends StatelessWidget {
+  const SharedConnector({super.key});
+
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    builder: (context, vm) => Shared(vm: vm),
+  );
+}
+
+class _Factory extends VmFactory<AppState, SharedConnector, _Vm>
+    with Selectors {
+  VoidCallback _open() => () => dispatch(AAction());
+
+  late final _hidden = () => dispatch(BAction());
+
+  @override
+  _Vm fromStore() => _Vm(
+    onPrimary: _open(),
+    onSecondary: _open(),
+    onHidden: _hidden,
+  );
+}
+''');
+
+  return (
+    root: root,
+    connector: File(
+      p.join(root.path, 'app/lib/connectors/shared_connector.dart'),
+    ),
+  );
+}
+
+PageFlow _readShared() {
+  final ws = _sharedHelper();
+  return FlowReader(FrxWorkspace.locate(startDir: ws.root.path)).read(
+    connectorFile: ws.connector,
+    page: 'shared',
+    connectorClass: 'SharedConnector',
+    pageClass: 'Shared',
+  );
+}
+
+PageFlow _readShadowed() {
+  final ws = _shadowed();
+  return FlowReader(FrxWorkspace.locate(startDir: ws.root.path)).read(
+    connectorFile: ws.connector,
+    page: 'shadowed',
+    connectorClass: 'ShadowedConnector',
+    pageClass: 'Shadowed',
   );
 }
 
@@ -250,7 +475,7 @@ void main() {
       );
       expect(
         flow.useCases.map((u) => u.name),
-        ['onSelectView', 'onPick'],
+        ['onSelectView', 'onPick', 'view'],
         reason: 'depth-first, in the order the slots are written',
       );
     });
@@ -262,6 +487,7 @@ void main() {
         {
           'onSelectView': 'ConsoleSidebarConnector',
           'onPick': 'ProjectSelectorConnector',
+          'view': 'TaskDrawerConnector',
         },
       );
     });
@@ -275,6 +501,8 @@ void main() {
           'ProjectSelectorConnector',
           'ConsoleContentConnector',
           'EventLogConnector',
+          'TaskDrawerConnector',
+          'HumanQueueConnector',
         ],
         reason:
             'EventLogConnector is only reachable through a switch expression '
@@ -323,6 +551,111 @@ void main() {
     test('a region that dispatches nothing gets no lane', () {
       final out = renderSequence(_readComposed());
       expect(out, isNot(contains('EventLogConnector')));
+    });
+
+    test('follows a dispatch built by a helper on the factory', () {
+      // The walk used to run only the subtree of the `_Vm(...)` named argument,
+      // so a callback assembled in a method of the same factory was outside it
+      // and the region reported no interactions at all. Nothing said so: a
+      // region with no use case gets no lane, and a map missing six of eleven
+      // regions reads exactly like a map of a page that has five.
+      final flow = _readComposed();
+
+      final drawer = flow.useCases.where(
+        (u) => u.owner == 'TaskDrawerConnector',
+      );
+      expect(
+        drawer,
+        isNotEmpty,
+        reason: 'the dispatch sits in `_item`, two hops from the _Vm argument',
+      );
+      expect(drawer.single.steps.single.target, 'OpenTaskAction');
+      expect(
+        drawer.single.steps.single.trigger,
+        'onTap',
+        reason: 'the trigger is read inside the helper, where the closure is',
+      );
+    });
+
+    test('the helper-built region gets a lane like any other', () {
+      final out = renderSequence(_readComposed());
+      expect(out, contains('as TaskDrawerConnector'));
+      expect(out, contains('OpenTaskAction'));
+    });
+
+    test('a dispatch the walk could not reach is reported, not dropped', () {
+      // `HumanQueueConnector` holds its callback in a field, which the name
+      // table does not carry. That is allowed to be true — what is not allowed
+      // is for it to be invisible. Whatever the reader follows, something will
+      // be written in a shape it does not, and the failure mode is a diagram
+      // that looks finished.
+      final flow = _readComposed();
+
+      expect(
+        {for (final u in flow.untraced) u.connectorClass: u.count},
+        {'HumanQueueConnector': 1},
+        reason:
+            'every other connector in the fixture is fully accounted for, so '
+            'this also pins that the report does not cry wolf',
+      );
+    });
+
+    test('the undrawn region is named in the diagram', () {
+      final out = renderSequence(_readComposed());
+      expect(out, contains('not drawn — HumanQueueConnector: 1 dispatch'));
+    });
+
+    test('a name bound nearer than the member is not followed', () {
+      // Following by name alone invented interactions. Each of these puts a
+      // binding in front of a dispatching method of the same name, and the walk
+      // read the binding as a call to the method — a use case for a field that
+      // dispatches nothing, which is worse than the omission this whole
+      // traversal was added to fix: a short map is checkable against the code,
+      // an invented one agrees with nothing.
+      final flow = _readShadowed();
+
+      expect(
+        flow.useCases.map((u) => '${u.name}: ${u.steps.map((s) => s.target)}'),
+        isEmpty,
+        reason:
+            'a local variable `reset`, a `session.userName` read and a `refresh` '
+            'parameter each collide with a method that dispatches, and none of '
+            'the three is a call to it',
+      );
+      // And the methods do dispatch, so the file is not accidentally quiet:
+      // they are reported as undrawn instead of attributed to a callback.
+      expect(
+        {for (final u in flow.untraced) u.connectorClass: u.count},
+        {'ShadowedConnector': 3},
+      );
+    });
+
+    test('one helper answering for two fields still leaves gaps visible', () {
+      // The accounting subtracted a tally of attributions from a tally of call
+      // sites. `_open()` is one site answering for two fields, so the two totals
+      // cancelled and the report concluded nothing was missing — while `BAction`,
+      // held in a field, was genuinely undrawn. A silence produced *by* the thing
+      // built to break silence.
+      final flow = _readShared();
+
+      expect(
+        flow.useCases.map((u) => u.name),
+        ['onPrimary', 'onSecondary'],
+        reason: 'both fields are real interactions, and both go through _open',
+      );
+      expect(
+        {for (final u in flow.untraced) u.connectorClass: u.count},
+        {'SharedConnector': 1},
+        reason: 'BAction is the one call site no use case reaches',
+      );
+    });
+
+    test('a fully traced page says nothing about tracing', () {
+      // The report has to stay quiet in the ordinary case or it becomes noise
+      // that gets filtered out, which is the same as not reporting.
+      final flow = _read();
+      expect(flow.untraced, isEmpty);
+      expect(renderSequence(flow), isNot(contains('not drawn')));
     });
   });
 

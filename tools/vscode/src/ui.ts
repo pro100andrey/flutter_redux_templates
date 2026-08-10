@@ -15,6 +15,16 @@ import * as paths from './paths';
 import * as queries from './queries';
 
 /**
+ * Where "Install frx" sends someone who has the extension and no CLI.
+ *
+ * The repository's install section rather than the latest release page: it
+ * carries the one-line installer for all three platforms, and it keeps working
+ * when the release the user would have landed on is superseded.
+ */
+const INSTALL_DOCS_URL =
+  'https://github.com/pro100andrey/flutter_redux_templates#install-the-frx-cli';
+
+/**
  * The kinds `frx remove --kind` accepts, in its order.
  *
  * A second statement of the CLI's list, and the only one the extension keeps —
@@ -107,12 +117,19 @@ export async function resolveOrExplain(
 ): Promise<Invocation | null> {
   const inv = await frx.resolveFrx(context, targetDir);
   if (inv) return inv;
+  // The install instruction leads with the download, not `dart install .`:
+  // someone who got here from the Marketplace has the extension and no checkout,
+  // and being told to run a command inside a directory they do not have is a
+  // dead end. Contributors already know the other way.
   const pick = await vscode.window.showErrorMessage(
-    'FRX: could not find the `frx` CLI. Install it (`dart install .` in tools/), ' +
-      'set `frx.path`, or open the monorepo so its tools/ package is reachable.',
+    'FRX: could not find the `frx` CLI. Install it, set `frx.path`, or open the ' +
+      'monorepo so its tools/ package is reachable.',
+    'Install frx',
     'Open Settings',
   );
-  if (pick === 'Open Settings') {
+  if (pick === 'Install frx') {
+    vscode.env.openExternal(vscode.Uri.parse(INSTALL_DOCS_URL));
+  } else if (pick === 'Open Settings') {
     vscode.commands.executeCommand('workbench.action.openSettings', 'frx.path');
   }
   return null;

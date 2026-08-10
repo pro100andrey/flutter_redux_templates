@@ -35,6 +35,28 @@ String renderSequence(PageFlow flow) {
     _writeSteps(b, useCase.steps, flow, ids, from: from, indent: '    ');
   }
 
+  // The gap, drawn. A connector whose dispatches no use case accounts for has
+  // no lane and no arrows, so without this the diagram is complete-looking and
+  // short — the one failure a picture cannot survive, because a reader has
+  // nothing to compare it against. `UI` is the note's anchor because it is the
+  // one participant every diagram has.
+  //
+  // "Not drawn" and not "not traced": the note states a fact about this picture,
+  // which is all it can know. Some of what it counts is a callback the reader
+  // could not follow, and some is a dispatch that was never a callback —
+  // `onInit: (store) => store.dispatch(…)` fires on open and belongs to no
+  // interaction. Both are missing from the diagram, which is what the reader
+  // needs told; neither is evidence that tracing failed.
+  if (flow.untraced.isNotEmpty) {
+    b.writeln();
+    for (final gap in flow.untraced) {
+      b.writeln(
+        '    Note over UI: not drawn — ${_esc(gap.connectorClass)}: '
+        '${gap.calls}',
+      );
+    }
+  }
+
   return b.toString().trimRight();
 }
 

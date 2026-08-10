@@ -24,7 +24,7 @@ EXT_VERSION := $(shell node -p "require('./$(EXT_DIR)/package.json').version" 2>
 VSIX        := frx-$(EXT_VERSION).vsix
 
 .DEFAULT_GOAL := help
-.PHONY: help install cli ext package ext-install profiles check test docs skills contract template uninstall clean
+.PHONY: help install cli ext package ext-install profiles dist version check test docs skills contract template uninstall clean
 
 help:
 	@echo "frx — CLI $(shell sed -n 's/^version: //p' pubspec.yaml | head -1) · extension $(EXT_VERSION)"
@@ -34,6 +34,9 @@ help:
 	@echo "  make ext     [PROFILE=<name>]   compile, package and install the extension"
 	@echo "  make package                    build the VSIX only"
 	@echo "  make profiles                   list VSCode profiles + the frx build in each"
+	@echo
+	@echo "  make dist                       compile a native frx binary into dist/"
+	@echo "  make version V=<x.y.z>          bump the three version declarations at once"
 	@echo
 	@echo "  make check                      everything CI runs, locally"
 	@echo "  make test                       dart test + the extension suite"
@@ -76,6 +79,34 @@ ext-install:
 
 profiles:
 	@scripts/vscode-profiles.sh
+
+# --- release -----------------------------------------------------------------
+
+# The same binary the release workflow attaches, for this machine only —
+# `dart compile exe` builds for the host and does not cross-compile. Worth having
+# locally to check what an install actually gets: `dart install` and `dart run`
+# both take different paths through the SDK than an AOT snapshot does.
+dist:
+	dart pub get
+	@mkdir -p dist
+	dart compile exe bin/frx.dart -o dist/frx
+	@./dist/frx --version && du -h dist/frx | cut -f1
+
+# One version, declared in three files, and the release refuses a tag they
+# disagree with — so bumping them by hand is three chances to publish a binary
+# that reports a version it is not. `version_test.dart` is what catches that;
+# this is what avoids it.
+version:
+	@test -n "$(V)" || { echo "usage: make version V=0.3.0"; exit 1; }
+	@echo "$(V)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+].+)?$$' || { echo "\"$(V)\" is not a semantic version"; exit 1; }
+	@# perl, not sed: in-place editing is `-i ''` on BSD and `-i` on GNU, and a
+	@# Makefile that works on the author's machine only is how this goes wrong.
+	@perl -pi -e "s/^version: .*/version: $(V)/" pubspec.yaml
+	@perl -pi -e "s/frxVersion = '[^']*'/frxVersion = '$(V)'/" lib/src/version.dart
+	@cd $(EXT_DIR) && npm version "$(V)" --no-git-tag-version --allow-same-version >/dev/null
+	@dart test test/version_test.dart >/dev/null && echo "✓ pubspec, version.dart and package.json all say $(V)"
+	@echo
+	@echo "  git commit -am 'v$(V)' && git tag v$(V) && git push origin main v$(V)"
 
 # --- checks ------------------------------------------------------------------
 
@@ -125,4 +156,4 @@ uninstall:
 	-dart uninstall tools
 
 clean:
-	rm -rf $(EXT_DIR)/out $(EXT_DIR)/*.vsix
+	rm -rf $(EXT_DIR)/out $(EXT_DIR)/*.vsix dist

@@ -212,6 +212,39 @@ class ActionInfo {
   };
 }
 
+/// A connector whose file dispatches more than the walk could attribute to a
+/// use case.
+///
+/// The whole value of this type is that it is *said*. Whatever the reader
+/// follows, something will eventually be written in a shape it does not — and
+/// the failure mode is not a wrong diagram but a plausible one: a region with no
+/// use case gets no lane and leaves the drawing entirely, so a map missing six
+/// of eleven regions reads exactly like the map of a page that has five. An
+/// empty file is obvious; a quietly shortened map is not.
+///
+/// So the arithmetic is deliberately crude. Count every `dispatch*(` in the
+/// file, subtract the ones that reached a use case, and report the remainder
+/// without claiming to know what it is. A number that is too high costs a line
+/// of output; a number that is silently zero costs what this type exists for.
+class UntracedDispatch {
+  const UntracedDispatch({required this.connectorClass, required this.count});
+
+  /// The connector whose file holds them — a region, or the route connector.
+  final String connectorClass;
+
+  /// How many dispatch call sites in that file no use case accounts for.
+  final int count;
+
+  /// `1 dispatch` / `3 dispatches` — one spelling for the three renderers, so
+  /// the diagram, the exported doc and the terminal cannot disagree about it.
+  String get calls => count == 1 ? '1 dispatch' : '$count dispatches';
+
+  Map<String, Object?> toJson() => {
+    'connectorClass': connectorClass,
+    'count': count,
+  };
+}
+
 /// A page's whole flow: its interactions plus the actions they reach.
 class PageFlow {
   const PageFlow({
@@ -222,6 +255,7 @@ class PageFlow {
     required this.actions,
     this.connectorFile,
     this.regions = const [],
+    this.untraced = const [],
   });
 
   /// The page's base name, e.g. `registration`.
@@ -245,6 +279,13 @@ class PageFlow {
   /// "the frame dispatches nothing and its six regions do".
   final List<String> regions;
 
+  /// Connectors that dispatch more than this flow accounts for.
+  ///
+  /// Empty is the ordinary case and means what it says: everything the files
+  /// dispatch is drawn. A non-empty entry is the map admitting a gap in itself
+  /// — see [UntracedDispatch].
+  final List<UntracedDispatch> untraced;
+
   bool get isEmpty => useCases.isEmpty;
 
   Map<String, Object?> toJson() => {
@@ -255,5 +296,6 @@ class PageFlow {
     if (regions.isNotEmpty) 'regions': regions,
     'useCases': [for (final u in useCases) u.toJson()],
     'actions': {for (final e in actions.entries) e.key: e.value.toJson()},
+    if (untraced.isNotEmpty) 'untraced': [for (final u in untraced) u.toJson()],
   };
 }

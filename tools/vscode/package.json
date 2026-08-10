@@ -5,24 +5,45 @@
   "version": "0.2.0",
   "publisher": "pro100dev",
   "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0E1425",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/pro100andrey/flutter_redux_templates.git",
     "directory": "tools/vscode"
   },
+  "homepage": "https://github.com/pro100andrey/flutter_redux_templates/tree/main/tools/vscode#readme",
+  "bugs": {
+    "url": "https://github.com/pro100andrey/flutter_redux_templates/issues"
+  },
   "engines": {
     "vscode": "^1.121.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Linters",
+    "Visualization"
   ],
   "keywords": [
     "flutter",
     "dart",
     "async_redux",
-    "scaffold",
-    "codegen"
+    "auto_route",
+    "scaffold"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "FRX runs the `frx` CLI and `build_runner` against the open folder, both of which write source files — nothing to offer a workspace you have not trusted."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "FRX spawns a local process against real paths; a virtual filesystem has none to give it."
+    }
+  },
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -426,8 +447,9 @@
     "test": "node --test out/test/*.test.js",
     "validate": "npm run compile && node out/validate-manifest.js",
     "vscode:prepublish": "npm run compile",
+    "icon": "rsvg-convert -w 128 -h 128 media/icon.svg -o media/icon.png",
     "package": "vsce package",
-    "install:vsix": "code --install-extension frx-0.1.6.vsix"
+    "install:vsix": "node -e \"const v=require('./package.json').version;require('child_process').execFileSync('code',['--install-extension','frx-'+v+'.vsix','--force'],{stdio:'inherit'})\""
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

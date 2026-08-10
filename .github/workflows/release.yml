@@ -1,0 +1,328 @@
+name: Release
+
+# One tag releases both halves of the tool: the `frx` CLI as a native binary per
+# platform, and the VSCode extension to both marketplaces. They share a version
+# on purpose — the extension reads the CLI's contract (`--kind` sets, doctor
+# remedy ids, the marker path) out of generated constants, so a version pair that
+# can drift is a pair that will, and the symptom is an editor offering a kind the
+# installed binary rejects.
+#
+#   git tag v0.3.0 && git push origin v0.3.0
+#
+# `verify` refuses the tag unless three files already say that version:
+# tools/pubspec.yaml, tools/lib/src/version.dart and tools/vscode/package.json.
+# Bump them in the commit the tag points at, not after.
+#
+# Secrets, both optional — a missing one skips its publish step rather than
+# failing the release, so the binaries still ship:
+#   VSCE_PAT   Azure DevOps PAT for the Visual Studio Marketplace
+#   OVSX_PAT   open-vsx.org token (Cursor / Windsurf / VSCodium install from there)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (no `v`). Builds artifacts, publishes nothing.'
+        required: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve and cross-check the version
+        id: v
+        # The three declarations are the ones a release actually depends on:
+        # the pubspec is what `dart install` reports, the constant is what
+        # `frx --version` prints (it cannot read the pubspec — after an install
+        # the pubspec no longer sits beside the executable), and package.json is
+        # what the marketplace publishes. `dart test` already gates the first two
+        # against each other; this gates all three against the *tag*, which no
+        # test can see.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+
+          pubspec="$(sed -n 's/^version: *//p' tools/pubspec.yaml | head -1)"
+          constant="$(sed -n "s/.*frxVersion *= *'\([^']*\)'.*/\1/p" tools/lib/src/version.dart | head -1)"
+          manifest="$(node -p "require('./tools/vscode/package.json').version")"
+
+          fail=0
+          for pair in "tools/pubspec.yaml=$pubspec" \
+                      "tools/lib/src/version.dart=$constant" \
+                      "tools/vscode/package.json=$manifest"; do
+            file="${pair%%=*}"; got="${pair#*=}"
+            if [ "$got" != "$version" ]; then
+              echo "::error file=$file::says $got, the release is $version"
+              fail=1
+            fi
+          done
+          [ "$fail" = 0 ] || exit 1
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # A tag like v0.3.0-beta.1 ships as a prerelease: `install.sh` asks the
+          # GitHub API for the *latest* release, which excludes prereleases, so a
+          # beta reaches only the people who name it.
+          case "$version" in *-*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac >> "$GITHUB_OUTPUT"
+          echo "✓ frx $version"
+
+  cli:
+    name: frx ${{ matrix.os }}-${{ matrix.arch }}
+    needs: verify
+    runs-on: ${{ matrix.runner }}
+    # Linux builds inside Dart's own image rather than on the runner. The binary
+    # links the host's glibc, and the runner's is always the newest thing GitHub
+    # hosts: an ubuntu-latest build refuses to start on Debian 12 with a
+    # `GLIBC_2.39 not found` that reads as a broken download. `dart:stable` is
+    # bookworm — glibc 2.36 — which is also the floor Flutter's own Linux
+    # requirements sit near, and it does not move when a runner image is retired.
+    # For a floor below that (Ubuntu 22.04's 2.35, RHEL 9's 2.34) the container
+    # has to become a bullseye one with the SDK installed by hand.
+    container: ${{ matrix.os == 'linux' && 'dart:stable' || '' }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: tools
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `dart compile exe` produces a binary for the machine it runs on —
+          # there is no cross-compilation — so every platform needs its own
+          # runner. `macos-15-intel` is the x86_64 macOS image (macos-13 was
+          # retired in December 2025); it is the last one, and goes away in
+          # autumn 2027, after which Apple silicon is all Actions offers.
+          - { runner: macos-latest,     os: macos,   arch: arm64 }
+          - { runner: macos-15-intel,   os: macos,   arch: x64   }
+          - { runner: ubuntu-latest,    os: linux,   arch: x64   }
+          - { runner: ubuntu-24.04-arm, os: linux,   arch: arm64 }
+          - { runner: windows-latest,   os: windows, arch: x64   }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        # The Linux container already is a Dart SDK; installing a second one over
+        # it would only add a download.
+        if: matrix.os != 'linux'
+
+      - name: Resolve
+        run: dart pub get
+
+      - name: Compile
+        # The CLI is self-contained: the template `frx create` unpacks is a
+        # generated Dart source (lib/src/template/template.g.dart), and the skills
+        # and contract it writes are string constants. Nothing is read relative
+        # to the script, so an AOT binary needs no files beside it.
+        shell: bash
+        run: |
+          mkdir -p dist
+          dart compile exe bin/frx.dart -o "dist/frx${{ matrix.os == 'windows' && '.exe' || '' }}"
+
+      - name: Smoke-test the binary
+        shell: bash
+        # Three things, each a different way an AOT build can be broken while
+        # still linking: it runs at all, it parses a real project (the analyzer
+        # front end works), and `create --dry-run` decodes the embedded template
+        # archive — the one artifact that is a data blob rather than code, and so
+        # the one a compile could plausibly mangle. All three cost ~1s together
+        # and need no network.
+        run: |
+          frx="./dist/frx${{ matrix.os == 'windows' && '.exe' || '' }}"
+          "$frx" --version
+          "$frx" list-substates --root ..
+          "$frx" create smoke_app --dry-run --target "$RUNNER_TEMP/smoke"
+
+      - name: Archive
+        id: archive
+        shell: bash
+        # tar.gz everywhere but Windows, where a zip is what a user can open with
+        # no extra tool. The archive holds the bare executable at its root, so
+        # install.sh/install.ps1 extract and move one file.
+        run: |
+          name="frx-${{ needs.verify.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}"
+          cd dist
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            asset="$name.zip"
+            7z a -tzip "$asset" frx.exe > /dev/null
+          else
+            asset="$name.tar.gz"
+            tar -czf "$asset" frx
+          fi
+          # `sha256sum` where there is one (Linux, and the Dart container is too
+          # slim to be assumed to carry perl), `shasum` on macOS and Git Bash.
+          # Identical output, and that format is what install.sh feeds back to
+          # `-c` on the other side.
+          if command -v sha256sum > /dev/null; then
+            sha256sum "$asset" > "$asset.sha256"
+          else
+            shasum -a 256 "$asset" > "$asset.sha256"
+          fi
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+          cat "$asset.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            tools/dist/${{ steps.archive.outputs.asset }}
+            tools/dist/${{ steps.archive.outputs.asset }}.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  vsix:
+    name: VSIX
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tools/vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/vscode/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # The same gate CI runs, repeated here rather than assumed: a tag can be
+      # pushed at a commit CI never finished, and this one publishes.
+      - name: Type-check
+        run: npm run typecheck
+      - name: Validate manifest
+        run: npm run validate
+      - name: Test
+        run: npm test
+
+      - name: Package
+        run: npx --yes @vscode/vsce package --out "frx-${{ needs.verify.outputs.version }}.vsix"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: tools/vscode/frx-${{ needs.verify.outputs.version }}.vsix
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: GitHub release
+    needs: [verify, cli, vsix]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: staging
+
+      - name: Collect assets
+        id: collect
+        # One `checksums.txt` for the whole release, because that is the file
+        # install.sh fetches: it downloads a single archive and verifies it
+        # against the one line that names it, rather than fetching a second
+        # per-asset file it would have to construct a URL for.
+        run: |
+          mkdir -p assets
+          find staging -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.vsix' \) \
+            -exec mv {} assets/ \;
+          find staging -name '*.sha256' -exec cat {} \; | sort -k2 > assets/checksums.txt
+          # The VSIX is not built by the matrix, so it has no checksum yet. Named
+          # rather than globbed so the line reads `frx-<version>.vsix`, matching
+          # the asset — a `./*.vsix` glob would write `./frx-…` and stop agreeing
+          # with the name someone verifies against.
+          (cd assets && shasum -a 256 "frx-${{ needs.verify.outputs.version }}.vsix" >> checksums.txt)
+          ls -la assets
+          cat assets/checksums.txt
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          draft: false
+          prerelease: ${{ needs.verify.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          body: |
+            ## Install the CLI
+
+            **macOS / Linux**
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/tools/scripts/install.sh | sh
+            ```
+
+            **Windows (PowerShell)**
+
+            ```powershell
+            irm https://raw.githubusercontent.com/${{ github.repository }}/main/tools/scripts/install.ps1 | iex
+            ```
+
+            Or download the archive for your platform below and put `frx` on your
+            `PATH`. `checksums.txt` holds a SHA-256 for every asset.
+
+            ## Install the extension
+
+            Search **FRX** in the VSCode Marketplace or Open VSX, or install the
+            attached `.vsix` with `code --install-extension frx-${{ needs.verify.outputs.version }}.vsix`.
+
+  marketplace:
+    name: Publish extension
+    needs: [verify, vsix]
+    if: github.event_name == 'push' && needs.verify.outputs.prerelease == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+
+      # Both publishes take the already-built VSIX rather than re-packaging, so
+      # what reaches the marketplaces is byte-identical to the asset attached to
+      # the release — the one a Cursor user may have installed by hand.
+      #
+      # A missing token skips its step. The two marketplaces are set up
+      # independently and months apart in practice, and a release should not fail
+      # because the second one has not been arranged yet.
+      - name: Visual Studio Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::warning::VSCE_PAT is not set — skipping the Visual Studio Marketplace"
+            exit 0
+          fi
+          npx --yes @vscode/vsce publish --packagePath "frx-${{ needs.verify.outputs.version }}.vsix"
+
+      - name: Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::warning::OVSX_PAT is not set — skipping Open VSX (Cursor, Windsurf and VSCodium install from there)"
+            exit 0
+          fi
+          npx --yes ovsx publish "frx-${{ needs.verify.outputs.version }}.vsix" -p "$OVSX_PAT"

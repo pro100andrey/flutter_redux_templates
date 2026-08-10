@@ -41,6 +41,20 @@ extra_substitutions:
   - from: flutter_redux_templates
     to: '{{ project_name }}'
 
+no_substitute:
+  # The README's only substitutable token is the repository slug, and every
+  # occurrence of it is a URL pointing at *this* repository — where the frx
+  # installer and the releases live. Substituted, they became
+  # `raw.githubusercontent.com/pro100andrey/<their_project>/…`: a plausible URL
+  # for a repository that does not exist, shipped into every project made from
+  # the template, in the file people open first.
+  #
+  # Verbatim is right rather than merely safe here. A new project telling its
+  # owner where to get the tool that maintains it should name the tool's home,
+  # not their own. Check this again if the README ever gains a `com.example` or
+  # a `Flutter Application 1` — those would then also stop being rewritten.
+  - README.md
+
 path_renames:
   # The Kotlin package directory has to follow the org, or it stops agreeing with
   # the `package` declaration inside MainActivity.kt. `pathCase` is the one
