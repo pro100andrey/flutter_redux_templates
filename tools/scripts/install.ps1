@@ -22,6 +22,10 @@
 .PARAMETER NoModifyPath
   Leave the user PATH alone. The VSCode extension finds the binary either way;
   this only affects typing `frx` in a terminal.
+
+.NOTES
+  Environment: FRX_VERSION, FRX_INSTALL_DIR, and FRX_DOWNLOAD_BASE to fetch the
+  release assets from an internal mirror instead of github.com.
 #>
 [CmdletBinding()]
 param(
@@ -115,7 +119,15 @@ if (-not $Version) {
 $Version = $Version -replace '^v', ''
 
 $asset = "frx-$Version-windows-$arch.zip"
-$base  = "https://github.com/$Repo/releases/download/v$Version"
+# Overridable for an internal mirror of the release assets, exactly as
+# `install.sh` is — `tools/README.md` documents the variable for both scripts,
+# and one of them silently ignoring it is worse than not offering it at all: the
+# install appears to work and pulls from the internet the mirror exists to avoid.
+$base = if ($env:FRX_DOWNLOAD_BASE) {
+  $env:FRX_DOWNLOAD_BASE
+} else {
+  "https://github.com/$Repo/releases/download/v$Version"
+}
 
 # --- download & verify ------------------------------------------------------
 

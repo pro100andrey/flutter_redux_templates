@@ -7,7 +7,28 @@ reads the CLI's contract out of generated constants, so a version pair that can
 drift will. Entries here therefore cover both halves, and CLI-only changes are
 marked as such.
 
-## Unreleased
+## 0.3.0
+
+### Fixed
+
+- **`frx flow` lost whole regions.** A dispatch was found only where it was
+  written inside the subtree of a `_Vm(...)` argument, so a callback built by a
+  member of the same factory — the shape a list row takes the moment it needs
+  one — was invisible, and a region with no interaction gets no lane and leaves
+  the diagram. Measured on one page: six of eleven regions missing. The walk now
+  follows calls and tear-offs into the file's own functions, and refuses to
+  follow a name that anything nearer binds. *(CLI)*
+- **What the map does not draw is now said.** Dispatches no use case accounts
+  for are counted and reported — in `--json`, in the diagram, in the exported
+  markdown and in the terminal — instead of being dropped. `frx flow` and the
+  markdown export also stop claiming a page "has no dispatching callbacks" when
+  the truth is that none could be followed. *(CLI)*
+- **`frx doctor`'s equality rule was switched off by an unrelated element.** Any
+  entry in `super(equals: [...])` that was not a bare field name — an integer, a
+  string, another object's `hashCode` — made the whole list unreadable, and an
+  unreadable list reports nothing. Only a spread genuinely hides membership now;
+  everything else is read, and a field compared only through something derived
+  from it (`ids.length`) is reported as that rather than as absent. *(CLI)*
 
 ### Added
 
@@ -17,8 +38,11 @@ marked as such.
   (`%LOCALAPPDATA%\frx\bin`). No Dart SDK required — the binary is
   self-contained, template included.
 - **Native binaries per platform**, attached to every GitHub release: macOS
-  arm64 and x64, Linux x64 and arm64, Windows x64. Linux builds against
-  glibc 2.35, so they run on distributions a year or two behind.
+  arm64 and x64, Linux x64 and arm64, Windows x64. The Linux ones are built
+  inside Dart's own `dart:stable` image — Debian bookworm, glibc 2.36 — rather
+  than on the runner, whose glibc is always the newest thing GitHub hosts and
+  would refuse to start on anything a year behind. Debian 12, Ubuntu 24.04 and
+  Fedora 38 upwards; below that, build from source with `dart install`.
 - **The extension finds an installed binary in `~/.frx/bin`.** It already
   searched `PATH` and `dart install`'s directory as *files* rather than spawning
   a bare name; the installer's directory joins them, because the `PATH` line it

@@ -439,7 +439,32 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
             statement.functionDeclaration.name.lexeme == name) {
           return true;
         }
+        // `final (reset, _) = pair;` — a destructuring declaration binds every
+        // variable in its pattern, and reads exactly like the `final reset = …`
+        // one statement up. Missing it left the walk following `reset` into a
+        // method of that name and inventing a use case for the field it was
+        // handed to, which is the failure this whole guard exists to prevent.
+        if (statement is PatternVariableDeclarationStatement &&
+            _patternBinds(statement.declaration.pattern, name)) {
+          return true;
+        }
       }
+    }
+    // `if (label case final reset?)` and the `case` arms of a switch: the
+    // pattern's variables are in scope for the branch, and the branch is where
+    // the reference sits.
+    if (node is IfStatement) {
+      final caseClause = node.caseClause;
+      if (caseClause != null &&
+          _patternBinds(caseClause.guardedPattern.pattern, name)) {
+        return true;
+      }
+    }
+    if (node is SwitchPatternCase) {
+      return _patternBinds(node.guardedPattern.pattern, name);
+    }
+    if (node is SwitchExpressionCase) {
+      return _patternBinds(node.guardedPattern.pattern, name);
     }
     if (node is ForStatement) {
       final parts = node.forLoopParts;

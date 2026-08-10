@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
 
 import 'source_index.dart';
 
@@ -70,26 +71,52 @@ class VmField {
 
 /// A render model as read from source.
 class ViewModel {
-  const ViewModel({
+  ViewModel({
     required this.className,
     required this.fields,
-    required this.equality,
+    required List<String> equality,
     this.declaresOwnEquals = false,
-  });
+    Set<String> equalityMentions = const {},
+    bool equalityReadable = true,
+  }) : equality = equality,
+       equalityMentions = equalityMentions,
+       equalityReadable = equalityReadable;
 
   final String className;
 
   /// Constructor parameters, in declaration order.
   final List<VmField> fields;
 
-  /// The names this class compares on. Empty when it states none frx can read.
+  /// The names this class compares on, as bare identifiers in its equality list.
   ///
   /// Two shapes, because there are two architectures: `equatable`'s `props`
   /// getter, which this reader was written for, and AsyncRedux's
   /// `super(equals: [\u2026])`, which is what every view-model in this repository
   /// actually uses. Reading only the first is why the check below had never
   /// fired here and could not have.
+  ///
+  /// Empty is a real answer \u2014 `equals: [1]` compares nothing \u2014 and is no longer
+  /// the same as [equalityReadable] being false. Conflating them is what let one
+  /// element that changes nothing about `==` switch the rule off for a class.
   final List<String> equality;
+
+  /// Names appearing *inside* elements that are not bare identifiers, so
+  /// `ids.length` records `ids`.
+  ///
+  /// A field here but not in [equality] is compared through something derived
+  /// from it, which is not a comparison of it: two lists of equal length and
+  /// different contents pass. Worth reporting, and worth reporting differently \u2014
+  /// a field spelled right there in the list, called absent, reads as the tool
+  /// being wrong.
+  final Set<String> equalityMentions;
+
+  /// Whether the equality list could be enumerated at all.
+  ///
+  /// False for a spread or a computed list, where the membership genuinely is
+  /// wider than the text and naming the visible part would invent findings; and
+  /// false when the class states no equality. Not false merely because an
+  /// element was something other than a field name.
+  final bool equalityReadable;
 
   /// Whether the class writes its own `operator ==`.
   ///
@@ -108,16 +135,21 @@ class ViewModel {
   /// once by somebody who knew. The one that grows a field six months later is
   /// the one this catches.
   ///
-  /// Empty when the class states no equality frx can read (all-or-nothing: a
-  /// spread or a call means the real membership is wider than what is written),
-  /// and empty when it declares its own `==`. Callbacks are never reported.
+  /// Empty when the equality list cannot be enumerated (a spread means the real
+  /// membership is wider than what is written), and empty when the class
+  /// declares its own `==`. Callbacks are never reported.
   List<VmField> get fieldsOutsideEquality =>
-      equality.isEmpty || declaresOwnEquals
+      !equalityReadable || declaresOwnEquals
       ? const []
       : [
           for (final f in fields)
             if (!equality.contains(f.name) && !f.isCallback) f,
         ];
+
+  /// Whether [field] is named inside the equality list without being compared —
+  /// `ids` for `equals: [view, ids.length]`.
+  bool comparedOnlyDerived(VmField field) =>
+      !equality.contains(field.name) && equalityMentions.contains(field.name);
 }
 
 /// Reads view-model classes out of Dart source, without resolution.
@@ -165,13 +197,16 @@ abstract final class VmReader {
     final ctor = _dataConstructor(decl);
     if (ctor == null) return null;
     final declared = _fieldTypes(decl);
+    final stated = _equality(decl, ctor);
     return ViewModel(
       className: decl.namePart.typeName.lexeme,
       fields: [
         for (final p in ctor.parameters.parameters)
           if (_readParameter(p, declared) case final f?) f,
       ],
-      equality: _equality(decl, ctor),
+      equality: stated.names,
+      equalityMentions: stated.mentions,
+      equalityReadable: stated.readable,
       declaresOwnEquals: _members(
         decl,
       ).whereType<MethodDeclaration>().any((m) => m.name.lexeme == '=='),
@@ -244,7 +279,7 @@ abstract final class VmReader {
   /// `super(equals: [\u2026])` first, because it is what this repository writes;
   /// a `props` getter otherwise. A class using neither states no equality, which
   /// is not the same as stating an empty one.
-  static List<String> _equality(
+  static _Equality _equality(
     ClassDeclaration decl,
     ConstructorDeclaration ctor,
   ) {
@@ -263,7 +298,7 @@ abstract final class VmReader {
   /// Only a plain list literal of identifiers is understood — a computed
   /// `props` is left as unknown (an empty list) rather than half-read, so the
   /// lint stays quiet instead of guessing wrong.
-  static List<String> _props(ClassDeclaration decl) {
+  static _Equality _props(ClassDeclaration decl) {
     for (final m in _members(decl).whereType<MethodDeclaration>()) {
       if (!m.isGetter || m.name.lexeme != 'props') continue;
       final body = m.body;
@@ -275,23 +310,99 @@ abstract final class VmReader {
         },
         _ => null,
       };
-      return expr == null ? const [] : _identifiersIn(expr);
+      return expr == null ? const _Equality.unreadable() : _identifiersIn(expr);
     }
-    return const [];
+    // No `equals:` and no `props`: the class states no equality at all, which is
+    // not the same as stating one frx cannot read — but both leave the rule with
+    // nothing to check, so both are unreadable here.
+    return const _Equality.unreadable();
   }
 
-  /// The plain identifiers of a list literal, or none.
+  /// What a written equality list actually compares.
   ///
-  /// All-or-nothing: a spread, a call or anything else means the real
-  /// membership is wider than what is written, and reporting the visible part
-  /// would make every unlisted field look like a missing one.
-  static List<String> _identifiersIn(Expression expr) {
-    if (expr is! ListLiteral) return const [];
+  /// ## Why not all-or-nothing
+  ///
+  /// This used to return "unknown" for any element that was not a bare
+  /// identifier, on the reasoning that the real membership might be wider than
+  /// what is written. That is true of exactly one shape — a spread, which can
+  /// carry the very field that looks missing — and false of every other:
+  ///
+  /// ```dart
+  /// super(equals: [view, 1])                 // `1` compares nothing
+  /// super(equals: [view, other.hashCode])    // nor does another object's hash
+  /// ```
+  ///
+  /// Both left `ids` genuinely uncompared, and both silenced the rule for the
+  /// whole class. Measured on one project: every row of a four-row experiment
+  /// had a field outside equality, and three of the four were quiet, told apart
+  /// only by an element that changed nothing about what `==` does. A rule that
+  /// an unrelated literal switches off is worse than one that does not exist,
+  /// because the clean run is read as evidence.
+  ///
+  /// So unknown now means what it says: a list frx cannot enumerate at all.
+  /// Everything else is enumerated, and an element that names no field simply
+  /// compares no field.
+  ///
+  /// [mentions] carries the names that appear *inside* non-bare elements, so
+  /// `ids.length` can be reported as the partial comparison it is rather than as
+  /// an absence — the field is spelled right there, and calling it missing reads
+  /// as the tool being wrong.
+  static _Equality _identifiersIn(Expression expr) {
+    if (expr is! ListLiteral) return const _Equality.unreadable();
+
     final names = <String>[];
+    final mentions = <String>{};
     for (final e in expr.elements) {
-      if (e is! SimpleIdentifier) return const [];
-      names.add(e.name);
+      // A spread, or an `if`/`for` that computes the list: the membership is
+      // genuinely wider than the text, and naming the visible part would invent
+      // findings for fields the spread may well carry.
+      if (e is! Expression) return const _Equality.unreadable();
+      if (e is SimpleIdentifier) {
+        names.add(e.name);
+        continue;
+      }
+      e.accept(_IdentifierNames(mentions.add));
     }
-    return names;
+    return _Equality(names: names, mentions: mentions);
+  }
+}
+
+/// A view-model's stated equality, as far as it can be read.
+class _Equality {
+  const _Equality({required this.names, required this.mentions})
+    : readable = true;
+
+  /// A list frx cannot enumerate — a spread, or not a list literal at all.
+  const _Equality.unreadable()
+    : names = const [],
+      mentions = const {},
+      readable = false;
+
+  final List<String> names;
+  final Set<String> mentions;
+  final bool readable;
+}
+
+/// The identifiers an expression *reads*, excluding member names.
+///
+/// `user.id` reads `user`; `id` is a member of it and names nothing in this
+/// class. Collecting both made `equals: [user.id, tasks.length]` record `id`,
+/// so an unrelated field of that name was reported as "compared only through
+/// something derived from it" — the finding stayed true and its wording, which
+/// is the whole reason the wording exists, became false.
+class _IdentifierNames extends RecursiveAstVisitor<void> {
+  _IdentifierNames(this.onName);
+
+  final void Function(String) onName;
+
+  @override
+  void visitSimpleIdentifier(SimpleIdentifier node) {
+    final parent = node.parent;
+    final isMemberName =
+        (parent is PropertyAccess && parent.propertyName == node) ||
+        (parent is PrefixedIdentifier && parent.identifier == node) ||
+        (parent is MethodInvocation && parent.methodName == node);
+    if (!isMemberName) onName(node.name);
+    super.visitSimpleIdentifier(node);
   }
 }
