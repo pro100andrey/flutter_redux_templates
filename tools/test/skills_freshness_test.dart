@@ -82,6 +82,10 @@ void main() {
       'new',
       'completions',
       'update-skills',
+      // `upgrade` replaces the tool the agent is running. Nothing mid-task is
+      // improved by the executable changing under it, and choosing when to take
+      // a new version is the operator's call, not a step in wiring a feature.
+      'upgrade',
     };
 
     final runnerCommands = {

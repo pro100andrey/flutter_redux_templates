@@ -32,7 +32,9 @@ irm https://raw.githubusercontent.com/pro100andrey/flutter_redux_templates/main/
 
 It resolves the latest release, verifies the download against that release's
 `checksums.txt`, and installs into `~/.frx/bin` (`%LOCALAPPDATA%\frx\bin`),
-offering to put that on your `PATH`. `--version`, `--dir` and `--no-modify-path`
+offering to put that on your `PATH`. Afterwards `frx upgrade` does the same job
+from the binary itself — same redirect, same checksum, and it replaces itself in
+place rather than re-running the script. `--version`, `--dir` and `--no-modify-path`
 override each step; `FRX_DOWNLOAD_BASE` points it at an internal mirror of the
 release assets. The rest of this section is for working **on** frx.
 
@@ -109,6 +111,7 @@ Every command has a short alias (in parentheses).
 | `doctor` | `dr` | Audit wiring drift, codegen & placement; `--fix` auto-repairs |
 | **Workflow** | | |
 | `watch` | `wa` | `build_runner watch` from anywhere (workspace or `--package`) |
+| `upgrade` | `up` | Replace this binary with the newest release (`--check` asks without installing; needs `tar`) |
 | `completions` | | Shell completion script for bash / zsh / fish |
 
 ---

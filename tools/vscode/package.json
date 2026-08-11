@@ -2,7 +2,7 @@
   "name": "frx",
   "displayName": "FRX — Flutter Redux Scaffolder",
   "description": "Scaffold AsyncRedux substates and auto_route pages via the frx CLI, with a build_runner watch toggle.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "pro100dev",
   "license": "MIT",
   "icon": "media/icon.png",

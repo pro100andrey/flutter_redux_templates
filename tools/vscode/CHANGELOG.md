@@ -7,6 +7,31 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## 0.3.1
+
+### Added
+
+- **`frx upgrade`** replaces the installed binary with the newest release —
+  same redirect, same `checksums.txt` check as `install.sh`, done from the
+  binary itself. `--check` reports without installing and exits 1 when an
+  upgrade exists, so it can gate a command. It is the only part of frx that
+  opens a socket: no background check, nothing appended to unrelated output.
+  *(CLI)*
+
+### Fixed
+
+- **The upgrade compared versions for inequality, not order,** so a source
+  build made after a version bump but before its tag was published was told to
+  upgrade backwards. A pinned `--version` still installs in either direction —
+  naming a version is how you go back to one. *(CLI)*
+- **A mirror that labels `.tar.gz` with `Content-Encoding: gzip`** made every
+  upgrade fail as "tampered with", because Dart inflates what `curl` stores
+  verbatim. *(CLI)*
+- **Failure paths that left a mess:** a missing `tar` crashed with a stack
+  trace instead of a sentence, a failed staging copy left a truncated binary
+  beside the real one, and on Windows a failed swap could leave the install
+  directory with no `frx.exe` and nothing saying where it went. *(CLI)*
+
 ## 0.3.0
 
 ### Fixed

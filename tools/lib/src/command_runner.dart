@@ -30,6 +30,7 @@ import 'commands/new_command.dart';
 import 'commands/remove_command.dart';
 import 'commands/rename_command.dart';
 import 'commands/update_skills_command.dart';
+import 'commands/upgrade_command.dart';
 import 'commands/watch_command.dart';
 import 'commands/which_command.dart';
 import 'config/frx_config.dart';
@@ -74,6 +75,7 @@ class FrxRunner extends CommandRunner<int> {
     addCommand(RemoveCommand());
     addCommand(RenameCommand());
     addCommand(WhichCommand());
+    addCommand(UpgradeCommand());
     addCommand(WatchCommand());
     addCommand(CompletionsCommand());
     addCommand(CompleteCommand());
