@@ -37,7 +37,7 @@ class _Factory extends VmFactory<AppState, TopLevelPageConnector, _Vm>
       overlay = .noInternetConnection;
     }
 
-    if (login.isWaiting || registration.isWaiting) {
+    if (isBusy) {
       overlay = .barrier;
     }
 

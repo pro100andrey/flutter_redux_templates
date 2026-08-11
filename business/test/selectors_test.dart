@@ -1,6 +1,9 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/forgot_password/actions/forgot_password_action.dart';
 import 'package:business/redux/login/actions/log_in_with_email_action.dart';
+import 'package:business/redux/registration/actions/registration_action.dart';
+import 'package:business/redux/reset_password/actions/reset_password_action.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -107,4 +110,51 @@ void main() {
       expect(_Reader(waiting).canEnterApp, isFalse);
     });
   });
+
+  group('SelectComposites.isBusy', () {
+    test('is false when nothing is in flight', () {
+      expect(_Reader(AppState.initial()).isBusy, isFalse);
+    });
+
+    test('every waiting action raises it', () {
+      // Named one by one rather than folded, because *which* actions count is
+      // the claim. The barrier read `login.isWaiting || registration.isWaiting`
+      // and the last two are the ones that were missing from it — they mix in
+      // `WaitingAction` and have an `isWaiting` getter, and still showed the
+      // user nothing for the two seconds they ran.
+      for (final action in <ReduxAction<AppState>>[
+        LogInWithEmailAction(),
+        RegistrationAction(),
+        ForgotPasswordAction(),
+        ResetPasswordAction(),
+      ]) {
+        final r = _Reader(
+          AppState.initial().copyWith(wait: Wait.empty.add(flag: action)),
+        );
+        expect(
+          r.isBusy,
+          isTrue,
+          reason: '${action.runtimeType} should raise the barrier',
+        );
+      }
+    });
+
+    test('an action written later raises it with no edit here', () {
+      // The property a list of slices cannot have. `WaitAction.add(this)` —
+      // what `WaitingAction` does in `before()` — is the whole membership test,
+      // so nothing has to be told about a new action.
+      final r = _Reader(
+        AppState.initial().copyWith(wait: Wait.empty.add(flag: _LaterAction())),
+      );
+
+      expect(r.isBusy, isTrue);
+    });
+  });
+}
+
+/// Stands in for an action written after this test — the case the hand-listed
+/// barrier could not cover.
+class _LaterAction extends ReduxAction<AppState> {
+  @override
+  AppState? reduce() => null;
 }

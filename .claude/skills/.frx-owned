@@ -3,7 +3,7 @@
 # Every directory below is frx's to rewrite and to remove.
 # Anything in .claude/skills/ that is not listed here is
 # yours, and frx will not touch it.
-version: 0.3.0
+version: 0.3.1
 asyncredux-in-this-template
 data-driven-widgets
 frx-add-action

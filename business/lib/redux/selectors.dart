@@ -28,6 +28,22 @@ mixin Selectors {
 /// one substate's selectors, which is what `on Selectors` says.
 extension SelectComposites on Selectors {
   bool get canEnterApp => session.isAvailable && !login.isWaiting;
+
+  /// Whether any foreground operation is in flight — what the modal barrier
+  /// covers.
+  ///
+  /// **Folded off `Wait`, not named slice by slice.** The barrier read
+  /// `login.isWaiting || registration.isWaiting`, and the two features written
+  /// after that line showed no loading state at all: both mix in
+  /// `WaitingAction`, both have an `isWaiting` getter, and neither was in the
+  /// disjunction. A list of the slices that count is a list somebody has to
+  /// remember, and it was already wrong.
+  ///
+  /// `isWaitingAny` is every action that registered itself, which is what
+  /// `with WaitingAction` means — so an action added later raises the barrier
+  /// with no edit here. An operation that should wait *without* covering the
+  /// screen would not mix that in.
+  bool get isBusy => state.wait.isWaitingAny;
 }
 
 extension type SelectConnectivity(AppState _state) {

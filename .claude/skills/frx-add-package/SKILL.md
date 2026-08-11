@@ -2,8 +2,9 @@
 name: frx-add-package
 description: >-
   A whole workspace member is missing — `add-model` or `add-retrofit`
-  refused because the package it writes into is not in this project.
-  Answered by `frx add-package` (alias `apkg`).
+  refused because the package it writes into is not in this project. Wired
+  by `frx add-package` (alias `apkg`). Do NOT hand-write this artifact or
+  edit the files it wires — run the command.
 paths:
   - "pubspec.yaml"
 ---
