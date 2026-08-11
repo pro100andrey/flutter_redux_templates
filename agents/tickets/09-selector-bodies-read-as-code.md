@@ -3,8 +3,7 @@
 **Status:** done
 **Labels:** ready-for-agent, defect
 **Blocked by:** None — and #07 turned out to need it first, see that ticket.
-**Landed in:** working tree on `architecture-review-follow-ups`, not yet
-committed.
+**Landed in:** `d388718`.
 
 ## What to build
 

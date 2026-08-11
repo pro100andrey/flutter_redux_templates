@@ -3,8 +3,7 @@
 **Status:** done
 **Labels:** ready-for-agent, defect
 **Blocked by:** None.
-**Landed in:** working tree on `architecture-review-follow-ups`, not yet
-committed.
+**Landed in:** `d388718`.
 
 ## What to build
 
@@ -68,8 +67,8 @@ neither. `_Situation.read` now takes neither.
 
 **The exception list goes to zero.** `update-skills` looked like an exception and
 is not one: it has no `_Situation`, `generate()` skips commands that have none,
-so the bit is never asked for it. `batch` and `rename` declare `wires: true` like
-any other entry.
+so the bit is never asked for it. `batch` and `rename` are written
+`_Situation.wired` like any other entry that wires something.
 
 **Refused: moving the skill prose out to `.md` assets.** The file is 1,494 lines,
 about 1,140 of them Markdown, and that reads as the problem. Measured, it is not.

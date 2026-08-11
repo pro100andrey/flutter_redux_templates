@@ -3,8 +3,7 @@
 **Status:** done
 **Labels:** ready-for-agent, defect
 **Blocked by:** #09 in practice, though not on paper — see Notes.
-**Landed in:** working tree on `architecture-review-follow-ups`, not yet
-committed.
+**Landed in:** `d388718`.
 
 ## What to build
 
