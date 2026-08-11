@@ -33,14 +33,25 @@ void main() {
     final assetFile = File(p.join(root.path, 'serve', asset))
       ..parent.createSync(recursive: true);
 
+    // `-C <dir>` *before* the member, which is the form both GNU tar and
+    // bsdtar read the same way. Trailing it after the file list happens to work
+    // on one of them and is a coin toss to reason about on the other.
     final tar = Process.runSync('tar', [
-      Platform.isWindows ? '-a' : '-czf',
-      ...Platform.isWindows
-          ? ['-cf', assetFile.path, p.basename(exe.path)]
-          : [assetFile.path, p.basename(exe.path)],
-      if (!Platform.isWindows) ...['-C', staging.path],
-    ], workingDirectory: staging.path);
-    expect(tar.exitCode, 0, reason: 'tar: ${tar.stderr}');
+      if (Platform.isWindows) ...['-a', '-cf'] else '-czf',
+      assetFile.path,
+      '-C',
+      staging.path,
+      p.basename(exe.path),
+    ]);
+    expect(
+      tar.exitCode,
+      0,
+      reason:
+          'tar exited ${tar.exitCode}: ${tar.stderr}\n'
+          'These fixtures build a release with the system tar, which is also '
+          'what `frx upgrade` unpacks with — without it the feature cannot '
+          'work and neither can its tests.',
+    );
 
     final digest = sha256.convert(assetFile.readAsBytesSync());
     File(p.join(root.path, 'serve', 'checksums.txt'))
@@ -229,10 +240,13 @@ void main() {
     await upgrader('0.3.0', exe).run();
 
     if (!Platform.isWindows) {
-      final mode = Process.runSync('stat', ['-f', '%Lp', exe.path]);
+      // Read through `stat()`, not the `stat` *command*: its flags are
+      // BSD-only here (`-f %Lp`) and GNU-only elsewhere (`-c %a`), so the
+      // command form is a test that passes on the author's machine and fails
+      // on Linux — which is exactly what it did.
       expect(
-        (mode.stdout as String).trim(),
-        '755',
+        exe.statSync().mode & 0x1FF,
+        0x1ED, // 0o755
         reason:
             'an unpacked archive carries its own bits, and tar is not the '
             'only path here — the staged copy is chmod-ed on purpose',

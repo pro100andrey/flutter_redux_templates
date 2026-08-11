@@ -22,6 +22,15 @@
 /// It refuses rather than guesses when it is not the thing being upgraded: run
 /// through `dart run`, there is no `frx` binary to replace, and rewriting the
 /// Dart SDK's own executable is the one outcome nobody wants.
+///
+/// ## It needs `tar`
+///
+/// The one thing here frx does not do itself. bsdtar reads both archive formats
+/// and ships with macOS, every Linux worth naming and Windows since 1803, so
+/// the alternative is a second archive implementation to keep correct for a
+/// dependency that is already present. A machine without it gets a sentence
+/// saying so — and its absence is reported rather than crashed on, which is a
+/// distinction this file got wrong once already.
 library;
 
 import 'dart:ffi' show Abi;

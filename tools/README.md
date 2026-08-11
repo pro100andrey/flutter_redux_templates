@@ -111,7 +111,7 @@ Every command has a short alias (in parentheses).
 | `doctor` | `dr` | Audit wiring drift, codegen & placement; `--fix` auto-repairs |
 | **Workflow** | | |
 | `watch` | `wa` | `build_runner watch` from anywhere (workspace or `--package`) |
-| `upgrade` | `up` | Replace this binary with the newest release (`--check` asks without installing) |
+| `upgrade` | `up` | Replace this binary with the newest release (`--check` asks without installing; needs `tar`) |
 | `completions` | | Shell completion script for bash / zsh / fish |
 
 ---
