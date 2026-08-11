@@ -23,7 +23,7 @@ sequenceDiagram
     User->>UI: onPressedResetPassword
     UI->>VM: onPressedResetPassword()
     VM->>A2: dispatch
-    Note over A2: WaitingAction · async
+    Note over A2: WaitingAction · BlockingAction · async
     A2->>ST: copyWith(forgotPassword)
     A2--xVM: UserException
 

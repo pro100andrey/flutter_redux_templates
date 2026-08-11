@@ -15,7 +15,7 @@ import '../models/login_state.dart';
 /// a `reevaluateListenable` over `session.token != null`, so the auth guard
 /// re-runs the moment this returns and the router leaves the auth area by
 /// itself — no navigation is dispatched here.
-class LogInWithEmailAction extends Action with WaitingAction {
+class LogInWithEmailAction extends Action with WaitingAction, BlockingAction {
   @override
   Future<AppState> reduce() async {
     final token = await _logInWithEmailRequest(

@@ -100,7 +100,7 @@ plain `dispatch` for fire-and-forget.
 
           [sync] (default)                 AppState? reduce() — synchronous state update.
           [async]                          Future<AppState?> reduce() async — async work.
-          [waiting]                        extends Action with WaitingAction — async + wait barrier.
+          [waiting]                        extends Action with WaitingAction — async, and in `Wait` while it runs so a selector can read it. Add BlockingAction by hand for one the modal barrier should cover.
 
 -m, --mixin                                async_redux behaviour mixin (repeatable). Dependencies are added automatically (noDialog → checkInternet, unlimitedRetries → retry).
 

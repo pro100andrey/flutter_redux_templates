@@ -35,7 +35,7 @@ sequenceDiagram
     User->>UI: onPressedRegister
     UI->>VM: onPressedRegister()
     VM->>+A4: dispatchAndWait
-    Note over A4: WaitingAction · async
+    Note over A4: WaitingAction · BlockingAction · async
     A4->>ST: copyWith(registration)
     A4--xVM: UserException
     A4-->>-VM: ActionStatus

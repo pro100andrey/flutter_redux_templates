@@ -150,11 +150,12 @@ void main() {
       expect(r.isBusy, isTrue);
     });
 
-    test('an action that waits without the mixin leaves the screen', () {
-      // The reason this is `isWaitingForType<WaitingAction>()` rather than
-      // `isWaitingAny`. A background refresh, a poll or a paginating load may
-      // each sit in `Wait` to drive an indicator of its own, and none of them
-      // should blank the app. Consent is the mixin.
+    test('a waiting action that is not blocking leaves the screen', () {
+      // The reason this is keyed on `BlockingAction`. Every async action that
+      // wants an indicator mixes in `WaitingAction`, because that is what puts
+      // it in `Wait` — so keying on *that* would blank the app for the first
+      // background refresh anyone adds. This is the case both earlier
+      // predicates got wrong.
       final r = _Reader(
         AppState.initial().copyWith(
           wait: Wait.empty.add(flag: _BackgroundAction()),
@@ -178,13 +179,15 @@ void main() {
 
 /// Stands in for an action written after this test that opts into the barrier —
 /// the case the hand-listed disjunction could not cover.
-class _LaterAction extends ReduxAction<AppState> with WaitingAction {
+class _LaterAction extends ReduxAction<AppState>
+    with WaitingAction, BlockingAction {
   @override
   AppState? reduce() => null;
 }
 
-/// Waits, and does not ask to be covered.
-class _BackgroundAction extends ReduxAction<AppState> {
+/// Waits so it can drive its own indicator, and does not ask to be covered —
+/// a background refresh, a poll, a paginating load.
+class _BackgroundAction extends ReduxAction<AppState> with WaitingAction {
   @override
   AppState? reduce() => null;
 }

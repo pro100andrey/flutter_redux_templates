@@ -44,14 +44,26 @@ a service registering a flag would each have blanked the whole app, and this is 
 template — a rule that holds only while the app has four auth screens is a trap
 for whoever builds on it.
 
-The correction keeps the fold and changes what is folded:
-`state.wait.isWaitingForType<WaitingAction>()`. Consent to being covered is the
-mixin — what `add-action -k waiting` writes, and what its own help has always
-called the wait barrier — rather than the bare fact of waiting.
-`WaitAction.add(this)` files the action itself as the flag, and
-`isWaitingForType<T>` tests `flag is T`, so it matches the mixin as readily as a
-class. Pinned by two tests: an action that waits *without* the mixin does not
-raise it, and neither does a flag that is not an action at all.
+**The second predicate was wrong the same way.**
+`isWaitingForType<WaitingAction>()` looks narrower and is not: `WaitingAction` is
+what *puts* an action in `Wait`, so every async action that wants an indicator
+mixes it in. A background refresh with a spinner reaches for `-k waiting` — the
+only kind that registers in `Wait` — and would have blanked the app. Keying on it
+made the same claim one level down.
+
+**What it is now: a mixin that means only this.** `mixin BlockingAction on
+WaitingAction {}`, and `isBusy` is
+`state.wait.isWaitingForType<BlockingAction>()`. `WaitingAction` says "I am in
+flight, read it"; `BlockingAction` says "the user cannot do anything meanwhile",
+and the second is the one nobody should make by accident. Still a fold and not a
+list: `WaitAction.add(this)` files the action as the flag and
+`isWaitingForType<T>` tests `flag is T`, so the mixin answers for every action
+carrying it and nothing here names any of them. The four auth actions carry it,
+and `-k waiting`'s help stops claiming a barrier it does not write.
+
+Three tests, one per predicate that was too wide: a blocking action raises it, a
+*waiting* action that is not blocking does not, and a flag that is not an action
+does not.
 
 **The reality tier caught the second predicate too, and the reader learned
 something.** `isWaitingForType<WaitingAction>()` made `frx graph` raise a
@@ -62,13 +74,12 @@ exactly what `flag is T` tests at runtime. `graph_reader` now resolves it that
 way, so `isBusy` shows four `waitsFor` edges instead of one blind spot, and
 `unresolved` is back to `pop-destination` alone.
 
-**Why not a separate `BlockingAction` mixin.** Proposed, and dropped by this
-repository's own criterion — one adapter is a hypothetical seam, two is a real
-one. "Waits" and "covers the screen" coincide in all four cases that exist, and
-nothing in the template wants the other combination yet. When something does,
-that is the moment the mixin splits, and `isBusy` is the one line that changes.
-`add-action` needs no new flag either way: `-k waiting` already makes this
-decision, and it is the action author's to make.
+> `BlockingAction` was proposed, then dropped once on this repository's own
+> criterion — one adapter is a hypothetical seam, two is a real one — on the
+> grounds that "waits" and "covers the screen" coincide in all four cases that
+> exist. The criterion was misapplied. The second case is not a future
+> possibility; it is the next thing anyone adds, and without the mixin it lands
+> on the wrong default silently.
 
 **#09 turned out to come first, and the reality tier is why.** With `isBusy`
 written and nothing else changed, `reality_test`'s *"the blind spots are the ones

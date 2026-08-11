@@ -40,15 +40,19 @@ extension SelectComposites on Selectors {
   /// disjunction. A list of the slices that count is a list somebody has to
   /// remember, and it was already wrong.
   ///
-  /// **Keyed on the mixin, not on `isWaitingAny`.** Consent to being covered is
-  /// `with WaitingAction` — which is what `add-action -k waiting` writes and
-  /// what its help has always called the wait barrier — not the bare fact of
-  /// waiting. `WaitAction.add(this)` files the action itself as the flag, so
-  /// `isWaitingForType` matches the mixin as readily as the class. A background
-  /// operation that wants to wait without covering the screen leaves the mixin
-  /// off and is not seen here; `isWaitingAny` would have covered the screen for
-  /// it, and for anything else that ever lands in `Wait`.
-  bool get isBusy => state.wait.isWaitingForType<WaitingAction>();
+  /// **Keyed on `BlockingAction`, which is a claim, not a side effect.** Two
+  /// narrower predicates were tried and both were too wide. `isWaitingAny` is
+  /// true for any flag in `Wait`, including ones that are not actions.
+  /// `isWaitingForType<WaitingAction>()` looks narrower and is not: every async
+  /// action that wants an indicator mixes in `WaitingAction`, because that is
+  /// what puts it in `Wait` — so the first background refresh anyone adds would
+  /// blank the app.
+  ///
+  /// `BlockingAction` is written on purpose and means only this. The set stays
+  /// a fold rather than a list: `WaitAction.add(this)` files the action as the
+  /// flag and `isWaitingForType<T>` tests `flag is T`, so the mixin answers for
+  /// every action carrying it and nothing here names any of them.
+  bool get isBusy => state.wait.isWaitingForType<BlockingAction>();
 }
 
 extension type SelectConnectivity(AppState _state) {
