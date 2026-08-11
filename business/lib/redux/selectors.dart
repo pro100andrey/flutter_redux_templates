@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_state.dart';
+import 'common/action.dart';
 import 'forgot_password/actions/forgot_password_action.dart';
 import 'login/actions/log_in_with_email_action.dart';
 import 'registration/actions/registration_action.dart';
@@ -39,11 +40,15 @@ extension SelectComposites on Selectors {
   /// disjunction. A list of the slices that count is a list somebody has to
   /// remember, and it was already wrong.
   ///
-  /// `isWaitingAny` is every action that registered itself, which is what
-  /// `with WaitingAction` means — so an action added later raises the barrier
-  /// with no edit here. An operation that should wait *without* covering the
-  /// screen would not mix that in.
-  bool get isBusy => state.wait.isWaitingAny;
+  /// **Keyed on the mixin, not on `isWaitingAny`.** Consent to being covered is
+  /// `with WaitingAction` — which is what `add-action -k waiting` writes and
+  /// what its help has always called the wait barrier — not the bare fact of
+  /// waiting. `WaitAction.add(this)` files the action itself as the flag, so
+  /// `isWaitingForType` matches the mixin as readily as the class. A background
+  /// operation that wants to wait without covering the screen leaves the mixin
+  /// off and is not seen here; `isWaitingAny` would have covered the screen for
+  /// it, and for anything else that ever lands in `Wait`.
+  bool get isBusy => state.wait.isWaitingForType<WaitingAction>();
 }
 
 extension type SelectConnectivity(AppState _state) {

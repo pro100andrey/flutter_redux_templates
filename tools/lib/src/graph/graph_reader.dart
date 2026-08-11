@@ -542,6 +542,32 @@ class GraphReader {
           );
           continue;
         }
+
+        // The type argument may name a *mixin* rather than a class, and then it
+        // means every action carrying it. `WaitAction.add(this)` files the
+        // action itself as the flag and `isWaitingForType<T>` tests `flag is T`,
+        // so `isWaitingForType<WaitingAction>()` — the modal barrier's whole
+        // question — waits for all of them at once. Read before this existed, it
+        // was an action class by that name, found none, and reported the barrier
+        // as following something frx could not.
+        final byMixin = [
+          for (final a in actions.values)
+            if (a.info.mixins.contains(className)) a,
+        ];
+        if (candidates.isEmpty && byMixin.isNotEmpty) {
+          for (final a in byMixin) {
+            addEdge(
+              GraphEdge(
+                from: id,
+                to: a.id,
+                kind: EdgeKind.waitsFor,
+                via: s.getter,
+              ),
+            );
+          }
+          continue;
+        }
+
         unresolved.add(
           Unresolved(
             kind: 'selector-action',

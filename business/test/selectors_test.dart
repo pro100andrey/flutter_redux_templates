@@ -1,5 +1,6 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/common/action.dart';
 import 'package:business/redux/forgot_password/actions/forgot_password_action.dart';
 import 'package:business/redux/login/actions/log_in_with_email_action.dart';
 import 'package:business/redux/registration/actions/registration_action.dart';
@@ -140,21 +141,50 @@ void main() {
     });
 
     test('an action written later raises it with no edit here', () {
-      // The property a list of slices cannot have. `WaitAction.add(this)` —
-      // what `WaitingAction` does in `before()` — is the whole membership test,
-      // so nothing has to be told about a new action.
+      // The property a list of slices cannot have: membership is the mixin, so
+      // nothing has to be told about a new action.
       final r = _Reader(
         AppState.initial().copyWith(wait: Wait.empty.add(flag: _LaterAction())),
       );
 
       expect(r.isBusy, isTrue);
     });
+
+    test('an action that waits without the mixin leaves the screen', () {
+      // The reason this is `isWaitingForType<WaitingAction>()` rather than
+      // `isWaitingAny`. A background refresh, a poll or a paginating load may
+      // each sit in `Wait` to drive an indicator of its own, and none of them
+      // should blank the app. Consent is the mixin.
+      final r = _Reader(
+        AppState.initial().copyWith(
+          wait: Wait.empty.add(flag: _BackgroundAction()),
+        ),
+      );
+
+      expect(r.isBusy, isFalse);
+    });
+
+    test('a flag that is not an action at all does not either', () {
+      // `Wait` takes any `Object?` as a flag, so `isWaitingAny` was true for
+      // things that are not operations the user is waiting on.
+      final r = _Reader(
+        AppState.initial().copyWith(wait: Wait.empty.add(flag: 'some-flag')),
+      );
+
+      expect(r.isBusy, isFalse);
+    });
   });
 }
 
-/// Stands in for an action written after this test — the case the hand-listed
-/// barrier could not cover.
-class _LaterAction extends ReduxAction<AppState> {
+/// Stands in for an action written after this test that opts into the barrier —
+/// the case the hand-listed disjunction could not cover.
+class _LaterAction extends ReduxAction<AppState> with WaitingAction {
+  @override
+  AppState? reduce() => null;
+}
+
+/// Waits, and does not ask to be covered.
+class _BackgroundAction extends ReduxAction<AppState> {
   @override
   AppState? reduce() => null;
 }
