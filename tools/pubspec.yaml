@@ -20,6 +20,10 @@ dependencies:
   analyzer: ^14.0.0
   args: ^2.7.0
   code_builder: ^4.11.1
+  # SHA-256 for `frx upgrade`, which refuses to install a download it cannot
+  # check against the release's `checksums.txt`. Already in the tree as a
+  # transitive dependency; named here because the source imports it.
+  crypto: ^3.0.0
   dart_style: ^3.1.11
   # `frx create` materialises this monorepo under a new name from the archive
   # embedded in lib/src/template/. Also the packer that produces it — see the

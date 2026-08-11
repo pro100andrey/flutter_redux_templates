@@ -110,7 +110,10 @@ void _optionWiringTests() {
       // The exemption is the rule's own reason read backwards: a command that
       // does not act on an existing repository has no root to be given, and
       // cannot be reached by the helper that would supply one.
-      const noRepositoryToRoot = {'create'};
+      // `upgrade` joins it for the same reason from the other end: it acts on
+      // the binary rather than on any project, so there is no root to hand it
+      // and nothing in the editor's helper would ever call it.
+      const noRepositoryToRoot = {'create', 'upgrade'};
 
       for (final c in commands) {
         if (!c.argParser.options.containsKey('json')) continue;

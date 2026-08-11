@@ -308,6 +308,12 @@ const _notInTheOverlay = {
 
 /// CLI commands the extension deliberately does not surface, and why.
 const _notInTheEditor = {
+  // It replaces the binary the extension is holding a path to, mid-session. The
+  // editor resolves `frx` once and spawns it repeatedly; swapping the file under
+  // that is a class of confusion nobody asked for, and the upgrade is an
+  // operator's decision about their machine rather than an editing action. The
+  // terminal is where it belongs.
+  'upgrade',
   // The editor reaches it the way a user would want it reached: `doctor`
   // reports skills that are not what this frx generates, and the finding
   // carries the `skills` remedy, so it arrives as a quick-fix in the Problems
