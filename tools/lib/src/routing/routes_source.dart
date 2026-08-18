@@ -557,14 +557,43 @@ class RoutesSource {
     return null;
   }
 
-  /// The argument list of an `AutoRoute(...)` / `AutoRoute.guarded(...)` list
-  /// element, or null if the element is not an `AutoRoute`.
+  /// The auto_route classes that register a page — the ones carrying a `page:`
+  /// argument that names a generated route type.
+  ///
+  /// auto_route spells a transition as a *subclass*, not as an argument:
+  /// `CustomRoute` is how a route stops painting a ground of its own
+  /// (`opaque: false`, for a sheet over the screen behind it), and
+  /// `MaterialRoute` / `CupertinoRoute` / `AdaptiveRoute` pick a platform
+  /// transition. All five register a screen exactly as `AutoRoute` does, so
+  /// matching the base class by name hid one from every reader here at once:
+  /// `list-routes` omitted it, doctor called its connector unregistered, and
+  /// `flow` deleted its generated document as a page that had gone.
+  ///
+  /// Two subclasses are deliberately absent. `RedirectRoute` takes no `page:`
+  /// (it supplies `PageInfo.redirect` itself) and `NamedRouteDef` takes a
+  /// `name:` and a builder. Admitting either would enter a route whose type
+  /// reads `<unknown>`, and would let [unwirePage] and [_anyParamPath] treat a
+  /// redirect as a screen.
+  static const _pageRouteTypes = {
+    'AutoRoute',
+    'MaterialRoute',
+    'CupertinoRoute',
+    'AdaptiveRoute',
+    'CustomRoute',
+  };
+
+  /// The argument list of a page-registering list element — `AutoRoute(...)`,
+  /// `AutoRoute.guarded(...)`, `CustomRoute<void>(...)` — or null when the
+  /// element registers no page. [_pageRouteTypes] says which types count.
   ///
   /// Every written form goes through [Construction] — see there for why the
-  /// node type alone never answers this.
+  /// node type alone never answers this, and why the `<void>` of a
+  /// `CustomRoute<void>` is already off the name by the time it arrives here.
   ArgumentList? _autoRouteArgs(CollectionElement element) {
     final made = Construction.of(element);
-    return made?.typeName == 'AutoRoute' ? made!.arguments : null;
+    return made != null && _pageRouteTypes.contains(made.typeName)
+        ? made.arguments
+        : null;
   }
 
   Expression? _namedArg(ArgumentList args, String name) =>

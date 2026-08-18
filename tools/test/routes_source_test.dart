@@ -33,6 +33,7 @@ class _AuthGuard extends AutoRouteGuard {
 
 void main() {
   _fullPathTests();
+  _routeSubclassTests();
   late Directory dir;
   late RoutesSource source;
 
@@ -215,6 +216,85 @@ $routes
         routes.firstWhere((r) => r.routeType == 'ProfileRoute').fullPath,
         '/shop/account/profile',
       );
+    });
+  });
+}
+
+void _routeSubclassTests() {
+  RoutesSource sourceOf(String routes) {
+    final dir = Directory.systemTemp.createTempSync('frx_route_kinds_');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final file = File(p.join(dir.path, 'app_router.dart'))
+      ..writeAsStringSync('''
+class AppRouter extends RootStackRouter {
+  @override
+  List<AutoRoute> get routes => [
+$routes
+  ];
+}
+''');
+    return RoutesSource(file);
+  }
+
+  group('route subclasses', () {
+    test('every page-carrying subclass registers a route', () {
+      final routes = sourceOf('''
+    AutoRoute(page: HomeRoute.page, path: '/home'),
+    CustomRoute<void>(
+      page: SettingsRoute.page,
+      path: '/settings',
+      opaque: false,
+      transitionsBuilder: TransitionsBuilders.fadeIn,
+    ),
+    MaterialRoute(page: AboutRoute.page, path: '/about'),
+    CupertinoRoute<bool>(page: PickerRoute.page, path: '/picker'),
+    AdaptiveRoute<void>(page: ShareRoute.page, path: '/share'),
+''').readRoutes();
+      // auto_route spells a transition as a subclass, not as an argument: a
+      // sheet over the screen behind it is a `CustomRoute(opaque: false)`.
+      // Matching the base class by name hid such a screen from every reader at
+      // once — `list-routes` omitted it, doctor called its connector
+      // unregistered, and `flow` deleted its document as a page that had gone.
+      expect(routes.map((r) => r.routeType), [
+        'HomeRoute',
+        'SettingsRoute',
+        'AboutRoute',
+        'PickerRoute',
+        'ShareRoute',
+      ]);
+      // The type argument is off the name by the time it is matched, and the
+      // rest of the entry is read exactly as an `AutoRoute`'s would be.
+      expect(
+        routes.firstWhere((r) => r.routeType == 'SettingsRoute').path,
+        '/settings',
+      );
+    });
+
+    test('a RedirectRoute registers no page', () {
+      final routes = sourceOf('''
+    AutoRoute(page: HomeRoute.page, path: '/home'),
+    RedirectRoute(path: '/old-home', redirectTo: '/home'),
+''').readRoutes();
+      // It carries no `page:` at all — auto_route supplies `PageInfo.redirect`
+      // itself. Admitting it would enter a route typed `<unknown>` and let
+      // `remove` treat a redirect as a screen.
+      expect(routes.map((r) => r.routeType), ['HomeRoute']);
+    });
+
+    test('a CustomRoute unwires like any other route', () {
+      final source = sourceOf('''
+    AutoRoute(page: HomeRoute.page, path: '/home'),
+    CustomRoute<void>(page: SettingsRoute.page, path: '/settings', opaque: false),
+''');
+      final unwired = source.unwirePage(
+        routeType: 'SettingsRoute',
+        connectorImport: '../connectors/settings_page_connector.dart',
+      );
+      // `remove` reads through the same predicate, so a screen frx could not
+      // see was also one it could not delete.
+      expect(unwired.found, isTrue);
+      expect(unwired.source, isNot(contains('SettingsRoute')));
+      expectParses(unwired.source);
     });
   });
 }
