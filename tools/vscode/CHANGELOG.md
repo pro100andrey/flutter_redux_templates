@@ -7,6 +7,28 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## 0.3.2
+
+### Fixed
+
+- **A transition subclass was not read as a route at all.** auto_route spells a
+  transition by subclassing — a sheet over the screen behind it is
+  `CustomRoute(opaque: false)`, and `MaterialRoute` / `CupertinoRoute` /
+  `AdaptiveRoute` pick a platform transition — and `AppRouter` was matched on
+  the base class name alone. A screen registered as any of the four was
+  invisible to every reader at once: `list-routes` left it out, `doctor`
+  reported its connector as unregistered, `remove` could not find it, and
+  `flow --md` deleted its generated document as a page that had gone.
+  `RedirectRoute` and `NamedRouteDef` carry no page, so they are still not
+  screens. *(CLI)*
+
+### Changed
+
+- **The analyzer no longer walks the build output or the platform folders.**
+  `build/`, `android/`, `ios/`, `web/`, `windows/`, `macos/` and `linux/` are
+  excluded in every package the template ships, and `add-package` writes the
+  same set into a package it creates. *(CLI)*
+
 ## 0.3.1
 
 ### Added
