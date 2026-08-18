@@ -16,7 +16,7 @@ Uint8List _generateEncryptPassword(String password) {
   return blob;
 }
 
-final _random = () {
+final Random _random = () {
   try {
     // Try secure
     return Random.secure();
