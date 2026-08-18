@@ -8,6 +8,26 @@ import 'package:yaml_edit/yaml_edit.dart';
 import '../engine/changeset.dart';
 import '../workspace/frx_workspace.dart';
 
+/// Directories the analyzer should not walk in any package: the build output
+/// and the per-platform folders Flutter generates.
+///
+/// Every kind carries these on top of whatever generated-file globs it needs of
+/// its own, so they live here rather than being spelled out three times — the
+/// catalogue is checked against the real template file by file, and a list
+/// repeated per kind is a list that drifts one kind at a time.
+///
+/// Appended last, because the check compares the excludes in order: the
+/// template writes a package's own globs first and these after them.
+const _platformExcludes = [
+  'build/**',
+  'android/**',
+  'ios/**',
+  'web/**',
+  'windows/**',
+  'macos/**',
+  'linux/**',
+];
+
 /// A workspace member this CLI knows how to create.
 ///
 /// A fixed catalogue rather than an arbitrary `--name`: a package is its
@@ -43,6 +63,7 @@ enum PackageKind {
       // do not reach a generated file one level down.
       '**/**/*.g.dart',
       '**/**/*.freezed.dart',
+      ..._platformExcludes,
     ],
   ),
 
@@ -69,7 +90,12 @@ enum PackageKind {
       'test': '^1.25.0',
     },
     build: _retrofitBuild,
-    lintExcludes: ['**/*.g.dart', '**/*.chopper.dart', '**/*.freezed.dart'],
+    lintExcludes: [
+      '**/*.g.dart',
+      '**/*.chopper.dart',
+      '**/*.freezed.dart',
+      ..._platformExcludes,
+    ],
   ),
 
   /// Key-value persistence behind `BaseKeyValueStorage`. `business` holds the
@@ -96,7 +122,11 @@ enum PackageKind {
     required this.dependencies,
     required this.devDependencies,
     this.build,
-    this.lintExcludes = const ['**/*.g.dart', '**/*.freezed.dart'],
+    this.lintExcludes = const [
+      '**/*.g.dart',
+      '**/*.freezed.dart',
+      ..._platformExcludes,
+    ],
   });
 
   /// The directory, which is also the pub package name and the workspace entry.

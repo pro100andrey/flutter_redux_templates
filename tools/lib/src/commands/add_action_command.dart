@@ -36,7 +36,9 @@ class AddActionCommand extends WritingCommand {
           'sync': 'AppState? reduce() — synchronous state update.',
           'async': 'Future<AppState?> reduce() async — async work.',
           'waiting':
-              'extends Action with WaitingAction — async + wait barrier.',
+              'extends Action with WaitingAction — async, and in `Wait` while '
+              'it runs so a selector can read it. Add BlockingAction by hand '
+              'for one the modal barrier should cover.',
         },
       )
       ..addMultiOption(

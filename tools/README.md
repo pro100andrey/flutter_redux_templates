@@ -374,6 +374,15 @@ router never serves. When the shell declares no `path:` at all, auto_route
 derives one from its page name and frx cannot know it, so the child reads
 `…/profile` rather than a guess.
 
+`add-page` writes a plain `AutoRoute`, but everything that *reads* the router —
+`list-routes`, `doctor`, `flow`, `remove`, `rename` — also counts the four
+transition subclasses, because auto_route spells a transition by subclassing
+rather than by argument: `CustomRoute` (a sheet over the screen behind it, via
+`opaque: false`), `MaterialRoute`, `CupertinoRoute`, `AdaptiveRoute`. Hand-edit
+a registration into one of those and the screen stays visible to all of them.
+`RedirectRoute` and `NamedRouteDef` carry no `page:` and are not screens, so
+they are not listed and `remove` will not touch them.
+
 ### Navigation between pages
 
 ```bash

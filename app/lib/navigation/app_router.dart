@@ -55,7 +55,7 @@ class _AuthGuard extends AutoRouteGuard {
   final Store<AppState> _store;
 
   /// Routes reachable while logged out. Everything else requires a session.
-  static const _authArea = {
+  static const Set<String> _authArea = {
     LogInRoute.name,
     RegistrationRoute.name,
     ForgotPasswordRoute.name,

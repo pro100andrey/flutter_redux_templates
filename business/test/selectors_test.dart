@@ -1,6 +1,10 @@
 import 'package:async_redux/async_redux.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/common/action.dart';
+import 'package:business/redux/forgot_password/actions/forgot_password_action.dart';
 import 'package:business/redux/login/actions/log_in_with_email_action.dart';
+import 'package:business/redux/registration/actions/registration_action.dart';
+import 'package:business/redux/reset_password/actions/reset_password_action.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -107,4 +111,83 @@ void main() {
       expect(_Reader(waiting).canEnterApp, isFalse);
     });
   });
+
+  group('SelectComposites.isBusy', () {
+    test('is false when nothing is in flight', () {
+      expect(_Reader(AppState.initial()).isBusy, isFalse);
+    });
+
+    test('every waiting action raises it', () {
+      // Named one by one rather than folded, because *which* actions count is
+      // the claim. The barrier read `login.isWaiting || registration.isWaiting`
+      // and the last two are the ones that were missing from it — they mix in
+      // `WaitingAction` and have an `isWaiting` getter, and still showed the
+      // user nothing for the two seconds they ran.
+      for (final action in <ReduxAction<AppState>>[
+        LogInWithEmailAction(),
+        RegistrationAction(),
+        ForgotPasswordAction(),
+        ResetPasswordAction(),
+      ]) {
+        final r = _Reader(
+          AppState.initial().copyWith(wait: Wait.empty.add(flag: action)),
+        );
+        expect(
+          r.isBusy,
+          isTrue,
+          reason: '${action.runtimeType} should raise the barrier',
+        );
+      }
+    });
+
+    test('an action written later raises it with no edit here', () {
+      // The property a list of slices cannot have: membership is the mixin, so
+      // nothing has to be told about a new action.
+      final r = _Reader(
+        AppState.initial().copyWith(wait: Wait.empty.add(flag: _LaterAction())),
+      );
+
+      expect(r.isBusy, isTrue);
+    });
+
+    test('a waiting action that is not blocking leaves the screen', () {
+      // The reason this is keyed on `BlockingAction`. Every async action that
+      // wants an indicator mixes in `WaitingAction`, because that is what puts
+      // it in `Wait` — so keying on *that* would blank the app for the first
+      // background refresh anyone adds. This is the case both earlier
+      // predicates got wrong.
+      final r = _Reader(
+        AppState.initial().copyWith(
+          wait: Wait.empty.add(flag: _BackgroundAction()),
+        ),
+      );
+
+      expect(r.isBusy, isFalse);
+    });
+
+    test('a flag that is not an action at all does not either', () {
+      // `Wait` takes any `Object?` as a flag, so `isWaitingAny` was true for
+      // things that are not operations the user is waiting on.
+      final r = _Reader(
+        AppState.initial().copyWith(wait: Wait.empty.add(flag: 'some-flag')),
+      );
+
+      expect(r.isBusy, isFalse);
+    });
+  });
+}
+
+/// Stands in for an action written after this test that opts into the barrier —
+/// the case the hand-listed disjunction could not cover.
+class _LaterAction extends ReduxAction<AppState>
+    with WaitingAction, BlockingAction {
+  @override
+  AppState? reduce() => null;
+}
+
+/// Waits so it can drive its own indicator, and does not ask to be covered —
+/// a background refresh, a poll, a paginating load.
+class _BackgroundAction extends ReduxAction<AppState> with WaitingAction {
+  @override
+  AppState? reduce() => null;
 }

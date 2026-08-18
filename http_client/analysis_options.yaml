@@ -5,3 +5,10 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.chopper.dart"
     - "**/*.freezed.dart"
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**

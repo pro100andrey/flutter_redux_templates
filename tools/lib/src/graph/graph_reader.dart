@@ -542,6 +542,32 @@ class GraphReader {
           );
           continue;
         }
+
+        // The type argument may name a *mixin* rather than a class, and then it
+        // means every action carrying it. `WaitAction.add(this)` files the
+        // action itself as the flag and `isWaitingForType<T>` tests `flag is T`,
+        // so `isWaitingForType<WaitingAction>()` — the modal barrier's whole
+        // question — waits for all of them at once. Read before this existed, it
+        // was an action class by that name, found none, and reported the barrier
+        // as following something frx could not.
+        final byMixin = [
+          for (final a in actions.values)
+            if (a.info.mixins.contains(className)) a,
+        ];
+        if (candidates.isEmpty && byMixin.isNotEmpty) {
+          for (final a in byMixin) {
+            addEdge(
+              GraphEdge(
+                from: id,
+                to: a.id,
+                kind: EdgeKind.waitsFor,
+                via: s.getter,
+              ),
+            );
+          }
+          continue;
+        }
+
         unresolved.add(
           Unresolved(
             kind: 'selector-action',
@@ -698,13 +724,43 @@ class _PersistorVisitor extends RecursiveAstVisitor<void> {
                 .toSet() ??
             const <String>{};
         if (params.isEmpty) return;
-        final pattern = RegExp(
-          '(?:${params.map(RegExp.escape).join('|')})\\??\\.([a-z][A-Za-z0-9_]*)',
-        );
-        for (final m in pattern.allMatches(node.body.toSource())) {
-          reads.add(m.group(1)!);
-        }
+        // Off the tree, not off the text, for the reason [_BodyReader] gives:
+        // a parameter named in a string literal is not a read of it.
+        node.body.accept(_ParamFieldReads(params, reads));
     }
+  }
+}
+
+/// Fields read off one of [_params] — `newState.session`,
+/// `lastPersistedState?.theme`.
+///
+/// Both spellings, because `?.` is a [PropertyAccess] while `.` on a plain name
+/// is a [PrefixedIdentifier], and the persistor uses each.
+class _ParamFieldReads extends RecursiveAstVisitor<void> {
+  _ParamFieldReads(this._params, this._into);
+
+  final Set<String> _params;
+  final Set<String> _into;
+
+  /// Lower-case initial only, as the pattern this replaced required: a field is
+  /// not a nested type name.
+  void _add(String name) {
+    if (name.isNotEmpty && name[0] == name[0].toLowerCase()) _into.add(name);
+  }
+
+  @override
+  void visitPrefixedIdentifier(PrefixedIdentifier node) {
+    if (_params.contains(node.prefix.name)) _add(node.identifier.name);
+    super.visitPrefixedIdentifier(node);
+  }
+
+  @override
+  void visitPropertyAccess(PropertyAccess node) {
+    final target = node.target;
+    if (target is SimpleIdentifier && _params.contains(target.name)) {
+      _add(node.propertyName.name);
+    }
+    super.visitPropertyAccess(node);
   }
 }
 
@@ -874,15 +930,6 @@ bool _merge(Set<String> into, Set<String> from) {
 class _SelectorVisitor extends RecursiveAstVisitor<void> {
   final selectors = <_Selector>[];
 
-  static final _stateField = RegExp(r'_state\.([A-Za-z_][A-Za-z0-9_]*)');
-  static final _waitingFor = RegExp(
-    r'isWaitingForType<\s*([A-Za-z_][A-Za-z0-9_]*)\s*>',
-  );
-
-  /// A bare identifier — one not preceded by a dot, so `_state.logIn.email`
-  /// contributes nothing while `token != null` contributes `token`.
-  static final _bareRef = RegExp(r'(?<![.\w$])([a-z][A-Za-z0-9_]*)');
-
   /// Every selector declared in [unit], with each one's sibling reads folded in.
   ///
   /// The single entry point, because the fold has to happen after the whole file
@@ -908,7 +955,7 @@ class _SelectorVisitor extends RecursiveAstVisitor<void> {
     super.visitExtensionTypeDeclaration(node);
   }
 
-  /// A composite selector — `extension SelectComposites on Select` — reads
+  /// A composite selector — `extension SelectComposites on Selectors` — reads
   /// other selectors instead of the state.
   ///
   /// Keyed on what it extends, not on what it is called: the name is free, and
@@ -937,16 +984,7 @@ class _SelectorVisitor extends RecursiveAstVisitor<void> {
     for (final m in decl.members.whereType<MethodDeclaration>()) {
       if (!m.isGetter) continue;
       final s = _Selector(type, decl.owner, m.name.lexeme, m.name.offset);
-      final src = m.body.toSource();
-      for (final match in _stateField.allMatches(src)) {
-        s.readsFields.add(match.group(1)!);
-      }
-      for (final match in _waitingFor.allMatches(src)) {
-        s.waitsForActions.add(match.group(1)!);
-      }
-      for (final match in _bareRef.allMatches(src)) {
-        s.siblings.add(match.group(1)!);
-      }
+      m.body.accept(_BodyReader(s));
       s.body = m.body;
       selectors.add(s);
     }
@@ -973,6 +1011,71 @@ class _SelectorVisitor extends RecursiveAstVisitor<void> {
         }
       }
       if (!changed) break;
+    }
+  }
+}
+
+/// What one getter's body touches, read off the tree rather than off its text.
+///
+/// Three regexes over `m.body.toSource()` stood here, and text cannot tell a
+/// string literal from code. Reproduced with the product's own commands on a
+/// fresh project — `frx add-selector session label -t String -e "'token'"` —
+/// after which `SelectSession.label`, whose whole body is the *string*
+/// `'token'`, was reported as reading the session slice: the bare-identifier
+/// scrape matched `token` inside the quotes and the sibling fold handed it the
+/// neighbouring `token` getter's reads. In the same output the reason another
+/// selector was dead changed with it, and where such a phantom reader is itself
+/// read, a dead selector is reported alive.
+///
+/// [_Selector.body] already stated the rule — "a selector quoted in a string is
+/// not a read of it" — for the half of this file that was already a visitor
+/// ([selectorUsesIn]). This is the other half saying the same thing.
+class _BodyReader extends RecursiveAstVisitor<void> {
+  _BodyReader(this._into);
+
+  final _Selector _into;
+
+  /// The two spellings of the state receiver. `_state` is the field of an
+  /// `extension type Select…`; `state` is the getter on the `Selectors` mixin,
+  /// which is what a composite in `extension SelectComposites on Selectors`
+  /// has to use — it has no `_state` to reach. The old pattern knew only the
+  /// first, so every composite reading state directly was a blind spot.
+  static const _stateReceivers = {'_state', 'state'};
+
+  @override
+  void visitSimpleIdentifier(SimpleIdentifier node) {
+    final parent = node.parent;
+
+    // The right half of `a.b` — a name reached through something, not one
+    // standing on its own. This is what the old "not preceded by a dot"
+    // lookbehind expressed.
+    if (parent is PrefixedIdentifier && parent.identifier == node) {
+      if (_stateReceivers.contains(parent.prefix.name)) {
+        _into.readsFields.add(node.name);
+      }
+      return;
+    }
+    if (parent is PropertyAccess && parent.propertyName == node) return;
+    if (parent is MethodInvocation && parent.methodName == node) {
+      _waitedOn(parent);
+      return;
+    }
+    if (_stateReceivers.contains(node.name)) return;
+
+    // Lower-case initial only, which is what keeps a type name out of the
+    // sibling set — the same filter the old pattern's `[a-z]` applied.
+    final name = node.name;
+    if (name.isNotEmpty && name[0] == name[0].toLowerCase()) {
+      _into.siblings.add(name);
+    }
+  }
+
+  /// The action type in `…isWaitingForType<LogInWithEmailAction>()`.
+  void _waitedOn(MethodInvocation node) {
+    if (node.methodName.name != 'isWaitingForType') return;
+    for (final arg
+        in node.typeArguments?.arguments ?? const <TypeAnnotation>[]) {
+      if (arg is NamedType) _into.waitsForActions.add(arg.name.lexeme);
     }
   }
 }

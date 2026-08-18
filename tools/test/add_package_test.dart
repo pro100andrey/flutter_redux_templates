@@ -198,13 +198,9 @@ void main() {
         ]),
         isEmpty,
       );
-      expect(
-        PackageScaffold.importersOf(sources, [PackageKind.models]),
-        {
-          PackageKind.models: ['http_client/lib/api/auth.dart'],
-        },
-        reason: 'dropping models alone really would break http_client',
-      );
+      expect(PackageScaffold.importersOf(sources, [PackageKind.models]), {
+        PackageKind.models: ['http_client/lib/api/auth.dart'],
+      }, reason: 'dropping models alone really would break http_client');
     });
 
     test('a file that does not decode is scanned, not skipped', () {

@@ -31,7 +31,7 @@ sequenceDiagram
     User->>UI: onPressedLogIn
     UI->>VM: onPressedLogIn()
     VM->>+A3: dispatchAndWait
-    Note over A3: WaitingAction · async
+    Note over A3: WaitingAction · BlockingAction · async
     A3->>ST: copyWith(session, login)
     A3-->>-VM: ActionStatus
 

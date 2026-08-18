@@ -4,7 +4,7 @@ import '../../app_state.dart';
 import '../../common/action.dart';
 import '../models/forgot_password_state.dart';
 
-class ForgotPasswordAction extends Action with WaitingAction {
+class ForgotPasswordAction extends Action with WaitingAction, BlockingAction {
   @override
   Future<AppState> reduce() async {
     await _forgotPasswordRequest(email: forgotPassword.email!);

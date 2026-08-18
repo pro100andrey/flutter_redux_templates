@@ -4,7 +4,7 @@ import '../../app_state.dart';
 import '../../common/action.dart';
 import '../models/reset_password_state.dart';
 
-class ResetPasswordAction extends Action with WaitingAction {
+class ResetPasswordAction extends Action with WaitingAction, BlockingAction {
   @override
   Future<AppState> reduce() async {
     await _resetPasswordRequest(

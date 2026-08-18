@@ -490,11 +490,11 @@ void main() {
             'the frame holds no _Vm, which used to read as "this page '
             'dispatches nothing" rather than "look in the regions"',
       );
-      expect(
-        flow.useCases.map((u) => u.name),
-        ['onSelectView', 'onPick', 'view'],
-        reason: 'depth-first, in the order the slots are written',
-      );
+      expect(flow.useCases.map((u) => u.name), [
+        'onSelectView',
+        'onPick',
+        'view',
+      ], reason: 'depth-first, in the order the slots are written');
     });
 
     test('says which region each one belongs to', () {
@@ -682,11 +682,11 @@ void main() {
       'reads one use case per dispatching _Vm callback, skipping the rest',
       () {
         final flow = _read();
-        expect(
-          flow.useCases.map((u) => u.name),
-          ['email', 'onPressedRegister', 'onPressedLogin'],
-          reason: 'the plain `title` argument dispatches nothing',
-        );
+        expect(flow.useCases.map((u) => u.name), [
+          'email',
+          'onPressedRegister',
+          'onPressedLogin',
+        ], reason: 'the plain `title` argument dispatches nothing');
       },
     );
 

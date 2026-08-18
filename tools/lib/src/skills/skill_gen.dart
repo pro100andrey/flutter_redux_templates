@@ -195,9 +195,9 @@ class SkillGen {
       // The opposite rule — prompt the positive — governs the body, not this.
       ..writeln(
         _wrap(
-          '${s.when} ${_writes.contains(cmd.name) ? 'Wired by' : 'Answered by'} '
+          '${s.when} ${s.wires ? 'Wired by' : 'Answered by'} '
               '`frx ${cmd.name}`$alias.'
-              '${_writes.contains(cmd.name) ? ' Do NOT hand-write this artifact '
+              '${s.wires ? ' Do NOT hand-write this artifact '
                         'or edit the files it wires — run the command.' : ''}',
           '  ',
         ),
@@ -389,35 +389,43 @@ data), and `--force`. A non-zero exit means none of it landed.''';
 `frx doctor`, then `dart analyze`. When the feature is finished and before the
 next one starts, `frx graph` — it is the only one that names code nothing
 reaches.''';
-
-  static const _writes = {
-    'add-substate',
-    'add-page',
-    'add-tabs',
-    'add-action',
-    'add-field',
-    'add-selector',
-    'add-widget',
-    'add-connector',
-    'add-nav',
-    'add-model',
-    'add-enum',
-    'add-service',
-    'add-retrofit',
-    'add-theme-extension',
-    'batch',
-    'remove',
-    'rename',
-  };
 }
 
 class _Situation {
-  const _Situation(
+  /// A command that writes or moves an artifact of this architecture. Its skill
+  /// carries the prohibition, because hand-writing one of these writes the files
+  /// and misses the wiring.
+  const _Situation.wired(
     this.when, {
     this.context,
     this.paths = const [],
     this.traps = const [],
-  });
+  }) : wires = true;
+
+  /// A command that answers a question. Nothing to forbid — and, as the
+  /// analyzer pointed out the moment the two were split, nothing to describe or
+  /// to glob on either: [context] says what an artifact *is*, [paths] fires on
+  /// the file being edited, and a command that writes no artifact has neither.
+  const _Situation.read(this.when, {this.traps = const []})
+    : wires = false,
+      context = null,
+      paths = const [];
+
+  /// Whether the description forbids hand-writing what this command wires.
+  ///
+  /// **Two constructors rather than a flag, and no unnamed one, so this cannot
+  /// be left undecided.** It used to be a `_writes` set of command names 620
+  /// lines from the only place that read it — and both reads were inside
+  /// `_skill()`, where this object is already in hand. It had already come
+  /// apart: `add-package` extends `WritingCommand`, and creating a package is
+  /// five changes across two directories of which four alone leave a workspace
+  /// that does not resolve, yet its skill said only "Answered by".
+  ///
+  /// It is not `cmd is WritingCommand`: `batch` and `rename` wire artifacts
+  /// without extending it, and `update-skills` extends it and writes frx's own
+  /// files rather than the project's — though that one never reaches here, since
+  /// a command with no situation gets no skill.
+  final bool wires;
 
   /// The trigger. Written the way the task sounds before the command is known.
   final String when;
@@ -615,7 +623,7 @@ before it is handed over.
 ''';
 
 const _situations = <String, _Situation>{
-  'add-substate': _Situation(
+  'add-substate': _Situation.wired(
     'A new slice of application state — a list or table of things, a search, '
     'or a single value the app holds onto.',
     context: r'''
@@ -682,7 +690,7 @@ selector facade, so a screen says `todos.view` and so does a reducer —
           'yours.',
     ],
   ),
-  'add-field': _Situation(
+  'add-field': _Situation.wired(
     'A piece of data a state slice does not hold yet — the slice already '
     'exists and needs one more field on it. Also the shape of a slice you '
     'just created: each field is one of these, not a file you open and type.',
@@ -753,7 +761,7 @@ spelled — not `state.copyWith(todos: state.todos.copyWith(…))`.
           'and prunes an import nothing else needs.',
     ],
   ),
-  'add-selector': _Situation(
+  'add-selector': _Situation.wired(
     'A value computed from state rather than stored in it — a count, a '
     'filtered list, a derived flag; anything a screen reads that the state '
     'does not hold directly.',
@@ -810,7 +818,7 @@ reach its siblings, and in the whole template not one of them tried to.
           'defect: in a template it can be API for whoever builds on it.',
     ],
   ),
-  'add-action': _Situation(
+  'add-action': _Situation.wired(
     'Something that changes state — a reducer, a mutation, an async operation '
     'a screen dispatches.',
     context: r'''
@@ -885,7 +893,7 @@ plain `dispatch` for fire-and-forget.
           'about is half-wired.',
     ],
   ),
-  'add-page': _Situation(
+  'add-page': _Situation.wired(
     'A new screen and the route that reaches it.',
     context: _connectorContext,
     traps: [
@@ -900,7 +908,7 @@ plain `dispatch` for fire-and-forget.
           'constructor field.',
     ],
   ),
-  'add-tabs': _Situation(
+  'add-tabs': _Situation.wired(
     'A tabbed shell — several screens living under one tab bar, as a nested '
     'route.',
     traps: [
@@ -910,7 +918,7 @@ plain `dispatch` for fire-and-forget.
           'whichever spelling created it removes it.',
     ],
   ),
-  'add-nav': _Situation(
+  'add-nav': _Situation.wired(
     'Getting from one screen to another — a tap that opens another page.',
     paths: ['app/lib/connectors/*.dart', 'app/lib/navigation/*.dart'],
     traps: [
@@ -919,7 +927,7 @@ plain `dispatch` for fire-and-forget.
           '`replace` or `navigate`.',
     ],
   ),
-  'add-widget': _Situation(
+  'add-widget': _Situation.wired(
     'A reusable piece of UI in the `ui` package — an input, a button, a tile, '
     'a container.',
     context: r'''
@@ -988,7 +996,7 @@ in one line: *label is data, not design*.
           'copies it instead. There is not one in the package.',
     ],
   ),
-  'add-connector': _Situation(
+  'add-connector': _Situation.wired(
     'Connecting a dumb widget to the store — the `StoreConnector` that builds '
     'its view-model.',
     paths: ['app/lib/connectors/*.dart'],
@@ -1005,7 +1013,7 @@ in one line: *label is data, not design*.
           'whichever spelling created it removes it.',
     ],
   ),
-  'add-model': _Situation(
+  'add-model': _Situation.wired(
     'A data shape the app passes around — a freezed model, or a sealed union '
     'when the value is one of several cases.',
     traps: [
@@ -1019,16 +1027,16 @@ in one line: *label is data, not design*.
           'flag beside it.',
     ],
   ),
-  'add-enum': _Situation(
+  'add-enum': _Situation.wired(
     'A fixed set of values — a status, a priority, a mode.',
   ),
-  'add-service': _Situation(
+  'add-service': _Situation.wired(
     'A service and the Redux dispatcher that lets it reach the store.',
     traps: [
       'The suffix is optional and idempotent: `Sync` and `SyncService` scaffold the same artifact. Do not strip it yourself, and do not add it — pass the name as you have it. `frx remove` reads the same rule, so whichever spelling created it removes it.',
     ],
   ),
-  'add-package': _Situation(
+  'add-package': _Situation.wired(
     'A whole workspace member is missing — `add-model` or `add-retrofit` '
     'refused because the package it writes into is not in this project.',
     paths: ['pubspec.yaml'],
@@ -1070,14 +1078,14 @@ its own — build_runner needs the resolution it just invalidated.
           'writes nothing and says so.',
     ],
   ),
-  'add-retrofit': _Situation(
+  'add-retrofit': _Situation.wired(
     'An HTTP API client — endpoints against a base URL.',
   ),
-  'add-theme-extension': _Situation(
+  'add-theme-extension': _Situation.wired(
     'Theme values the design needs — colours, sizes, spacing read off the '
     'theme.',
   ),
-  'batch': _Situation(
+  'batch': _Situation.wired(
     'Several artifacts at once — a whole feature\'s worth of state, screens '
     'and actions, wired together.',
     traps: [
@@ -1091,7 +1099,7 @@ its own — build_runner needs the resolution it just invalidated.
           '`--format` is refused too: those decide whether the batch writes.',
     ],
   ),
-  'remove': _Situation(
+  'remove': _Situation.wired(
     'Deleting any artifact — a state slice, a field on one, a screen, an '
     'action, a model, a widget, a connector, a service — with everything that '
     'points at it.',
@@ -1120,7 +1128,7 @@ its own — build_runner needs the resolution it just invalidated.
           'or imports a deleted model is yours to fix, so run the audit after.',
     ],
   ),
-  'rename': _Situation(
+  'rename': _Situation.wired(
     'Renaming a state slice or a screen — files, classes and every wiring '
     'reference.',
     traps: [
@@ -1129,7 +1137,7 @@ its own — build_runner needs the resolution it just invalidated.
           'untouched.',
     ],
   ),
-  'doctor': _Situation(
+  'doctor': _Situation.read(
     'Checking the project is still consistent — after hand edits, after a '
     'deletion, or before calling something done.',
     traps: [
@@ -1141,7 +1149,7 @@ its own — build_runner needs the resolution it just invalidated.
           'accepted.',
     ],
   ),
-  'graph': _Situation(
+  'graph': _Situation.read(
     'What reaches what — who can change this slice, what breaks if it is '
     'touched, and which selectors or actions nothing reaches at all.',
     traps: [
@@ -1158,7 +1166,7 @@ its own — build_runner needs the resolution it just invalidated.
           'substate\'s `Retrieve…Action` is the expected case.',
     ],
   ),
-  'flow': _Situation(
+  'flow': _Situation.read(
     'What actually happens when the user taps something, how the screens '
     'connect, or refreshing the generated flow docs.',
     traps: [
@@ -1166,22 +1174,22 @@ its own — build_runner needs the resolution it just invalidated.
           '1 when not. Never hand-edit that folder.',
     ],
   ),
-  'which': _Situation(
+  'which': _Situation.read(
     'What artifact a class, route or field belongs to — and the canonical name '
     'to hand `rename`.',
   ),
-  'list-substates': _Situation(
+  'list-substates': _Situation.read(
     'What state slices exist and are composed into `AppState`.',
   ),
-  'list-routes': _Situation('What routes the router registers.'),
-  'list-widget-dirs': _Situation(
+  'list-routes': _Situation.read('What routes the router registers.'),
+  'list-widget-dirs': _Situation.read(
     'Where widgets already live, before inventing a folder for a new one.',
   ),
-  'list-mixins': _Situation(
+  'list-mixins': _Situation.read(
     'Which action mixins imply what, and which exclude which — before passing '
     'a second `--mixin`.',
   ),
-  'watch': _Situation(
+  'watch': _Situation.read(
     'Running codegen continuously while working, instead of after each write.',
   ),
 };

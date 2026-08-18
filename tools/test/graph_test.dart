@@ -1023,4 +1023,92 @@ extension type SelectStray(AppState _state) implements Selector {
       );
     });
   });
+
+  group('a selector body is code, not text', () {
+    // Three regexes over `body.toSource()` derived what a getter touched, and
+    // text cannot tell a string literal from code. Reproduced with the product's
+    // own commands: `frx add-selector session label -t String -e "'token'"` on a
+    // fresh project made the graph report `label` — whose whole body is the
+    // *string* `'token'` — as reading the session slice, because the bare-name
+    // scrape matched inside the quotes and the sibling fold handed it the
+    // neighbouring getter's reads.
+    AppGraph read() {
+      final root = Directory.systemTemp.createTempSync('frx_graph_text_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      void put(String rel, String content) {
+        File(p.join(root.path, rel))
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content);
+      }
+
+      put('business/lib/redux/app_state.dart', '''
+@freezed
+abstract class AppState with _\$AppState {
+  const factory AppState({
+    required SessionState session,
+    required Wait wait,
+  }) = _AppState;
+}
+''');
+      put('business/lib/redux/selectors.dart', '''
+mixin Selectors {
+  AppState get state;
+  SelectSession get session => SelectSession(state);
+}
+
+extension SelectComposites on Selectors {
+  bool get isBusy => state.wait.isWaitingAny;
+}
+
+extension type SelectSession(AppState _state) {
+  String? get token => _state.session.token;
+
+  /// The body is the string 'token' — not the getter declared beside it.
+  String get label => 'token';
+}
+''');
+      put('app/lib/navigation/app_router.dart', '''
+class AppRouter extends RootStackRouter {
+  @override
+  List<AutoRoute> get routes => [];
+}
+''');
+      return GraphReader(FrxWorkspace.locate(startDir: root.path)).read();
+    }
+
+    test('a getter quoting a sibling reads nothing', () {
+      expect(
+        read().edges.where((e) => e.from == 'selector:SelectSession.label'),
+        isEmpty,
+      );
+    });
+
+    test('the getter it quotes still reads its own slice', () {
+      // The other direction, so the fix cannot be "stop resolving anything":
+      // `token` genuinely reads `_state.session`.
+      expect(
+        read().edges.any(
+          (e) =>
+              e.from == 'selector:SelectSession.token' &&
+              e.to == 'substate:session',
+        ),
+        isTrue,
+      );
+    });
+
+    test('a composite reaches state through `state`, not only `_state`', () {
+      // `extension SelectComposites on Selectors` has no `_state` to reach — it
+      // has the mixin's `state` getter. A pattern keyed on the extension-type
+      // spelling made every composite that reads state directly a blind spot,
+      // which `reality_test` caught the moment one was written.
+      expect(
+        read().edges.any(
+          (e) =>
+              e.from == 'selector:SelectComposites.isBusy' &&
+              e.to == 'substate:wait',
+        ),
+        isTrue,
+      );
+    });
+  });
 }

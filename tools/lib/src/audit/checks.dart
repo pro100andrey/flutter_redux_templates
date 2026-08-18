@@ -182,9 +182,8 @@ void checkSubstates(FrxWorkspace repo, List<Finding> into) {
 
   // Orphan substate folders (a *_state.dart whose type isn't in AppState),
   // and — when even that file is gone — what the folder has become.
-  for (final dir in sourceIndex.directoriesIn(source.reduxDir)) {
+  for (final dir in repo.substateDirsIn()) {
     final base = p.basename(dir.path);
-    if (!FrxWorkspace.isSubstateDir(base)) continue;
     final stateFile = p.join(dir.path, 'models', '${base}_state.dart');
     if (!File(stateFile).existsSync()) {
       _checkSubstateCarcass(dir, base, into);

@@ -220,88 +220,79 @@ void main() {
     );
   });
 
-  group(
-    'a failed write is indistinguishable from one never attempted',
-    () {
-      // Wiring a page is five edits across two packages, four of which alone
-      // leave code that does not compile — so these three cases are the defining
-      // risk, not a corner case. Each seals a directory the command is about to
-      // write into, so the failure lands *after* the applier has already done
-      // work, and then asserts the whole repo is byte-identical.
+  group('a failed write is indistinguishable from one never attempted', () {
+    // Wiring a page is five edits across two packages, four of which alone
+    // leave code that does not compile — so these three cases are the defining
+    // risk, not a corner case. Each seals a directory the command is about to
+    // write into, so the failure lands *after* the applier has already done
+    // work, and then asserts the whole repo is byte-identical.
 
-      /// Every path under the fixture, files as bytes and directories as null.
-      Map<String, List<int>?> tree() {
-        final out = <String, List<int>?>{};
-        for (final e in fx.root.listSync(recursive: true, followLinks: false)) {
-          out[p.relative(e.path, from: fx.root.path)] = e is File
-              ? e.readAsBytesSync()
-              : null;
-        }
-        return out;
+    /// Every path under the fixture, files as bytes and directories as null.
+    Map<String, List<int>?> tree() {
+      final out = <String, List<int>?>{};
+      for (final e in fx.root.listSync(recursive: true, followLinks: false)) {
+        out[p.relative(e.path, from: fx.root.path)] = e is File
+            ? e.readAsBytesSync()
+            : null;
       }
+      return out;
+    }
 
-      /// Makes [relative] unwritable for the rest of the test.
-      ///
-      /// Undone in `addTearDown` rather than at the end of the body: a failed
-      /// expectation would otherwise leave the fixture undeletable, turning one
-      /// failure into a second, unrelated one.
-      void seal(String relative) {
-        final target = fx.path(relative);
-        Process.runSync('chmod', ['a-w', target]);
-        addTearDown(() => Process.runSync('chmod', ['u+w', target]));
-      }
+    /// Makes [relative] unwritable for the rest of the test.
+    ///
+    /// Undone in `addTearDown` rather than at the end of the body: a failed
+    /// expectation would otherwise leave the fixture undeletable, turning one
+    /// failure into a second, unrelated one.
+    void seal(String relative) {
+      final target = fx.path(relative);
+      Process.runSync('chmod', ['a-w', target]);
+      addTearDown(() => Process.runSync('chmod', ['u+w', target]));
+    }
 
-      test('a write that fails part-way creates nothing', () async {
-        // `add-page` writes the ui page, writes the connector, and edits the
-        // router. Sealing the connectors directory fails the second write.
-        seal('app/lib/connectors');
-        final before = tree();
+    test('a write that fails part-way creates nothing', () async {
+      // `add-page` writes the ui page, writes the connector, and edits the
+      // router. Sealing the connectors directory fails the second write.
+      seal('app/lib/connectors');
+      final before = tree();
 
-        final res = await runFrx(fx, ['add-page', 'settings', '--public']);
+      final res = await runFrx(fx, ['add-page', 'settings', '--public']);
 
-        expect(res.exitCode, 70, reason: res.stderr.toString());
-        expect(res.stderr, contains('nothing was written'));
-        expect(tree(), before);
-      });
+      expect(res.exitCode, 70, reason: res.stderr.toString());
+      expect(res.stderr, contains('nothing was written'));
+      expect(tree(), before);
+    });
 
-      test('a move that fails part-way puts the earlier moves back', () async {
-        // Renaming a page moves the ui page first and the connector second.
-        // Sealing the connectors directory fails the second move with the first
-        // already carried out — and with the reference edits already written.
-        seal('app/lib/connectors');
-        final before = tree();
+    test('a move that fails part-way puts the earlier moves back', () async {
+      // Renaming a page moves the ui page first and the connector second.
+      // Sealing the connectors directory fails the second move with the first
+      // already carried out — and with the reference edits already written.
+      seal('app/lib/connectors');
+      final before = tree();
 
-        // `home` rather than `log_in`, which names both a page and a substate and
-        // would need a `--kind` this test has no reason to be about.
-        final res = await runFrx(fx, [
-          'rename',
-          'home',
-          'dashboard',
-          '--apply',
-        ]);
+      // `home` rather than `log_in`, which names both a page and a substate and
+      // would need a `--kind` this test has no reason to be about.
+      final res = await runFrx(fx, ['rename', 'home', 'dashboard', '--apply']);
 
-        expect(res.exitCode, 70, reason: res.stderr.toString());
-        expect(tree(), before);
-      });
+      expect(res.exitCode, 70, reason: res.stderr.toString());
+      expect(tree(), before);
+    });
 
-      test('a delete that fails part-way restores what it removed', () async {
-        // Deletes run first, so a later failure is the case that used to leave
-        // files removed with their replacements never written.
-        expect((await runFrx(fx, ['add-substate', 'cart'])).exitCode, 0);
-        seal('business/lib/redux/app_state.dart');
-        final before = tree();
+    test('a delete that fails part-way restores what it removed', () async {
+      // Deletes run first, so a later failure is the case that used to leave
+      // files removed with their replacements never written.
+      expect((await runFrx(fx, ['add-substate', 'cart'])).exitCode, 0);
+      seal('business/lib/redux/app_state.dart');
+      final before = tree();
 
-        final res = await runFrx(fx, ['remove', 'cart', '--apply']);
+      final res = await runFrx(fx, ['remove', 'cart', '--apply']);
 
-        expect(res.exitCode, 70, reason: res.stderr.toString());
-        expect(
-          Directory(fx.path('business/lib/redux/cart')).existsSync(),
-          isTrue,
-          reason: 'the folder the delete pass removed is back',
-        );
-        expect(tree(), before);
-      });
-    },
-    skip: Platform.isWindows ? 'needs POSIX file modes' : null,
-  );
+      expect(res.exitCode, 70, reason: res.stderr.toString());
+      expect(
+        Directory(fx.path('business/lib/redux/cart')).existsSync(),
+        isTrue,
+        reason: 'the folder the delete pass removed is back',
+      );
+      expect(tree(), before);
+    });
+  }, skip: Platform.isWindows ? 'needs POSIX file modes' : null);
 }
