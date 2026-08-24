@@ -4,4 +4,4 @@
 /// used to say "keep in sync" and nothing checked. Kept as a compile-time
 /// constant (not read from pubspec at runtime) so `frx --version` works after
 /// `dart install`, where the pubspec no longer sits next to the executable.
-const frxVersion = '0.3.3';
+const frxVersion = '0.3.4';

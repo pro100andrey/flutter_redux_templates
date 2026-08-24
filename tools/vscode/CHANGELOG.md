@@ -7,6 +7,45 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## 0.3.4
+
+### Fixed
+
+- **`graph` no longer calls a selector dead because its reader holds the facade
+  in a variable.** The chain rule counted `chats.unreadTotal` when the receiver
+  heads the chain — how a class mixing in `Selectors` reaches one — and refused
+  any segment in front of it except the literal `select` of the spine that no
+  longer exists. A file that does `final s = _Reader(state); s.chats.unreadTotal`
+  was therefore read, scanned and not counted, so a selector only it reads came
+  back on the list frx uses to say "you can delete this". On a real project that
+  was the application's tray icon, and the one false positive left in the list.
+  A receiver is now judged by *type*: a class with `Selectors` in its `with`
+  clause is the facade, and so is a variable, field or parameter holding one, or
+  the type where the facade is built in place. Not "any receiver" — a substate's
+  field and its selector are spelled the same, so that would have read
+  `state.session.token` as a selector and hidden every genuinely dead one behind
+  the substate it reads. Measured on the same project: five edges gained, none
+  lost. *(CLI)*
+
+- **`remove --kind selector` takes the imports the getter was the last reason
+  for.** The splice pruned only the imports a table knew about, so a getter's
+  own went on standing: the action file behind
+  `_state.wait.isWaitingForType<LoadContactsAction>()`, and a package that
+  supplied one return type. Two `unused_import`s in a file under the placement
+  guard, repaired by the hand edit the command exists to avoid — and a facade
+  imports one write-layer file per waiting getter, so this is the ordinary case.
+  Which imports are still needed is now read rather than looked up: a URI
+  resolves to a file, a file declares names and hands on what it exports, and a
+  name in the surviving source keeps the import. Three things it takes to be
+  right rather than merely safe — uses are read off the tree, so a word in prose
+  is not one; a type is not an identifier on that tree; and a name can have two
+  suppliers, so an import goes only when every name it still answers for is
+  answered by an import that stays, which is `unused_import`'s own rule.
+  Anything unreadable keeps the import. The same pass runs when a whole
+  substate's selectors are unwired. Replayed against a real cleanup of nine
+  selectors, the import list frx leaves is now the one that was fixed by hand.
+  *(CLI)*
+
 ## 0.3.3
 
 ### Fixed
