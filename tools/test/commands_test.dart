@@ -95,7 +95,50 @@ void main() {
       expect(retry['conflictsWith'], contains('debounce'));
     });
 
-    test('it reads nothing from disk, so --root can be anywhere', () async {
+    test('--json also carries the mixins the project itself declares', () async {
+      // The catalogue is async_redux's, so the one mixin in this architecture
+      // that *must* go last — the app's own `WaitingAction` — was absent from
+      // the command whose job is to say what combines with what. It reads the
+      // repo now, which is what `--root` had been accepted and ignored for.
+      fx.file('business/lib/redux/common/action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('''
+mixin WaitingAction on ReduxAction<AppState> {
+  @override
+  Future<void> before() async {
+    dispatchSync(WaitAction.add(this));
+    await super.before();
+  }
+
+  @override
+  void after() {
+    super.after();
+    dispatchSync(WaitAction.remove(this));
+  }
+}
+
+mixin MarksRowBusy on Action {
+  @override
+  void after() => dispatchSync(ClearBusyAction());
+}
+''');
+
+      final out = await json(['list-mixins', '--json']);
+      final rows = (out['projectMixins'] as List).cast<Map<String, Object?>>();
+      final byName = {for (final m in rows) m['name']: m};
+
+      expect(byName.keys, containsAll(['WaitingAction', 'MarksRowBusy']));
+      expect(byName['WaitingAction']!['on'], 'ReduxAction<AppState>');
+      expect(byName['WaitingAction']!['swallowsAfter'], isFalse);
+      // The shape the whole mixin-order defect was: an `after()` that cleans up
+      // and returns, so anything mixed in before it never runs.
+      expect(byName['MarksRowBusy']!['swallowsAfter'], isTrue);
+    });
+
+    test('a root with no project still answers about async_redux', () async {
+      // It reads the repo now, so "reads nothing from disk" is no longer the
+      // property. This one is: the catalogue is compiled in, and a `--root`
+      // with nothing to read costs the caller nothing.
       final r = await runInProcess(fx, [
         'list-mixins',
         '--json',

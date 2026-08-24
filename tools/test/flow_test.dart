@@ -750,6 +750,113 @@ void main() {
     });
   });
 
+  group('the dispatches an action makes', () {
+    /// Reads `dispatches` out of a lone action file holding [source].
+    List<String> dispatchesOf(String source) {
+      final root = Directory.systemTemp.createTempSync('frx_casc_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      File(p.join(root.path, 'app/lib/navigation/app_router.dart'))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('// router\n');
+      final file =
+          File(p.join(root.path, 'business/lib/redux/x/actions/a.dart'))
+            ..parent.createSync(recursive: true)
+            ..writeAsStringSync(source);
+      return FlowReader(
+        FrxWorkspace.locate(startDir: root.path),
+      ).readAction(file).dispatches.map((d) => d.target).toList();
+    }
+
+    test('from the reducer', () {
+      expect(
+        dispatchesOf(r"""
+class SomeAction extends Action {
+  @override
+  AppState reduce() {
+    dispatch(NextAction());
+    return state;
+  }
+}
+"""),
+        ['NextAction'],
+      );
+    });
+
+    test('from after(), which is where a mixin puts its cleanup', () {
+      // Read from `reduce()` alone, every other member of the class was
+      // invisible — so an action dispatched from `before()`, `after()` or a
+      // method a mixin requires the action to override was reported by `graph`
+      // as one nothing reaches, on the list you read as safe to delete.
+      expect(
+        dispatchesOf(r"""
+class SomeAction extends Action {
+  @override
+  AppState reduce() => state;
+
+  @override
+  void after() => dispatch(SweepAction());
+}
+"""),
+        ['SweepAction'],
+      );
+    });
+
+    test('from the first of two action classes in one file', () {
+      // The visitor walks the *unit*, so it met both `reduce()` methods and
+      // **assigned** rather than appended: the last class's dispatches replaced
+      // the first's. Nothing here involves a page, a mixin or a callback, which
+      // is why it survived every other test — and on a real project it
+      // accounted for two of the reported orphans on its own.
+      expect(
+        dispatchesOf(r"""
+class SomeAction extends Action {
+  @override
+  Future<AppState?> reduce() async {
+    dispatch(StampAction());
+    return null;
+  }
+}
+
+class _SomethingStarted extends Action {
+  @override
+  AppState reduce() => state;
+}
+"""),
+        ['StampAction'],
+      );
+    });
+  });
+
+  group('the store-ful dispatch form', () {
+    test('names the action, not the BuildContext', () {
+      // `StoreProvider.dispatch<AppState>(context, SaveAction())` was
+      // recognised as a dispatch all along — the target is a plain identifier,
+      // which is the guard. What it resolved to was argument zero, so the
+      // *context* was read as the action dispatched, and the real one was
+      // reported as reached by nobody.
+      final root = Directory.systemTemp.createTempSync('frx_ctx_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      File(p.join(root.path, 'app/lib/navigation/app_router.dart'))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('// router\n');
+      final file = File(p.join(root.path, 'app/lib/connectors/c.dart'))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(r"""
+class CConnector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Button(
+    onEscape: () => StoreProvider.dispatch<AppState>(context, EscapeAction()),
+  );
+}
+""");
+      final read = FlowReader(
+        FrxWorkspace.locate(startDir: root.path),
+      ).readDispatches(file);
+
+      expect(read.steps.map((s) => s.target), ['EscapeAction']);
+    });
+  });
+
   group('the AppState field an action writes', () {
     /// Reads `writes` out of a lone action file holding [reduceBody].
     String? writesOf(String reduceBody) {

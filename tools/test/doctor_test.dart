@@ -168,6 +168,252 @@ void main() {
     });
   });
 
+  group('a WaitingAction whose cleanup never runs', () {
+    // Measured on a real store before any of this was written: an action
+    // `with WaitingAction, NonReentrant` finishes and
+    // `isWaitingForType<T>()` stays true for the rest of the session — a
+    // permanently disabled button, from a clause the analyzer is happy with.
+    // Nothing in Dart, in async_redux or in the audit said a word.
+
+    /// A `common/action.dart` whose `WaitingAction` behaves as the template's
+    /// does: cleans up, and passes the chain on.
+    void writeChainingBase() {
+      fx.file('business/lib/redux/common/action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(r"""
+mixin WaitingAction on ReduxAction<AppState> {
+  @override
+  Future<void> before() async {
+    dispatchSync(WaitAction.add(this));
+    await super.before();
+  }
+
+  @override
+  void after() {
+    super.after();
+    dispatchSync(WaitAction.remove(this));
+  }
+}
+""");
+    }
+
+    void writeAction(String withClause) {
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action with $withClause {\n'
+          '  @override\n'
+          '  Future<AppState?> reduce() async => null;\n'
+          '}\n',
+        );
+    }
+
+    test('a mixin that ends the chain placed after it is reported', () async {
+      writeChainingBase();
+      writeAction('WaitingAction, NonReentrant');
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) =>
+              '${f['message']}'.contains(
+                'LoadThemeAction applies NonReentrant after WaitingAction',
+              ) &&
+              f['severity'] == 'error',
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+
+    test('the order add-action emits is not reported', () async {
+      writeChainingBase();
+      writeAction('NonReentrant, WaitingAction');
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('WaitingAction')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+
+    test('BlockingAction after WaitingAction is not reported', () async {
+      // Required by Dart — `mixin BlockingAction on WaitingAction` — and
+      // harmless: it declares no `after()`, so it ends nothing. A check that
+      // read the rule as "WaitingAction must be last" would report every
+      // blocking action in the template.
+      writeChainingBase();
+      writeAction('WaitingAction, BlockingAction');
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('LoadThemeAction')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+
+    test('an action that writes its own after() is reported', () async {
+      // No ordering involved: the clause is right and the base mixin chains.
+      // A class member beats the whole `with` clause, so this `after()` is the
+      // only one Dart runs — measured, the barrier stays up for good.
+      writeChainingBase();
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action '
+          'with NonReentrant, WaitingAction {\n'
+          '  @override\n'
+          '  void after() {}\n'
+          '}\n',
+        );
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) =>
+              '${f['message']}'.contains(
+                'LoadThemeAction overrides after() without calling '
+                'super.after()',
+              ) &&
+              f['severity'] == 'error',
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+
+    test('an action whose own hook chains is not reported', () async {
+      writeChainingBase();
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action '
+          'with NonReentrant, WaitingAction {\n'
+          '  @override\n'
+          '  void after() => super.after();\n'
+          '}\n',
+        );
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('LoadThemeAction')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+
+    test('an action with no WaitingAction is reported too', () async {
+      // Where this rule started was `WaitingAction`, and stopping there left
+      // the same defect unreported one mixin over: `NonReentrant` releases its
+      // key in `after()`, so an action that writes a bare `after()` leaks the
+      // key that stops it ever being dispatched again. No barrier involved.
+      writeChainingBase();
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action with NonReentrant {\n'
+          '  @override\n'
+          '  void after() {}\n'
+          '}\n',
+        );
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) => '${f['message']}'.contains(
+            'LoadThemeAction overrides after() without calling super.after(), '
+            'which ends the chain ahead of its own mixins: NonReentrant',
+          ),
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+
+    test('an action whose mixins own no such hook is left alone', () async {
+      // `Retry` works through `wrapReduce`, so there is no `after()` chain for
+      // the class to end and nothing to report. A rule that fired on any
+      // override would report every action that legitimately writes one.
+      writeChainingBase();
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action with Retry {\n'
+          '  @override\n'
+          '  void after() {}\n'
+          '}\n',
+        );
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('LoadThemeAction')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+
+    test('a base mixin that swallows the chain is reported', () async {
+      // The other half, and the one frx cannot fix by generating differently:
+      // `add-action` puts WaitingAction last, which is only correct while the
+      // project's own WaitingAction passes the chain on.
+      fx.file('business/lib/redux/common/action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(r"""
+mixin WaitingAction on ReduxAction<AppState> {
+  @override
+  void after() => dispatchSync(WaitAction.remove(this));
+}
+""");
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) =>
+              '${f['message']}'.contains(
+                'WaitingAction.after() does not call super.after()',
+              ) &&
+              f['severity'] == 'error',
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+  });
+
+  group('two spellings of one selector', () {
+    test('two getters with one body are reported', () async {
+      // What `add-selector` declining a taken name leaves behind: it refuses to
+      // overwrite, says so, and the reader gets added by hand under another
+      // name. Both are then correct, and together they are one fact spelled
+      // twice — which nothing recorded, so nothing said.
+      fx
+          .file('business/lib/redux/selectors.dart')
+          .writeAsStringSync(
+            fx
+                .read('business/lib/redux/selectors.dart')
+                .replaceFirst(
+                  'String? get email => _state.logIn.email;',
+                  'String? get email => _state.logIn.email;\n'
+                      '  String? get address => _state.logIn.email;',
+                ),
+          );
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) =>
+              '${f['message']}'.contains('SelectLogIn') &&
+              '${f['message']}'.contains('have the same body') &&
+              f['severity'] == 'warn',
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+
+    test('a facade with no duplicate is quiet', () async {
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('have the same body')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+  });
+
   group('the registry', () {
     // The audit is a list it walks, so one check can be run — and read — on its
     // own. Before, every one of these answers cost a subprocess and arrived
@@ -275,9 +521,26 @@ void main() {
       // handful that could match. If that stopped being true the audit would
       // still be correct and would have stopped being affordable — so the bar
       // is "most", not "at least one".
+      //
+      // The wiring files are not part of that bargain and never were. The audit
+      // reaches them *by name* — `AppState`, the router, the store's change
+      // log, the selectors facade — because a check about the facade has one
+      // file to read and knows which. Counting them here would make the ratio
+      // report on something other than the sweep, and the two move in opposite
+      // directions: adding a named-file check is cheap and would look like the
+      // sweep getting worse.
+      const addressed = {
+        'app_state.dart',
+        'app_router.dart',
+        'store.dart',
+        'selectors.dart',
+      };
       final all = [
         for (final pkg in const ['app', 'business', 'ui'])
-          ...ix.filesUnder(Directory(p.join(fx.root.path, pkg, 'lib'))),
+          for (final f in ix.filesUnder(
+            Directory(p.join(fx.root.path, pkg, 'lib')),
+          ))
+            if (!addressed.contains(p.basename(f.path))) f,
       ];
       final parsed = all.where((f) => ix.parsesOf(f) > 0).length;
       expect(all, isNotEmpty);

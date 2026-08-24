@@ -65,7 +65,9 @@ class LogInWithEmailAction extends Action with WaitingAction {
 
 `with WaitingAction` raises a wait barrier for the duration — `before()` puts it
 up, `after()` takes it down — and a screen asks about it through a selector,
-`isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>()`.
+`isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>()`. With
+behaviour mixins alongside it, `WaitingAction` goes **last**: several of them
+end the `after()` chain, so anything before one never takes the barrier down.
 
 **How it is dispatched**, from a connector's `_Factory`: `dispatchSync` for a
 synchronous setter, `dispatchAndWait` when the next step depends on the result,
@@ -77,13 +79,24 @@ plain `dispatch` for fire-and-forget.
   `ArchiveTaskAction` scaffold the same artifact. Do not strip it yourself,
   and do not add it — pass the name as you have it. `frx remove` reads the
   same rule, so whichever spelling created it removes it.
-- Mixins conflict, and the conflict is a **compile error**: async_redux
-  makes groups mutually exclusive by colliding on a private member. Ask
-  `frx list-mixins` which exclude which and let the scaffolder write the
-  `with` clause — it refuses a bad pair up front.
+- Mixins conflict, and the conflict is an **analyzer error**: async_redux
+  makes groups mutually exclusive by colliding on a private member, so
+  `dart analyze` reports `private_collision_in_mixin_application`. The
+  compiler does not — `flutter test` on such a file runs, and an `assert`
+  inside async_redux throws on the first dispatch, in a debug build only.
+  Ask `frx list-mixins` which exclude which and let the scaffolder write
+  the `with` clause; it refuses a bad pair up front.
 - `-k waiting` also adds the substate's `isWaiting` getter, on the same
   ground as a field's getter: a waiting action a page cannot ask about is
   half-wired.
+- The **order** of a `with` clause is load-bearing, and getting it wrong is
+  not a compile error. Dart runs one `after()` — the last mixin's — and
+  `NonReentrant`, `Throttle` and `Fresh` override it without calling
+  `super.after()`. `with WaitingAction, NonReentrant` therefore analyzes
+  clean and never lowers the wait barrier: the button reading `isWaiting`
+  stays dead for the session. `WaitingAction` goes **last**; `add-action`
+  writes it there, `frx list-mixins` says which mixins end the chain, and
+  `frx doctor` reports a clause that has it wrong.
 
 ## Flags
 

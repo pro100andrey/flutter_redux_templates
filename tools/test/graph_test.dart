@@ -147,6 +147,107 @@ class StorageNotes {
 }
 ''');
 
+  // Two action classes in one file, and it is the *first* that dispatches. The
+  // reader visited every `reduce()` in the unit and assigned — not appended —
+  // so the last class's dispatches replaced the first's, and the cascade
+  // vanished. Nothing about it involves a page or a mixin, which is why it
+  // survived every test here.
+  put('business/lib/redux/session/actions/refresh_action.dart', '''
+import 'expire_action.dart';
+import 'stamp_action.dart';
+
+class RefreshAction extends Action {
+  @override
+  Future<AppState?> reduce() async {
+    dispatch(StampAction());
+    return null;
+  }
+}
+
+class _RefreshStarted extends Action {
+  @override
+  AppState reduce() => state;
+}
+''');
+
+  put('business/lib/redux/session/actions/stamp_action.dart', '''
+class StampAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.session(token: 'stamped');
+}
+''');
+
+  // Dispatched from `after()`, never from the reducer — the shape a mixin's
+  // required override takes.
+  put('business/lib/redux/session/actions/audit_action.dart', '''
+import 'sweep_action.dart';
+
+class AuditAction extends Action {
+  @override
+  AppState reduce() => state;
+
+  @override
+  void after() => dispatch(SweepAction());
+}
+''');
+
+  put('business/lib/redux/session/actions/sweep_action.dart', '''
+class SweepAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.session(token: null);
+}
+''');
+
+  // Dispatched from an unrouted connector — the tree `MaterialApp.builder`
+  // wraps everything in. The page walk starts at `@RoutePage` connectors, so
+  // nothing here was ever read for dispatches.
+  put('app/lib/connectors/boot_overlay_connector.dart', '''
+import 'package:business/redux/session/actions/audit_action.dart';
+
+class _Factory extends VmFactory<AppState, BootOverlayConnector, _Vm>
+    with Selectors {
+  @override
+  _Vm fromStore() => _Vm(onDismiss: () => dispatch(AuditAction()));
+}
+''');
+
+  // Dispatches, reads a selector, and is constructed by nobody — the shape the
+  // orphan list used to report one action at a time.
+  put('app/lib/connectors/orphan_panel_connector.dart', '''
+import 'package:business/redux/registration/actions/discard_draft_action.dart';
+
+class OrphanPanelConnector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    vm: () => _Factory(this),
+    builder: (context, vm) => const Placeholder(),
+  );
+}
+
+class _Factory extends VmFactory<AppState, OrphanPanelConnector, _Vm>
+    with Selectors {
+  @override
+  _Vm fromStore() => _Vm(onDiscard: () => dispatch(DiscardDraftAction()));
+}
+''');
+
+  // Dispatched only from the connector nothing builds. It is *not* an orphan:
+  // something does dispatch it. The dead thing is one level up, which is the
+  // whole reason a connector needs a node.
+  put('business/lib/redux/registration/actions/discard_draft_action.dart', '''
+class DiscardDraftAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.registration(email: null);
+}
+''');
+
+  // Builds the root widget, and is not a connector itself — so composition
+  // read through `*_connector.dart` imports cannot see it.
+  put('app/lib/run_env.dart', '''
+Widget runEnv(RouterConfig<Object> routerConfig) =>
+    Provider(child: AppConnector(routerConfig: routerConfig));
+''');
+
   put('app/lib/navigation/app_router.dart', '''
 class AppRouter extends RootStackRouter {
   @override
@@ -159,6 +260,8 @@ class AppRouter extends RootStackRouter {
   put('app/lib/connectors/log_in_page_connector.dart', '''
 import 'package:business/redux/log_in/actions/log_in_action.dart';
 import 'package:business/redux/log_in/actions/set_email_action.dart';
+import 'package:business/redux/session/actions/refresh_action.dart';
+import 'package:business/redux/session/actions/stamp_action.dart';
 
 class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
     with Selectors {
@@ -167,6 +270,22 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
     email: FieldVm(value: logIn.email, onChanged: (v) => dispatchSync(SetEmailAction(v))),
     onPressedLogIn: () => dispatchAndWait(LogInAction()),
     onPressedMystery: () => dispatch(SomethingElse()),
+  );
+}
+
+class LogInPageConnector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    vm: () => _Factory(this),
+    // Belongs to no interaction, so to no view-model field — and a dispatch
+    // read only out of `_Vm(...)` arguments is a dispatch this never was.
+    onInit: (store) => store.dispatch(RefreshAction()),
+    builder: (context, vm) => LogInPage(
+      // The store-ful form: the action is the *second* argument, and reading
+      // the first named `context` as the thing dispatched.
+      onEscape: () => StoreProvider.dispatch<AppState>(context, StampAction()),
+      overlay: const BootOverlayConnector(),
+    ),
   );
 }
 ''');
@@ -491,6 +610,8 @@ void main() {
           'restores persistor:AppPersistor',
           'writes action:session.ExpireAction',
           'writes action:session.SetTokenAction',
+          'writes action:session.StampAction',
+          'writes action:session.SweepAction',
         ],
       );
     });
@@ -544,6 +665,98 @@ void main() {
           'action:registration.ResetFormAction',
           'action:registration.SetEmailAction',
         ],
+      );
+    });
+
+    test('an action reached only from onInit is not an orphan', () {
+      // `onInit:` is a `StoreConnector` argument, not a `_Vm(...)` one, so the
+      // page walk counted it in `PageFlow.untraced` and drew no edge. The
+      // orphan list is the one place frx says "you can delete this", and it
+      // named an action the connector dispatches on open.
+      final g = _read();
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('action:session.RefreshAction')),
+      );
+    });
+
+    test('an action reached only from an unrouted connector is not an '
+        'orphan', () {
+      // The same file class `NodeKind.consumer` was invented for, and which
+      // the selector half of this reader already sweeps for reads.
+      final g = _read();
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('action:session.AuditAction')),
+      );
+    });
+
+    test('an action reached only through StoreProvider.dispatch is not an '
+        'orphan', () {
+      // Recognised as a dispatch all along; it was the *target* that was read
+      // off argument zero, which is the `BuildContext`.
+      final g = _read();
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('action:session.StampAction')),
+      );
+    });
+
+    test('an action reached only from after() is not an orphan', () {
+      // Dispatches were read from `reduce()` alone, so a cascade out of any
+      // other member — `before`, `after`, a method a mixin requires — was
+      // invisible.
+      final g = _read();
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('action:session.SweepAction')),
+      );
+    });
+
+    test('a second action class in a file does not erase the first\'s '
+        'dispatches', () {
+      // Assignment, not accumulation: every `reduce()` in the unit was visited
+      // and the last one won. Measured on a real project, this alone accounted
+      // for two of the reported orphans.
+      final g = _read();
+      expect(
+        _edges(g, from: 'action:session.RefreshAction').map((e) => e.to),
+        contains('action:session.StampAction'),
+      );
+    });
+
+    test('a connector no file constructs is reported, with its own reason', () {
+      // The verdict the orphan list could not reach. On a real project six of
+      // eleven reported orphan actions were dispatched only from a connector
+      // nothing builds: the answer "nothing reaches these six" was right and
+      // the reason — one dead connector, not six dead actions — was missing.
+      final g = _read();
+      expect(
+        g.orphans
+            .where((o) => o.node.kind == NodeKind.consumer)
+            .map((o) => '${o.node.id} ${o.why}'),
+        ['consumer:OrphanPanelConnector no file constructs it'],
+      );
+    });
+
+    test('a connector a page builds is not reported', () {
+      final g = _read();
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('consumer:BootOverlayConnector')),
+      );
+    });
+
+    test('a connector built from a file that is not itself one is not '
+        'reported', () {
+      // `AppConnector` lives in `app.dart` and is constructed in `run_env.dart`
+      // — neither file is named `*_connector.dart`. Resolving composition
+      // through that import pattern, which is what the page walk does, called
+      // the app's own root widget unbuilt.
+      final g = _read();
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('consumer:AppConnector')),
       );
     });
 
@@ -990,7 +1203,7 @@ extension type SelectStray(AppState _state) implements Selector {
           .filesUnder(ws.businessLib)
           .where((f) => f.path.endsWith('_action.dart'))
           .toList();
-      expect(actions, hasLength(6));
+      expect(actions, hasLength(11));
       for (final f in actions) {
         expect(ix.parsesOf(f), 1, reason: p.basename(f.path));
       }

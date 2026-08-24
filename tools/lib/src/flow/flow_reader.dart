@@ -122,6 +122,26 @@ class FlowReader {
     );
   }
 
+  /// The names of the connector classes [file] constructs.
+  ///
+  /// Public for the graph, which needs the composition the page walk uses
+  /// internally: a connector no file builds is dead, and the actions it alone
+  /// dispatches are dead with it — which the orphan list could not say while
+  /// composition was known only inside this reader.
+  ///
+  /// **Names, where the walk resolves files.** [_connectorsIn] keeps only what
+  /// a `*_connector.dart` import resolves to, which is right for a walk that
+  /// must open the file next. Applied to the question "does anything construct
+  /// this class" it answers no for every connector that does not live in a file
+  /// named that way — measured: `AppConnector` lives in `app.dart` and is
+  /// built in `run_env.dart`, and the file-resolving read called the app's own
+  /// root widget unbuilt.
+  Set<String> connectorNamesIn(File file) {
+    final built = <String>{};
+    sourceIndex.unitFor(file).accept(_ConnectorVisitor(built));
+    return built;
+  }
+
   /// The connector classes constructed inside [unit], by class name, in source
   /// order — each resolved to the file its import points at.
   ///
@@ -549,8 +569,29 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
     super.visitSimpleIdentifier(node);
   }
 
+  /// The argument holding the action.
+  ///
+  /// The first, normally: `dispatch(SaveAction())`. `StoreProvider` takes the
+  /// context first — `StoreProvider.dispatch<AppState>(context, SaveAction())`
+  /// — and reading argument zero there names `context` as the action
+  /// dispatched. The call was recognised all along; what it resolved to was the
+  /// wrong node, so the action really being dispatched was reported as reached
+  /// by nobody.
+  ///
+  /// Keyed on the class name rather than on a shape heuristic: this is
+  /// async_redux's own static API, and `StoreProvider.dispatch` is the whole
+  /// list of ways to get a store from a `BuildContext`.
+  static Expression? _actionArgumentOf(MethodInvocation node) {
+    final args = node.argumentList.arguments.whereType<Expression>().toList();
+    final target = node.target;
+    final at = target is SimpleIdentifier && target.name == 'StoreProvider'
+        ? 1
+        : 0;
+    return at < args.length ? args[at] : null;
+  }
+
   DispatchStep _stepFrom(MethodInvocation node, DispatchKind kind) {
-    final arg = node.argumentList.arguments.whereType<Expression>().firstOrNull;
+    final arg = _actionArgumentOf(node);
     var target = arg?.toSource() ?? '?';
     String? route;
     String? routeArgs;
@@ -684,12 +725,19 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitMethodDeclaration(MethodDeclaration node) {
-    if (node.name.lexeme == 'reduce') {
-      isAsync = node.body.isAsynchronous;
-      final v = _DispatchVisitor();
-      node.body.accept(v);
-      dispatches = v.steps;
-    }
+    // `isAsync` is a fact about the reducer — whether the action makes the
+    // round trip a diagram should show — so it stays keyed on `reduce`.
+    if (node.name.lexeme == 'reduce') isAsync = node.body.isAsynchronous;
+
+    // The dispatches are not. An action that dispatches from `before()`,
+    // `after()`, or a method a mixin requires it to override cascades exactly
+    // as one that dispatches from its reducer, and reading only the reducer
+    // left the dispatched action looking like one nothing reaches — reported
+    // in the orphan list, which is the one place frx says "you can delete
+    // this".
+    final v = _DispatchVisitor();
+    node.body.accept(v);
+    if (v.steps.isNotEmpty) dispatches = [...dispatches, ...v.steps];
     super.visitMethodDeclaration(node);
   }
 

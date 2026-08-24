@@ -127,9 +127,17 @@ class GraphReader {
           owner: owner,
           at: at,
           expr: className,
-          why:
-              'dispatched, but no imported `*_action.dart` declares it — a '
-              'factory, an alias, or an action outside business/lib/redux',
+          why: _declaredIn(at, className)
+              // A private action beside the one the file is named for. The
+              // reason is real and the old wording was not: it said "no
+              // imported `*_action.dart` declares it" about a class declared
+              // three lines down. What frx cannot do is model it — an action
+              // node is keyed on its file, and this file already has one.
+              ? 'declared in this file beside its main action, so it has no '
+                    'node of its own — one action per file is what the graph '
+                    'can key on'
+              : 'dispatched, but no imported `*_action.dart` declares it — a '
+                    'factory, an alias, or an action outside business/lib/redux',
         ),
       );
       return id;
@@ -304,6 +312,93 @@ class GraphReader {
       }
     }
 
+    // ---- dispatches from everywhere else ---------------------------------
+    // **The same sweep the selector pass below makes, for the other half of the
+    // question it answers.** That pass reads every Dart file of the app's own
+    // packages and says why: "a read is a read whether or not frx models the
+    // reader, and scanning only modelled files would report the selectors that
+    // only an unrouted connector uses as dead — the one mistake here that costs
+    // working code." Every word of it is true of a dispatch, and this half did
+    // not do it.
+    //
+    // What it did instead was take dispatches from the page walk, which turns a
+    // dispatch into an edge only where it is written as a named argument of the
+    // `_Vm(...)` construction. Three ordinary shapes fall outside that and were
+    // dropped:
+    //
+    //   * `onInit: (store) => store.dispatch(LoadX())` on the `StoreConnector`,
+    //     which belongs to no interaction and so to no view-model field;
+    //   * a callback built in `builder:` rather than in `_Vm(...)`;
+    //   * every connector no route registers — the walk starts at `@RoutePage`
+    //     connectors, so a tree rooted in `MaterialApp.builder` is never
+    //     entered. `NodeKind.consumer` was invented for exactly that file and
+    //     applied only to its selector reads.
+    //
+    // The reader already knew: each one lands in `PageFlow.untraced`, which
+    // `flow --md` prints as "these files dispatch anyway — so this page has
+    // interactions that are not drawn". The graph never read it, so the orphan
+    // list — the one place frx says "you can delete this" — named actions that
+    // a connector three lines away dispatches. Measured on a real project: four
+    // of eleven reported orphan actions.
+    //
+    // Additive, and deliberately after everything that attributes an edge more
+    // precisely: a flow edge carries the interaction it belongs to (`via
+    // onSubmit`), and this pass must not shadow one with a bare duplicate. So
+    // it fills gaps only — a pair already linked is left as the richer edge.
+    final linked = {
+      for (final e in edges.values)
+        if (e.kind == EdgeKind.dispatches) '${e.from}|${e.to}',
+    };
+    //
+    // **Resolve-or-skip, unlike every other pass here.** The others call
+    // [dispatchTarget], which invents a placeholder node and an `unresolved`
+    // note for a name it cannot pin to a file. Doing that from a sweep of every
+    // file was measured and rejected: `unresolved` went from 6 entries to 22 on
+    // the project this was written against — the same unresolvable factory
+    // reported once per file that calls it, and `WaitAction.add` /
+    // `WaitAction.remove` raised as project actions because the template's own
+    // `WaitingAction` mixin dispatches async_redux's bookkeeping. None of it is
+    // new information: naming what a dispatch could not be resolved to is the
+    // routed walk's job and it already does it. This pass exists to stop an
+    // action frx *does* model from being called unreachable, so an edge it
+    // cannot draw to a known action is an edge it has no business inventing.
+    for (final consumer in _consumerFiles()) {
+      final read = flowReader.readDispatches(consumer);
+      if (read.steps.isEmpty) continue;
+
+      final targets = <String>{};
+      for (final step in read.steps) {
+        if (step.isNavigation) continue;
+        final file = read.actionFiles[step.target];
+        final known = file == null ? null : actions[p.canonicalize(file.path)];
+        if (known != null) targets.add(known.id);
+      }
+      if (targets.isEmpty) continue;
+
+      final path = p.canonicalize(consumer.path);
+      var from = owners[consumer.path] ?? owners[path];
+      if (from == null) {
+        // A dispatcher with no node of its own — see [NodeKind.consumer].
+        final name =
+            firstClassNameIn(sourceIndex.unitFor(consumer)) ??
+            Casing.parse(p.basenameWithoutExtension(consumer.path)).pascal;
+        from = 'consumer:$name';
+        addNode(
+          GraphNode(
+            id: from,
+            kind: NodeKind.consumer,
+            name: name,
+            file: consumer.path,
+          ),
+        );
+      }
+
+      for (final to in targets) {
+        if (!linked.add('$from|$to')) continue;
+        addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.dispatches));
+      }
+    }
+
     // ---- selectors -------------------------------------------------------
     _readSelectors(
       appState,
@@ -314,6 +409,65 @@ class GraphReader {
       hasSubstate: (f) => nodes.containsKey('substate:$f'),
       owners: owners,
     );
+
+    // ---- how the screens are composed ------------------------------------
+    // Which connector builds which, so "nothing builds this one" becomes
+    // sayable. Without it the graph had no notion of a widget connector
+    // existing at all: on a real project six of eleven reported orphan actions
+    // were dispatched only from a `SettingsConnector` that no file constructs,
+    // so the verdict was right and the reason — the whole connector is dead,
+    // not the six actions one at a time — was missing.
+    //
+    // The composition itself is not new; `FlowReader` walks it to find a page's
+    // regions. It was private to that walk, which starts at `@RoutePage`
+    // connectors, so nothing outside the routed tree was ever composed.
+    //
+    // Runs after everything that makes a node, and matches on the class name
+    // rather than on a resolved import: a builder is any file at all, and the
+    // one that constructs the app's root widget is not itself a connector.
+    final connectorNodes = <String, String>{
+      for (final n in nodes.values)
+        if (n.kind == NodeKind.consumer) n.name: n.id,
+    };
+    for (final consumer in _consumerFiles()) {
+      final built = flowReader.connectorNamesIn(consumer);
+      if (built.isEmpty) continue;
+
+      final path = p.canonicalize(consumer.path);
+      // Only to nodes that already exist: constructing something frx does not
+      // model is not evidence of anything.
+      final targets = {
+        for (final name in built)
+          if (connectorNodes[name] != null) connectorNodes[name]!,
+      };
+      if (targets.isEmpty) continue;
+
+      var from = owners[consumer.path] ?? owners[path];
+      if (from == null) {
+        // A builder with no artifact of its own — the `run_env.dart` that wraps
+        // the root widget. It gets a node so the construction can be recorded;
+        // the dead-connector rule looks only at names ending in `Connector`, so
+        // giving one to a plain file cannot put it on that list.
+        final name =
+            firstClassNameIn(sourceIndex.unitFor(consumer)) ??
+            Casing.parse(p.basenameWithoutExtension(consumer.path)).pascal;
+        from = 'consumer:$name';
+        if (!nodes.containsKey(from)) {
+          addNode(
+            GraphNode(
+              id: from,
+              kind: NodeKind.consumer,
+              name: name,
+              file: consumer.path,
+            ),
+          );
+        }
+      }
+      for (final to in targets) {
+        if (to == from) continue;
+        addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.builds));
+      }
+    }
 
     // ---- selectors declared outside the facade ---------------------------
     // The graph reads selector *declarations* from `selectors.dart` and nothing
@@ -1078,4 +1232,14 @@ class _BodyReader extends RecursiveAstVisitor<void> {
       if (arg is NamedType) _into.waitsForActions.add(arg.name.lexeme);
     }
   }
+}
+
+/// Whether the file at [path] declares a class called [className].
+///
+/// `at` is a file path for every caller that has one and a node id for the one
+/// that does not, so this answers false rather than throwing on the latter.
+bool _declaredIn(String path, String className) {
+  final file = File(path);
+  if (!file.existsSync()) return false;
+  return classNamed(sourceIndex.unitFor(file), className) != null;
 }

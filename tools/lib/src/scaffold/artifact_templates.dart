@@ -69,9 +69,22 @@ class _Vm extends Vm {
     // No `<AppState>`: Dart infers a generic mixin's type argument from its
     // `on ReduxAction<St>` constraint against the actual superclass, and
     // `Action extends ReduxAction<AppState>` pins it.
+    //
+    // `WaitingAction` goes **last**, after the behaviour mixins. Dart calls one
+    // `after()` — the last mixin's — and [ActionMixin.swallowsAfter] marks the
+    // three that override it without calling `super.after()`. Emitted first,
+    // as this used to, `WaitingAction` sat behind one of those and its `after()`
+    // never ran: the wait barrier went up and never came down, and every widget
+    // reading `isWaitingForType<T>()` stayed disabled for good. The generated
+    // file compiled, analyzed clean, and was wrong at runtime.
+    //
+    // Last works only because the app's `WaitingAction` chains `super` in both
+    // hooks — see `business/lib/redux/common/action.dart`, and the
+    // `action-mixin-order` audit check, which is what holds that end up in a
+    // project frx does not own.
     final withMixins = [
-      if (kind == ActionKind.waiting) 'WaitingAction',
       ...mixins.map((m) => m.clause),
+      if (kind == ActionKind.waiting) 'WaitingAction',
     ];
     // Always the app's own base from `common/action.dart` — it is what carries
     // `deps`, `env` and the `Selectors` facade, and it is what every
@@ -327,6 +340,7 @@ enum ActionMixin {
   checkInternet(
     'CheckInternet',
     'Check connectivity first; error dialog when offline',
+    hooks: {'before'},
   ),
 
   /// With [checkInternet]: mark the error dialog-less (`ifOpenDialog: false`).
@@ -337,12 +351,18 @@ enum ActionMixin {
   ),
 
   /// Abort silently when offline (no dialog, no error).
-  abortWhenNoInternet('AbortWhenNoInternet', 'Abort silently when offline'),
+  abortWhenNoInternet(
+    'AbortWhenNoInternet',
+    'Abort silently when offline',
+    hooks: {'before'},
+  ),
 
   /// Ignore a dispatch while the same action is already running.
   nonReentrant(
     'NonReentrant',
     'Ignore a dispatch while already running',
+    swallowsAfter: true,
+    hooks: {'after'},
     knobs: {'nonReentrantKeyParams'},
     overrideBlock:
         '  // One lock per action type: LoadX(a) is ignored while LoadX(b) is\n'
@@ -385,6 +405,8 @@ enum ActionMixin {
   throttle(
     'Throttle',
     'Drop dispatches while a recent run is fresh',
+    swallowsAfter: true,
+    hooks: {'after'},
     knobs: {'throttle', 'lockBuilder'},
     overrideBlock:
         '  // TODO(frx): tune how long a run stays fresh (dispatches are dropped).\n'
@@ -401,6 +423,8 @@ enum ActionMixin {
     // `int get freshFor => 1000; // Milliseconds`. This used to emit
     // `60; // seconds`, so a scaffolded action stayed fresh for 60ms while its
     // own comment promised a minute, and `Fresh` silently did nothing.
+    swallowsAfter: true,
+    hooks: {'after'},
     knobs: {'freshFor', 'freshKeyParams'},
     overrideBlock:
         '  // TODO(frx): tune how long the last result stays fresh.\n'
@@ -427,6 +451,8 @@ enum ActionMixin {
     this.implies,
     this.overrideBlock = '',
     this.knobs = const {},
+    this.swallowsAfter = false,
+    this.hooks = const {},
   });
 
   /// The identifier used in the generated `with` clause.
@@ -445,6 +471,40 @@ enum ActionMixin {
   /// Tuning override(s) emitted into the class body.
   final String overrideBlock;
 
+  /// The lifecycle hooks this mixin overrides — `before`, `after`, or both.
+  ///
+  /// [swallowsAfter] answers "does putting this last break the chain"; this
+  /// answers "is there a chain here at all". They are different questions and
+  /// the audit needs both: an action that writes its own `after()` without
+  /// `super.after()` ends the chain in front of *every* mixin it applies, not
+  /// only the ones that would have ended it themselves — `with NonReentrant`
+  /// plus a bare `after()` leaks the reentrancy key just as surely, with no
+  /// `WaitingAction` anywhere in the clause.
+  ///
+  /// Derived from the package source by `action_template_test`, like the rest
+  /// of what frx knows about async_redux.
+  final Set<String> hooks;
+
+  /// Whether the mixin overrides `after()` **without** calling `super.after()`.
+  ///
+  /// Dart calls one `after()` per class — the last mixin's. One of these placed
+  /// last therefore ends the chain, and every earlier mixin's cleanup is simply
+  /// never run. That is not a hazard the analyzer can see: `with WaitingAction,
+  /// NonReentrant` compiles, analyzes clean, and leaves the wait barrier raised
+  /// for the rest of the session.
+  ///
+  /// So it is data, in the catalogue, next to [implies] and [exclusiveGroups] —
+  /// the two other facts frx transcribes from async_redux. It is why [action]
+  /// emits `WaitingAction` last (unconditionally: last is safe whether or not
+  /// one of these is present, and a rule with no branch cannot take the wrong
+  /// one). `list-mixins` prints it, and the `action-mixin-order` audit check
+  /// enforces the position in files frx did not write.
+  ///
+  /// `action_template_test` derives the set from the package source and checks
+  /// the emitted clause against it, so a mixin that gains or loses its
+  /// `super.after()` upstream cannot leave either this flag or the order stale.
+  final bool swallowsAfter;
+
   /// The async_redux members [overrideBlock] names — as data, not prose.
   ///
   /// The block is a string, so a renamed member on the package side would
@@ -453,13 +513,24 @@ enum ActionMixin {
   /// `action_template_test` checks this set against what async_redux declares.
   final Set<String> knobs;
 
-  /// Sets of mixins async_redux makes mutually exclusive.
+  /// Sets of mixins async_redux declares mutually exclusive.
   ///
-  /// It enforces this by having each member of a group declare the same
-  /// private abstract member, so combining two is a compile error
-  /// (`private_collision_in_mixin_application`). Mirrored here so `add-action`
-  /// refuses the combination up front instead of scaffolding a file that will
-  /// not compile — which is what it used to do for, say, `-m debounce -m retry`.
+  /// Enforced by having each member of a group declare the same private member,
+  /// so `dart analyze` reports the combination as
+  /// `private_collision_in_mixin_application`. Mirrored here so `add-action`
+  /// refuses it up front instead of scaffolding a file the gate will reject —
+  /// which is what it used to do for, say, `-m debounce -m retry`.
+  ///
+  /// **The analyzer refuses it; the compiler does not.** Measured, because a
+  /// first pass at this comment claimed the opposite in both directions: the
+  /// CFE builds `with NonReentrant, Throttle` happily, so `flutter test` on
+  /// such a file runs and async_redux's own `assert` inside
+  /// `_incompatible<T1, T2>` throws on the first dispatch — in a debug build,
+  /// and not at all in a release one. So the guard is the analyzer, and the
+  /// runtime is a backstop that a release build does not have.
+  ///
+  /// The marker method's *name* is the readable source of the rule, which is
+  /// what `action_template_test` derives the groups from.
   static const List<Set<ActionMixin>> exclusiveGroups = [
     {fresh, throttle, nonReentrant, unlimitedRetryCheckInternet},
     {checkInternet, abortWhenNoInternet, unlimitedRetryCheckInternet},

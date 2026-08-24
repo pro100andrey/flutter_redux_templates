@@ -17,7 +17,7 @@ frx list-mixins [arguments]
 
 ```
 -h, --help    Print this usage information.
-    --json    Emit JSON ({mixins:[{name,clause,summary,implies,conflictsWith}]}) instead of a table.
+    --json    Emit JSON ({mixins:[{name,clause,summary,implies,conflictsWith,swallowsAfter}]}) instead of a table.
     --root    Repo root (accepted for consistency).
 ```
 
