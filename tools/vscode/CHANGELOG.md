@@ -23,8 +23,6 @@ changes are marked as such.
   order alone would only have moved the loss to the reentrancy lock, which the
   regression test pins. *(CLI + template)*
 
-### Added
-
 - **`graph` no longer calls a dispatched action an orphan.** The orphan list is
   the one place frx says "you can delete this", and it was reading dispatches
   out of the routed page walk, which draws an edge only where a dispatch is
@@ -41,6 +39,40 @@ changes are marked as such.
   reader already applied, and states in a comment. Measured on a real project:
   eleven reported orphan actions, none of them dead. *(CLI)*
 
+### Added
+
+- **`graph` says when a whole connector is dead, instead of listing its
+  actions.** A connector now has a node and a `builds` edge, so "no file
+  constructs it" is a verdict frx can reach: on a real project six of eleven
+  reported orphan actions were dispatched only from a `SettingsConnector` that
+  nothing builds. Composition is matched on the class name rather than on a
+  `*_connector.dart` import, because the file that constructs the app's root
+  widget is not itself a connector — resolving through the import pattern
+  called `AppConnector` unbuilt. In-degree, not reachability from a root: frx
+  does not know which widget the root is, and being wrong about that would
+  report a live screen as dead. *(CLI)*
+- **`doctor` reports two selectors with one body.** What is left after
+  `add-selector` correctly declines a taken name and the reader is added by
+  hand under another: both are right, and together they are one fact under two
+  names that the next change has to find twice. A warning, and
+  character-for-character — two getters that compute the same thing differently
+  are a judgement call frx has no business making. *(CLI)*
+- **`remove --kind selector`.** `add-selector` had no inverse, and
+  `selectors.dart` is under the placement guard, so the way out was a hand edit
+  to a file frx complains about being hand-edited. Takes the address `graph` and
+  `doctor` print (`SelectTheme.isWaiting`) or the bare name with `--state`, and
+  refuses while another getter on the facade reads it. *(CLI + extension)*
+- **`list-mixins` lists the mixins the project declares**, with the hooks each
+  overrides and whether it passes the chain on — `WaitingAction` is the mixin in
+  this architecture that must go last, and the command whose job is to say what
+  combines with what could not see it. `--root` had been accepted and ignored;
+  this is what it is for. *(CLI)*
+- **The mixin-order rule is no longer only about `WaitingAction`.** An action
+  that overrides `after()` without `super` in front of `NonReentrant` leaks the
+  reentrancy key just as surely, with no barrier involved. Which hooks a mixin
+  overrides is now derived from the async_redux source alongside the rest.
+  *(CLI)*
+
 - **`doctor` reports a `WaitingAction` whose cleanup never runs.** Three shapes:
   a `with` clause placing it before `nonReentrant` / `throttle` / `fresh`, an
   action overriding `before()` / `after()` without `super` (a class member beats
@@ -55,13 +87,14 @@ changes are marked as such.
 
 ### Changed
 
-- **The docs no longer claim an excluded mixin pair is a compile error.**
-  `_incompatible<T1, T2>` is an `assert`: `with NonReentrant, Throttle` compiles
-  and analyzes clean, throws on the first dispatch in a debug build, and is
-  stripped from a release one. The marker members share one library, so
-  `private_collision_in_mixin_application` never applied. This makes
-  `add-action` refusing the pair up front the earliest check that exists, not a
-  convenience. *(CLI, docs only)*
+- **The docs say what actually enforces an excluded mixin pair**, after
+  measuring rather than reading: `dart analyze` reports
+  `private_collision_in_mixin_application`, and the compiler does not — the pair
+  builds, so a test file the gate rejects still runs and async_redux's `assert`
+  throws on the first dispatch of a debug build. An intermediate version of this
+  note claimed the collision did not apply at all; it does. Pinned by
+  `business/test/mixin_exclusion_test.dart`, since `tools` cannot import
+  async_redux to check it. *(CLI, docs only)*
 
 ## 0.3.2
 

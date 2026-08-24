@@ -34,6 +34,7 @@ import '../scaffold/artifact_templates.dart';
 import '../ast/vm_reader.dart';
 import '../skills/skill_gen.dart';
 import '../redux/app_state_source.dart';
+import '../redux/selectors_source.dart';
 import '../redux/store_source.dart';
 import '../routing/routes_source.dart';
 import '../workspace/frx_workspace.dart';
@@ -76,6 +77,7 @@ const auditChecks = <Check>[
   Check('placement', checkPlacement),
   Check('view-model-equality', checkViewModels),
   Check('action-mixin-order', checkActionMixinOrder),
+  Check('duplicate-selectors', checkDuplicateSelectors),
   Check('skills-stale', checkSkills),
   Check('agent-hooks', checkAgentHooks),
   Check('orphaned-watch', checkOrphanedWatch, needsProcessState: true),
@@ -348,6 +350,43 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
   }
 }
 
+/// Two getters on one facade computing the same thing.
+///
+/// **The residue of a refusal frx makes correctly.** `add-selector` will not
+/// overwrite a name that is taken — `⚠ SelectInvite.isWaiting is taken — left
+/// as it is. Add a reader by hand under a name of your own.` — and doing
+/// exactly that leaves two getters with one body. Neither is wrong; together
+/// they are a fact with two spellings, and the next change to the state behind
+/// them has to remember both. Nothing recorded the pair, so nothing said so.
+///
+/// A warning, and character-for-character: two getters that compute the same
+/// thing by different routes are a judgement call frx has no business making,
+/// and this project is a template people diverge from — a facade may
+/// deliberately offer one reader under two names. What it must not do is offer
+/// it twice by accident.
+void checkDuplicateSelectors(FrxWorkspace repo, List<Finding> into) {
+  final selectors = SelectorsSource(repo.selectorsFile);
+  if (!selectors.exists) return;
+  final where = p.relative(selectors.file.path);
+
+  for (final entry in selectors.duplicateGetters().entries) {
+    for (final names in entry.value) {
+      into.add(
+        Finding.warn(
+          '$where — ${entry.key}: '
+          '${names.map((n) => '`$n`').join(' and ')} have the same body, so '
+          'they are one fact under ${names.length} names and a change to it '
+          'has to find all of them. Usually what is left after `add-selector` '
+          'declined a taken name and the reader was added by hand — keep the '
+          'one the callers use and `frx remove ${entry.key}.${names.last} '
+          '--kind selector`.',
+          file: selectors.file.path,
+        ),
+      );
+    }
+  }
+}
+
 /// A `with` clause whose `WaitingAction` cleanup never runs.
 ///
 /// **The only check here about what the code *does* rather than what is out of
@@ -390,11 +429,27 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
       if (m.swallowsAfter) m.clause,
   };
 
+  /// Which of `before`/`after` [applied] gets from its mixins — the hooks whose
+  /// chain an override in the class body would end.
+  ///
+  /// `WaitingAction` is the app's own and carries both; the rest is
+  /// [ActionMixin.hooks], derived from async_redux. A clause with neither has
+  /// no chain to break: `ReduxAction`'s own hooks are empty, so an action with
+  /// no mixins may override them however it likes.
+  Set<String> hooksOwedBy(MixinApplication applied) => {
+    if (applied.mixins.contains('WaitingAction')) ...['before', 'after'],
+    for (final m in ActionMixin.values)
+      if (applied.mixins.contains(m.clause)) ...m.hooks,
+  };
+
+  // The textual pre-filter the placement sweep uses: it decides whether to
+  // parse, never what to report. A file naming none of these can neither
+  // misplace `WaitingAction`, declare it, nor end a chain it does not have.
+  final names = {'WaitingAction', for (final m in ActionMixin.values) m.clause};
+
   for (final file in sourceIndex.filesUnder(repo.businessLib)) {
-    // The textual pre-filter the placement sweep uses: it decides whether to
-    // parse, never what to report. A file that never says `WaitingAction`
-    // cannot misplace it or declare it.
-    if (!sourceIndex.sourceOf(file).contains('WaitingAction')) continue;
+    final source = sourceIndex.sourceOf(file);
+    if (!names.any(source.contains)) continue;
     final where = p.relative(file.path);
 
     for (final hook in MixinChainReader.hooksOf(file, 'WaitingAction')) {
@@ -430,17 +485,28 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
       // over the whole `with` clause, so an action that writes its own hook
       // and forgets `super` ends the chain in front of everything — measured
       // both ways: a bare `after()` leaves the barrier up for good, and a bare
-      // `before()` means it never goes up at all (and a `CheckInternet` in the
-      // clause never checks).
-      if (!applied.mixins.contains('WaitingAction')) continue;
+      // `before()` means it never goes up at all.
+      //
+      // Not only `WaitingAction`, which is where this started. `NonReentrant`
+      // releases its key in `after()` and `CheckInternet` does its work in
+      // `before()`; an action that overrides either hook without `super` eats
+      // that too, and the key it leaks is the one that stops the action ever
+      // running again.
+      final owed = hooksOwedBy(applied);
       for (final hook in applied.hooks) {
-        if (hook.chainsSuper) continue;
+        if (hook.chainsSuper || !owed.contains(hook.name)) continue;
+        final eaten = [
+          if (applied.mixins.contains('WaitingAction')) 'WaitingAction',
+          for (final m in ActionMixin.values)
+            if (applied.mixins.contains(m.clause) &&
+                m.hooks.contains(hook.name))
+              m.clause,
+        ];
         into.add(
           Finding.error(
             '$where — ${applied.className} overrides ${hook.name}() without '
             'calling super.${hook.name}(), which ends the chain ahead of its '
-            'own mixins: WaitingAction.${hook.name}() never runs, so the wait '
-            'barrier ${hook.name == 'after' ? 'never comes down' : 'never goes up'}. '
+            'own mixins: ${eaten.join(', ')}.${hook.name}() never runs. '
             'Add `super.${hook.name}()`.',
             file: file.path,
           ),

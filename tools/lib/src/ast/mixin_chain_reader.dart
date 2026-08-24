@@ -64,7 +64,41 @@ class HookOverride {
   final bool chainsSuper;
 }
 
+/// A mixin the project declares on its own action base.
+class DeclaredMixin {
+  const DeclaredMixin(this.name, this.on, this.hooks);
+
+  final String name;
+
+  /// The `on` clause as written — `ReduxAction<AppState>`, `Action`, or another
+  /// of the project's mixins.
+  final String on;
+
+  /// The lifecycle hooks it overrides, and whether each passes the chain on.
+  final List<HookOverride> hooks;
+
+  /// Whether it ends the `after()` chain for anything mixed in before it.
+  bool get swallowsAfter =>
+      hooks.any((h) => h.name == 'after' && !h.chainsSuper);
+}
+
 abstract final class MixinChainReader {
+  /// Every mixin [file] declares with an `on` clause.
+  ///
+  /// For `list-mixins`, whose catalogue is async_redux's and therefore does not
+  /// contain `WaitingAction` — the one mixin in this architecture that has to
+  /// go last, named nowhere in the command whose job is to say what may be
+  /// combined with what.
+  static List<DeclaredMixin> declaredIn(File file) => [
+    for (final d in sourceIndex.unitFor(file).declarations)
+      if (d is MixinDeclaration && d.onClause != null)
+        DeclaredMixin(
+          d.name.lexeme,
+          d.onClause!.superclassConstraints.map((t) => t.toSource()).join(', '),
+          _hooksIn(d.body.members),
+        ),
+  ];
+
   /// Every class in [file] that applies at least one mixin.
   ///
   /// Only those: a class with no `with` clause has no chain to end, because

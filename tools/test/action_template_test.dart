@@ -135,13 +135,12 @@ void main() {
 
   group('ActionMixin.conflictIn', () {
     test('rejects a pair async_redux declares mutually exclusive', () {
-      // async_redux declares these mutually exclusive. Not by failing the
-      // build, as this comment used to claim: the marker members share one
-      // library, so there is no `private_collision_in_mixin_application` and
-      // `with NonReentrant, Throttle` compiles clean. The package catches it
-      // with a debug-only `assert` on the first dispatch, which makes refusing
-      // it here the earliest check that exists — frx used to scaffold it
-      // happily.
+      // These collide on a private member, so `dart analyze` reports the
+      // combination — frx used to scaffold it happily. The *compiler* accepts
+      // it, which is measured in `business/test/mixin_exclusion_test.dart`;
+      // what stops it there is an assert on first dispatch, in debug builds
+      // only. Either way, refusing it here is the check that happens before
+      // the file exists.
       for (final pair in [
         ['debounce', 'retry'],
         ['checkInternet', 'abortWhenNoInternet'],
@@ -380,6 +379,16 @@ void main() {
         final body = _methodBody(slice!, 'after');
         final swallows = body != null && !body.contains('super.after()');
         if (swallows) swallowers++;
+
+        // The other half of the same scan: which hooks it overrides at all.
+        // `swallowsAfter` says whether putting it last breaks the chain; this
+        // says whether there is a chain to break, which is what the audit needs
+        // to judge an action that writes its own hook.
+        expect(m.hooks, {
+          for (final hook in const ['before', 'after'])
+            if (_methodBody(slice, hook) != null) hook,
+        }, reason: '${m.clause}: hooks must be what async_redux overrides');
+
         expect(
           m.swallowsAfter,
           swallows,

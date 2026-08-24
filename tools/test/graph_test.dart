@@ -211,6 +211,43 @@ class _Factory extends VmFactory<AppState, BootOverlayConnector, _Vm>
 }
 ''');
 
+  // Dispatches, reads a selector, and is constructed by nobody — the shape the
+  // orphan list used to report one action at a time.
+  put('app/lib/connectors/orphan_panel_connector.dart', '''
+import 'package:business/redux/registration/actions/discard_draft_action.dart';
+
+class OrphanPanelConnector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    vm: () => _Factory(this),
+    builder: (context, vm) => const Placeholder(),
+  );
+}
+
+class _Factory extends VmFactory<AppState, OrphanPanelConnector, _Vm>
+    with Selectors {
+  @override
+  _Vm fromStore() => _Vm(onDiscard: () => dispatch(DiscardDraftAction()));
+}
+''');
+
+  // Dispatched only from the connector nothing builds. It is *not* an orphan:
+  // something does dispatch it. The dead thing is one level up, which is the
+  // whole reason a connector needs a node.
+  put('business/lib/redux/registration/actions/discard_draft_action.dart', '''
+class DiscardDraftAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.registration(email: null);
+}
+''');
+
+  // Builds the root widget, and is not a connector itself — so composition
+  // read through `*_connector.dart` imports cannot see it.
+  put('app/lib/run_env.dart', '''
+Widget runEnv(RouterConfig<Object> routerConfig) =>
+    Provider(child: AppConnector(routerConfig: routerConfig));
+''');
+
   put('app/lib/navigation/app_router.dart', '''
 class AppRouter extends RootStackRouter {
   @override
@@ -247,6 +284,7 @@ class LogInPageConnector extends StatelessWidget {
       // The store-ful form: the action is the *second* argument, and reading
       // the first named `context` as the thing dispatched.
       onEscape: () => StoreProvider.dispatch<AppState>(context, StampAction()),
+      overlay: const BootOverlayConnector(),
     ),
   );
 }
@@ -684,6 +722,41 @@ void main() {
       expect(
         _edges(g, from: 'action:session.RefreshAction').map((e) => e.to),
         contains('action:session.StampAction'),
+      );
+    });
+
+    test('a connector no file constructs is reported, with its own reason', () {
+      // The verdict the orphan list could not reach. On a real project six of
+      // eleven reported orphan actions were dispatched only from a connector
+      // nothing builds: the answer "nothing reaches these six" was right and
+      // the reason — one dead connector, not six dead actions — was missing.
+      final g = _read();
+      expect(
+        g.orphans
+            .where((o) => o.node.kind == NodeKind.consumer)
+            .map((o) => '${o.node.id} ${o.why}'),
+        ['consumer:OrphanPanelConnector no file constructs it'],
+      );
+    });
+
+    test('a connector a page builds is not reported', () {
+      final g = _read();
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('consumer:BootOverlayConnector')),
+      );
+    });
+
+    test('a connector built from a file that is not itself one is not '
+        'reported', () {
+      // `AppConnector` lives in `app.dart` and is constructed in `run_env.dart`
+      // — neither file is named `*_connector.dart`. Resolving composition
+      // through that import pattern, which is what the page walk does, called
+      // the app's own root widget unbuilt.
+      final g = _read();
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('consumer:AppConnector')),
       );
     });
 
@@ -1130,7 +1203,7 @@ extension type SelectStray(AppState _state) implements Selector {
           .filesUnder(ws.businessLib)
           .where((f) => f.path.endsWith('_action.dart'))
           .toList();
-      expect(actions, hasLength(10));
+      expect(actions, hasLength(11));
       for (final f in actions) {
         expect(ix.parsesOf(f), 1, reason: p.basename(f.path));
       }

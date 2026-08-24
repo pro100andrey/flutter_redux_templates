@@ -554,6 +554,44 @@ class SelectorsSource {
   /// declaration that was gone, and `SelectComposites.canEnterApp` sits on top
   /// of it — so the `business` package stopped compiling, including the
   /// `build_runner` step the plan's own closing line prescribes.
+  /// Getters that share a body with another getter on the same facade, grouped
+  /// by that body: `{'SelectInvite': [['isWaiting', 'isFinding']]}`.
+  ///
+  /// **A duplicate is what a *refusal* leaves behind, and the refusal is
+  /// right.** `add-selector` will not overwrite a name that is taken — it says
+  /// so and stops — and the next move is to add the reader by hand under a name
+  /// of your own. Do that and both exist: two spellings of one fact, and
+  /// changing the state behind them means remembering there were two. Nothing
+  /// in the tree records that they are the same.
+  ///
+  /// Compared on the body's source text, normalised for whitespace only. That
+  /// is narrow on purpose: two getters that compute the same thing differently
+  /// are a judgement call, and reporting one would be frx having an opinion
+  /// about somebody's code. Two that are character-for-character identical are
+  /// not a judgement call.
+  Map<String, List<List<String>>> duplicateGetters() {
+    final out = <String, List<List<String>>>{};
+    for (final ext
+        in sourceIndex
+            .unitFor(file)
+            .declarations
+            .whereType<ExtensionTypeDeclaration>()) {
+      final byBody = <String, List<String>>{};
+      for (final m in _members(ext.body).whereType<MethodDeclaration>()) {
+        if (!m.isGetter) continue;
+        final body = m.body.toSource().replaceAll(RegExp(r'\s+'), ' ').trim();
+        if (body.isEmpty) continue;
+        byBody.putIfAbsent(body, () => []).add(m.name.lexeme);
+      }
+      final groups = [
+        for (final names in byBody.values)
+          if (names.length > 1) names,
+      ];
+      if (groups.isNotEmpty) out[ext.namePart.typeName.lexeme] = groups;
+    }
+    return out;
+  }
+
   List<String> readersOf({
     required String selectorType,
     required String getterName,
