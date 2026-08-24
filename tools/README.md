@@ -468,16 +468,41 @@ are added automatically (`noDialog` → `checkInternet`, `unlimitedRetries` →
 | `throttle` | Drop dispatches while a recent run is fresh |
 | `fresh` | Skip the run entirely while the last result is still fresh |
 
-**Some combinations do not compile.** async_redux makes groups of these mutually
-exclusive by having them collide on a private member, so `-m debounce -m retry`
-is a compile error rather than a runtime one. `add-action` refuses such a pair up
-front instead of scaffolding a file that cannot build. The exclusive groups are
+**Some combinations are refused, and nothing but frx refuses them early.**
+async_redux declares groups of these mutually exclusive, but the guard is an
+`assert` inside `_incompatible<T1, T2>`: `-m debounce -m retry` compiles and
+analyzes clean, throws on the first dispatch in a debug build, and is stripped
+from a release one. (An older paragraph here said the members collide on a
+private name and the pair is a compile error. Measured: they are all declared in
+one library, and `private_collision_in_mixin_application` is about mixins from
+*different* libraries.) `add-action` refusing the pair up front is therefore the
+only check that happens before the code exists. The exclusive groups are
 `fresh`/`throttle`/`nonReentrant`, `checkInternet`/`abortWhenNoInternet`,
 `debounce`/`retry` — with `unlimitedRetryCheckInternet` excluded from all of them.
 
+**And one combination is a matter of order, not of pairing.** Dart runs one
+`after()` per class — the last mixin's — and `nonReentrant`, `throttle` and
+`fresh` override it without calling `super.after()`. Anything mixed in before one
+of those never cleans up, and none of it is a compile error, an assert or an
+analyzer hint:
+
+```dart
+class SendVoiceAction extends Action with WaitingAction, NonReentrant {}  // dead
+class SendVoiceAction extends Action with NonReentrant, WaitingAction {}  // right
+```
+
+The first finishes and leaves `isWaitingForType<SendVoiceAction>()` true for the
+rest of the session — a button that never re-enables. `add-action` emits
+`WaitingAction` last; `list-mixins` marks the three that end the chain; `doctor`
+reports a clause that has it wrong. It works only because the template's own
+`WaitingAction` calls `super` in both hooks, which `doctor` also checks — that
+file belongs to the project, not to frx.
+
 ```bash
-frx list-mixins            # each one, what it implies, what it excludes
-frx list-mixins --json     # {mixins:[{name,clause,summary,implies,conflictsWith}]}
+frx list-mixins            # each one, what it implies, excludes, and whether
+                           # it ends the after() chain
+frx list-mixins --json     # {mixins:[{name,clause,summary,implies,conflictsWith,
+                           #           swallowsAfter}]}
 ```
 
 `conflictsWith` folds the implications in, so it can be applied pairwise:
@@ -754,7 +779,9 @@ finding, the `rule` id you silence it by.
 
 The audit covers **wiring drift, ungenerated code, and placement conventions** —
 things out of sync with each other, code that has not been generated, and code
-that is wired, compiles, and sits in the wrong place.
+that is wired, compiles, and sits in the wrong place. Plus one rule about what
+the code *does*, because nothing else can see it: a `with` clause whose
+`WaitingAction` cleanup never runs.
 
 | Finding | Fixable |
 | --- | --- |
@@ -769,6 +796,7 @@ that is wired, compiles, and sits in the wrong place.
 | More than one list in `store.dart` shaped like the change log, so frx will not guess which | — |
 | A file frx read but the analyzer could only recover a tree from | — |
 | **Placement:** a selector outside the facade, an action file outside its substate's `actions/`, an `@RoutePage()` class outside the connectors package | — |
+| `WaitingAction` placed before a mixin that ends the `after()` chain, an action overriding `before()`/`after()` without `super`, or a `WaitingAction` declaration that does not chain | — |
 | A `build_runner watch` that outlived the terminal or IDE that started it | — |
 
 The last one is report-only in a second sense: it is left out of `--json`.

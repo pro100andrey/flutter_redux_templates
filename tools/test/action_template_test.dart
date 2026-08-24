@@ -99,12 +99,49 @@ void main() {
       final out = render(ActionKind.async, mixins: ['noDialog']);
       expect(out, contains('with CheckInternet, NoDialog'));
     });
+
+    test('puts WaitingAction after a mixin that ends the after() chain', () {
+      // The bug this pins: `add-action -k waiting -m nonReentrant` emitted
+      //
+      //     class ProbeAction extends Action with WaitingAction, NonReentrant
+      //
+      // and `NonReentrant.after()` does not call `super.after()`, so the
+      // barrier `WaitingAction.after()` lowers was never lowered. Measured on
+      // a real store: the action finished and `isWaitingForType<T>()` stayed
+      // true for the rest of the session, which is a permanently disabled
+      // button. Every existing test passed — the file parses, analyzes clean,
+      // and only misbehaves at runtime.
+      for (final m in ActionMixin.values.where((m) => m.swallowsAfter)) {
+        expect(
+          _withClause(render(ActionKind.waiting, mixins: [m.name])),
+          endsWith('WaitingAction'),
+          reason: '${m.name} ends the after() chain, so it cannot be last',
+        );
+      }
+    });
+
+    test('puts WaitingAction last even when nothing swallows after()', () {
+      // Unconditional, so there is no branch to take wrongly — and so the one
+      // combination that must not compile stays visible: `CheckInternet`
+      // narrows `before()` to `Future<void>`, which is why `WaitingAction`
+      // declares `Future<void>` rather than `void`.
+      expect(
+        _withClause(render(ActionKind.waiting, mixins: ['checkInternet'])),
+        'CheckInternet, WaitingAction',
+      );
+      expect(_withClause(render(ActionKind.waiting)), 'WaitingAction');
+    });
   });
 
   group('ActionMixin.conflictIn', () {
     test('rejects a pair async_redux declares mutually exclusive', () {
-      // These collide on a private member, so the combination is a compile
-      // error — frx used to scaffold it happily.
+      // async_redux declares these mutually exclusive. Not by failing the
+      // build, as this comment used to claim: the marker members share one
+      // library, so there is no `private_collision_in_mixin_application` and
+      // `with NonReentrant, Throttle` compiles clean. The package catches it
+      // with a debug-only `assert` on the first dispatch, which makes refusing
+      // it here the earliest check that exists — frx used to scaffold it
+      // happily.
       for (final pair in [
         ['debounce', 'retry'],
         ['checkInternet', 'abortWhenNoInternet'],
@@ -310,6 +347,57 @@ void main() {
       );
     });
 
+    test('swallowsAfter matches which mixins actually end the chain', () {
+      // The fourth fact frx transcribes from async_redux, and the one that was
+      // missing while it mattered. `implies` says what must precede a mixin and
+      // `exclusiveGroups` says which pairs the package rejects; neither says
+      // which mixin silently eats another's cleanup — which is not a compile
+      // error, not an assert, not an analyzer hint, and not visible in the
+      // generated file.
+      //
+      // Derived for the reason the other three are: transcribed, it goes stale
+      // the first time the package changes, and nothing fails.
+      final lib = PackageSource.libOf('async_redux', repoRoot: _repoRoot());
+      if (lib == null) {
+        markTestSkipped('async_redux not resolved here — nothing to compare');
+        return;
+      }
+
+      final slices = _mixinSources(lib);
+      expect(slices, isNotEmpty, reason: 'the scan found no mixins at all');
+
+      var swallowers = 0;
+      for (final m in ActionMixin.values) {
+        final slice = slices[m.clause];
+        expect(
+          slice,
+          isNotNull,
+          reason: '${m.clause} is not declared in async_redux',
+        );
+        // No `after()` at all keeps the same promise as one that chains: the
+        // next mixin down is reached either way. Only an override that returns
+        // without `super.after()` ends it.
+        final body = _methodBody(slice!, 'after');
+        final swallows = body != null && !body.contains('super.after()');
+        if (swallows) swallowers++;
+        expect(
+          m.swallowsAfter,
+          swallows,
+          reason: swallows
+              ? '${m.clause}.after() does not call super.after(), so anything '
+                    'mixed in before it never cleans up — mark it '
+                    'swallowsAfter: true'
+              : '${m.clause} chains (or does not override) after(), so '
+                    'swallowsAfter must be false',
+        );
+      }
+      expect(
+        swallowers,
+        greaterThan(0),
+        reason: 'the scan found no swallowers at all; it is broken',
+      );
+    });
+
     test('the exclusion groups match the collisions async_redux encodes', () {
       // async_redux enforces exclusivity by private-member collision, and it
       // names the members after the group:
@@ -382,6 +470,65 @@ const _notScaffolded = {
   'ServerPush',
   'Polling',
 };
+
+/// The `with` clause of the single class [source] declares, without `with `.
+String _withClause(String source) {
+  final m = RegExp(
+    r'class \w+ extends Action with ([^{]+?)\s*\{',
+  ).firstMatch(source);
+  expect(m, isNotNull, reason: 'no `extends Action with …` in:\n$source');
+  return m!.group(1)!;
+}
+
+/// Every `mixin X on …` in [lib], mapped to its source from the declaration to
+/// the next one (or the end of the file).
+///
+/// Slicing on the next declaration rather than brace-matching the body: a
+/// mixin's own doc comment sits above it, so the slice picks up the following
+/// mixin's doc comment and nothing else — harmless for a member scan, and it
+/// cannot be thrown off by a brace inside a string literal.
+Map<String, String> _mixinSources(Directory lib) {
+  final slices = <String, String>{};
+  final decl = RegExp(r'^mixin\s+(\w+)(?:<[^>]*>)?\s+on\s', multiLine: true);
+  for (final file in PackageSource.dartFiles(lib)) {
+    final source = file.readAsStringSync();
+    final found = decl.allMatches(source).toList();
+    for (var i = 0; i < found.length; i++) {
+      final end = i + 1 < found.length ? found[i + 1].start : source.length;
+      slices[found[i].group(1)!] = source.substring(found[i].start, end);
+    }
+  }
+  return slices;
+}
+
+/// The body of `void <name>()` declared directly in [mixinSource], or null when
+/// the mixin does not override it.
+///
+/// Anchored at two-space indentation, which is what keeps a `void after()` in
+/// somebody's doc-comment example (`///   void after() {`) from being read as a
+/// declaration.
+String? _methodBody(String mixinSource, String name) {
+  final decl = RegExp(
+    '^  (?:Future<void>|void)\\s+$name\\(\\)\\s*(async\\s*)?(\\{|=>)',
+    multiLine: true,
+  ).firstMatch(mixinSource);
+  if (decl == null) return null;
+
+  // `=> expr;` — everything to the semicolon.
+  if (decl.group(2) == '=>') {
+    final end = mixinSource.indexOf(';', decl.end);
+    return mixinSource.substring(decl.end, end == -1 ? null : end);
+  }
+  // `{ … }` — brace-matched from the opening brace.
+  var depth = 0;
+  for (var i = decl.end - 1; i < mixinSource.length; i++) {
+    if (mixinSource[i] == '{') depth++;
+    if (mixinSource[i] == '}' && --depth == 0) {
+      return mixinSource.substring(decl.end, i);
+    }
+  }
+  return mixinSource.substring(decl.end);
+}
 
 /// The monorepo root, where the Flutter packages are resolved.
 ///

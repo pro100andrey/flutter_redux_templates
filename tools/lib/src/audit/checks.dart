@@ -22,6 +22,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../ast/mixin_chain_reader.dart';
 import '../ast/source_index.dart';
 import '../config/frx_config.dart';
 import '../engine/build_step.dart';
@@ -29,6 +30,7 @@ import '../flow/flow_docs.dart';
 import '../model/page_artifact.dart';
 import '../model/placement.dart';
 import '../model/substate_artifact.dart';
+import '../scaffold/artifact_templates.dart';
 import '../ast/vm_reader.dart';
 import '../skills/skill_gen.dart';
 import '../redux/app_state_source.dart';
@@ -73,6 +75,7 @@ const auditChecks = <Check>[
   Check('flow-docs', checkFlowDocs),
   Check('placement', checkPlacement),
   Check('view-model-equality', checkViewModels),
+  Check('action-mixin-order', checkActionMixinOrder),
   Check('skills-stale', checkSkills),
   Check('agent-hooks', checkAgentHooks),
   Check('orphaned-watch', checkOrphanedWatch, needsProcessState: true),
@@ -340,6 +343,108 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
             ),
           );
         }
+      }
+    }
+  }
+}
+
+/// A `with` clause whose `WaitingAction` cleanup never runs.
+///
+/// **The only check here about what the code *does* rather than what is out of
+/// sync or in the wrong folder,** and it is here because nothing else can see
+/// it. Dart calls one `after()` per class — the last mixin's — and
+/// [ActionMixin.swallowsAfter] marks the async_redux mixins that override it
+/// without calling `super.after()`. So
+///
+///     class SendVoiceAction extends Action with WaitingAction, NonReentrant
+///
+/// parses, analyzes clean, passes its tests, and leaves the wait barrier raised
+/// forever: `NonReentrant.after()` releases its own lock and returns, so
+/// `WaitingAction.after()` is never reached and every widget reading
+/// `isWaitingForType<T>()` stays disabled for the rest of the session. That is
+/// a dead button, from a `with` clause the analyzer has no opinion about.
+///
+/// `add-action` now emits `WaitingAction` last, so frx cannot write this shape
+/// again. This check is for the other ways to get it: a hand-edited clause, a
+/// file scaffolded by an older frx that is still in the tree, and an action
+/// that writes its own `before()`/`after()` — a class member beats the whole
+/// `with` clause, so forgetting `super` there ends the chain no matter how the
+/// mixins are ordered.
+///
+/// **It also checks the base mixin, and that half is the load-bearing one.**
+/// Putting `WaitingAction` last is only correct because the project's own
+/// `WaitingAction` chains `super` in both hooks — and that file is the app's,
+/// not frx's. In a clone whose `WaitingAction` still swallows the chain, last
+/// position moves the loss rather than fixing it: the barrier comes down and the
+/// reentrancy lock is never released, so the action never runs a second time.
+/// Both halves have to hold, so both are reported.
+///
+/// An error rather than a silenceable warning: it names async_redux's own
+/// mixins doing what async_redux's own source says they do, so unlike the
+/// placement rules there is no project that legitimately means it.
+void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
+  if (!repo.businessLib.existsSync()) return;
+
+  final swallowers = {
+    for (final m in ActionMixin.values)
+      if (m.swallowsAfter) m.clause,
+  };
+
+  for (final file in sourceIndex.filesUnder(repo.businessLib)) {
+    // The textual pre-filter the placement sweep uses: it decides whether to
+    // parse, never what to report. A file that never says `WaitingAction`
+    // cannot misplace it or declare it.
+    if (!sourceIndex.sourceOf(file).contains('WaitingAction')) continue;
+    final where = p.relative(file.path);
+
+    for (final hook in MixinChainReader.hooksOf(file, 'WaitingAction')) {
+      if (hook.chainsSuper) continue;
+      into.add(
+        Finding.error(
+          '$where — WaitingAction.${hook.name}() does not call '
+          'super.${hook.name}(), so it ends the chain: mixed in last, as '
+          '`add-action` emits it, whatever it sits in front of never runs '
+          '(NonReentrant keeps its lock, Throttle and Fresh keep theirs). '
+          'Add `super.${hook.name}()`.',
+          file: file.path,
+        ),
+      );
+    }
+
+    for (final applied in MixinChainReader.applicationsIn(file)) {
+      for (final swallower in applied.after('WaitingAction')) {
+        if (!swallowers.contains(swallower)) continue;
+        into.add(
+          Finding.error(
+            '$where — ${applied.className} applies $swallower after '
+            'WaitingAction, and $swallower.after() does not call '
+            'super.after(). The wait barrier goes up and never comes down: '
+            'isWaitingForType<${applied.className}>() stays true once the '
+            'action has run. Put WaitingAction last.',
+            file: file.path,
+          ),
+        );
+      }
+
+      // The same defect with no mixin ordering involved. A class member wins
+      // over the whole `with` clause, so an action that writes its own hook
+      // and forgets `super` ends the chain in front of everything — measured
+      // both ways: a bare `after()` leaves the barrier up for good, and a bare
+      // `before()` means it never goes up at all (and a `CheckInternet` in the
+      // clause never checks).
+      if (!applied.mixins.contains('WaitingAction')) continue;
+      for (final hook in applied.hooks) {
+        if (hook.chainsSuper) continue;
+        into.add(
+          Finding.error(
+            '$where — ${applied.className} overrides ${hook.name}() without '
+            'calling super.${hook.name}(), which ends the chain ahead of its '
+            'own mixins: WaitingAction.${hook.name}() never runs, so the wait '
+            'barrier ${hook.name == 'after' ? 'never comes down' : 'never goes up'}. '
+            'Add `super.${hook.name}()`.',
+            file: file.path,
+          ),
+        );
       }
     }
   }

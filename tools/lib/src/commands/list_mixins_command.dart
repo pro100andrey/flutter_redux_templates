@@ -19,8 +19,8 @@ class ListMixinsCommand extends Command<int> {
         'json',
         negatable: false,
         help:
-            'Emit JSON ({mixins:[{name,clause,summary,implies,conflictsWith}]}) '
-            'instead of a table.',
+            'Emit JSON ({mixins:[{name,clause,summary,implies,conflictsWith,'
+            'swallowsAfter}]}) instead of a table.',
       )
       // The catalogue is compiled in, so nothing here reads the repo — but
       // every `--json` reader passes `--root`, and refusing it is the same as
@@ -51,6 +51,7 @@ class ListMixinsCommand extends Command<int> {
                 'summary': m.summary,
                 'implies': m.implies?.name,
                 'conflictsWith': [for (final c in m.conflictsWith) c.name],
+                'swallowsAfter': m.swallowsAfter,
               },
           ],
         }),
@@ -73,6 +74,13 @@ class ListMixinsCommand extends Command<int> {
         if (m.implies != null) 'implies ${m.implies!.name}',
         if (excludes.isNotEmpty)
           'excludes ${excludes.map((c) => c.name).join(', ')}',
+        // Third column, and the one that was missing while the order it
+        // governs was wrong: excludes says which pairs will not compile,
+        // implies says what has to precede this one — neither says which
+        // mixin silently eats the other's cleanup.
+        if (m.swallowsAfter)
+          'ends the after() chain — anything whose after() must still run '
+              '(WaitingAction) goes AFTER it',
       ];
       for (final note in notes) {
         console.out.writeln('  ${' ' * width}  ↳ $note');
@@ -81,8 +89,11 @@ class ListMixinsCommand extends Command<int> {
     console.out
       ..writeln()
       ..writeln(
-        '${ActionMixin.values.length} mixin(s). async_redux makes some pairs a '
-        'compile error, so `add-action` refuses them up front.',
+        '${ActionMixin.values.length} mixin(s). An excluded pair still '
+        'compiles — async_redux catches it with a debug-only assert on first '
+        'dispatch — so `add-action` refusing it up front is the earliest '
+        'check there is. The third note is a different failure: no assert, no '
+        'error, just cleanup that never runs.',
       );
     return 0;
   }
