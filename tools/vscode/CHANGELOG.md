@@ -7,6 +7,46 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## 0.3.3
+
+### Fixed
+
+- **A generated waiting action could raise the wait barrier and never lower
+  it.** `add-action -k waiting -m nonReentrant` wrote `with WaitingAction,
+  NonReentrant`, and Dart runs one `after()` per class — the last mixin's.
+  `NonReentrant.after()` releases its own lock without calling `super.after()`,
+  so the barrier stayed up: the action finished and
+  `isWaitingForType<T>()` remained true for the rest of the session, leaving
+  every widget that reads it disabled. The file compiled, analyzed clean and
+  passed its tests. `add-action` now emits `WaitingAction` last, and the
+  template's own `WaitingAction` chains `super` in both hooks — reversing the
+  order alone would only have moved the loss to the reentrancy lock, which the
+  regression test pins. *(CLI + template)*
+
+### Added
+
+- **`doctor` reports a `WaitingAction` whose cleanup never runs.** Three shapes:
+  a `with` clause placing it before `nonReentrant` / `throttle` / `fresh`, an
+  action overriding `before()` / `after()` without `super` (a class member beats
+  the whole `with` clause), and a project `WaitingAction` declaration that does
+  not chain — that file belongs to the project, so generating the clause
+  correctly is not enough on its own. Errors, and not silenceable: they name
+  async_redux's own mixins doing what its own source says they do. *(CLI)*
+- **`list-mixins` says which mixins end the `after()` chain**, as a third note
+  beside `implies` and `excludes`, and as `swallowsAfter` in `--json`. The set
+  is derived from the async_redux source by the test suite rather than
+  transcribed. *(CLI)*
+
+### Changed
+
+- **The docs no longer claim an excluded mixin pair is a compile error.**
+  `_incompatible<T1, T2>` is an `assert`: `with NonReentrant, Throttle` compiles
+  and analyzes clean, throws on the first dispatch in a debug build, and is
+  stripped from a release one. The marker members share one library, so
+  `private_collision_in_mixin_application` never applied. This makes
+  `add-action` refusing the pair up front the earliest check that exists, not a
+  convenience. *(CLI, docs only)*
+
 ## 0.3.2
 
 ### Fixed
