@@ -423,6 +423,96 @@ void main() {
       // the read to whatever the names happen to spell would be a guess.
       expect(uses('final a = of(context).logIn.email;'), isEmpty);
     });
+
+    /// The same question asked of a whole file, which is where a receiver can
+    /// be *typed*: a class mixing in `Selectors` is a facade, and so is a
+    /// variable holding one.
+    Set<String> inFile(String source) {
+      final unit = parseString(content: source, throwIfDiagnostics: false).unit;
+      return selectorUsesIn(unit, index, facades: facadesIn(unit));
+    }
+
+    const reader = '''
+class _Reader with Selectors {
+  _Reader(this.state);
+  @override
+  final AppState state;
+}
+''';
+
+    test('a facade held in a variable is the facade', () {
+      // The tray's shape, and the read the dead-selector list used to miss:
+      // `app_tray.dart` is the only reader of `chats.unreadTotal` in a real
+      // project, and it reaches it through a local.
+      expect(
+        inFile('''
+class AppTray {
+  int look(AppState state) {
+    final selectors = _Reader(state);
+    return selectors.logIn.email;
+  }
+}
+$reader'''),
+        {'selector:SelectLogIn.email'},
+      );
+    });
+
+    test('a facade built where it is read is the facade', () {
+      // No variable to type at all — the chain is rooted in the construction.
+      expect(
+        inFile('''
+class AppTray {
+  int look(AppState state) => _Reader(state).logIn.email;
+}
+$reader'''),
+        {'selector:SelectLogIn.email'},
+      );
+    });
+
+    test('a parameter typed as the facade is the facade', () {
+      expect(
+        inFile('''
+String? read(Selectors selectors) => selectors.logIn.email;
+'''),
+        {'selector:SelectLogIn.email'},
+      );
+    });
+
+    test('a class built on one that mixes it in is one too', () {
+      expect(
+        inFile('''
+class Deeper extends _Reader {
+  Deeper(super.state);
+}
+
+class AppTray {
+  String? look(AppState state) => Deeper(state).logIn.email;
+}
+$reader'''),
+        {'selector:SelectLogIn.email'},
+      );
+    });
+
+    test('a view-model field is still not the facade', () {
+      // The widening is by type, so the receiver that shares a substate's
+      // spelling and holds something else is refused exactly as before. This is
+      // the whole reason it is not "any receiver": `state.session.token` reads a
+      // substate field, and counting it would hide every dead selector behind
+      // the substate it reads.
+      expect(
+        inFile('''
+class _Vm extends Vm {
+  _Vm({required this.logIn});
+  final LogInVm logIn;
+}
+
+class LogInPage extends StatelessWidget {
+  Widget build(BuildContext context, _Vm vm) => Text(vm.logIn.email);
+}
+'''),
+        isEmpty,
+      );
+    });
   });
 
   group('node identity', () {
@@ -1090,6 +1180,95 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
       // it that way, and nothing else in this workspace reads it.
       final dead = {for (final o in read().deadSelectors) o.node.id};
       expect(dead, isNot(contains('selector:SelectLogInExtras.canSubmit')));
+    });
+  });
+
+  group('a consumer that holds the facade', () {
+    // A file that is not a connector, reads the facade through a private class
+    // that mixes it in, and is the only reader of what it reads. `frx graph`
+    // scanned the file — every Dart file of the app's packages is scanned — but
+    // the chain rule refused a receiver in front of the substate hop unless it
+    // was the literal `select` of the spine that no longer exists. So the
+    // selector came back on the dead list, and the one thing reading it was the
+    // application's tray icon.
+    AppGraph read() {
+      final root = Directory.systemTemp.createTempSync('frx_graph_tray_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      void put(String rel, String content) {
+        File(p.join(root.path, rel))
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content);
+      }
+
+      put('business/lib/redux/app_state.dart', '''
+@freezed
+abstract class AppState with _\$AppState {
+  const factory AppState({
+    required LogInState logIn,
+    required Wait wait,
+  }) = _AppState;
+}
+''');
+      put('business/lib/redux/selectors.dart', '''
+extension type SelectLogIn(AppState _state) implements Selector {
+  String? get email => _state.logIn.email;
+  String? get password => _state.logIn.password;
+  bool get isWaiting => _state.wait.isWaitingForType<LogInAction>();
+}
+''');
+      put('app/lib/navigation/app_router.dart', '''
+class AppRouter extends RootStackRouter {
+  @override
+  List<AutoRoute> get routes => const [];
+}
+''');
+      put('app/lib/common/app_tray.dart', '''
+class AppTray {
+  AppTray(this._store);
+  final Store<AppState> _store;
+
+  String _look(AppState state) {
+    final selectors = _Reader(state);
+    if (selectors.logIn.isWaiting) return 'waiting';
+    return _Reader(state).logIn.email ?? '';
+  }
+}
+
+class _Reader with Selectors {
+  _Reader(this.state);
+  @override
+  final AppState state;
+}
+''');
+      return GraphReader(FrxWorkspace.locate(startDir: root.path)).read();
+    }
+
+    test('keeps what it reads off the dead list', () {
+      final dead = {for (final o in read().deadSelectors) o.node.id};
+      expect(dead, isNot(contains('selector:SelectLogIn.email')));
+      expect(dead, isNot(contains('selector:SelectLogIn.isWaiting')));
+    });
+
+    test('and the one nothing reads is still dead', () {
+      // Without this the test would pass on a reader that counts everything.
+      final dead = {for (final o in read().deadSelectors) o.node.id};
+      expect(dead, contains('selector:SelectLogIn.password'));
+    });
+
+    test('is a node, so the graph can say who reads them', () {
+      final g = read();
+      expect(g.node('consumer:AppTray'), isNotNull);
+      expect(
+        _edges(
+          g,
+          from: 'consumer:AppTray',
+          kind: EdgeKind.uses,
+        ).map((e) => e.to),
+        containsAll([
+          'selector:SelectLogIn.email',
+          'selector:SelectLogIn.isWaiting',
+        ]),
+      );
     });
   });
 

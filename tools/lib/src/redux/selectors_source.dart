@@ -4,6 +4,7 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
 import '../model/selector_shape.dart';
+import '../ast/import_supply.dart';
 import '../ast/source_index.dart';
 import '../scaffold/type_imports.dart';
 import 'ast_edit.dart';
@@ -446,6 +447,13 @@ class SelectorsSource {
 
     final edits = <Edit>[removeDeclaration(content, getter)];
     final changes = <String>['$selectorType.$getterName'];
+    // What the removal takes away, read while it is still there: the imports
+    // this file no longer needs are the ones whose only reason was one of these
+    // names. [prune] answers for the types the caller knows about; this answers
+    // for the rest, which on a real facade is most of them — a `wait` selector
+    // is keyed on an action *type*, so the read layer imports one file of the
+    // write layer per waiting getter, and taking the getter out left the import.
+    final removed = {...namesIn(getter)};
 
     // The accessors derived from it go too: `Object byId(int id) =>
     // table[id]!;` does not compile once `table` is gone, and a facade left
@@ -458,12 +466,18 @@ class SelectorsSource {
       if (!_indexes(member.body.toSource(), getterName)) continue;
       edits.add(removeDeclaration(content, member));
       changes.add('$selectorType.${member.name.lexeme}()');
+      removed.addAll(namesIn(member));
     }
 
     final pruned = pruneImports(applyEdits(content, edits), prune);
+    final unused = pruneUnusedImports(
+      pruned.source,
+      file: file,
+      removedNames: removed,
+    );
     return Unwired(
-      source: pruned.source,
-      changes: [...changes, ...pruned.changes],
+      source: unused.source,
+      changes: [...changes, ...pruned.changes, ...unused.changes],
     );
   }
 
@@ -488,6 +502,7 @@ class SelectorsSource {
 
     final edits = <Edit>[removeDeclaration(content, existing)];
     final changes = <String>['extension type $type'];
+    final removed = {...namesIn(existing)};
 
     // The facade getter that pointed at the removed type, from wherever it is.
     // The mixin is where one is written now; the `Select` extension type is
@@ -501,6 +516,7 @@ class SelectorsSource {
     ]) {
       edits.add(removeDeclaration(content, getter));
       changes.add('getter $field');
+      removed.addAll(namesIn(getter));
     }
 
     // The model import, scoped to this substate's folder (`<snake>/models/…`).
@@ -522,10 +538,18 @@ class SelectorsSource {
       applyEdits(content, edits),
       _sharedImportProbes,
     );
+    // And whatever else the block was the only reason for — the action files a
+    // waiting getter named, a package that supplied one return type. Same rule
+    // the getter path uses, so the two cannot give this file opposite answers.
+    final unused = pruneUnusedImports(
+      pruned.source,
+      file: file,
+      removedNames: removed,
+    );
 
     return Unwired(
-      source: pruned.source,
-      changes: [...changes, ...pruned.changes],
+      source: unused.source,
+      changes: [...changes, ...pruned.changes, ...unused.changes],
     );
   }
 
