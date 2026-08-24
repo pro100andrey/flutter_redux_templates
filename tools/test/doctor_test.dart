@@ -168,6 +168,164 @@ void main() {
     });
   });
 
+  group('a WaitingAction whose cleanup never runs', () {
+    // Measured on a real store before any of this was written: an action
+    // `with WaitingAction, NonReentrant` finishes and
+    // `isWaitingForType<T>()` stays true for the rest of the session — a
+    // permanently disabled button, from a clause the analyzer is happy with.
+    // Nothing in Dart, in async_redux or in the audit said a word.
+
+    /// A `common/action.dart` whose `WaitingAction` behaves as the template's
+    /// does: cleans up, and passes the chain on.
+    void writeChainingBase() {
+      fx.file('business/lib/redux/common/action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(r"""
+mixin WaitingAction on ReduxAction<AppState> {
+  @override
+  Future<void> before() async {
+    dispatchSync(WaitAction.add(this));
+    await super.before();
+  }
+
+  @override
+  void after() {
+    super.after();
+    dispatchSync(WaitAction.remove(this));
+  }
+}
+""");
+    }
+
+    void writeAction(String withClause) {
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action with $withClause {\n'
+          '  @override\n'
+          '  Future<AppState?> reduce() async => null;\n'
+          '}\n',
+        );
+    }
+
+    test('a mixin that ends the chain placed after it is reported', () async {
+      writeChainingBase();
+      writeAction('WaitingAction, NonReentrant');
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) =>
+              '${f['message']}'.contains(
+                'LoadThemeAction applies NonReentrant after WaitingAction',
+              ) &&
+              f['severity'] == 'error',
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+
+    test('the order add-action emits is not reported', () async {
+      writeChainingBase();
+      writeAction('NonReentrant, WaitingAction');
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('WaitingAction')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+
+    test('BlockingAction after WaitingAction is not reported', () async {
+      // Required by Dart — `mixin BlockingAction on WaitingAction` — and
+      // harmless: it declares no `after()`, so it ends nothing. A check that
+      // read the rule as "WaitingAction must be last" would report every
+      // blocking action in the template.
+      writeChainingBase();
+      writeAction('WaitingAction, BlockingAction');
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('LoadThemeAction')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+
+    test('an action that writes its own after() is reported', () async {
+      // No ordering involved: the clause is right and the base mixin chains.
+      // A class member beats the whole `with` clause, so this `after()` is the
+      // only one Dart runs — measured, the barrier stays up for good.
+      writeChainingBase();
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action '
+          'with NonReentrant, WaitingAction {\n'
+          '  @override\n'
+          '  void after() {}\n'
+          '}\n',
+        );
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) =>
+              '${f['message']}'.contains(
+                'LoadThemeAction overrides after() without calling '
+                'super.after()',
+              ) &&
+              f['severity'] == 'error',
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+
+    test('an action whose own hook chains is not reported', () async {
+      writeChainingBase();
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action '
+          'with NonReentrant, WaitingAction {\n'
+          '  @override\n'
+          '  void after() => super.after();\n'
+          '}\n',
+        );
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('LoadThemeAction')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+
+    test('a base mixin that swallows the chain is reported', () async {
+      // The other half, and the one frx cannot fix by generating differently:
+      // `add-action` puts WaitingAction last, which is only correct while the
+      // project's own WaitingAction passes the chain on.
+      fx.file('business/lib/redux/common/action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(r"""
+mixin WaitingAction on ReduxAction<AppState> {
+  @override
+  void after() => dispatchSync(WaitAction.remove(this));
+}
+""");
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) =>
+              '${f['message']}'.contains(
+                'WaitingAction.after() does not call super.after()',
+              ) &&
+              f['severity'] == 'error',
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+  });
+
   group('the registry', () {
     // The audit is a list it walks, so one check can be run — and read — on its
     // own. Before, every one of these answers cost a subprocess and arrived
