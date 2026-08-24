@@ -340,6 +340,7 @@ enum ActionMixin {
   checkInternet(
     'CheckInternet',
     'Check connectivity first; error dialog when offline',
+    hooks: {'before'},
   ),
 
   /// With [checkInternet]: mark the error dialog-less (`ifOpenDialog: false`).
@@ -350,13 +351,18 @@ enum ActionMixin {
   ),
 
   /// Abort silently when offline (no dialog, no error).
-  abortWhenNoInternet('AbortWhenNoInternet', 'Abort silently when offline'),
+  abortWhenNoInternet(
+    'AbortWhenNoInternet',
+    'Abort silently when offline',
+    hooks: {'before'},
+  ),
 
   /// Ignore a dispatch while the same action is already running.
   nonReentrant(
     'NonReentrant',
     'Ignore a dispatch while already running',
     swallowsAfter: true,
+    hooks: {'after'},
     knobs: {'nonReentrantKeyParams'},
     overrideBlock:
         '  // One lock per action type: LoadX(a) is ignored while LoadX(b) is\n'
@@ -400,6 +406,7 @@ enum ActionMixin {
     'Throttle',
     'Drop dispatches while a recent run is fresh',
     swallowsAfter: true,
+    hooks: {'after'},
     knobs: {'throttle', 'lockBuilder'},
     overrideBlock:
         '  // TODO(frx): tune how long a run stays fresh (dispatches are dropped).\n'
@@ -417,6 +424,7 @@ enum ActionMixin {
     // `60; // seconds`, so a scaffolded action stayed fresh for 60ms while its
     // own comment promised a minute, and `Fresh` silently did nothing.
     swallowsAfter: true,
+    hooks: {'after'},
     knobs: {'freshFor', 'freshKeyParams'},
     overrideBlock:
         '  // TODO(frx): tune how long the last result stays fresh.\n'
@@ -444,6 +452,7 @@ enum ActionMixin {
     this.overrideBlock = '',
     this.knobs = const {},
     this.swallowsAfter = false,
+    this.hooks = const {},
   });
 
   /// The identifier used in the generated `with` clause.
@@ -461,6 +470,20 @@ enum ActionMixin {
 
   /// Tuning override(s) emitted into the class body.
   final String overrideBlock;
+
+  /// The lifecycle hooks this mixin overrides — `before`, `after`, or both.
+  ///
+  /// [swallowsAfter] answers "does putting this last break the chain"; this
+  /// answers "is there a chain here at all". They are different questions and
+  /// the audit needs both: an action that writes its own `after()` without
+  /// `super.after()` ends the chain in front of *every* mixin it applies, not
+  /// only the ones that would have ended it themselves — `with NonReentrant`
+  /// plus a bare `after()` leaks the reentrancy key just as surely, with no
+  /// `WaitingAction` anywhere in the clause.
+  ///
+  /// Derived from the package source by `action_template_test`, like the rest
+  /// of what frx knows about async_redux.
+  final Set<String> hooks;
 
   /// Whether the mixin overrides `after()` **without** calling `super.after()`.
   ///
@@ -492,19 +515,22 @@ enum ActionMixin {
 
   /// Sets of mixins async_redux declares mutually exclusive.
   ///
-  /// **Declared, and enforced far more weakly than this comment used to say.**
-  /// It said the members collide on a private name, so combining two is a
-  /// compile error (`private_collision_in_mixin_application`). Measured: they
-  /// are all declared in one library, and `private_collision_in_mixin_application`
-  /// is about mixins from *different* libraries — so
-  /// `with NonReentrant, Throttle` compiles and analyzes clean. What stops it is
-  /// `_incompatible<T1, T2>`, which is an `assert`: it throws on the first
-  /// dispatch in a debug build, and is stripped from a release one.
+  /// Enforced by having each member of a group declare the same private member,
+  /// so `dart analyze` reports the combination as
+  /// `private_collision_in_mixin_application`. Mirrored here so `add-action`
+  /// refuses it up front instead of scaffolding a file the gate will reject —
+  /// which is what it used to do for, say, `-m debounce -m retry`.
   ///
-  /// That makes mirroring the groups here more valuable, not less: `add-action`
-  /// refusing the pair up front is the only check that happens before the code
-  /// exists. The marker method's *name* is still the readable source of the
-  /// rule, which is what `action_template_test` derives the groups from.
+  /// **The analyzer refuses it; the compiler does not.** Measured, because a
+  /// first pass at this comment claimed the opposite in both directions: the
+  /// CFE builds `with NonReentrant, Throttle` happily, so `flutter test` on
+  /// such a file runs and async_redux's own `assert` inside
+  /// `_incompatible<T1, T2>` throws on the first dispatch — in a debug build,
+  /// and not at all in a release one. So the guard is the analyzer, and the
+  /// runtime is a backstop that a release build does not have.
+  ///
+  /// The marker method's *name* is the readable source of the rule, which is
+  /// what `action_template_test` derives the groups from.
   static const List<Set<ActionMixin>> exclusiveGroups = [
     {fresh, throttle, nonReentrant, unlimitedRetryCheckInternet},
     {checkInternet, abortWhenNoInternet, unlimitedRetryCheckInternet},

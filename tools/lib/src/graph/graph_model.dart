@@ -103,6 +103,15 @@ enum EdgeKind {
   /// that only follows dispatches answers "who can change this" wrongly.
   restores,
 
+  /// A page or connector constructs another connector — how a screen is
+  /// composed out of regions.
+  ///
+  /// The one edge that is about *existence* rather than behaviour, and the
+  /// reason it is here: a connector nothing builds cannot dispatch anything, so
+  /// without it the actions it alone dispatches read as reached and the
+  /// connector itself reads as nothing at all.
+  builds,
+
   /// A selector reports an action's wait status (`isWaitingForType<X>`) — the
   /// reference that makes deleting the action break the selector.
   waitsFor,
@@ -280,6 +289,33 @@ class AppGraph {
   /// Not an error by itself: either can be reached from somewhere frx does not
   /// read, and in a template a selector can be API offered to whoever builds on
   /// it. But in a repo where frx wrote the callers, it usually means dead code.
+  /// Connectors no file constructs.
+  ///
+  /// In-degree on [EdgeKind.builds], not reachability, and the difference is
+  /// deliberate: "no file anywhere constructs this class" is a claim the source
+  /// settles, while "not reachable from the app's root widget" needs frx to
+  /// know which widget that is — and being wrong about *that* would report a
+  /// live screen as dead, which is the failure this whole list exists not to
+  /// have. A chain of two connectors that only build each other is therefore
+  /// not reported. That is the honest bound, and it errs the safe way.
+  List<({GraphNode node, String why})> get unbuiltConnectors {
+    final built = {
+      for (final e in edges)
+        if (e.kind == EdgeKind.builds) e.to,
+    };
+    return [
+      for (final n in nodes)
+        // Connectors only. A [NodeKind.consumer] is any file frx read that
+        // turned out to dispatch, read a selector or compose a screen, and
+        // "nothing constructs `RunEnv`" is not a claim about dead code — it
+        // is a claim about a class that was never a widget.
+        if (n.kind == NodeKind.consumer &&
+            n.name.endsWith('Connector') &&
+            !built.contains(n.id))
+          (node: n, why: 'no file constructs it'),
+    ];
+  }
+
   List<({GraphNode node, String why})> get orphans {
     // Read once: `_dispatched` is a getter that rescans every edge, and inside
     // the comprehension it was rebuilt for each node in turn.
@@ -290,6 +326,7 @@ class AppGraph {
             n.resolved &&
             !dispatched.contains(n.id))
           (node: n, why: 'no dispatcher found'),
+      ...unbuiltConnectors,
       ...deadSelectors,
     ];
   }

@@ -299,6 +299,54 @@ mixin WaitingAction on ReduxAction<AppState> {
       );
     });
 
+    test('an action with no WaitingAction is reported too', () async {
+      // Where this rule started was `WaitingAction`, and stopping there left
+      // the same defect unreported one mixin over: `NonReentrant` releases its
+      // key in `after()`, so an action that writes a bare `after()` leaks the
+      // key that stops it ever being dispatched again. No barrier involved.
+      writeChainingBase();
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action with NonReentrant {\n'
+          '  @override\n'
+          '  void after() {}\n'
+          '}\n',
+        );
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) => '${f['message']}'.contains(
+            'LoadThemeAction overrides after() without calling super.after(), '
+            'which ends the chain ahead of its own mixins: NonReentrant',
+          ),
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+
+    test('an action whose mixins own no such hook is left alone', () async {
+      // `Retry` works through `wrapReduce`, so there is no `after()` chain for
+      // the class to end and nothing to report. A rule that fired on any
+      // override would report every action that legitimately writes one.
+      writeChainingBase();
+      fx.file('business/lib/redux/theme/actions/load_theme_action.dart')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          'class LoadThemeAction extends Action with Retry {\n'
+          '  @override\n'
+          '  void after() {}\n'
+          '}\n',
+        );
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('LoadThemeAction')),
+        isEmpty,
+        reason: fs.toString(),
+      );
+    });
+
     test('a base mixin that swallows the chain is reported', () async {
       // The other half, and the one frx cannot fix by generating differently:
       // `add-action` puts WaitingAction last, which is only correct while the
@@ -321,6 +369,46 @@ mixin WaitingAction on ReduxAction<AppState> {
               f['severity'] == 'error',
         ),
         isTrue,
+        reason: fs.toString(),
+      );
+    });
+  });
+
+  group('two spellings of one selector', () {
+    test('two getters with one body are reported', () async {
+      // What `add-selector` declining a taken name leaves behind: it refuses to
+      // overwrite, says so, and the reader gets added by hand under another
+      // name. Both are then correct, and together they are one fact spelled
+      // twice — which nothing recorded, so nothing said.
+      fx
+          .file('business/lib/redux/selectors.dart')
+          .writeAsStringSync(
+            fx
+                .read('business/lib/redux/selectors.dart')
+                .replaceFirst(
+                  'String? get email => _state.logIn.email;',
+                  'String? get email => _state.logIn.email;\n'
+                      '  String? get address => _state.logIn.email;',
+                ),
+          );
+      final fs = await findings();
+      expect(
+        fs.any(
+          (f) =>
+              '${f['message']}'.contains('SelectLogIn') &&
+              '${f['message']}'.contains('have the same body') &&
+              f['severity'] == 'warn',
+        ),
+        isTrue,
+        reason: fs.toString(),
+      );
+    });
+
+    test('a facade with no duplicate is quiet', () async {
+      final fs = await findings();
+      expect(
+        fs.where((f) => '${f['message']}'.contains('have the same body')),
+        isEmpty,
         reason: fs.toString(),
       );
     });
@@ -433,9 +521,26 @@ mixin WaitingAction on ReduxAction<AppState> {
       // handful that could match. If that stopped being true the audit would
       // still be correct and would have stopped being affordable — so the bar
       // is "most", not "at least one".
+      //
+      // The wiring files are not part of that bargain and never were. The audit
+      // reaches them *by name* — `AppState`, the router, the store's change
+      // log, the selectors facade — because a check about the facade has one
+      // file to read and knows which. Counting them here would make the ratio
+      // report on something other than the sweep, and the two move in opposite
+      // directions: adding a named-file check is cheap and would look like the
+      // sweep getting worse.
+      const addressed = {
+        'app_state.dart',
+        'app_router.dart',
+        'store.dart',
+        'selectors.dart',
+      };
       final all = [
         for (final pkg in const ['app', 'business', 'ui'])
-          ...ix.filesUnder(Directory(p.join(fx.root.path, pkg, 'lib'))),
+          for (final f in ix.filesUnder(
+            Directory(p.join(fx.root.path, pkg, 'lib')),
+          ))
+            if (!addressed.contains(p.basename(f.path))) f,
       ];
       final parsed = all.where((f) => ix.parsesOf(f) > 0).length;
       expect(all, isNotEmpty);

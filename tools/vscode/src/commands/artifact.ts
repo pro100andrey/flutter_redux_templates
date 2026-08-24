@@ -35,6 +35,7 @@ const KIND_BLURB: Record<ArtifactKind, string> = {
   substate: 'the AppState slice and its selectors',
   page: 'the page, its connector and the route',
   field: 'the state field, its selector getter and its setter action',
+  selector: 'the computed getter on the Select<Substate> facade',
   action: 'the ReduxAction file under its substate',
   model: 'the model or enum, with its generated siblings',
   widget: 'the widget file',

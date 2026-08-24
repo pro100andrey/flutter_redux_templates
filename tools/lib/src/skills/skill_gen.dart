@@ -901,12 +901,13 @@ plain `dispatch` for fire-and-forget.
           'same artifact. Do not strip it yourself, and do not add it — pass '
           'the name as you have it. `frx remove` reads the same rule, so '
           'whichever spelling created it removes it.',
-      'Mixins conflict, and the conflict does **not** fail the build: '
-          '`with NonReentrant, Throttle` compiles and analyzes clean, and is '
-          'caught by an `assert` inside async_redux on the first dispatch — in '
-          'a debug build only. Ask `frx list-mixins` which exclude which and '
-          'let the scaffolder write the `with` clause: refusing the pair up '
-          'front is the only check that happens before the code exists.',
+      'Mixins conflict, and the conflict is an **analyzer error**: async_redux '
+          'makes groups mutually exclusive by colliding on a private member, so '
+          '`dart analyze` reports `private_collision_in_mixin_application`. '
+          'The compiler does not — `flutter test` on such a file runs, and an '
+          '`assert` inside async_redux throws on the first dispatch, in a debug '
+          'build only. Ask `frx list-mixins` which exclude which and let the '
+          'scaffolder write the `with` clause; it refuses a bad pair up front.',
       '`-k waiting` also adds the substate\'s `isWaiting` getter, on the same '
           'ground as a field\'s getter: a waiting action a page cannot ask '
           'about is half-wired.',

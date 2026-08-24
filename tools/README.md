@@ -468,15 +468,13 @@ are added automatically (`noDialog` → `checkInternet`, `unlimitedRetries` →
 | `throttle` | Drop dispatches while a recent run is fresh |
 | `fresh` | Skip the run entirely while the last result is still fresh |
 
-**Some combinations are refused, and nothing but frx refuses them early.**
-async_redux declares groups of these mutually exclusive, but the guard is an
-`assert` inside `_incompatible<T1, T2>`: `-m debounce -m retry` compiles and
-analyzes clean, throws on the first dispatch in a debug build, and is stripped
-from a release one. (An older paragraph here said the members collide on a
-private name and the pair is a compile error. Measured: they are all declared in
-one library, and `private_collision_in_mixin_application` is about mixins from
-*different* libraries.) `add-action` refusing the pair up front is therefore the
-only check that happens before the code exists. The exclusive groups are
+**Some combinations do not pass the gate.** async_redux makes groups of these
+mutually exclusive by having them collide on a private member, so `dart analyze`
+reports `-m debounce -m retry` as `private_collision_in_mixin_application`.
+`add-action` refuses such a pair up front instead of scaffolding a file the gate
+will reject. The *compiler* is more permissive than the analyzer here — the pair
+builds, so `flutter test` on it runs and async_redux's own `assert` throws on
+the first dispatch, in a debug build only. The exclusive groups are
 `fresh`/`throttle`/`nonReentrant`, `checkInternet`/`abortWhenNoInternet`,
 `debounce`/`retry` — with `unlimitedRetryCheckInternet` excluded from all of them.
 

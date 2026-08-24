@@ -50,7 +50,7 @@ frx remove <name> [--kind <kind>] --apply
     --root            Repo root to search from.
 -b, --build-runner    Run build_runner in the artifact's package after writing.
 -k, --kind            Force the target kind (default: auto-detect).
-                      [substate, page, field, action, model, widget, connector, service]
+                      [substate, page, field, selector, action, model, widget, connector, service]
 -s, --state           For --kind action / field: the substate that owns it, when the name is used under more than one.
 -a, --apply           Apply the removal (delete files + unwire). Without it the plan is only previewed.
 ```

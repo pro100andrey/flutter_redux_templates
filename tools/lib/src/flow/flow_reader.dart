@@ -122,6 +122,26 @@ class FlowReader {
     );
   }
 
+  /// The names of the connector classes [file] constructs.
+  ///
+  /// Public for the graph, which needs the composition the page walk uses
+  /// internally: a connector no file builds is dead, and the actions it alone
+  /// dispatches are dead with it — which the orphan list could not say while
+  /// composition was known only inside this reader.
+  ///
+  /// **Names, where the walk resolves files.** [_connectorsIn] keeps only what
+  /// a `*_connector.dart` import resolves to, which is right for a walk that
+  /// must open the file next. Applied to the question "does anything construct
+  /// this class" it answers no for every connector that does not live in a file
+  /// named that way — measured: `AppConnector` lives in `app.dart` and is
+  /// built in `run_env.dart`, and the file-resolving read called the app's own
+  /// root widget unbuilt.
+  Set<String> connectorNamesIn(File file) {
+    final built = <String>{};
+    sourceIndex.unitFor(file).accept(_ConnectorVisitor(built));
+    return built;
+  }
+
   /// The connector classes constructed inside [unit], by class name, in source
   /// order — each resolved to the file its import points at.
   ///

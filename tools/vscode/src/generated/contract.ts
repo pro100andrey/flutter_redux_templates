@@ -21,7 +21,7 @@ export const KINDS = {
   'action': ['sync', 'async', 'waiting'],
   'widget': ['field', 'choice', 'action', 'view', 'container'],
   'nav': ['push', 'replace', 'navigate'],
-  'remove': ['substate', 'page', 'field', 'action', 'model', 'widget', 'connector', 'service'],
+  'remove': ['substate', 'page', 'field', 'selector', 'action', 'model', 'widget', 'connector', 'service'],
   'rename': ['substate', 'page'],
 } as const;
 

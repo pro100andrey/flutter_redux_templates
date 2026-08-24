@@ -127,9 +127,17 @@ class GraphReader {
           owner: owner,
           at: at,
           expr: className,
-          why:
-              'dispatched, but no imported `*_action.dart` declares it — a '
-              'factory, an alias, or an action outside business/lib/redux',
+          why: _declaredIn(at, className)
+              // A private action beside the one the file is named for. The
+              // reason is real and the old wording was not: it said "no
+              // imported `*_action.dart` declares it" about a class declared
+              // three lines down. What frx cannot do is model it — an action
+              // node is keyed on its file, and this file already has one.
+              ? 'declared in this file beside its main action, so it has no '
+                    'node of its own — one action per file is what the graph '
+                    'can key on'
+              : 'dispatched, but no imported `*_action.dart` declares it — a '
+                    'factory, an alias, or an action outside business/lib/redux',
         ),
       );
       return id;
@@ -401,6 +409,65 @@ class GraphReader {
       hasSubstate: (f) => nodes.containsKey('substate:$f'),
       owners: owners,
     );
+
+    // ---- how the screens are composed ------------------------------------
+    // Which connector builds which, so "nothing builds this one" becomes
+    // sayable. Without it the graph had no notion of a widget connector
+    // existing at all: on a real project six of eleven reported orphan actions
+    // were dispatched only from a `SettingsConnector` that no file constructs,
+    // so the verdict was right and the reason — the whole connector is dead,
+    // not the six actions one at a time — was missing.
+    //
+    // The composition itself is not new; `FlowReader` walks it to find a page's
+    // regions. It was private to that walk, which starts at `@RoutePage`
+    // connectors, so nothing outside the routed tree was ever composed.
+    //
+    // Runs after everything that makes a node, and matches on the class name
+    // rather than on a resolved import: a builder is any file at all, and the
+    // one that constructs the app's root widget is not itself a connector.
+    final connectorNodes = <String, String>{
+      for (final n in nodes.values)
+        if (n.kind == NodeKind.consumer) n.name: n.id,
+    };
+    for (final consumer in _consumerFiles()) {
+      final built = flowReader.connectorNamesIn(consumer);
+      if (built.isEmpty) continue;
+
+      final path = p.canonicalize(consumer.path);
+      // Only to nodes that already exist: constructing something frx does not
+      // model is not evidence of anything.
+      final targets = {
+        for (final name in built)
+          if (connectorNodes[name] != null) connectorNodes[name]!,
+      };
+      if (targets.isEmpty) continue;
+
+      var from = owners[consumer.path] ?? owners[path];
+      if (from == null) {
+        // A builder with no artifact of its own — the `run_env.dart` that wraps
+        // the root widget. It gets a node so the construction can be recorded;
+        // the dead-connector rule looks only at names ending in `Connector`, so
+        // giving one to a plain file cannot put it on that list.
+        final name =
+            firstClassNameIn(sourceIndex.unitFor(consumer)) ??
+            Casing.parse(p.basenameWithoutExtension(consumer.path)).pascal;
+        from = 'consumer:$name';
+        if (!nodes.containsKey(from)) {
+          addNode(
+            GraphNode(
+              id: from,
+              kind: NodeKind.consumer,
+              name: name,
+              file: consumer.path,
+            ),
+          );
+        }
+      }
+      for (final to in targets) {
+        if (to == from) continue;
+        addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.builds));
+      }
+    }
 
     // ---- selectors declared outside the facade ---------------------------
     // The graph reads selector *declarations* from `selectors.dart` and nothing
@@ -1165,4 +1232,14 @@ class _BodyReader extends RecursiveAstVisitor<void> {
       if (arg is NamedType) _into.waitsForActions.add(arg.name.lexeme);
     }
   }
+}
+
+/// Whether the file at [path] declares a class called [className].
+///
+/// `at` is a file path for every caller that has one and a node id for the one
+/// that does not, so this answers false rather than throwing on the latter.
+bool _declaredIn(String path, String className) {
+  final file = File(path);
+  if (!file.existsSync()) return false;
+  return classNamed(sourceIndex.unitFor(file), className) != null;
 }
