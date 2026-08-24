@@ -304,6 +304,93 @@ class GraphReader {
       }
     }
 
+    // ---- dispatches from everywhere else ---------------------------------
+    // **The same sweep the selector pass below makes, for the other half of the
+    // question it answers.** That pass reads every Dart file of the app's own
+    // packages and says why: "a read is a read whether or not frx models the
+    // reader, and scanning only modelled files would report the selectors that
+    // only an unrouted connector uses as dead — the one mistake here that costs
+    // working code." Every word of it is true of a dispatch, and this half did
+    // not do it.
+    //
+    // What it did instead was take dispatches from the page walk, which turns a
+    // dispatch into an edge only where it is written as a named argument of the
+    // `_Vm(...)` construction. Three ordinary shapes fall outside that and were
+    // dropped:
+    //
+    //   * `onInit: (store) => store.dispatch(LoadX())` on the `StoreConnector`,
+    //     which belongs to no interaction and so to no view-model field;
+    //   * a callback built in `builder:` rather than in `_Vm(...)`;
+    //   * every connector no route registers — the walk starts at `@RoutePage`
+    //     connectors, so a tree rooted in `MaterialApp.builder` is never
+    //     entered. `NodeKind.consumer` was invented for exactly that file and
+    //     applied only to its selector reads.
+    //
+    // The reader already knew: each one lands in `PageFlow.untraced`, which
+    // `flow --md` prints as "these files dispatch anyway — so this page has
+    // interactions that are not drawn". The graph never read it, so the orphan
+    // list — the one place frx says "you can delete this" — named actions that
+    // a connector three lines away dispatches. Measured on a real project: four
+    // of eleven reported orphan actions.
+    //
+    // Additive, and deliberately after everything that attributes an edge more
+    // precisely: a flow edge carries the interaction it belongs to (`via
+    // onSubmit`), and this pass must not shadow one with a bare duplicate. So
+    // it fills gaps only — a pair already linked is left as the richer edge.
+    final linked = {
+      for (final e in edges.values)
+        if (e.kind == EdgeKind.dispatches) '${e.from}|${e.to}',
+    };
+    //
+    // **Resolve-or-skip, unlike every other pass here.** The others call
+    // [dispatchTarget], which invents a placeholder node and an `unresolved`
+    // note for a name it cannot pin to a file. Doing that from a sweep of every
+    // file was measured and rejected: `unresolved` went from 6 entries to 22 on
+    // the project this was written against — the same unresolvable factory
+    // reported once per file that calls it, and `WaitAction.add` /
+    // `WaitAction.remove` raised as project actions because the template's own
+    // `WaitingAction` mixin dispatches async_redux's bookkeeping. None of it is
+    // new information: naming what a dispatch could not be resolved to is the
+    // routed walk's job and it already does it. This pass exists to stop an
+    // action frx *does* model from being called unreachable, so an edge it
+    // cannot draw to a known action is an edge it has no business inventing.
+    for (final consumer in _consumerFiles()) {
+      final read = flowReader.readDispatches(consumer);
+      if (read.steps.isEmpty) continue;
+
+      final targets = <String>{};
+      for (final step in read.steps) {
+        if (step.isNavigation) continue;
+        final file = read.actionFiles[step.target];
+        final known = file == null ? null : actions[p.canonicalize(file.path)];
+        if (known != null) targets.add(known.id);
+      }
+      if (targets.isEmpty) continue;
+
+      final path = p.canonicalize(consumer.path);
+      var from = owners[consumer.path] ?? owners[path];
+      if (from == null) {
+        // A dispatcher with no node of its own — see [NodeKind.consumer].
+        final name =
+            firstClassNameIn(sourceIndex.unitFor(consumer)) ??
+            Casing.parse(p.basenameWithoutExtension(consumer.path)).pascal;
+        from = 'consumer:$name';
+        addNode(
+          GraphNode(
+            id: from,
+            kind: NodeKind.consumer,
+            name: name,
+            file: consumer.path,
+          ),
+        );
+      }
+
+      for (final to in targets) {
+        if (!linked.add('$from|$to')) continue;
+        addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.dispatches));
+      }
+    }
+
     // ---- selectors -------------------------------------------------------
     _readSelectors(
       appState,

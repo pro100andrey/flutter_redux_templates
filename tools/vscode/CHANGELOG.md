@@ -25,6 +25,22 @@ changes are marked as such.
 
 ### Added
 
+- **`graph` no longer calls a dispatched action an orphan.** The orphan list is
+  the one place frx says "you can delete this", and it was reading dispatches
+  out of the routed page walk, which draws an edge only where a dispatch is
+  written as a named argument of `_Vm(...)`. Four ordinary shapes fell outside
+  it: `onInit:` on the `StoreConnector`, a callback built in `builder:`, any
+  connector no route registers (the `MaterialApp.builder` tree), and
+  `StoreProvider.dispatch(context, X)` — whose action is the *second* argument,
+  so the `BuildContext` was read as the thing dispatched. Two more came from
+  the action reader: it took cascades from `reduce()` only, so a dispatch in
+  `before()` / `after()` / a mixin's required override was invisible, and it
+  *assigned* rather than appended per `reduce()` it met, so in a file with two
+  action classes the second erased the first's. Dispatches are now swept from
+  every file of the app's own packages — the rule the selector half of the same
+  reader already applied, and states in a comment. Measured on a real project:
+  eleven reported orphan actions, none of them dead. *(CLI)*
+
 - **`doctor` reports a `WaitingAction` whose cleanup never runs.** Three shapes:
   a `with` clause placing it before `nonReentrant` / `throttle` / `fresh`, an
   action overriding `before()` / `after()` without `super` (a class member beats
