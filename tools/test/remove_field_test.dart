@@ -69,13 +69,13 @@ void main() {
     // will not let anybody repair by hand.
     fx.file('business/lib/redux/checkout/models/checkout_state.dart')
       ..parent.createSync(recursive: true)
-      ..writeAsStringSync('''
+      ..writeAsStringSync(r'''
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'checkout_state.freezed.dart';
 
 @freezed
-abstract class CheckoutState with _\$CheckoutState {
+abstract class CheckoutState with _$CheckoutState {
   const factory CheckoutState(int id, {String? fallback}) = _CheckoutState;
 }
 ''');
@@ -302,7 +302,7 @@ abstract class CheckoutState with _\$CheckoutState {
     // `SelectComposites.canEnterApp` reads that, so `business` stopped
     // compiling, `build_runner` included.
     await ok(['add-field', 'log_in', 'token:String?', '--no-format']);
-    final path = 'business/lib/redux/selectors.dart';
+    const path = 'business/lib/redux/selectors.dart';
     fx
         .file(path)
         .writeAsStringSync(
@@ -335,13 +335,13 @@ abstract class CheckoutState with _\$CheckoutState {
     // so writing one that does not compile leaves its owner with no way out.
     fx.file('business/lib/redux/session/models/session_state.dart')
       ..parent.createSync(recursive: true)
-      ..writeAsStringSync('''
+      ..writeAsStringSync(r'''
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'session_state.freezed.dart';
 
 @freezed
-abstract class SessionState with _\$SessionState {
+abstract class SessionState with _$SessionState {
   const SessionState._();
 
   const factory SessionState({String? token}) = _SessionState;
@@ -375,7 +375,7 @@ abstract class SessionState with _\$SessionState {
     // indexes something *called* `table`, and it is not this getter's accessor:
     // deleting it would be silent loss of hand-written code, reported as
     // intended.
-    final path = 'business/lib/redux/selectors.dart';
+    const path = 'business/lib/redux/selectors.dart';
     fx
         .file(path)
         .writeAsStringSync(
@@ -538,11 +538,11 @@ abstract class SessionState with _\$SessionState {
   test('a state file that does not parse is refused, not spliced', () async {
     fx
         .file('business/lib/redux/log_in/models/log_in_state.dart')
-        .writeAsStringSync('''
+        .writeAsStringSync(r'''
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 @freezed
-abstract class LogInState with _\$LogInState {
+abstract class LogInState with _$LogInState {
   const factory LogInState({String? value}) = _LogInState
 }
 ''');

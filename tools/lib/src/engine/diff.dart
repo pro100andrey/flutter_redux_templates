@@ -9,12 +9,16 @@ String unifiedDiff(
   required String path,
   int context = 3,
 }) {
-  if (oldText == newText) return '';
+  if (oldText == newText) {
+    return '';
+  }
   final a = _lines(oldText);
   final b = _lines(newText);
   final script = _editScript(a, b);
   final hunks = _hunks(script, context);
-  if (hunks.isEmpty) return '';
+  if (hunks.isEmpty) {
+    return '';
+  }
 
   final out = StringBuffer()
     ..writeln('--- a/$path')
@@ -29,11 +33,15 @@ String unifiedDiff(
 }
 
 List<String> _lines(String s) {
-  if (s.isEmpty) return const [];
+  if (s.isEmpty) {
+    return const [];
+  }
   final lines = s.split('\n');
   // A trailing newline yields a final empty element — drop it so it isn't shown
   // as a spurious line.
-  if (lines.isNotEmpty && lines.last.isEmpty) lines.removeLast();
+  if (lines.isNotEmpty && lines.last.isEmpty) {
+    lines.removeLast();
+  }
   return lines;
 }
 
@@ -45,7 +53,8 @@ class _Line {
 
 /// An ordered edit script of equal / removed / added lines (LCS backtrack).
 List<_Line> _editScript(List<String> a, List<String> b) {
-  final m = a.length, n = b.length;
+  final m = a.length;
+  final n = b.length;
   // dp[i][j] = LCS length of a[i..] and b[j..].
   final dp = List.generate(m + 1, (_) => List.filled(n + 1, 0));
   for (var i = m - 1; i >= 0; i--) {
@@ -57,7 +66,8 @@ List<_Line> _editScript(List<String> a, List<String> b) {
   }
 
   final script = <_Line>[];
-  var i = 0, j = 0;
+  var i = 0;
+  var j = 0;
   while (i < m && j < n) {
     if (a[i] == b[j]) {
       script.add(_Line(' ', a[i]));
@@ -84,8 +94,8 @@ class _Hunk {
   _Hunk(this.oldStart, this.newStart);
   final int oldStart;
   final int newStart;
-  int oldLen = 0;
-  int newLen = 0;
+  var oldLen = 0;
+  var newLen = 0;
   final List<_Line> lines = [];
 }
 
@@ -97,11 +107,14 @@ List<_Hunk> _hunks(List<_Line> script, int context) {
     for (var k = 0; k < script.length; k++)
       if (script[k].tag != ' ') k,
   ];
-  if (changed.isEmpty) return const [];
+  if (changed.isEmpty) {
+    return const [];
+  }
 
   // Merge runs whose gap of equal lines is small enough to share a hunk.
   final ranges = <(int, int)>[];
-  var start = changed.first, prev = changed.first;
+  var start = changed.first;
+  var prev = changed.first;
   for (final c in changed.skip(1)) {
     if (c - prev - 1 > 2 * context) {
       ranges.add((start, prev));
@@ -119,15 +132,23 @@ List<_Hunk> _hunks(List<_Line> script, int context) {
     // Compute the 1-based start lines by counting entries before `from`.
     var oldLine = 1, newLine = 1;
     for (var k = 0; k < from; k++) {
-      if (script[k].tag != '+') oldLine++;
-      if (script[k].tag != '-') newLine++;
+      if (script[k].tag != '+') {
+        oldLine++;
+      }
+      if (script[k].tag != '-') {
+        newLine++;
+      }
     }
     final hunk = _Hunk(oldLine, newLine);
     for (var k = from; k < to; k++) {
       final line = script[k];
       hunk.lines.add(line);
-      if (line.tag != '+') hunk.oldLen++;
-      if (line.tag != '-') hunk.newLen++;
+      if (line.tag != '+') {
+        hunk.oldLen++;
+      }
+      if (line.tag != '-') {
+        hunk.newLen++;
+      }
     }
     hunks.add(hunk);
   }

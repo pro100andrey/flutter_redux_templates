@@ -39,7 +39,9 @@ enum Unsearchable {
   // would decode cleanly and be reported as fine, which is the failure this
   // whole module exists to stop.
   final nul = bytes.indexOf(0);
-  if (nul >= 0) return (kind: Unsearchable.nulByte, offset: nul);
+  if (nul >= 0) {
+    return (kind: Unsearchable.nulByte, offset: nul);
+  }
 
   // Pure ASCII is valid UTF-8 by definition, and nearly every source in a Dart
   // project is — so the decode below, which allocates a whole String only to
@@ -47,7 +49,9 @@ enum Unsearchable {
   // debounced editor event; a full decode per file, on top of the one
   // `SourceIndex` already does, is not free.
   for (final byte in bytes) {
-    if (byte >= 0x80) return _decodeFrom(bytes);
+    if (byte >= 0x80) {
+      return _decodeFrom(bytes);
+    }
   }
   return null;
 }
@@ -75,7 +79,7 @@ String describeUnsearchable(Unsearchable kind, int offset) => switch (kind) {
   Unsearchable.nulByte =>
     'holds a NUL byte at offset $offset, which makes the whole file binary to '
         'grep, git grep and ripgrep — they skip it, so nothing declared here is '
-        'findable. Write it as an escape (`\\u0000`), or key on something that '
+        r'findable. Write it as an escape (`\u0000`), or key on something that '
         'needs no separator.',
   Unsearchable.notUtf8 =>
     'is not valid UTF-8 (first bad byte at offset $offset), so search tools '

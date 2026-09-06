@@ -6,9 +6,9 @@ import 'package:args/command_runner.dart';
 import '../ast/mixin_chain_reader.dart';
 import '../ast/source_index.dart';
 import '../scaffold/artifact_templates.dart';
+import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
-import '../util/console.dart';
 
 /// Lists the async_redux behaviour mixins `add-action` can attach, with what
 /// each one implies and what it cannot be combined with.
@@ -56,7 +56,9 @@ class ListMixinsCommand extends Command<int> {
     } on Object {
       return const [];
     }
-    if (!repo.businessRedux.existsSync()) return const [];
+    if (!repo.businessRedux.existsSync()) {
+      return const [];
+    }
     return inSourceIndex(
       () => [
         for (final file in sourceIndex.filesUnder(repo.businessRedux))

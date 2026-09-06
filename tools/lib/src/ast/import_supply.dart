@@ -65,11 +65,15 @@ import '../redux/ast_edit.dart';
   required File file,
   required Set<String> removedNames,
 }) {
-  if (removedNames.isEmpty) return (source: source, changes: const []);
+  if (removedNames.isEmpty) {
+    return (source: source, changes: const []);
+  }
 
   final unit = parseString(content: source, throwIfDiagnostics: false).unit;
   final imports = unit.directives.whereType<ImportDirective>().toList();
-  if (imports.isEmpty) return (source: source, changes: const []);
+  if (imports.isEmpty) {
+    return (source: source, changes: const []);
+  }
 
   // A library whose parts are not in front of us is a library whose uses are not
   // either: a `part` names types on the importing file's behalf, and a generated
@@ -81,18 +85,24 @@ import '../redux/ast_edit.dart';
 
   final body = namesUsedIn(unit);
   final vanished = {...removedNames}..removeWhere(body.contains);
-  if (vanished.isEmpty) return (source: source, changes: const []);
+  if (vanished.isEmpty) {
+    return (source: source, changes: const []);
+  }
 
   final supply = _Supply(p.dirname(p.absolute(file.path)));
   final supplied = <ImportDirective, Set<String>>{};
   for (final imp in imports) {
     final uri = imp.uri.stringValue;
-    if (uri == null) continue;
+    if (uri == null) {
+      continue;
+    }
     // A prefixed import is reached by its prefix and by nothing else, so what it
     // supplies never has to be resolved.
     final prefix = imp.prefix?.name;
     final names = prefix != null ? {prefix} : supply.of(uri);
-    if (names == null) continue; // unknown — see the library doc
+    if (names == null) {
+      continue; // unknown — see the library doc
+    }
     supplied[imp] = _filter(names, imp.combinators);
   }
 
@@ -103,7 +113,9 @@ import '../redux/ast_edit.dart';
     final names = supplied[imp];
     // Every import that could answer for a vanished name is judged, not just the
     // first one that can.
-    if (names == null || !names.any(vanished.contains)) continue;
+    if (names == null || !names.any(vanished.contains)) {
+      continue;
+    }
 
     final held = names.where(body.contains);
     final covered = held.every(
@@ -114,7 +126,9 @@ import '../redux/ast_edit.dart';
             other.value.contains(name),
       ),
     );
-    if (!covered) continue;
+    if (!covered) {
+      continue;
+    }
 
     gone.add(imp);
     edits.add(removeDirective(source, imp));
@@ -169,7 +183,9 @@ class _UsedNameVisitor extends RecursiveAstVisitor<void> {
   void visitNamedType(NamedType node) {
     names.add(node.name.lexeme);
     final prefix = node.importPrefix?.name.lexeme;
-    if (prefix != null) names.add(prefix);
+    if (prefix != null) {
+      names.add(prefix);
+    }
     super.visitNamedType(node);
   }
 }
@@ -210,15 +226,21 @@ class _Supply {
 
   /// The file [uri] names, read from [from].
   File? _resolve(String uri, String from) {
-    if (uri.startsWith('dart:')) return _sdk(uri);
+    if (uri.startsWith('dart:')) {
+      return _sdk(uri);
+    }
     if (uri.startsWith('package:')) {
       final rest = uri.substring('package:'.length);
       final slash = rest.indexOf('/');
-      if (slash <= 0) return null;
+      if (slash <= 0) {
+        return null;
+      }
       final lib = _packageLib(rest.substring(0, slash));
       return lib == null ? null : File(p.join(lib, rest.substring(slash + 1)));
     }
-    if (uri.contains(':')) return null; // some other scheme
+    if (uri.contains(':')) {
+      return null; // some other scheme
+    }
     return File(p.normalize(p.join(from, uri)));
   }
 
@@ -256,14 +278,20 @@ class _Supply {
   /// what it exports, as far as that reaches. Null when a link in it cannot be
   /// read.
   Set<String>? _names(File? file, Set<String> onStack) {
-    if (file == null || !file.existsSync()) return null;
+    if (file == null || !file.existsSync()) {
+      return null;
+    }
     final path = p.canonicalize(file.path);
     final done = _done[path];
-    if (done != null) return done;
+    if (done != null) {
+      return done;
+    }
     // Two libraries exporting each other is legal and rare. The one in progress
     // contributes nothing on the way round, which is where the recursion stops;
     // its names still reach the caller by the path that is still unwinding.
-    if (!onStack.add(path)) return const {};
+    if (!onStack.add(path)) {
+      return const {};
+    }
 
     final unit = parseString(
       content: file.readAsStringSync(),
@@ -300,7 +328,9 @@ class _Supply {
         // the SDK's implementation of itself, which no import of a project file
         // is there for — so it is skipped, where an export that does not resolve
         // still makes the whole answer unknown.
-        if (directive is PartDirective) continue;
+        if (directive is PartDirective) {
+          continue;
+        }
         onStack.remove(path);
         return null;
       }
@@ -366,7 +396,9 @@ class _Public {
   final taken = <String>{};
 
   void add(String? name) {
-    if (name != null && !name.startsWith('_')) taken.add(name);
+    if (name != null && !name.startsWith('_')) {
+      taken.add(name);
+    }
   }
 }
 
@@ -375,18 +407,26 @@ class _Public {
 /// Null when there is no `sky_engine` to read, which is what a plain Dart project
 /// looks like.
 Map<String, String>? _embeddedLibraries(String? skyEngineLib) {
-  if (skyEngineLib == null) return null;
+  if (skyEngineLib == null) {
+    return null;
+  }
   final file = File(p.join(skyEngineLib, '_embedder.yaml'));
-  if (!file.existsSync()) return null;
+  if (!file.existsSync()) {
+    return null;
+  }
   final Object? doc;
   try {
     doc = loadYaml(file.readAsStringSync());
   } on YamlException {
     return null;
   }
-  if (doc is! YamlMap) return null;
+  if (doc is! YamlMap) {
+    return null;
+  }
   final libs = doc['embedded_libs'];
-  if (libs is! YamlMap) return null;
+  if (libs is! YamlMap) {
+    return null;
+  }
   return {
     for (final entry in libs.entries)
       if (entry.key case final String uri)
@@ -398,18 +438,24 @@ Map<String, String>? _embeddedLibraries(String? skyEngineLib) {
 Map<String, String>? _sdkLibraries() {
   final lib = p.join(p.dirname(p.dirname(Platform.resolvedExecutable)), 'lib');
   final file = File(p.join(lib, 'libraries.json'));
-  if (!file.existsSync()) return null;
+  if (!file.existsSync()) {
+    return null;
+  }
   final Object? doc;
   try {
     doc = jsonDecode(file.readAsStringSync());
   } on FormatException {
     return null;
   }
-  if (doc is! Map) return null;
+  if (doc is! Map) {
+    return null;
+  }
   // The VM's list, since that is the platform frx and its project are built for.
   // The others describe the same libraries for a different compiler.
   final platform = doc['vm'];
-  if (platform is! Map || platform['libraries'] is! Map) return null;
+  if (platform is! Map || platform['libraries'] is! Map) {
+    return null;
+  }
   return {
     for (final entry in (platform['libraries'] as Map).entries)
       if (entry.key case final String name)
@@ -428,23 +474,33 @@ Map<String, String>? _sdkLibraries() {
 Map<String, String>? _readPackageConfig(String dir) {
   for (var at = Directory(dir); at.parent.path != at.path; at = at.parent) {
     final config = File(p.join(at.path, '.dart_tool', 'package_config.json'));
-    if (!config.existsSync()) continue;
+    if (!config.existsSync()) {
+      continue;
+    }
     final Object? doc;
     try {
       doc = jsonDecode(config.readAsStringSync());
     } on FormatException {
       return null;
     }
-    if (doc is! Map || doc['packages'] is! List) return null;
+    if (doc is! Map || doc['packages'] is! List) {
+      return null;
+    }
     final base = p.join(at.path, '.dart_tool');
     final packages = <String, String>{};
     for (final entry in doc['packages'] as List) {
-      if (entry is! Map) continue;
+      if (entry is! Map) {
+        continue;
+      }
       final name = entry['name'];
       final root = entry['rootUri'];
-      if (name is! String || root is! String) continue;
+      if (name is! String || root is! String) {
+        continue;
+      }
       final rootPath = _fromUri(root, base);
-      if (rootPath == null) continue;
+      if (rootPath == null) {
+        continue;
+      }
       final lib = entry['packageUri'];
       packages[name] = p.normalize(
         p.join(rootPath, lib is String ? lib : 'lib'),
@@ -458,7 +514,11 @@ Map<String, String>? _readPackageConfig(String dir) {
 /// A `package_config.json` root, which is a URI and may be relative to the
 /// `.dart_tool` directory holding it.
 String? _fromUri(String uri, String base) {
-  if (uri.startsWith('file://')) return p.fromUri(Uri.parse(uri));
-  if (uri.contains(':')) return null;
+  if (uri.startsWith('file://')) {
+    return p.fromUri(Uri.parse(uri));
+  }
+  if (uri.contains(':')) {
+    return null;
+  }
   return p.normalize(p.join(base, p.fromUri(uri)));
 }

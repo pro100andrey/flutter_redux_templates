@@ -81,7 +81,7 @@ class AddFieldCommand extends WritingCommand {
         'selector',
         defaultsTo: true,
         help:
-            'Also add a getter for the field to the substate\'s Select<Pascal> '
+            "Also add a getter for the field to the substate's Select<Pascal> "
             'in selectors.dart.',
       );
   }
@@ -137,7 +137,7 @@ class AddFieldCommand extends WritingCommand {
         usageException(
           'Field "${field.camel}" currently defaults to `$existing`, and '
           '--force would drop it. Pass --default to say what it should be, or '
-          '--default \'$existing\' to keep it.',
+          "--default '$existing' to keep it.",
         );
       }
     }

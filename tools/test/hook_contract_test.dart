@@ -42,7 +42,7 @@ void main() {
     expect(
       block,
       isNotNull,
-      reason: 'no `case "\$tool"` block in the guard script',
+      reason: r'no `case "$tool"` block in the guard script',
     );
     final handled = {
       for (final arm in RegExp(
@@ -69,7 +69,9 @@ void main() {
           .any(
             (h) => (h['command']! as String).endsWith('guard-wired-files.sh'),
           );
-      if (registers) matchers.add(entry['matcher']! as String);
+      if (registers) {
+        matchers.add(entry['matcher']! as String);
+      }
     }
     expect(
       matchers,
@@ -202,8 +204,8 @@ void main() {
     // The paths are assembled rather than written out because this repository's
     // own guard is active while these tests are edited, and a literal one in the
     // file would refuse the edit.
-    final stateFile = 'business/lib/redux/tasks/models/tasks_${'state'}.dart';
-    final facade = 'business/lib/redux/${'selectors'}.dart';
+    const stateFile = 'business/lib/redux/tasks/models/tasks_${'state'}.dart';
+    const facade = 'business/lib/redux/${'selectors'}.dart';
     for (final command in [
       'cp /tmp/new.dart $stateFile',
       'mv /tmp/new.dart $stateFile',

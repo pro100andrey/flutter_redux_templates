@@ -41,7 +41,9 @@ abstract final class ArtifactFiles {
   /// a file the user never wrote.
   static List<String> modelGenerated(FrxWorkspace repo, Casing name) {
     final dir = repo.modelsLib;
-    if (!dir.existsSync()) return const [];
+    if (!dir.existsSync()) {
+      return const [];
+    }
     return dir
         .listSync()
         .whereType<File>()

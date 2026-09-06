@@ -87,8 +87,12 @@ class Construction {
   int get _splitPoint {
     final angle = fullName.indexOf('<');
     final dot = _dotAtDepthZero;
-    if (angle == -1) return dot;
-    if (dot == -1) return angle;
+    if (angle == -1) {
+      return dot;
+    }
+    if (dot == -1) {
+      return angle;
+    }
     return angle < dot ? angle : dot;
   }
 
@@ -105,7 +109,9 @@ class Construction {
         case '>':
           depth--;
         case '.':
-          if (depth == 0) return i;
+          if (depth == 0) {
+            return i;
+          }
       }
     }
     return -1;

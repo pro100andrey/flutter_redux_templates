@@ -51,7 +51,7 @@ void main() {
     // cleanly, because an edit here is a character offset computed against the
     // tree; a file only being reported on must not, because one unparseable
     // file in someone's repo must not take the whole audit down.
-    final broken = 'class A { void f( }\n';
+    const broken = 'class A { void f( }\n';
 
     test('a file that does not parse still yields a tree to report on', () {
       expect(index.unitFor(put('a.dart', broken)), isNotNull);
@@ -184,7 +184,7 @@ void main() {
         expect(
           index.unitFor(f).declarations.single.toSource(),
           contains(i.isEven ? 'B' : 'A'),
-          reason: 'rewrite #\$i',
+          reason: r'rewrite #$i',
         );
       }
     });

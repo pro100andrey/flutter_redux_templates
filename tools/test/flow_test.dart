@@ -1,11 +1,11 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
 import 'package:tools/src/flow/flow_model.dart';
 import 'package:tools/src/flow/flow_reader.dart';
 import 'package:tools/src/flow/mermaid.dart';
 import 'package:tools/src/workspace/frx_workspace.dart';
-import 'package:path/path.dart' as p;
-import 'package:test/test.dart';
 
 /// A minimal workspace holding one realistic connector + the action it reaches.
 ({Directory root, File connector}) _workspace() {
@@ -527,7 +527,7 @@ void main() {
       );
     });
 
-    test('reads the actions through each region\'s own imports', () {
+    test("reads the actions through each region's own imports", () {
       final flow = _readComposed();
       expect(
         flow.actions.keys,
@@ -769,7 +769,7 @@ void main() {
 
     test('from the reducer', () {
       expect(
-        dispatchesOf(r"""
+        dispatchesOf('''
 class SomeAction extends Action {
   @override
   AppState reduce() {
@@ -777,7 +777,7 @@ class SomeAction extends Action {
     return state;
   }
 }
-"""),
+'''),
         ['NextAction'],
       );
     });
@@ -788,7 +788,7 @@ class SomeAction extends Action {
       // method a mixin requires the action to override was reported by `graph`
       // as one nothing reaches, on the list you read as safe to delete.
       expect(
-        dispatchesOf(r"""
+        dispatchesOf('''
 class SomeAction extends Action {
   @override
   AppState reduce() => state;
@@ -796,7 +796,7 @@ class SomeAction extends Action {
   @override
   void after() => dispatch(SweepAction());
 }
-"""),
+'''),
         ['SweepAction'],
       );
     });
@@ -808,7 +808,7 @@ class SomeAction extends Action {
       // is why it survived every other test — and on a real project it
       // accounted for two of the reported orphans on its own.
       expect(
-        dispatchesOf(r"""
+        dispatchesOf('''
 class SomeAction extends Action {
   @override
   Future<AppState?> reduce() async {
@@ -821,7 +821,7 @@ class _SomethingStarted extends Action {
   @override
   AppState reduce() => state;
 }
-"""),
+'''),
         ['StampAction'],
       );
     });
@@ -841,14 +841,14 @@ class _SomethingStarted extends Action {
         ..writeAsStringSync('// router\n');
       final file = File(p.join(root.path, 'app/lib/connectors/c.dart'))
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync(r"""
+        ..writeAsStringSync('''
 class CConnector extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Button(
     onEscape: () => StoreProvider.dispatch<AppState>(context, EscapeAction()),
   );
 }
-""");
+''');
       final read = FlowReader(
         FrxWorkspace.locate(startDir: root.path),
       ).readDispatches(file);

@@ -3,10 +3,10 @@ import 'package:args/command_runner.dart';
 
 import 'commands/add_action_command.dart';
 import 'commands/add_connector_command.dart';
-import 'commands/add_nav_command.dart';
 import 'commands/add_enum_command.dart';
 import 'commands/add_field_command.dart';
 import 'commands/add_model_command.dart';
+import 'commands/add_nav_command.dart';
 import 'commands/add_package_command.dart';
 import 'commands/add_page_command.dart';
 import 'commands/add_retrofit_command.dart';
@@ -24,8 +24,8 @@ import 'commands/flow_command.dart';
 import 'commands/graph_command.dart';
 import 'commands/list_mixins_command.dart';
 import 'commands/list_routes_command.dart';
-import 'commands/list_widget_dirs_command.dart';
 import 'commands/list_substates_command.dart';
+import 'commands/list_widget_dirs_command.dart';
 import 'commands/new_command.dart';
 import 'commands/remove_command.dart';
 import 'commands/rename_command.dart';
@@ -35,8 +35,8 @@ import 'commands/watch_command.dart';
 import 'commands/which_command.dart';
 import 'config/frx_config.dart';
 import 'engine/changeset.dart';
-import 'version.dart';
 import 'util/console.dart';
+import 'version.dart';
 
 /// Root of the `frx` CLI — the dev toolbox for this Flutter Redux monorepo.
 ///
@@ -146,9 +146,13 @@ class FrxRunner extends CommandRunner<int> {
       (a) => !a.startsWith('-'),
       orElse: () => '',
     );
-    if (cmdName.isEmpty) return args;
+    if (cmdName.isEmpty) {
+      return args;
+    }
     final command = _resolveCommand(cmdName);
-    if (command == null) return args;
+    if (command == null) {
+      return args;
+    }
 
     final config = FrxConfig.load(startDir: _rootArg(args));
     return config.applyTo(
@@ -161,9 +165,13 @@ class FrxRunner extends CommandRunner<int> {
   /// The command registered under [name] or one of its aliases.
   Command<int>? _resolveCommand(String name) {
     final direct = commands[name];
-    if (direct != null) return direct;
+    if (direct != null) {
+      return direct;
+    }
     for (final c in commands.values) {
-      if (c.aliases.contains(name)) return c;
+      if (c.aliases.contains(name)) {
+        return c;
+      }
     }
     return null;
   }
@@ -172,7 +180,9 @@ class FrxRunner extends CommandRunner<int> {
   /// is looked up from the same place the command searches.
   static String? _rootArg(List<String> args) {
     for (var i = 0; i < args.length; i++) {
-      if (args[i] == '--root' && i + 1 < args.length) return args[i + 1];
+      if (args[i] == '--root' && i + 1 < args.length) {
+        return args[i + 1];
+      }
       if (args[i].startsWith('--root=')) {
         return args[i].substring('--root='.length);
       }

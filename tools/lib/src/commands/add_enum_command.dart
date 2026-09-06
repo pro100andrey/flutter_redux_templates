@@ -1,11 +1,11 @@
 import 'package:args/args.dart';
 
 import '../engine/changeset.dart';
+import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
-import '../model/artifact_files.dart';
 
 /// Scaffolds a plain enum in the `models` package.
 class AddEnumCommand extends WritingCommand {

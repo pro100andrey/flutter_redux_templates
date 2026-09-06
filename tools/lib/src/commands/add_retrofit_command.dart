@@ -1,11 +1,11 @@
 import 'package:args/args.dart';
 
 import '../engine/changeset.dart';
+import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
 import '../scaffold/package_scaffold.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
-import '../model/artifact_files.dart';
 
 /// Scaffolds a Retrofit `@RestApi()` client in `http_client/lib/api/`.
 class AddRetrofitCommand extends WritingCommand {

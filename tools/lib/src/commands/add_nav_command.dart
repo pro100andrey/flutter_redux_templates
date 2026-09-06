@@ -78,7 +78,9 @@ class AddNavCommand extends WritingCommand {
       (fromConnector, '${from.connectorClass} (the page you navigate from)'),
       (toConnector, '${to.connectorClass} (the page you navigate to)'),
     ]) {
-      if (!file.existsSync()) refuse('Not found: $what\n  ${file.path}');
+      if (!file.existsSync()) {
+        refuse('Not found: $what\n  ${file.path}');
+      }
     }
 
     // The destination has to be a registered route: `GoAction.push` takes the

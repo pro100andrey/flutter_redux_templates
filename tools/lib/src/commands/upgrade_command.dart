@@ -91,7 +91,9 @@ class UpgradeCommand extends Command<int> {
     // gate a command without being parsed: 0 when there is nothing to do, 1
     // when there is. Without `--check` an upgrade is the work, not the news,
     // and a successful one exits 0.
-    if (check && result.status == UpgradeStatus.available) return 1;
+    if (check && result.status == UpgradeStatus.available) {
+      return 1;
+    }
     return result.status == UpgradeStatus.refused ? 1 : 0;
   }
 

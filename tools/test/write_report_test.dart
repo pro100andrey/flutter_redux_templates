@@ -5,8 +5,8 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import 'support/fixture.dart';
-import 'support/shape.dart';
 import 'support/in_process.dart';
+import 'support/shape.dart';
 
 /// The machine write format: **one shape in two states**.
 ///
@@ -27,7 +27,7 @@ void main() {
   }
 
   List<Map<String, Object?>> changes(Map<String, Object?> out) =>
-      (out['changes'] as List).cast<Map<String, Object?>>();
+      (out['changes']! as List).cast<Map<String, Object?>>();
 
   group('one shape in two states', () {
     test('the plan and the result differ only by the applied marker', () async {
@@ -167,7 +167,9 @@ void main() {
       ], workingDirectory: fx.root.path);
       addTearDown(() {
         decoy.kill(ProcessSignal.sigkill);
-        if (script.existsSync()) script.deleteSync();
+        if (script.existsSync()) {
+          script.deleteSync();
+        }
       });
       await Future<void>.delayed(const Duration(milliseconds: 400));
 

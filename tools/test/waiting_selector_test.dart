@@ -121,7 +121,7 @@ void main() {
     // The action is what was asked for; refusing the whole command over the
     // half it volunteered would be the worse trade.
     Directory(fx.path('business/lib/redux/stray/actions'))
-      ..createSync(recursive: true);
+      .createSync(recursive: true);
     final r = await addAction(['save', '-s', 'stray', '-k', 'waiting']);
     expect(r.stderr, contains('SelectStray is not wired'));
     expect(
@@ -134,7 +134,9 @@ void main() {
     // The work adds a default; it does not rewrite what is there. Read from the
     // real monorepo, because that is where the four are.
     final live = File('../business/lib/redux/selectors.dart');
-    if (!live.existsSync()) return;
+    if (!live.existsSync()) {
+      return;
+    }
     final src = live.readAsStringSync();
     expect(
       RegExp(

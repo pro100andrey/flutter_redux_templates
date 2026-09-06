@@ -180,7 +180,7 @@ void main() {
     void writeChainingBase() {
       fx.file('business/lib/redux/common/action.dart')
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync(r"""
+        ..writeAsStringSync('''
 mixin WaitingAction on ReduxAction<AppState> {
   @override
   Future<void> before() async {
@@ -194,7 +194,7 @@ mixin WaitingAction on ReduxAction<AppState> {
     dispatchSync(WaitAction.remove(this));
   }
 }
-""");
+''');
     }
 
     void writeAction(String withClause) {
@@ -353,12 +353,12 @@ mixin WaitingAction on ReduxAction<AppState> {
       // project's own WaitingAction passes the chain on.
       fx.file('business/lib/redux/common/action.dart')
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync(r"""
+        ..writeAsStringSync('''
 mixin WaitingAction on ReduxAction<AppState> {
   @override
   void after() => dispatchSync(WaitAction.remove(this));
 }
-""");
+''');
       final fs = await findings();
       expect(
         fs.any(
@@ -497,7 +497,7 @@ mixin WaitingAction on ReduxAction<AppState> {
             Directory(p.join(fx.root.path, pkg, 'lib')),
           ))
             if (ix.parsesOf(f) > 1)
-              '\${p.basename(f.path)} ×\${ix.parsesOf(f)}',
+              r'${p.basename(f.path)} ×${ix.parsesOf(f)}',
       ];
       expect(twice, isEmpty);
     });

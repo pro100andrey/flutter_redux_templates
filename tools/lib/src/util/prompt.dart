@@ -12,7 +12,9 @@ class AbortException implements Exception {
 /// piped input).
 String _readLine() {
   final line = stdin.readLineSync();
-  if (line == null) throw const AbortException();
+  if (line == null) {
+    throw const AbortException();
+  }
   return line.trim();
 }
 
@@ -30,8 +32,12 @@ String ask(
     console.out.write('$question$suffix: ');
     final input = _readLine();
     if (input.isEmpty) {
-      if (def != null) return def;
-      if (!required) return '';
+      if (def != null) {
+        return def;
+      }
+      if (!required) {
+        return '';
+      }
       console.out.writeln('  (required${hint != null ? ' — $hint' : ''})');
       continue;
     }
@@ -53,11 +59,17 @@ String choose(String question, Map<String, String> options) {
   while (true) {
     console.out.write('Choice [1]: ');
     final input = _readLine();
-    if (input.isEmpty) return keys.first;
+    if (input.isEmpty) {
+      return keys.first;
+    }
     final n = int.tryParse(input);
-    if (n != null && n >= 1 && n <= keys.length) return keys[n - 1];
+    if (n != null && n >= 1 && n <= keys.length) {
+      return keys[n - 1];
+    }
     // Also accept the option name itself.
-    if (keys.contains(input)) return input;
+    if (keys.contains(input)) {
+      return input;
+    }
     console.out.writeln('  (enter 1–${keys.length})');
   }
 }
@@ -67,9 +79,15 @@ bool confirm(String question, {bool def = false}) {
   while (true) {
     console.out.write('$question [${def ? 'Y/n' : 'y/N'}]: ');
     final input = _readLine().toLowerCase();
-    if (input.isEmpty) return def;
-    if (input == 'y' || input == 'yes') return true;
-    if (input == 'n' || input == 'no') return false;
+    if (input.isEmpty) {
+      return def;
+    }
+    if (input == 'y' || input == 'yes') {
+      return true;
+    }
+    if (input == 'n' || input == 'no') {
+      return false;
+    }
   }
 }
 
@@ -82,7 +100,9 @@ List<String> askList(String question, {int min = 0, String? hint}) {
         .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList();
-    if (items.length >= min) return items;
+    if (items.length >= min) {
+      return items;
+    }
     console.out.writeln(
       '  (need at least $min${hint != null ? ' — $hint' : ''})',
     );

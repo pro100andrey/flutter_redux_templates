@@ -62,7 +62,7 @@ void main() {
       expect(add.every((c) => c.startsWith('add-')), isTrue);
     });
 
-    test('completes a command\'s flags after a dash', () async {
+    test("completes a command's flags after a dash", () async {
       final flags = await complete(['add-substate', 'x', '--']);
       expect(flags, contains('--kind'));
       expect(flags, contains('--force'));

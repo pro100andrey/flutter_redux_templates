@@ -56,19 +56,21 @@ void main() {
     )..writeAsStringSync('sleep 20\n');
     final started = await Process.run('sh', [
       '-c',
-      r'nohup sh '
+      'nohup sh '
           '${script.path}'
           r' watch >/dev/null 2>&1 & echo $!',
     ]);
     final decoy = int.parse((started.stdout as String).trim());
     addTearDown(() {
       Process.runSync('kill', ['-9', '$decoy']);
-      if (script.existsSync()) script.deleteSync();
+      if (script.existsSync()) {
+        script.deleteSync();
+      }
     });
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
     final scanned =
-        Process.runSync('pgrep', ['-f', r'build_runner[^ ]* watch']).stdout
+        Process.runSync('pgrep', ['-f', 'build_runner[^ ]* watch']).stdout
             as String;
     expect(
       scanned,
@@ -99,7 +101,9 @@ void main() {
     final live = await Process.start('sh', [script.path, 'watch']);
     addTearDown(() {
       live.kill(ProcessSignal.sigkill);
-      if (script.existsSync()) script.deleteSync();
+      if (script.existsSync()) {
+        script.deleteSync();
+      }
     });
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
@@ -111,7 +115,7 @@ void main() {
     expect(buildRunnerWatchPid(), isNotNull);
   }, testOn: 'posix');
 
-  test('a watch in another tree is not this tree\'s build', () async {
+  test("a watch in another tree is not this tree's build", () async {
     // What a probe project measured: `frx batch -b` stood down for a watch
     // running in a different repository two directories away, reported
     // "handing the build to it", exited 0, and generated nothing here.
@@ -124,7 +128,9 @@ void main() {
     ], workingDirectory: elsewhere.path);
     addTearDown(() {
       live.kill(ProcessSignal.sigkill);
-      if (elsewhere.existsSync()) elsewhere.deleteSync(recursive: true);
+      if (elsewhere.existsSync()) {
+        elsewhere.deleteSync(recursive: true);
+      }
     });
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
@@ -154,14 +160,16 @@ void main() {
     )..writeAsStringSync('');
     final started = await Process.run('sh', [
       '-c',
-      r'nohup tail -f '
+      'nohup tail -f '
           '${log.path}'
           r' >/dev/null 2>&1 & echo $!',
     ]);
     final impostor = int.parse((started.stdout as String).trim());
     addTearDown(() {
       Process.runSync('kill', ['-9', '$impostor']);
-      if (log.existsSync()) log.deleteSync();
+      if (log.existsSync()) {
+        log.deleteSync();
+      }
     });
     await Future<void>.delayed(const Duration(milliseconds: 400));
 

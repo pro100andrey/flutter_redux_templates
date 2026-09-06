@@ -31,6 +31,8 @@ library;
 
 import 'package:analyzer/dart/ast/ast.dart';
 
+import 'substate_artifact.dart' show SubstateArtifact;
+
 /// One selector declaration, read off the parse tree.
 class SelectorDecl {
   const SelectorDecl({
@@ -118,7 +120,9 @@ abstract final class SelectorShape {
   static SelectorDecl? of(AstNode node) {
     if (node is ExtensionTypeDeclaration) {
       final name = node.namePart.typeName.lexeme;
-      if (!isSelectorType(name)) return null;
+      if (!isSelectorType(name)) {
+        return null;
+      }
       return SelectorDecl(
         name: name,
         owner: name,
@@ -128,9 +132,13 @@ abstract final class SelectorShape {
     }
     if (node is ExtensionDeclaration) {
       final on = node.onClause?.extendedType;
-      if (on is! NamedType) return null;
+      if (on is! NamedType) {
+        return null;
+      }
       final owner = on.name.lexeme;
-      if (!isSelectorType(owner)) return null;
+      if (!isSelectorType(owner)) {
+        return null;
+      }
       return SelectorDecl(
         name: node.name?.lexeme,
         owner: owner,
@@ -161,7 +169,9 @@ abstract final class SelectorShape {
   /// or that the name be the spine itself, which carries no word after the
   /// prefix at all.
   static bool isSelectorType(String type) {
-    if (isFacadeSpine(type)) return true;
+    if (isFacadeSpine(type)) {
+      return true;
+    }
     if (!type.startsWith(facadeType) || type.length == facadeType.length) {
       return false;
     }

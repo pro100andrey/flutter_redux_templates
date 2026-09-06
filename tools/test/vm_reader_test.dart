@@ -222,8 +222,8 @@ class Card extends StatelessWidget {
   });
 
   test('a class with no generative constructor is skipped', () {
-    const freezed = '''
-abstract class LogInState with _\$LogInState {
+    const freezed = r'''
+abstract class LogInState with _$LogInState {
   const factory LogInState({String? email}) = _LogInState;
 }
 ''';

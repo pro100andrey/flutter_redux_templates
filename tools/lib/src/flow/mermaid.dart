@@ -24,8 +24,12 @@ String renderSequence(PageFlow flow) {
   for (final entry in ids.actions.entries) {
     b.writeln('    participant ${entry.value} as ${_esc(entry.key)}');
   }
-  if (ids.usesState) b.writeln('    participant ST as AppState');
-  if (ids.usesRouter) b.writeln('    participant NAV as Router');
+  if (ids.usesState) {
+    b.writeln('    participant ST as AppState');
+  }
+  if (ids.usesRouter) {
+    b.writeln('    participant NAV as Router');
+  }
 
   for (final useCase in flow.useCases) {
     final from = ids.laneOf(useCase);
@@ -74,9 +78,13 @@ void _writeSteps(
     // Guarded dispatches become an `alt` block; consecutive steps under the
     // same condition share one block.
     if (step.condition != openAlt) {
-      if (openAlt != null) b.writeln('${indent}end');
+      if (openAlt != null) {
+        b.writeln('${indent}end');
+      }
       openAlt = step.condition;
-      if (openAlt != null) b.writeln('${indent}alt ${_esc(openAlt)}');
+      if (openAlt != null) {
+        b.writeln('${indent}alt ${_esc(openAlt)}');
+      }
     }
     final pad = openAlt == null ? indent : '$indent    ';
 
@@ -103,7 +111,9 @@ void _writeSteps(
     b.writeln('$pad$from->>$open$id: ${_esc(step.kind.name)}');
 
     final notes = _notesFor(action);
-    if (notes != null) b.writeln('${pad}Note over $id: ${_esc(notes)}');
+    if (notes != null) {
+      b.writeln('${pad}Note over $id: ${_esc(notes)}');
+    }
 
     if (action?.writesLabel case final w?) {
       b.writeln('$pad$id->>ST: copyWith(${_esc(w)})');
@@ -125,12 +135,16 @@ void _writeSteps(
     }
   }
 
-  if (openAlt != null) b.writeln('${indent}end');
+  if (openAlt != null) {
+    b.writeln('${indent}end');
+  }
 }
 
 /// The one-line note under an action: its mixins and whether it's async.
 String? _notesFor(ActionInfo? action) {
-  if (action == null) return null;
+  if (action == null) {
+    return null;
+  }
   final parts = <String>[...action.mixins, if (action.isAsync) 'async'];
   return parts.isEmpty ? null : parts.join(' · ');
 }
@@ -147,7 +161,9 @@ class _ParticipantIds {
     var lane = 0;
     for (final useCase in flow.useCases) {
       final owner = useCase.owner;
-      if (owner != null) connectors.putIfAbsent(owner, () => 'R${++lane}');
+      if (owner != null) {
+        connectors.putIfAbsent(owner, () => 'R${++lane}');
+      }
     }
     if (connectors.length > 1 && !flow.useCases.any((u) => u.owner == null)) {
       // The frame holds no view-model of its own — the composition case. Its
@@ -163,14 +179,20 @@ class _ParticipantIds {
           usesRouter = true;
           continue;
         }
-        if (!flow.actions.containsKey(step.target)) continue;
+        if (!flow.actions.containsKey(step.target)) {
+          continue;
+        }
         actions.putIfAbsent(step.target, () => 'A${++n}');
         final action = flow.actions[step.target];
         // `writes.isNotEmpty`, not `writesLabel != null`: the label is a
         // rendering of the writes, and joining every one of them into a string
         // to compare it against null is the shape this was all changed to stop.
-        if (action?.writes.isNotEmpty ?? false) usesState = true;
-        if (action?.dispatches.isNotEmpty ?? false) usesState = true;
+        if (action?.writes.isNotEmpty ?? false) {
+          usesState = true;
+        }
+        if (action?.dispatches.isNotEmpty ?? false) {
+          usesState = true;
+        }
       }
     }
   }
@@ -181,8 +203,8 @@ class _ParticipantIds {
   /// Connector class → lane id, in the order the regions are reached.
   final Map<String, String> connectors = {};
   final Map<String, String> actions = {};
-  bool usesState = false;
-  bool usesRouter = false;
+  var usesState = false;
+  var usesRouter = false;
 
   /// The lane [useCase] is dispatched from.
   String laneOf(UseCase useCase) =>
@@ -231,7 +253,7 @@ String renderRouteMap(RouteMap map) {
     for (final entry in childIndex.entries)
       entry.key: [
         for (final page in entry.value)
-          if (byPage[page] case final node?) node,
+          ?byPage[page],
       ],
   };
   final tops = map.pages.where((n) => !childOf.containsKey(n.page)).toList();
@@ -270,9 +292,13 @@ String renderRouteMap(RouteMap map) {
     writeGroup(n, '    ');
   }
 
-  if (popsOut) b.writeln('    frxBack(["◀ back"])');
+  if (popsOut) {
+    b.writeln('    frxBack(["◀ back"])');
+  }
 
-  if (map.edges.isNotEmpty) b.writeln();
+  if (map.edges.isNotEmpty) {
+    b.writeln();
+  }
   for (final e in map.edges) {
     final target = e.to != null
         ? _flowId(e.to!)
@@ -280,7 +306,9 @@ String renderRouteMap(RouteMap map) {
         ? 'frxBack'
         : null;
     // A push to a route with no page of its own has nothing to point at.
-    if (target == null) continue;
+    if (target == null) {
+      continue;
+    }
     b.writeln(
       '    ${_flowId(e.from)} ${_arrow(e.kind)}|"${_escFlow(_edgeLabel(e))}"| '
       '$target',
@@ -323,8 +351,12 @@ String _flowNode(PageNode n) {
 /// dispatched from a reducer rather than the view-model.
 String _edgeLabel(NavEdge e) {
   final parts = StringBuffer(e.fromAction ? '⚡ ${e.via}' : e.via);
-  if (e.method != 'push' && e.method != 'pop') parts.write(' (${e.method})');
-  if (e.condition != null) parts.write(' [${e.condition}]');
+  if (e.method != 'push' && e.method != 'pop') {
+    parts.write(' (${e.method})');
+  }
+  if (e.condition != null) {
+    parts.write(' [${e.condition}]');
+  }
   return parts.toString();
 }
 

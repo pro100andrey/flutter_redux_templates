@@ -31,7 +31,7 @@ void main() {
   group('list-substates', () {
     test('--json names every wired substate with its file', () async {
       final out = await json(['list-substates', '--json']);
-      final rows = (out['substates'] as List).cast<Map<String, Object?>>();
+      final rows = (out['substates']! as List).cast<Map<String, Object?>>();
       expect(
         rows.map((r) => r['field']),
         containsAll(['connectivity', 'logIn']),
@@ -49,11 +49,11 @@ void main() {
       // The two renderings drifting apart is the failure worth pinning: the
       // table is what a human reads and the JSON is what the editor reads.
       final rows =
-          ((await json(['list-substates', '--json']))['substates'] as List)
+          ((await json(['list-substates', '--json']))['substates']! as List)
               .cast<Map<String, Object?>>();
       final table = await runInProcess(fx, ['list-substates']);
       for (final r in rows) {
-        expect(table.stdout, contains(r['field'] as String));
+        expect(table.stdout, contains(r['field']! as String));
       }
     });
   });
@@ -61,7 +61,7 @@ void main() {
   group('list-routes', () {
     test('--json names every registered route and its path', () async {
       final out = await json(['list-routes', '--json']);
-      final rows = (out['routes'] as List).cast<Map<String, Object?>>();
+      final rows = (out['routes']! as List).cast<Map<String, Object?>>();
       expect(rows.map((r) => r['route']), contains('LogInRoute'));
       expect(
         rows.firstWhere((r) => r['route'] == 'LogInRoute')['path'],
@@ -85,7 +85,7 @@ void main() {
   group('list-mixins', () {
     test('--json carries the catalogue the editor filters on', () async {
       final out = await json(['list-mixins', '--json']);
-      final rows = (out['mixins'] as List).cast<Map<String, Object?>>();
+      final rows = (out['mixins']! as List).cast<Map<String, Object?>>();
       expect(rows, hasLength(greaterThan(5)));
       final retry = rows.firstWhere((m) => m['name'] == 'retry');
       expect(retry['clause'], 'Retry');
@@ -124,7 +124,7 @@ mixin MarksRowBusy on Action {
 ''');
 
       final out = await json(['list-mixins', '--json']);
-      final rows = (out['projectMixins'] as List).cast<Map<String, Object?>>();
+      final rows = (out['projectMixins']! as List).cast<Map<String, Object?>>();
       final byName = {for (final m in rows) m['name']: m};
 
       expect(byName.keys, containsAll(['WaitingAction', 'MarksRowBusy']));
@@ -152,7 +152,7 @@ mixin MarksRowBusy on Action {
   group('graph', () {
     test('--json joins substates, actions and pages into one graph', () async {
       final out = await json(['graph', '--json']);
-      final nodes = (out['nodes'] as List).cast<Map<String, Object?>>();
+      final nodes = (out['nodes']! as List).cast<Map<String, Object?>>();
       final kinds = nodes.map((n) => n['kind']).toSet();
       expect(kinds, contains('substate'));
       expect(kinds, contains('page'));
@@ -160,7 +160,7 @@ mixin MarksRowBusy on Action {
       // Every edge points at a node that exists — the property a consumer
       // relies on and nothing checked.
       final ids = nodes.map((n) => n['id']).toSet();
-      for (final e in (out['edges'] as List).cast<Map<String, Object?>>()) {
+      for (final e in (out['edges']! as List).cast<Map<String, Object?>>()) {
         expect(ids, contains(e['from']), reason: 'dangling from: $e');
         expect(ids, contains(e['to']), reason: 'dangling to: $e');
       }
@@ -391,7 +391,7 @@ mixin MarksRowBusy on Action {
         'profile',
         '--no-format',
       ]);
-      expect(first.exitCode, 0, reason: first.stderr.toString());
+      expect(first.exitCode, 0, reason: first.stderr);
       expect(first.stdout, contains('ProfileRoute'));
       // Five edits across two packages: the view-model field, the dispatch that
       // fills it, the argument handed to the page, and the page's own parameter
@@ -410,7 +410,7 @@ mixin MarksRowBusy on Action {
         'profile',
         '--no-format',
       ]);
-      expect(again.exitCode, 0, reason: again.stderr.toString());
+      expect(again.exitCode, 0, reason: again.stderr);
       expect(again.stdout, contains('already has `onTapProfile`'));
       expect(
         connector.readAsStringSync(),
@@ -535,7 +535,7 @@ mixin MarksRowBusy on Action {
           '--force',
           '--no-format',
         ]);
-        expect(forced.exitCode, 0, reason: forced.stderr.toString());
+        expect(forced.exitCode, 0, reason: forced.stderr);
         // The folder is replaced, not merged: the value kind's setter must not
         // survive into a table-kind substate.
         expect(
@@ -555,7 +555,7 @@ mixin MarksRowBusy on Action {
           'cart',
           '--dry-run',
         ]);
-        expect(planned.exitCode, 0, reason: planned.stderr.toString());
+        expect(planned.exitCode, 0, reason: planned.stderr);
         expect(planned.stdout, contains('overwrite'));
       },
     );

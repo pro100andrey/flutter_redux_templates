@@ -4,8 +4,8 @@ import 'package:args/command_runner.dart';
 
 import '../model/page_artifact.dart';
 import '../routing/routes_source.dart';
-import 'options.dart';
 import '../util/console.dart';
+import 'options.dart';
 
 /// Lists the routes registered in `AppRouter.routes`, read via AST.
 ///

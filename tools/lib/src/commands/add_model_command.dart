@@ -1,12 +1,12 @@
 import 'package:args/args.dart';
 
 import '../engine/changeset.dart';
+import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
 import '../scaffold/package_scaffold.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
-import '../model/artifact_files.dart';
 
 /// Scaffolds a `@freezed` model in the `models` package — a single-variant
 /// class by default, a sealed union with `--case` (repeatable, ≥2).

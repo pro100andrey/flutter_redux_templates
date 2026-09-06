@@ -161,7 +161,7 @@ extension StringSelectHelpers on String {
       expect(scan(), isEmpty);
     });
 
-    test('generated output is nobody\'s placement decision', () {
+    test("generated output is nobody's placement decision", () {
       put('business/lib/redux/stray_action.freezed.dart', 'class X {}');
       expect(scan(), isEmpty);
     });

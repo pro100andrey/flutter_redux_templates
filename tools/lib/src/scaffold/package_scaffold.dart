@@ -159,7 +159,9 @@ enum PackageKind {
 
   static PackageKind? byName(String name) {
     for (final kind in values) {
-      if (kind.dir == name) return kind;
+      if (kind.dir == name) {
+        return kind;
+      }
     }
     return null;
   }
@@ -174,14 +176,14 @@ enum PackageKind {
       File(p.join(repo.root.path, dir, 'pubspec.yaml')).existsSync();
 }
 
-const _freezedBuild = '''
+const _freezedBuild = r'''
 global_options:
   freezed:
     runs_before:
       - json_serializable
 
 targets:
-  \$default:
+  $default:
     builders:
       json_serializable:
         options:
@@ -195,7 +197,7 @@ targets:
             when_or_null: false
 ''';
 
-const _retrofitBuild = '''
+const _retrofitBuild = r'''
 global_options:
   freezed:
     runs_before:
@@ -205,7 +207,7 @@ global_options:
       - retrofit_generator
 
 targets:
-  \$default:
+  $default:
     builders:
       json_serializable:
         options:
@@ -230,7 +232,9 @@ abstract final class PackageScaffold {
   /// not resolve; the shared applier makes the whole set atomic, so there is no
   /// half-created package to clean up by hand.
   static List<Change> create(FrxWorkspace repo, PackageKind kind) {
-    if (kind.existsIn(repo)) return const [];
+    if (kind.existsIn(repo)) {
+      return const [];
+    }
 
     final dir = p.join(repo.root.path, kind.dir);
     final root = p.join(repo.root.path, 'pubspec.yaml');
@@ -269,7 +273,9 @@ abstract final class PackageScaffold {
   /// `../models` and a project that does not resolve.
   static List<Change> omit(String root, PackageKind kind) {
     final dir = p.join(root, kind.dir);
-    if (!Directory(dir).existsSync()) return const [];
+    if (!Directory(dir).existsSync()) {
+      return const [];
+    }
 
     final rootPubspec = p.join(root, 'pubspec.yaml');
     final before = File(rootPubspec).readAsStringSync();
@@ -305,11 +311,15 @@ abstract final class PackageScaffold {
       // `http_client`, which is itself optional, so "who depends on this" and
       // "who is present" are two questions and only the first is a fixed fact.
       final file = File(p.join(repo.root.path, dependent, 'pubspec.yaml'));
-      if (!file.existsSync()) continue;
+      if (!file.existsSync()) {
+        continue;
+      }
 
       final before = file.readAsStringSync();
       final after = addDependency(before, kind.dir);
-      if (after == before) continue;
+      if (after == before) {
+        continue;
+      }
 
       edits.add(EditFile(file.path, before: before, after: after));
     }
@@ -328,14 +338,20 @@ abstract final class PackageScaffold {
   static List<Change> _withdrawals(String root, PackageKind kind) {
     final edits = <Change>[];
     for (final entity in Directory(root).listSync()) {
-      if (entity is! Directory || p.basename(entity.path) == kind.dir) continue;
+      if (entity is! Directory || p.basename(entity.path) == kind.dir) {
+        continue;
+      }
 
       final file = File(p.join(entity.path, 'pubspec.yaml'));
-      if (!file.existsSync()) continue;
+      if (!file.existsSync()) {
+        continue;
+      }
 
       final before = file.readAsStringSync();
       final after = removeDependency(before, kind.dir);
-      if (after == before) continue;
+      if (after == before) {
+        continue;
+      }
 
       edits.add(EditFile(file.path, before: before, after: after));
     }
@@ -360,7 +376,9 @@ abstract final class PackageScaffold {
         'the monorepo (looked in the pubspec beside the frx marker).',
       );
     }
-    if (members.contains(name)) return source;
+    if (members.contains(name)) {
+      return source;
+    }
 
     editor.appendToList(['workspace'], name);
     return editor.toString();
@@ -373,10 +391,14 @@ abstract final class PackageScaffold {
     final members = editor.parseAt([
       'workspace',
     ], orElse: () => wrapAsYamlNode(null)).value;
-    if (members is! List) return source;
+    if (members is! List) {
+      return source;
+    }
 
     final at = members.indexOf(name);
-    if (at < 0) return source;
+    if (at < 0) {
+      return source;
+    }
 
     editor.remove(['workspace', at]);
     return editor.toString();
@@ -407,12 +429,18 @@ abstract final class PackageScaffold {
     Map<String, List<int>> files,
     List<PackageKind> omitted,
   ) {
-    if (omitted.isEmpty) return const {};
+    if (omitted.isEmpty) {
+      return const {};
+    }
 
     final found = {for (final kind in omitted) kind: <String>[]};
     for (final entry in files.entries) {
-      if (!entry.key.endsWith('.dart')) continue;
-      if (omitted.any((kind) => isUnder(kind.dir, entry.key))) continue;
+      if (!entry.key.endsWith('.dart')) {
+        continue;
+      }
+      if (omitted.any((kind) => isUnder(kind.dir, entry.key))) {
+        continue;
+      }
 
       // Malformed input is replaced rather than thrown on: a file that does not
       // decode is not one an import can be read out of, and the audit is what
@@ -454,7 +482,9 @@ abstract final class PackageScaffold {
     ], orElse: () => wrapAsYamlNode(null));
 
     if (deps is YamlMap && deps.isNotEmpty) {
-      if (deps.containsKey(name)) return source;
+      if (deps.containsKey(name)) {
+        return source;
+      }
       return _splice(source, _placeFor(source, deps, name), _entry(name));
     }
     if (deps is YamlMap || deps.value == null) {
@@ -488,10 +518,14 @@ abstract final class PackageScaffold {
     final deps = YamlEditor(
       source,
     ).parseAt(['dependencies'], orElse: () => wrapAsYamlNode(null));
-    if (deps is! YamlMap) return source;
+    if (deps is! YamlMap) {
+      return source;
+    }
 
     for (final entry in deps.nodes.entries) {
-      if ((entry.key as YamlScalar).value != name) continue;
+      if ((entry.key as YamlScalar).value != name) {
+        continue;
+      }
       final from = _startOfLine(
         source,
         (entry.key as YamlScalar).span.start.offset,
@@ -516,11 +550,14 @@ abstract final class PackageScaffold {
   static int _placeFor(String source, YamlMap deps, String name) {
     YamlNode? previous;
     for (final entry in deps.nodes.entries) {
-      if (((entry.key as YamlScalar).value as String).compareTo(name) > 0)
+      if (((entry.key as YamlScalar).value as String).compareTo(name) > 0) {
         break;
+      }
       previous = entry.value;
     }
-    if (previous != null) return _afterLine(source, previous.span.end.offset);
+    if (previous != null) {
+      return _afterLine(source, previous.span.end.offset);
+    }
 
     // It sorts before everything: the top of the block, above the first entry
     // *and* above the comment lines that belong to it.
@@ -528,7 +565,9 @@ abstract final class PackageScaffold {
     while (at > 0) {
       final previousStart = at == 1 ? 0 : _startOfLine(source, at - 2);
       final line = source.substring(previousStart, at - 1).trim();
-      if (line.isNotEmpty && !line.startsWith('#')) break;
+      if (line.isNotEmpty && !line.startsWith('#')) {
+        break;
+      }
       at = previousStart;
     }
     return at;

@@ -38,7 +38,7 @@ void main() {
           .replaceFirst('line28', 'line28-edited');
       final d = unifiedDiff('$a\n', '$b\n', path: 'x');
       // Two hunk headers → two hunks (the edits are far apart).
-      expect(RegExp(r'^@@ ', multiLine: true).allMatches(d).length, 2);
+      expect(RegExp('^@@ ', multiLine: true).allMatches(d).length, 2);
       expect(d, contains('+line1-edited'));
       expect(d, contains('+line28-edited'));
     });

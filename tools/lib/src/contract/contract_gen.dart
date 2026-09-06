@@ -45,7 +45,9 @@ class ContractGen {
     final out = <String, List<String>>{};
     for (final command in runner.commands.values) {
       final allowed = command.argParser.options['kind']?.allowed;
-      if (allowed == null) continue;
+      if (allowed == null) {
+        continue;
+      }
       // `add-substate` → `substate`; `remove` and `rename` keep their own name,
       // since their kinds are artifact kinds rather than a flavour of one thing.
       final key = command.name.startsWith('add-')
@@ -64,7 +66,7 @@ class ContractGen {
       ..writeln(
         '// The CLI is the author of everything here: the `--kind` sets',
       )
-      ..writeln('// come off each command\'s own ArgParser, the marker off')
+      ..writeln("// come off each command's own ArgParser, the marker off")
       ..writeln(
         '// FrxWorkspace, the fix ids off the sealed Fix hierarchy. Edit',
       )
@@ -149,7 +151,7 @@ class ContractGen {
       ..writeln(' * The optional workspace members `add-package` creates.')
       ..writeln(' *')
       ..writeln(' * `dir` is the argument the command takes and the folder it')
-      ..writeln(' * writes; `summary` is the CLI\'s own one-liner for it.')
+      ..writeln(" * writes; `summary` is the CLI's own one-liner for it.")
       ..writeln(' */')
       ..writeln('export const PACKAGES = [');
     for (final kind in PackageKind.values) {
@@ -160,7 +162,7 @@ class ContractGen {
     b
       ..writeln('] as const;')
       ..writeln()
-      ..writeln('/** One optional package\'s directory, as a union. */')
+      ..writeln("/** One optional package's directory, as a union. */")
       ..writeln("export type PackageDir = (typeof PACKAGES)[number]['dir'];");
     return b.toString();
   }
@@ -233,7 +235,7 @@ class ContractGen {
     ];
     final b = StringBuffer()
       ..writeln('/**')
-      ..writeln(' * What the CLI\'s `Casing` answers, for `naming.test.ts`.')
+      ..writeln(" * What the CLI's `Casing` answers, for `naming.test.ts`.")
       ..writeln(' *')
       ..writeln(' * `naming.ts` re-implements the conversion because an')
       ..writeln(' * algorithm is not emittable as data. This is how the two')

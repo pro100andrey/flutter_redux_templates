@@ -22,7 +22,7 @@ void expectParses(String source, {String? reason}) {
     errors,
     isEmpty,
     reason: [
-      if (reason != null) reason,
+      ?reason,
       if (errors.isNotEmpty) errors.map((e) => '  $e').join('\n'),
       source,
     ].join('\n'),

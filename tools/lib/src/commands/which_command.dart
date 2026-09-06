@@ -4,8 +4,8 @@ import 'package:args/command_runner.dart';
 
 import '../model/naming_convention.dart';
 import '../model/target_resolver.dart';
-import 'options.dart';
 import '../util/console.dart';
+import 'options.dart';
 
 /// Resolves an identifier (a generated class, route, field or folder name) back
 /// to the frx artifact it belongs to — the authoritative token → artifact map.

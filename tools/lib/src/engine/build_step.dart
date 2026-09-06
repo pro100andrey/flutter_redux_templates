@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../flow/flow_docs.dart';
-import '../workspace/frx_workspace.dart';
 import '../util/console.dart';
+import '../workspace/frx_workspace.dart';
 
 /// The post-write execution stage shared by every mutating command: format the
 /// files that were written, then either run build_runner or print the command
@@ -22,9 +22,13 @@ Future<void> formatFiles(
   Iterable<String> written, {
   required bool enabled,
 }) async {
-  if (!enabled) return;
+  if (!enabled) {
+    return;
+  }
   final dart = written.where((f) => f.endsWith('.dart')).toList();
-  if (dart.isEmpty) return;
+  if (dart.isEmpty) {
+    return;
+  }
   final res = await Process.run('dart', ['format', ...dart]);
   if (res.exitCode != 0) {
     console.err.writeln('⚠ dart format failed:\n${res.stderr}');
@@ -45,10 +49,14 @@ Future<void> formatFiles(
 /// itself already succeeded, and doctor will report the stale docs.
 Future<void> refreshFlowDocs(Directory repoRoot) async {
   final docs = FlowDocs(FrxWorkspace(repoRoot));
-  if (!docs.enabled) return;
+  if (!docs.enabled) {
+    return;
+  }
   try {
     final changed = docs.write();
-    if (changed.isEmpty) return;
+    if (changed.isEmpty) {
+      return;
+    }
     console.out.writeln('  ✓ docs/flows refreshed (${changed.length} file(s))');
   } on Object catch (e) {
     // e.g. no AppRouter to read — doctor reports that on its own.
@@ -95,8 +103,12 @@ class BuildStep {
 /// Windows has no `pgrep`; there this reports null and behaviour is unchanged.
 int? buildRunnerWatchPid({String? within}) {
   for (final watch in _watchProcesses(needCwd: within != null)) {
-    if (watch.orphaned) continue;
-    if (!_watches(watch, within)) continue;
+    if (watch.orphaned) {
+      continue;
+    }
+    if (!_watches(watch, within)) {
+      continue;
+    }
     return watch.pid;
   }
   return null;
@@ -132,12 +144,16 @@ String? _workspaceOf(BuildStep step) {
 /// generated files never appear. Measured in a probe project whose build was
 /// handed to a watch running in the template repo two directories away.
 bool _watches(_Watch watch, String? within) {
-  if (within == null) return true;
+  if (within == null) {
+    return true;
+  }
   final cwd = watch.cwd;
   // A watch whose directory cannot be read is treated as this repo's, which is
   // the safe direction: standing down needlessly costs a rebuild the developer
   // can ask for, and building into a live watch's output is what corrupts it.
-  if (cwd == null) return true;
+  if (cwd == null) {
+    return true;
+  }
   final root = _realPath(within);
   final at = _realPath(cwd);
   return at == root || p.isWithin(root, at);
@@ -185,15 +201,21 @@ typedef _Watch = ({int pid, bool orphaned, String? cwd});
 /// Windows has no `pgrep`; there this is empty and both callers behave as if
 /// no watch were running.
 List<_Watch> _watchProcesses({bool needCwd = false}) {
-  if (Platform.isWindows) return const [];
+  if (Platform.isWindows) {
+    return const [];
+  }
   try {
-    final found = Process.runSync('pgrep', ['-f', r'build_runner[^ ]* watch']);
-    if (found.exitCode != 0) return const [];
+    final found = Process.runSync('pgrep', ['-f', 'build_runner[^ ]* watch']);
+    if (found.exitCode != 0) {
+      return const [];
+    }
     final pids = [
       for (final line in const LineSplitter().convert(found.stdout as String))
-        if (int.tryParse(line.trim()) case final pid?) pid,
+        ?int.tryParse(line.trim()),
     ];
-    if (pids.isEmpty) return const [];
+    if (pids.isEmpty) {
+      return const [];
+    }
 
     // Two `ps` calls at most, and only when a watch exists: one for the watches
     // and one for whatever their parents turned out to be.
@@ -236,7 +258,9 @@ Map<int, String> _cwds(Iterable<int> pids) {
     }
     return out;
   }
-  if (!Platform.isMacOS) return out;
+  if (!Platform.isMacOS) {
+    return out;
+  }
   try {
     final res = Process.runSync('lsof', [
       '-a',
@@ -248,9 +272,12 @@ Map<int, String> _cwds(Iterable<int> pids) {
     ]);
     int? current;
     for (final line in const LineSplitter().convert(res.stdout as String)) {
-      if (line.startsWith('p')) current = int.tryParse(line.substring(1));
-      if (line.startsWith('n') && current != null)
+      if (line.startsWith('p')) {
+        current = int.tryParse(line.substring(1));
+      }
+      if (line.startsWith('n') && current != null) {
         out[current] = line.substring(1);
+      }
     }
   } on ProcessException {
     return out;
@@ -262,7 +289,9 @@ Map<int, String> _cwds(Iterable<int> pids) {
 typedef _Proc = ({int ppid, String session});
 
 Map<int, _Proc> _describe(Iterable<int> pids) {
-  if (pids.isEmpty) return const {};
+  if (pids.isEmpty) {
+    return const {};
+  }
   final res = Process.runSync('ps', [
     '-o',
     'pid=,ppid=,sess=',
@@ -272,10 +301,14 @@ Map<int, _Proc> _describe(Iterable<int> pids) {
   final out = <int, _Proc>{};
   for (final line in const LineSplitter().convert(res.stdout as String)) {
     final parts = line.trim().split(RegExp(r'\s+'));
-    if (parts.length < 3) continue;
+    if (parts.length < 3) {
+      continue;
+    }
     final pid = int.tryParse(parts[0]);
     final ppid = int.tryParse(parts[1]);
-    if (pid == null || ppid == null) continue;
+    if (pid == null || ppid == null) {
+      continue;
+    }
     out[pid] = (ppid: ppid, session: parts[2]);
   }
   return out;
@@ -318,10 +351,18 @@ Map<int, _Proc> _describe(Iterable<int> pids) {
 /// build over it and kill it. Nothing in this repo starts a watch that way, and
 /// nothing should.
 bool _isOrphan(_Proc watch, _Proc? parent) {
-  if (watch.ppid <= 1) return true;
-  if (parent == null) return true; // the parent is gone from the table entirely
-  if (watch.session.isEmpty || parent.session.isEmpty) return false;
-  if (watch.session == '-' || parent.session == '-') return false;
+  if (watch.ppid <= 1) {
+    return true;
+  }
+  if (parent == null) {
+    return true; // the parent is gone from the table entirely
+  }
+  if (watch.session.isEmpty || parent.session.isEmpty) {
+    return false;
+  }
+  if (watch.session == '-' || parent.session == '-') {
+    return false;
+  }
   return watch.session != parent.session;
 }
 

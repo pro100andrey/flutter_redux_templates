@@ -8,9 +8,9 @@ import '../graph/graph_reader.dart';
 import '../model/naming_convention.dart';
 import '../model/target_resolver.dart';
 import '../util/casing.dart';
+import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
-import '../util/console.dart';
 
 /// Emits the whole app as one graph.
 ///
@@ -157,7 +157,9 @@ class GraphCommand extends Command<int> {
     AppGraph graph,
     ArgResults results,
   ) {
-    if (graph.node(token) != null) return (id: token, error: null);
+    if (graph.node(token) != null) {
+      return (id: token, error: null);
+    }
 
     final resolver = TargetResolver.locate(results['root'] as String?);
     final match = NamingConvention.resolve(
@@ -170,7 +172,9 @@ class GraphCommand extends Command<int> {
       final id = match.kind == ArtifactKind.substate
           ? 'substate:$camel'
           : 'page:$camel';
-      if (graph.node(id) != null) return (id: id, error: null);
+      if (graph.node(id) != null) {
+        return (id: id, error: null);
+      }
     }
 
     // Actions, selectors and services are not the resolver's business — it
@@ -180,7 +184,9 @@ class GraphCommand extends Command<int> {
       for (final n in graph.nodes)
         if (n.name == token) n,
     ];
-    if (byName.length == 1) return (id: byName.single.id, error: null);
+    if (byName.length == 1) {
+      return (id: byName.single.id, error: null);
+    }
     if (byName.length > 1) {
       return (
         id: null,
@@ -273,7 +279,9 @@ class GraphCommand extends Command<int> {
         for (final n in graph.nodes)
           if (n.kind == kind) n,
       ]..sort((a, b) => a.id.compareTo(b.id));
-      if (of.isEmpty) continue;
+      if (of.isEmpty) {
+        continue;
+      }
       console.out.writeln('  ${kind.name} (${of.length})');
       for (final n in of) {
         console.out.writeln(
@@ -294,7 +302,9 @@ class GraphCommand extends Command<int> {
         for (final e in graph.edges)
           if (e.kind == kind) e,
       ]..sort((a, b) => '${a.from}${a.to}'.compareTo('${b.from}${b.to}'));
-      if (of.isEmpty) continue;
+      if (of.isEmpty) {
+        continue;
+      }
       console.out.writeln('  ${kind.name} (${of.length})');
       for (final e in of) {
         final detail = [

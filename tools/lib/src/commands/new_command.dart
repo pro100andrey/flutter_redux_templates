@@ -1,9 +1,9 @@
 import 'package:args/command_runner.dart';
 
 import '../scaffold/artifact_templates.dart';
+import '../util/console.dart';
 import '../util/prompt.dart' as prompt;
 import 'options.dart';
-import '../util/console.dart';
 
 /// `frx new` — an interactive wizard over the scaffolders: pick an artifact,
 /// answer a few prompts, and the equivalent flag-driven command runs. The
@@ -41,7 +41,9 @@ class NewCommand extends Command<int> {
     }
 
     final root = argResults?['root'] as String?;
-    if (root != null) args.addAll(['--root', root]);
+    if (root != null) {
+      args.addAll(['--root', root]);
+    }
 
     console.out
       ..writeln()

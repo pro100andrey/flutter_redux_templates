@@ -4,6 +4,7 @@ import 'package:analyzer/dart/ast/ast.dart';
 
 import '../ast/declarations.dart';
 import '../ast/source_index.dart';
+import 'app_state_source.dart' show AppStateSource;
 import 'ast_edit.dart';
 
 /// Reads and edits a substate's `@freezed` state model — inserting a new field
@@ -67,9 +68,7 @@ class StateSource {
     final edits = <Edit>[
       // A factory with no named group at all has to grow one; from there the
       // shared comma rule applies.
-      delimiter == null
-          ? Edit.insert(params.rightParenthesis.offset, '{$decl}')
-          : insertIntoList(
+      if (delimiter == null) Edit.insert(params.rightParenthesis.offset, '{$decl}') else insertIntoList(
               elements: params.parameters,
               closer: delimiter,
               element: decl,
@@ -114,7 +113,9 @@ class StateSource {
     final param = params.parameters
         .where((p) => p.name?.lexeme == name)
         .firstOrNull;
-    if (param == null) return Unwired.absent(content);
+    if (param == null) {
+      return Unwired.absent(content);
+    }
 
     final edit = _emptiesItsGroup(params, param)
         ? _removeGroup(content, params)
@@ -160,7 +161,9 @@ class StateSource {
         (source[before - 1] == ' ' || source[before - 1] == '\t')) {
       before--;
     }
-    if (before > 0 && source[before - 1] == ',') start = before - 1;
+    if (before > 0 && source[before - 1] == ',') {
+      start = before - 1;
+    }
     return Edit.replace(start, params.rightDelimiter!.end, '');
   }
 
@@ -176,12 +179,18 @@ class StateSource {
     final unit = sourceIndex.unitFor(file);
     final cls = classNamed(unit, className);
     final body = cls?.body;
-    if (body is! BlockClassBody) return const [];
+    if (body is! BlockClassBody) {
+      return const [];
+    }
 
     final names = <String>[];
     for (final member in body.members) {
-      if (member is ConstructorDeclaration) continue;
-      if (!_mentions(member.toSource(), field)) continue;
+      if (member is ConstructorDeclaration) {
+        continue;
+      }
+      if (!_mentions(member.toSource(), field)) {
+        continue;
+      }
       names.add(switch (member) {
         MethodDeclaration(:final name) => name.lexeme,
         FieldDeclaration(:final fields) => fields.variables.first.name.lexeme,
@@ -198,7 +207,9 @@ class StateSource {
       '\\b${RegExp.escape(identifier)}\\b',
     ).allMatches(source)) {
       final at = match.start;
-      if (at == 0 || source[at - 1] != '.') return true;
+      if (at == 0 || source[at - 1] != '.') {
+        return true;
+      }
     }
     return false;
   }
@@ -242,11 +253,17 @@ class StateSource {
     final param = factory.parameters.parameters
         .where((p) => p.name?.lexeme == name)
         .firstOrNull;
-    if (param == null) return null;
+    if (param == null) {
+      return null;
+    }
     for (final annotation in param.metadata) {
-      if (annotation.name.name != 'Default') continue;
+      if (annotation.name.name != 'Default') {
+        continue;
+      }
       final args = annotation.arguments?.arguments;
-      if (args != null && args.isNotEmpty) return args.first.toSource();
+      if (args != null && args.isNotEmpty) {
+        return args.first.toSource();
+      }
     }
     return null;
   }

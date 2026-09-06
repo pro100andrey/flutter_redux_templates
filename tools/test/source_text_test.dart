@@ -60,10 +60,14 @@ void main() {
   test('no tracked source file is invisible to search', () {
     final offenders = <String>[];
     for (final rel in trackedFiles()) {
-      if (!searchable.contains(p.extension(rel))) continue;
+      if (!searchable.contains(p.extension(rel))) {
+        continue;
+      }
       final file = File(p.join(repoRoot, rel));
       // Tracked but absent happens mid-rebase and is not this test's subject.
-      if (!file.existsSync()) continue;
+      if (!file.existsSync()) {
+        continue;
+      }
       final bad = unsearchableIn(file.readAsBytesSync());
       if (bad != null) {
         offenders.add('$rel ${describeUnsearchable(bad.kind, bad.offset)}');

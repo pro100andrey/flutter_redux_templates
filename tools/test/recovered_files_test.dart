@@ -64,7 +64,7 @@ class BrokenAction extends Action {
   test('the graph declares it rather than modelling it silently', () async {
     breakAnAction();
     final r = await runInProcess(fx, ['graph', '--json']);
-    expect(r.exitCode, 0, reason: r.stderr.toString());
+    expect(r.exitCode, 0, reason: r.stderr);
     final gaps = ((jsonDecode(r.stdout) as Map)['unresolved'] as List)
         .cast<Map<String, Object?>>()
         .where((u) => u['kind'] == 'unparsed-file');

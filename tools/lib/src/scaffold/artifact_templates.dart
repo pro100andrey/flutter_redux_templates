@@ -122,7 +122,7 @@ class _Vm extends Vm {
             '  Future<AppState?> reduce() async => null;\n',
     };
 
-    return '${imports}\nclass ${n.pascal}Action $clause {\n$overrides$body}\n';
+    return '$imports\nclass ${n.pascal}Action $clause {\n$overrides$body}\n';
   }
 
   /// A `Set<Field>Action` that copies [field] (of [type]) onto the [substate]
@@ -179,7 +179,7 @@ class Set${field.pascal}Action extends Action {
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part '${n.snake}.freezed.dart';
-${gPart}
+$gPart
 @freezed
 abstract class ${n.pascal} with _\$${n.pascal} {
   factory ${n.pascal}({required int id}) = _${n.pascal};
@@ -205,7 +205,7 @@ $fromJson}
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part '${n.snake}.freezed.dart';
-${gPart}
+$gPart
 @freezed
 sealed class ${n.pascal} with _\$${n.pascal} {
 $factories$fromJson}
@@ -558,7 +558,9 @@ enum ActionMixin {
   static (ActionMixin, ActionMixin)? conflictIn(List<ActionMixin> mixins) {
     for (final group in exclusiveGroups) {
       final clash = mixins.where(group.contains).toList();
-      if (clash.length > 1) return (clash[0], clash[1]);
+      if (clash.length > 1) {
+        return (clash[0], clash[1]);
+      }
     }
     return null;
   }
@@ -570,8 +572,12 @@ enum ActionMixin {
   static List<ActionMixin> expand(Iterable<String> names) {
     final out = <ActionMixin>[];
     void add(ActionMixin m) {
-      if (out.contains(m)) return;
-      if (m.implies != null) add(m.implies!);
+      if (out.contains(m)) {
+        return;
+      }
+      if (m.implies != null) {
+        add(m.implies!);
+      }
       out.add(m);
     }
 

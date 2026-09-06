@@ -11,7 +11,9 @@
 library;
 
 import '../util/casing.dart';
+import 'page_artifact.dart' show PageArtifact;
 import 'selector_shape.dart';
+import 'substate_artifact.dart' show SubstateArtifact;
 import 'target_resolver.dart';
 
 /// One way a token might decompose: the base name, the artifact kind it would
@@ -31,7 +33,7 @@ abstract final class NamingConvention {
   static const stateSuffix = 'State';
 
   /// The prefix a substate's selector extension type carries.
-  static const selectorPrefix = SelectorShape.facadeType;
+  static const String selectorPrefix = SelectorShape.facadeType;
 
   /// Every way [token] might decompose, in the order they should be tried.
   ///

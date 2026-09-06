@@ -15,6 +15,8 @@ library;
 
 import 'package:analyzer/dart/ast/ast.dart';
 
+import 'construction.dart' show Construction;
+
 /// Every class declared at the top level of [unit].
 Iterable<ClassDeclaration> classesIn(CompilationUnit unit) =>
     unit.declarations.whereType<ClassDeclaration>();
@@ -22,7 +24,9 @@ Iterable<ClassDeclaration> classesIn(CompilationUnit unit) =>
 /// The top-level class called [name], or null when the unit has none.
 ClassDeclaration? classNamed(CompilationUnit unit, String name) {
   for (final c in classesIn(unit)) {
-    if (c.namePart.typeName.lexeme == name) return c;
+    if (c.namePart.typeName.lexeme == name) {
+      return c;
+    }
   }
   return null;
 }
@@ -40,7 +44,9 @@ ExtensionTypeDeclaration? extensionTypeNamed(
   String name,
 ) {
   for (final d in unit.declarations.whereType<ExtensionTypeDeclaration>()) {
-    if (d.namePart.typeName.lexeme == name) return d;
+    if (d.namePart.typeName.lexeme == name) {
+      return d;
+    }
   }
   return null;
 }

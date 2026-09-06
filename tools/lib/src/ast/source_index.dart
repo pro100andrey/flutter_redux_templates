@@ -122,7 +122,9 @@ class SourceIndex {
   /// that has to run for the answer to be right.
   CompilationUnit? unitIf(File file, bool Function(String source) wanted) {
     final entry = _entry(file, parse: false);
-    if (!wanted(entry.source)) return null;
+    if (!wanted(entry.source)) {
+      return null;
+    }
     return _entry(file, parse: true).unit!;
   }
 
@@ -160,8 +162,12 @@ class SourceIndex {
         'f${recursive ? 'r' : ''}${includeGenerated ? 'g' : ''}:'
         '${p.canonicalize(dir.path)}';
     return _listing(dir, key, recursive, (e) {
-      if (e is! File || !e.path.endsWith('.dart')) return false;
-      if (e.path.contains('.dart_tool')) return false;
+      if (e is! File || !e.path.endsWith('.dart')) {
+        return false;
+      }
+      if (e.path.contains('.dart_tool')) {
+        return false;
+      }
       return includeGenerated || !FrxWorkspace.isGenerated(e.path);
     }).cast<File>();
   }
@@ -182,10 +188,14 @@ class SourceIndex {
     bool Function(FileSystemEntity) keep,
   ) {
     final cached = _listings[key];
-    if (cached != null) return cached;
+    if (cached != null) {
+      return cached;
+    }
     // A directory that is not there is not cached: `docs/flows/` is opt-in, and
     // a run that creates it must see it.
-    if (!dir.existsSync()) return const [];
+    if (!dir.existsSync()) {
+      return const [];
+    }
     // Sorted: a listing feeds node order in `frx graph` and section order in
     // the docs export, and `listSync` promises no order at all — so the same
     // tree produced a different file on a different filesystem.
@@ -205,9 +215,13 @@ class SourceIndex {
     final source = file.readAsStringSync();
     final cached = _units[key];
     if (cached != null && cached.source == source) {
-      if (!parse || cached.unit != null) return cached;
+      if (!parse || cached.unit != null) {
+        return cached;
+      }
     }
-    if (!parse) return _units[key] = _Entry(source: source);
+    if (!parse) {
+      return _units[key] = _Entry(source: source);
+    }
 
     final parsed = parseString(content: source, throwIfDiagnostics: false);
     _parseCounts.update(key, (n) => n + 1, ifAbsent: () => 1);

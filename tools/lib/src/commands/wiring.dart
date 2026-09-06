@@ -116,8 +116,12 @@ class Wiring {
   /// interleaves notes between them, and `add-nav` runs its two together.
   void narrate() {
     if (outcome.unchanged) {
-      if (silent) return;
-      if (headingWhenSkipped) console.out.writeln(heading);
+      if (silent) {
+        return;
+      }
+      if (headingWhenSkipped) {
+        console.out.writeln(heading);
+      }
       console.out.writeln('  • $skipped');
       return;
     }
@@ -167,7 +171,9 @@ extension WiringList on List<Wiring> {
   Iterable<EditFile> get edits sync* {
     for (final w in this) {
       final edit = w.edit;
-      if (edit != null) yield edit;
+      if (edit != null) {
+        yield edit;
+      }
     }
   }
 
@@ -177,7 +183,9 @@ extension WiringList on List<Wiring> {
   /// to say leaves no gap where its report would have been.
   void narrate() {
     for (final w in this) {
-      if (w.silent) continue;
+      if (w.silent) {
+        continue;
+      }
       w.narrate();
       console.out.writeln();
     }

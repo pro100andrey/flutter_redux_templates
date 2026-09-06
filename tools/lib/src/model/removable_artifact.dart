@@ -5,8 +5,9 @@ import 'package:path/path.dart' as p;
 import '../scaffold/widget_scaffold.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
-import 'artifact_name.dart';
 import 'artifact_files.dart';
+import 'artifact_name.dart';
+import 'target_resolver.dart' show TargetResolver;
 
 /// The artifacts `remove` can delete that are *file sets* rather than wiring.
 ///
@@ -142,10 +143,14 @@ class RemovableResolver {
       final f = File(
         p.join(repo.businessRedux.path, dir, 'actions', '$snake.dart'),
       );
-      if (f.existsSync()) hits.add(dir);
+      if (f.existsSync()) {
+        hits.add(dir);
+      }
     }
 
-    if (hits.isEmpty) return null;
+    if (hits.isEmpty) {
+      return null;
+    }
     if (hits.length > 1) {
       blocked =
           '"${name.pascal}" names an action under ${hits.length} substates '
@@ -176,7 +181,9 @@ class RemovableResolver {
 
   RemovableArtifact? _model(Casing name) {
     final source = File(ArtifactFiles.model(repo, name));
-    if (!source.existsSync()) return null;
+    if (!source.existsSync()) {
+      return null;
+    }
 
     // The generated siblings go with it. Left behind they are the worse half of
     // the failure: `task.freezed.dart` still `part of 'task.dart'`, so the
@@ -220,7 +227,9 @@ class RemovableResolver {
       }
     }
 
-    if (hits.isEmpty) return null;
+    if (hits.isEmpty) {
+      return null;
+    }
 
     if (hits.length > 1) {
       // **Refuse. Do not prefer the straight spelling.**
@@ -272,7 +281,9 @@ class RemovableResolver {
   RemovableArtifact? _connector(Casing name) {
     final snake = '${ArtifactName.connectorStem(name).snake}_connector';
     final file = File(p.join(repo.appConnectors.path, '$snake.dart'));
-    if (!file.existsSync()) return null;
+    if (!file.existsSync()) {
+      return null;
+    }
 
     // A page's connector is half of the page, not a connector of its own:
     // `add-page` writes both and registers the route against this file. Deleting
@@ -309,7 +320,9 @@ class RemovableResolver {
   RemovableArtifact? _service(Casing name) {
     final stem = ArtifactName.serviceStem(name);
     final dir = ArtifactFiles.serviceDir(repo, name);
-    if (!dir.existsSync()) return null;
+    if (!dir.existsSync()) {
+      return null;
+    }
 
     final held =
         dir

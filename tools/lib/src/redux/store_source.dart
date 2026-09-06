@@ -121,7 +121,9 @@ class StoreSource {
   /// every substate before it, so a new field is always the newest of the ones
   /// this list tracks.
   EditOutcome wire({required String field}) => _edit((entries, source, list) {
-    if (entries.any((e) => e.field == field)) return null;
+    if (entries.any((e) => e.field == field)) {
+      return null;
+    }
     final (prev, next) = _operandsOf(entries.first);
     return (
       edits: [
@@ -144,7 +146,9 @@ class StoreSource {
     final gone = entries
         .where((e) => e.field == field || e.label == field)
         .toList();
-    if (gone.isEmpty) return null;
+    if (gone.isEmpty) {
+      return null;
+    }
     return (
       edits: [for (final e in gone) removeListItem(source, e.node)],
       changes: [for (final e in gone) "changed: '${e.label}'"],
@@ -171,11 +175,15 @@ class StoreSource {
     final blocks = _blocksIn(
       parseString(content: content, throwIfDiagnostics: false).unit,
     );
-    if (blocks.length != 1) return content;
+    if (blocks.length != 1) {
+      return content;
+    }
     final stale = _entriesOf(
       blocks.single,
     )!.where((e) => e.field == field && e.label == was);
-    if (stale.isEmpty) return content;
+    if (stale.isEmpty) {
+      return content;
+    }
     return applyEdits(content, [
       for (final e in stale)
         Edit.replace(
@@ -199,10 +207,14 @@ class StoreSource {
     )
     plan,
   ) {
-    if (!exists) return const Edited.nothing('');
+    if (!exists) {
+      return const Edited.nothing('');
+    }
     final source = sourceIndex.sourceOf(file);
     final blocks = _blocksIn(sourceIndex.unitToEdit(file));
-    if (blocks.length != 1) return Edited.nothing(source);
+    if (blocks.length != 1) {
+      return Edited.nothing(source);
+    }
     final list = blocks.single;
     final planned = plan(_entriesOf(list)!, source, list);
     return planned == null
@@ -228,25 +240,37 @@ class StoreSource {
   /// Every element must fit, not merely some: a list that mixes the shape with
   /// anything else is somebody else's list that happens to rhyme.
   static List<ChangedEntry>? _entriesOf(ListLiteral list) {
-    if (list.elements.isEmpty) return null;
+    if (list.elements.isEmpty) {
+      return null;
+    }
     final entries = <ChangedEntry>[];
     for (final element in list.elements) {
       final entry = _entryOf(element);
-      if (entry == null) return null;
+      if (entry == null) {
+        return null;
+      }
       entries.add(entry);
     }
     return entries;
   }
 
   static ChangedEntry? _entryOf(CollectionElement element) {
-    if (element is! IfElement) return null;
+    if (element is! IfElement) {
+      return null;
+    }
     final test = element.expression;
-    if (test is! BinaryExpression || test.operator.lexeme != '!=') return null;
+    if (test is! BinaryExpression || test.operator.lexeme != '!=') {
+      return null;
+    }
     final left = _fieldOf(test.leftOperand);
     final right = _fieldOf(test.rightOperand);
-    if (left == null || left != right) return null;
+    if (left == null || left != right) {
+      return null;
+    }
     final label = _labelOf(element);
-    if (label == null || element.elseElement != null) return null;
+    if (label == null || element.elseElement != null) {
+      return null;
+    }
     return ChangedEntry(field: left, label: label.value, node: element);
   }
 

@@ -1,11 +1,11 @@
 import 'package:args/args.dart';
 
 import '../engine/changeset.dart';
+import '../model/artifact_files.dart';
 import '../model/artifact_name.dart';
 import '../scaffold/artifact_templates.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
-import '../model/artifact_files.dart';
 
 /// Scaffolds a service + listener pair under `business/lib/redux/services/`.
 class AddServiceCommand extends WritingCommand {

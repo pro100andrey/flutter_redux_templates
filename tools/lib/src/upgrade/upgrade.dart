@@ -97,9 +97,13 @@ int compareVersions(String a, String b) {
   for (var i = 0; i < 3; i++) {
     final l = i < left.length ? left[i] : 0;
     final r = i < right.length ? right[i] : 0;
-    if (l != r) return l.compareTo(r);
+    if (l != r) {
+      return l.compareTo(r);
+    }
   }
-  if (leftPre == rightPre) return 0;
+  if (leftPre == rightPre) {
+    return 0;
+  }
   return leftPre ? -1 : 1;
 }
 
@@ -122,11 +126,10 @@ class Upgrader {
     required this.currentVersion,
     required this.executable,
     String? downloadBase,
-    String? releasesUrl,
+    this._releasesUrl,
     this.repo = 'pro100andrey/flutter_redux_templates',
   }) : _downloadBase =
-           downloadBase ?? Platform.environment['FRX_DOWNLOAD_BASE'],
-       _releasesUrl = releasesUrl;
+           downloadBase ?? Platform.environment['FRX_DOWNLOAD_BASE'];
 
   /// What the running binary reports — `frxVersion` in production.
   final String currentVersion;
@@ -365,7 +368,7 @@ class Upgrader {
   /// implementation to keep correct.
   void _unpack(File archive, Directory into) {
     final result = _run('tar', [
-      Platform.isWindows ? '-xf' : '-xzf',
+      if (Platform.isWindows) '-xf' else '-xzf',
       archive.path,
       '-C',
       into.path,
@@ -487,7 +490,9 @@ class Upgrader {
   /// failing to reach it is not worth a second error on top of the first.
   static void _discard(File staged) {
     try {
-      if (staged.existsSync()) staged.deleteSync();
+      if (staged.existsSync()) {
+        staged.deleteSync();
+      }
     } on FileSystemException {
       /* nothing further to try, and the caller is already reporting a failure */
     }

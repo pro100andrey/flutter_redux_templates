@@ -19,7 +19,9 @@ class _Finder<T extends AstNode> extends GeneralizingAstVisitor<void> {
 
   @override
   void visitNode(AstNode node) {
-    if (found != null) return;
+    if (found != null) {
+      return;
+    }
     if (node is T) {
       found = node;
       return;
@@ -33,15 +35,15 @@ void main() {
     test('applies disjoint edits highest-offset-first', () {
       const src = 'abcdef';
       final out = applyEdits(src, [
-        Edit.insert(0, '<'),
-        Edit.replace(2, 4, 'CD'),
-        Edit.insert(6, '>'),
+        const Edit.insert(0, '<'),
+        const Edit.replace(2, 4, 'CD'),
+        const Edit.insert(6, '>'),
       ]);
       expect(out, '<abCDef>');
     });
 
     test('a single insert lands at the offset', () {
-      expect(applyEdits('ac', [Edit.insert(1, 'b')]), 'abc');
+      expect(applyEdits('ac', [const Edit.insert(1, 'b')]), 'abc');
     });
   });
 
@@ -133,7 +135,7 @@ void main() {
           "import 'package:a/a.dart';\n"
           "import 'package:c/c.dart';\n";
       final edit = importInsertion(importsOf(src), 'package:b/b.dart');
-      expect(applyEdits(src, [edit]), contains("package:a/a.dart"));
+      expect(applyEdits(src, [edit]), contains('package:a/a.dart'));
       final out = applyEdits(src, [edit]);
       expect(
         out.indexOf('package:b'),

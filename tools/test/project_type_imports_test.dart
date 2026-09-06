@@ -133,8 +133,8 @@ class MemoryDigestInternals {}
           'packages/tm_memory/lib/tm_memory.dart',
           "export 'src/application/result.dart' show Result;\n",
         );
-        put('packages/tm_memory/lib/src/application/result.dart', '''
-sealed class Result with _\$Result {
+        put('packages/tm_memory/lib/src/application/result.dart', r'''
+sealed class Result with _$Result {
   const factory Result.success() = ResultSuccess;
 }
 ''');
@@ -157,8 +157,8 @@ sealed class Result with _\$Result {
     });
 
     test('resolves a union case through the redirect', () {
-      put('models/lib/result.dart', '''
-sealed class Result with _\$Result {
+      put('models/lib/result.dart', r'''
+sealed class Result with _$Result {
   const factory Result.success() = ResultSuccess;
 }
 ''');
@@ -231,8 +231,8 @@ sealed class Result with _\$Result {
     test('a union case is found through its redirect', () {
       business({'models': '../models'});
       put('models/pubspec.yaml', 'name: models\n');
-      put('models/lib/shape.dart', '''
-sealed class Shape with _\$Shape {
+      put('models/lib/shape.dart', r'''
+sealed class Shape with _$Shape {
   const factory Shape.round() = ShapeRound;
 }
 ''');

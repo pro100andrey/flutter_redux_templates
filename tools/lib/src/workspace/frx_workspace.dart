@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../ast/source_index.dart';
+import '../model/target_resolver.dart' show TargetResolver;
+import '../redux/app_state_source.dart' show AppStateSource;
+import '../routing/routes_source.dart' show RoutesSource;
 
 /// Walks up from [startDir] (or the current directory) until an ancestor
 /// containing [marker] (a repo-relative path) is found, returning that ancestor
@@ -37,14 +40,20 @@ Directory walkUpForMarker(
   final origin = p.normalize(p.absolute(startDir ?? Directory.current.path));
   var dir = Directory(origin);
   while (true) {
-    if (File(p.join(dir.path, marker)).existsSync()) return dir;
+    if (File(p.join(dir.path, marker)).existsSync()) {
+      return dir;
+    }
     final parent = dir.parent;
-    if (parent.path == dir.path) break;
+    if (parent.path == dir.path) {
+      break;
+    }
     dir = parent;
   }
 
   final below = _searchBelow(origin, marker);
-  if (below.length == 1) return below.single;
+  if (below.length == 1) {
+    return below.single;
+  }
   if (below.length > 1) {
     final names = below.map((d) => p.relative(d.path, from: origin)).toList()
       ..sort();
@@ -77,7 +86,9 @@ List<Directory> _searchBelow(String origin, String marker) {
   final plausible =
       File(p.join(origin, 'pubspec.yaml')).existsSync() ||
       Directory(p.join(origin, '.git')).existsSync();
-  if (!plausible) return const [];
+  if (!plausible) {
+    return const [];
+  }
   final question = (origin, marker);
   return _searched.putIfAbsent(
     question,
@@ -119,8 +130,12 @@ const _skipDirs = {
 /// Directories under [from] that hold [marker], outermost first. A hit is not
 /// descended into: its own packages are packages, not projects.
 List<Directory> _holdersBelow(Directory from, String marker, [int depth = 0]) {
-  if (File(p.join(from.path, marker)).existsSync()) return [from];
-  if (depth >= _searchDepth) return const [];
+  if (File(p.join(from.path, marker)).existsSync()) {
+    return [from];
+  }
+  if (depth >= _searchDepth) {
+    return const [];
+  }
 
   final List<FileSystemEntity> entries;
   try {
@@ -189,7 +204,9 @@ class FrxWorkspace {
   /// uses.
   List<String> widgetDirs() {
     final lib = uiLib;
-    if (!lib.existsSync()) return const [];
+    if (!lib.existsSync()) {
+      return const [];
+    }
     final names = <String>[
       for (final e in lib.listSync().whereType<Directory>())
         if (!notWidgetDirs.contains(p.basename(e.path)) &&
@@ -238,7 +255,9 @@ class FrxWorkspace {
   /// that asks both.
   List<Directory> substateDirsIn() {
     final dir = businessRedux;
-    if (!dir.existsSync()) return const [];
+    if (!dir.existsSync()) {
+      return const [];
+    }
     return [
       for (final entry in sourceIndex.directoriesIn(dir))
         if (isSubstateDir(p.basename(entry.path))) entry,
@@ -278,9 +297,13 @@ class FrxWorkspace {
   static String packageRootOf(String filePath) {
     var dir = File(filePath).parent;
     while (true) {
-      if (File(p.join(dir.path, 'pubspec.yaml')).existsSync()) return dir.path;
+      if (File(p.join(dir.path, 'pubspec.yaml')).existsSync()) {
+        return dir.path;
+      }
       final parent = dir.parent;
-      if (parent.path == dir.path) return File(filePath).parent.path;
+      if (parent.path == dir.path) {
+        return File(filePath).parent.path;
+      }
       dir = parent;
     }
   }

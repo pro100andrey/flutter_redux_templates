@@ -21,7 +21,9 @@ void main() {
 
   setUp(() => tmp = Directory.systemTemp.createTempSync('frx_create_'));
   tearDown(() {
-    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+    if (tmp.existsSync()) {
+      tmp.deleteSync(recursive: true);
+    }
   });
 
   /// Runs `frx create <name>` into a fresh directory under [tmp] and returns
@@ -206,13 +208,19 @@ void main() {
 Set<String> _declarersOf(String dir, String root) {
   final found = <String>{};
   for (final entity in Directory(root).listSync()) {
-    if (entity is! Directory) continue;
+    if (entity is! Directory) {
+      continue;
+    }
     final pubspec = File(p.join(entity.path, 'pubspec.yaml'));
-    if (!pubspec.existsSync()) continue;
+    if (!pubspec.existsSync()) {
+      continue;
+    }
 
     final deps =
         (loadYaml(pubspec.readAsStringSync()) as YamlMap)['dependencies'];
-    if (deps is! YamlMap) continue;
+    if (deps is! YamlMap) {
+      continue;
+    }
     if (deps[dir] case final YamlMap entry when entry['path'] == '../$dir') {
       found.add(p.basename(entity.path));
     }
@@ -223,6 +231,8 @@ Set<String> _declarersOf(String dir, String root) {
 /// The `N files · …` count out of a `create` report.
 int _fileCount(String stdout) {
   final match = RegExp(r'(\d+) files').firstMatch(stdout);
-  if (match == null) throw StateError('no file count in:\n$stdout');
+  if (match == null) {
+    throw StateError('no file count in:\n$stdout');
+  }
   return int.parse(match.group(1)!);
 }

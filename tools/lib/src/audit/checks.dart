@@ -24,19 +24,19 @@ import 'package:path/path.dart' as p;
 
 import '../ast/mixin_chain_reader.dart';
 import '../ast/source_index.dart';
+import '../ast/vm_reader.dart';
 import '../config/frx_config.dart';
 import '../engine/build_step.dart';
 import '../flow/flow_docs.dart';
 import '../model/page_artifact.dart';
 import '../model/placement.dart';
 import '../model/substate_artifact.dart';
-import '../scaffold/artifact_templates.dart';
-import '../ast/vm_reader.dart';
-import '../skills/skill_gen.dart';
 import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
 import '../redux/store_source.dart';
 import '../routing/routes_source.dart';
+import '../scaffold/artifact_templates.dart';
+import '../skills/skill_gen.dart';
 import '../workspace/frx_workspace.dart';
 import 'finding.dart';
 import 'text_bytes.dart';
@@ -92,7 +92,9 @@ List<Finding> audit(FrxWorkspace repo, {bool processState = false}) =>
     inSourceIndex(() {
       final findings = <Finding>[];
       for (final check in auditChecks) {
-        if (check.needsProcessState && !processState) continue;
+        if (check.needsProcessState && !processState) {
+          continue;
+        }
         try {
           check.run(repo, findings);
         } on Object catch (error, stack) {
@@ -160,7 +162,9 @@ void checkSubstates(FrxWorkspace repo, List<Finding> into) {
 
   for (final s in substates) {
     // `wait`/framework fields have no substate folder — skip non-…State types.
-    if (!s.isSubstate) continue;
+    if (!s.isSubstate) {
+      continue;
+    }
     final stateFile = SubstateArtifact.parse(
       s.field,
     ).stateFile(source.reduxDir);
@@ -237,7 +241,9 @@ void checkChangeLog(FrxWorkspace repo, List<Finding> into) {
     return;
   }
   final entries = store.changed();
-  if (entries == null) return;
+  if (entries == null) {
+    return;
+  }
 
   final AppStateSource appState;
   try {
@@ -310,11 +316,15 @@ void checkChangeLog(FrxWorkspace repo, List<Finding> into) {
 /// call — a deliberately excluded one is a real design, and a remedy that
 /// guessed would be editing an intention.
 void checkViewModels(FrxWorkspace repo, List<Finding> into) {
-  final rule = PlacementRule.fieldOutsideEquality;
+  const rule = PlacementRule.fieldOutsideEquality;
   final config = FrxConfig.load(startDir: repo.root.path);
-  if (config.placement[rule.id] == false) return;
+  if (config.placement[rule.id] == false) {
+    return;
+  }
   for (final dir in [repo.appLib, repo.uiLib]) {
-    if (!dir.existsSync()) continue;
+    if (!dir.existsSync()) {
+      continue;
+    }
     for (final file in sourceIndex.filesUnder(dir)) {
       // Same bargain the placement sweep strikes: a textual pre-filter decides
       // whether to look, never what to report. A file with neither shape cannot
@@ -366,7 +376,9 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
 /// it twice by accident.
 void checkDuplicateSelectors(FrxWorkspace repo, List<Finding> into) {
   final selectors = SelectorsSource(repo.selectorsFile);
-  if (!selectors.exists) return;
+  if (!selectors.exists) {
+    return;
+  }
   final where = p.relative(selectors.file.path);
 
   for (final entry in selectors.duplicateGetters().entries) {
@@ -422,7 +434,9 @@ void checkDuplicateSelectors(FrxWorkspace repo, List<Finding> into) {
 /// mixins doing what async_redux's own source says they do, so unlike the
 /// placement rules there is no project that legitimately means it.
 void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
-  if (!repo.businessLib.existsSync()) return;
+  if (!repo.businessLib.existsSync()) {
+    return;
+  }
 
   final swallowers = {
     for (final m in ActionMixin.values)
@@ -449,11 +463,15 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
 
   for (final file in sourceIndex.filesUnder(repo.businessLib)) {
     final source = sourceIndex.sourceOf(file);
-    if (!names.any(source.contains)) continue;
+    if (!names.any(source.contains)) {
+      continue;
+    }
     final where = p.relative(file.path);
 
     for (final hook in MixinChainReader.hooksOf(file, 'WaitingAction')) {
-      if (hook.chainsSuper) continue;
+      if (hook.chainsSuper) {
+        continue;
+      }
       into.add(
         Finding.error(
           '$where — WaitingAction.${hook.name}() does not call '
@@ -468,7 +486,9 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
 
     for (final applied in MixinChainReader.applicationsIn(file)) {
       for (final swallower in applied.after('WaitingAction')) {
-        if (!swallowers.contains(swallower)) continue;
+        if (!swallowers.contains(swallower)) {
+          continue;
+        }
         into.add(
           Finding.error(
             '$where — ${applied.className} applies $swallower after '
@@ -494,7 +514,9 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
       // running again.
       final owed = hooksOwedBy(applied);
       for (final hook in applied.hooks) {
-        if (hook.chainsSuper || !owed.contains(hook.name)) continue;
+        if (hook.chainsSuper || !owed.contains(hook.name)) {
+          continue;
+        }
         final eaten = [
           if (applied.mixins.contains('WaitingAction')) 'WaitingAction',
           for (final m in ActionMixin.values)
@@ -618,7 +640,9 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
   // route → connector file
   for (final type in routedTypes) {
     final page = PageArtifact.fromRouteType(type);
-    if (page == null) continue;
+    if (page == null) {
+      continue;
+    }
     final connector = page.connectorFile(routes.connectorsDir);
     if (!connector.existsSync()) {
       into.add(
@@ -638,14 +662,18 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
     recursive: false,
   )) {
     final fname = p.basename(f.path);
-    if (!fname.endsWith('_page_connector.dart')) continue;
+    if (!fname.endsWith('_page_connector.dart')) {
+      continue;
+    }
     // Off the parse tree, not out of the text — and through the one module that
     // decides, so this check and the placement rules cannot come to differ.
     final unit = sourceIndex.unitIf(
       f,
       (s) => s.contains('@${PageArtifact.routePageAnnotation}'),
     );
-    if (unit == null || !PageArtifact.carriesRoutePage(unit)) continue;
+    if (unit == null || !PageArtifact.carriesRoutePage(unit)) {
+      continue;
+    }
     final base = fname.substring(
       0,
       fname.length - '_page_connector.dart'.length,
@@ -725,7 +753,9 @@ void checkSourceText(FrxWorkspace repo, List<Finding> into) {
 
   for (final pkg in _sourcePackages) {
     final lib = Directory(p.join(repo.root.path, pkg, 'lib'));
-    if (!lib.existsSync()) continue;
+    if (!lib.existsSync()) {
+      continue;
+    }
     for (final file in sourceIndex.filesUnder(lib)) {
       final String source;
       try {
@@ -743,7 +773,9 @@ void checkSourceText(FrxWorkspace repo, List<Finding> into) {
       // repository to begin with — three times now, counting the two while
       // this module was being written. The guard catches it every time.
       final at = source.indexOf('\u0000');
-      if (at < 0) continue;
+      if (at < 0) {
+        continue;
+      }
       // A code-unit index is not a byte offset, and the report promises bytes
       // because `xxd -s` is the tool that works on a file like this. Encoding
       // the prefix costs one allocation, on a file that has already failed.
@@ -771,8 +803,10 @@ void checkGeneratedParts(FrxWorkspace repo, List<Finding> into) {
     final lib = Directory(p.join(repo.root.path, pkg, 'lib'));
     for (final entity in sourceIndex.filesUnder(lib)) {
       for (final m in partRe.allMatches(sourceIndex.sourceOf(entity))) {
-        final target = File(p.join(entity.parent.path, m.group(1)!));
-        if (target.existsSync()) continue;
+        final target = File(p.join(entity.parent.path, m.group(1)));
+        if (target.existsSync()) {
+          continue;
+        }
         into.add(
           Finding.error(
             '${p.relative(entity.path, from: repo.root.path)} → part '
@@ -793,7 +827,9 @@ void checkGeneratedParts(FrxWorkspace repo, List<Finding> into) {
 /// which is what `frx flow --md` creates.
 void checkFlowDocs(FrxWorkspace repo, List<Finding> into) {
   final docs = FlowDocs(repo);
-  if (!docs.enabled) return;
+  if (!docs.enabled) {
+    return;
+  }
 
   final List<DocDrift> drift;
   try {
@@ -833,10 +869,14 @@ void checkFlowDocs(FrxWorkspace repo, List<Finding> into) {
 /// told from the directory names — the guess the manifest exists to stop.
 void checkSkills(FrxWorkspace repo, List<Finding> into) {
   final dir = Directory(p.join(repo.root.path, '.claude', 'skills'));
-  if (!dir.existsSync()) return;
+  if (!dir.existsSync()) {
+    return;
+  }
 
   final owned = SkillGen.ownedIn(dir);
-  if (owned.version == null) return;
+  if (owned.version == null) {
+    return;
+  }
 
   // The manifest carries the version, so it changes on every bump — and a bump
   // with no change to any command's surface leaves all thirty skills identical.
@@ -846,7 +886,9 @@ void checkSkills(FrxWorkspace repo, List<Finding> into) {
   final stale = SkillGen.changesIn(
     repo.root,
   ).where((c) => !c.path.endsWith(SkillGen.manifestName)).toList();
-  if (stale.isEmpty) return;
+  if (stale.isEmpty) {
+    return;
+  }
 
   into.add(
     Finding.warn(
@@ -890,7 +932,9 @@ void checkSkills(FrxWorkspace repo, List<Finding> into) {
 /// "unpacked into a subdirectory" is detectable at all.
 void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
   final settings = File(p.join(repo.root.path, '.claude', 'settings.json'));
-  if (!settings.existsSync()) return;
+  if (!settings.existsSync()) {
+    return;
+  }
 
   final Object? parsed;
   try {
@@ -905,29 +949,43 @@ void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
     );
     return;
   }
-  if (parsed is! Map<String, Object?>) return;
+  if (parsed is! Map<String, Object?>) {
+    return;
+  }
 
   final hooks = parsed['hooks'];
-  if (hooks is! Map<String, Object?>) return;
+  if (hooks is! Map<String, Object?>) {
+    return;
+  }
 
   for (final event in hooks.entries) {
     final matchers = event.value;
-    if (matchers is! List) continue;
+    if (matchers is! List) {
+      continue;
+    }
     for (final matcher in matchers.whereType<Map<String, Object?>>()) {
       final declared = matcher['hooks'];
-      if (declared is! List) continue;
+      if (declared is! List) {
+        continue;
+      }
       for (final hook in declared.whereType<Map<String, Object?>>()) {
-        if (hook['type'] != 'command') continue;
+        if (hook['type'] != 'command') {
+          continue;
+        }
         final command = hook['command'];
-        if (command is! String) continue;
+        if (command is! String) {
+          continue;
+        }
         final script = _hookScript(repo, command);
-        if (script == null || File(script).existsSync()) continue;
+        if (script == null || File(script).existsSync()) {
+          continue;
+        }
         into.add(
           Finding.warn(
             '.claude/settings.json declares a ${event.key} hook whose script is '
             'not at ${p.relative(script, from: repo.root.path)} — it fails open, '
             'so what it refuses is being allowed with nothing said. '
-            '\$CLAUDE_PROJECT_DIR is the directory holding .claude/, so a '
+            r'$CLAUDE_PROJECT_DIR is the directory holding .claude/, so a '
             'project unpacked into a subdirectory does not need its own path in '
             'the command.',
             file: settings.path,
@@ -947,20 +1005,26 @@ void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
 /// the silence this returns instead.
 String? _hookScript(FrxWorkspace repo, String command) {
   final trimmed = command.trim();
-  if (trimmed.isEmpty) return null;
+  if (trimmed.isEmpty) {
+    return null;
+  }
   if (RegExp(r'[|&;><$(]').hasMatch(trimmed.replaceAll(_projectDir, ''))) {
     return null;
   }
-  if (trimmed.contains(' ')) return null;
+  if (trimmed.contains(' ')) {
+    return null;
+  }
 
   final path = trimmed.startsWith(_projectDir)
-      ? trimmed.substring(_projectDir.length).replaceFirst(RegExp(r'^/+'), '')
+      ? trimmed.substring(_projectDir.length).replaceFirst(RegExp('^/+'), '')
       : trimmed;
   // An absolute path outside the project, or a bare name resolved on PATH, is
   // not this project's file to have an opinion about. A bare name is the one
   // that bites: joined to the root it becomes a path that is never there, so
   // every `prettier`-style hook would be reported as broken.
-  if (p.isAbsolute(path) || !path.contains(p.separator)) return null;
+  if (p.isAbsolute(path) || !path.contains(p.separator)) {
+    return null;
+  }
   return p.join(repo.root.path, path);
 }
 
@@ -984,8 +1048,7 @@ void checkPlacement(FrxWorkspace repo, List<Finding> into) {
   final config = FrxConfig.load(startDir: repo.root.path);
   final silenced = {
     for (final e in config.placement.entries)
-      if (!e.value)
-        if (PlacementRule.byId(e.key) case final rule?) rule,
+      if (!e.value) ?PlacementRule.byId(e.key),
   };
   for (final f in placementFindings(repo, silenced: silenced)) {
     into.add(Finding.warn(f.message, file: f.file, rule: f.rule.id));

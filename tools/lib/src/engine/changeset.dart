@@ -28,6 +28,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../redux/ast_edit.dart' show EditOutcome;
 import 'build_step.dart';
 import 'diff.dart';
 import 'write_report.dart';
@@ -291,7 +292,9 @@ Future<void> settle(
   Directory? repoRoot,
 }) async {
   await formatFiles(transaction.written, enabled: format);
-  if (repoRoot != null) await refreshFlowDocs(repoRoot);
+  if (repoRoot != null) {
+    await refreshFlowDocs(repoRoot);
+  }
 }
 
 /// One rollback boundary, across as many changesets as are staged into it.
@@ -301,7 +304,7 @@ Future<void> settle(
 /// where eight invocations are eight boundaries**, and a failure at the fifth
 /// leaves the first four applied.
 class WriteTransaction {
-  final _Journal _journal = _Journal();
+  final _journal = _Journal();
 
   /// Files that exist afterwards, in the order they were written.
   final List<String> written = [];
@@ -478,7 +481,9 @@ class _Journal {
       describe: 'move $to back to $from',
       run: () {
         final moved = File(to);
-        if (!moved.existsSync()) return;
+        if (!moved.existsSync()) {
+          return;
+        }
         File(from).parent.createSync(recursive: true);
         moved.renameSync(from);
       },
@@ -494,7 +499,9 @@ class _Journal {
   /// removed first would delete the file the move-back was looking for.
   void createParents(File file) {
     final parent = file.parent;
-    if (parent.existsSync()) return;
+    if (parent.existsSync()) {
+      return;
+    }
     var top = parent;
     while (!top.parent.existsSync() && top.parent.path != top.path) {
       top = top.parent;
@@ -503,7 +510,9 @@ class _Journal {
     _undo.add((
       describe: 'remove ${top.path}${p.separator}',
       run: () {
-        if (top.existsSync()) top.deleteSync(recursive: true);
+        if (top.existsSync()) {
+          top.deleteSync(recursive: true);
+        }
       },
     ));
   }
@@ -527,7 +536,9 @@ class _Journal {
   }
 
   static void _erase(File file) {
-    if (file.existsSync()) file.deleteSync();
+    if (file.existsSync()) {
+      file.deleteSync();
+    }
   }
 }
 

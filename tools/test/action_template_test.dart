@@ -62,7 +62,7 @@ void main() {
   });
 
   group('the generated base class', () {
-    test('is the app\'s own Action, for every kind', () {
+    test("is the app's own Action, for every kind", () {
       // Every hand-written action in the repo extends `Action` — it is what
       // carries deps/env/Selectors. Scaffolding a bare ReduxAction meant the
       // first edit to a generated file was changing its base class.
@@ -328,7 +328,9 @@ void main() {
       for (final m in ActionMixin.values) {
         final block = m.overrideBlock;
         for (final entry in declared.entries) {
-          if (!block.contains('int get ${entry.key} =>')) continue;
+          if (!block.contains('int get ${entry.key} =>')) {
+            continue;
+          }
           checked++;
           expect(
             block.toLowerCase(),
@@ -378,7 +380,9 @@ void main() {
         // without `super.after()` ends it.
         final body = _methodBody(slice!, 'after');
         final swallows = body != null && !body.contains('super.after()');
-        if (swallows) swallowers++;
+        if (swallows) {
+          swallowers++;
+        }
 
         // The other half of the same scan: which hooks it overrides at all.
         // `swallowsAfter` says whether putting it last breaks the chain; this
@@ -423,7 +427,7 @@ void main() {
         return;
       }
 
-      final marker = RegExp(r'_cannot_combine_mixins_([A-Za-z_]+)');
+      final marker = RegExp('_cannot_combine_mixins_([A-Za-z_]+)');
       final groups = <Set<String>>{};
       for (final file in PackageSource.dartFiles(lib)) {
         for (final m in marker.allMatches(file.readAsStringSync())) {
@@ -448,7 +452,9 @@ void main() {
 
       for (final a in ActionMixin.values) {
         for (final b in ActionMixin.values) {
-          if (a == b) continue;
+          if (a == b) {
+            continue;
+          }
           expect(
             a.conflictsWith.contains(b),
             collideInPackage(a, b),
@@ -521,7 +527,9 @@ String? _methodBody(String mixinSource, String name) {
     '^  (?:Future<void>|void)\\s+$name\\(\\)\\s*(async\\s*)?(\\{|=>)',
     multiLine: true,
   ).firstMatch(mixinSource);
-  if (decl == null) return null;
+  if (decl == null) {
+    return null;
+  }
 
   // `=> expr;` — everything to the semicolon.
   if (decl.group(2) == '=>') {
@@ -531,7 +539,9 @@ String? _methodBody(String mixinSource, String name) {
   // `{ … }` — brace-matched from the opening brace.
   var depth = 0;
   for (var i = decl.end - 1; i < mixinSource.length; i++) {
-    if (mixinSource[i] == '{') depth++;
+    if (mixinSource[i] == '{') {
+      depth++;
+    }
     if (mixinSource[i] == '}' && --depth == 0) {
       return mixinSource.substring(decl.end, i);
     }
@@ -553,7 +563,9 @@ void _mixinCatalogueTests() {
       // combination that then fails, or hides one that would have worked.
       for (final a in ActionMixin.values) {
         for (final b in ActionMixin.values) {
-          if (a == b) continue;
+          if (a == b) {
+            continue;
+          }
           final refused =
               ActionMixin.conflictIn(ActionMixin.expand([a.name, b.name])) !=
               null;
@@ -566,7 +578,7 @@ void _mixinCatalogueTests() {
       }
     });
 
-    test('an implied mixin carries its parent\'s exclusions', () {
+    test("an implied mixin carries its parent's exclusions", () {
       // `noDialog` shares no group with `abortWhenNoInternet` — the
       // `checkInternet` it implies does. A picker filtering on the literal
       // pick would offer the pair.

@@ -5,9 +5,9 @@ import '../engine/changeset.dart';
 import '../model/page_artifact.dart';
 import '../routing/routes_source.dart';
 import '../scaffold/page_scaffold.dart';
+import '../util/casing.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
-import '../util/casing.dart';
 import 'frx_command.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
@@ -43,7 +43,7 @@ class AddPageCommand extends WritingCommand {
         negatable: false,
         help:
             'Page is reachable while logged out — add its route to the '
-            'auth guard\'s _authArea set.',
+            "auth guard's _authArea set.",
       )
       ..addMultiOption(
         'param',

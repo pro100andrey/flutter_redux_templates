@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
-import '../model/selector_shape.dart';
 import '../ast/import_supply.dart';
 import '../ast/source_index.dart';
+import '../model/selector_shape.dart';
 import '../scaffold/type_imports.dart';
 import 'ast_edit.dart';
 
@@ -179,7 +179,9 @@ class SelectorsSource {
 
     // A map, and only a map: the correspondence below is positional by *role*,
     // which is a fact about `IMap<K, V>` and not about generics in general.
-    if (before.length != 2) return const [];
+    if (before.length != 2) {
+      return const [];
+    }
     final (oldKey, oldValue) = (before[0], before[1]);
     final (newKey, newValue) = (after[0], after[1]);
 
@@ -190,8 +192,12 @@ class SelectorsSource {
 
     final edits = <Edit>[];
     for (final member in members.whereType<MethodDeclaration>()) {
-      if (member.isGetter || member.isSetter) continue;
-      if (!_indexes(member.body.toSource(), getterName)) continue;
+      if (member.isGetter || member.isSetter) {
+        continue;
+      }
+      if (!_indexes(member.body.toSource(), getterName)) {
+        continue;
+      }
 
       // By role, never by value. Looking the old type up in the argument list
       // maps both of them to the first match when a map's key and value types
@@ -199,8 +205,12 @@ class SelectorsSource {
       // `int byId(int id)` into `String byId(String id)` over a `Task`-valued
       // map. The return type is the value; what indexes it is the key.
       void carry(TypeAnnotation? annotation, String from, String to) {
-        if (annotation == null || from == to) return;
-        if (annotation.toSource() != from) return;
+        if (annotation == null || from == to) {
+          return;
+        }
+        if (annotation.toSource() != from) {
+          return;
+        }
         edits.add(Edit.replace(annotation.offset, annotation.end, to));
       }
 
@@ -216,12 +226,18 @@ class SelectorsSource {
 
       // The doc line names the type too — `/// Returns [Object] value by id`.
       final doc = member.documentationComment;
-      if (doc == null) continue;
+      if (doc == null) {
+        continue;
+      }
       for (final token in doc.tokens) {
         for (final (from, to) in [(oldValue, newValue), (oldKey, newKey)]) {
-          if (from == to) continue;
+          if (from == to) {
+            continue;
+          }
           final at = token.lexeme.indexOf('[$from]');
-          if (at < 0) continue;
+          if (at < 0) {
+            continue;
+          }
           edits.add(
             Edit.replace(
               token.offset + at + 1,
@@ -255,7 +271,9 @@ class SelectorsSource {
       at >= 0;
       at = source.indexOf('$getter[', at + 1)
     ) {
-      if (at == 0) return true;
+      if (at == 0) {
+        return true;
+      }
       final before = source.codeUnitAt(at - 1);
       final isIdentifierChar =
           (before >= 0x30 && before <= 0x39) ||
@@ -264,7 +282,9 @@ class SelectorsSource {
           before == 0x5F || // _
           before == 0x24 || // $
           before == 0x2E; // . — a member of something else, not this getter
-      if (!isIdentifierChar) return true;
+      if (!isIdentifierChar) {
+        return true;
+      }
     }
     return false;
   }
@@ -275,7 +295,9 @@ class SelectorsSource {
   /// arguments and three commas' worth of nesting between them.
   static List<String>? _typeArgsOf(String type) {
     final open = type.indexOf('<');
-    if (open < 0 || !type.trimRight().endsWith('>')) return null;
+    if (open < 0 || !type.trimRight().endsWith('>')) {
+      return null;
+    }
 
     final inner = type.substring(open + 1, type.lastIndexOf('>'));
     final args = <String>[];
@@ -283,8 +305,12 @@ class SelectorsSource {
     var depth = 0;
     for (final rune in inner.runes) {
       final ch = String.fromCharCode(rune);
-      if (ch == '<') depth++;
-      if (ch == '>') depth--;
+      if (ch == '<') {
+        depth++;
+      }
+      if (ch == '>') {
+        depth--;
+      }
       if (ch == ',' && depth == 0) {
         args.add(buffer.toString().trim());
         buffer.clear();
@@ -351,7 +377,9 @@ class SelectorsSource {
       if (doc != null) {
         for (final token in doc.tokens) {
           final at = token.lexeme.indexOf(declared);
-          if (at < 0) continue;
+          if (at < 0) {
+            continue;
+          }
           edits.add(
             Edit.replace(
               token.offset + at,
@@ -416,7 +444,7 @@ class SelectorsSource {
   /// removed. A new shared import needs one entry, in [TypeImports].
   static final Map<String, ImportProbe> _sharedImportProbes = {
     for (final uri in [TypeImports.fastImmutableCollections])
-      if (TypeImports.probeFor(uri) case final probe?) uri: probe,
+      uri: ?TypeImports.probeFor(uri),
   };
 
   /// Removes the getter [getterName] from [selectorType], the methods derived
@@ -441,9 +469,13 @@ class SelectorsSource {
     final unit = sourceIndex.unitToEdit(file);
 
     final ext = _extensionType(unit, selectorType);
-    if (ext == null) return Unwired.absent(content);
+    if (ext == null) {
+      return Unwired.absent(content);
+    }
     final getter = _getters(ext.body, getterName).firstOrNull;
-    if (getter == null) return Unwired.absent(content);
+    if (getter == null) {
+      return Unwired.absent(content);
+    }
 
     final edits = <Edit>[removeDeclaration(content, getter)];
     final changes = <String>['$selectorType.$getterName'];
@@ -462,8 +494,12 @@ class SelectorsSource {
     // getter, so a `byId` that reads something else is somebody's own and
     // stays.
     for (final member in _members(ext.body).whereType<MethodDeclaration>()) {
-      if (member.isGetter || member.isSetter) continue;
-      if (!_indexes(member.body.toSource(), getterName)) continue;
+      if (member.isGetter || member.isSetter) {
+        continue;
+      }
+      if (!_indexes(member.body.toSource(), getterName)) {
+        continue;
+      }
       edits.add(removeDeclaration(content, member));
       changes.add('$selectorType.${member.name.lexeme}()');
       removed.addAll(namesIn(member));
@@ -602,16 +638,22 @@ class SelectorsSource {
             .whereType<ExtensionTypeDeclaration>()) {
       final byBody = <String, List<String>>{};
       for (final m in _members(ext.body).whereType<MethodDeclaration>()) {
-        if (!m.isGetter) continue;
+        if (!m.isGetter) {
+          continue;
+        }
         final body = m.body.toSource().replaceAll(RegExp(r'\s+'), ' ').trim();
-        if (body.isEmpty) continue;
+        if (body.isEmpty) {
+          continue;
+        }
         byBody.putIfAbsent(body, () => []).add(m.name.lexeme);
       }
       final groups = [
         for (final names in byBody.values)
           if (names.length > 1) names,
       ];
-      if (groups.isNotEmpty) out[ext.namePart.typeName.lexeme] = groups;
+      if (groups.isNotEmpty) {
+        out[ext.namePart.typeName.lexeme] = groups;
+      }
     }
     return out;
   }
@@ -622,16 +664,24 @@ class SelectorsSource {
   }) {
     final unit = sourceIndex.unitFor(file);
     final ext = _extensionType(unit, selectorType);
-    if (ext == null) return const [];
+    if (ext == null) {
+      return const [];
+    }
 
     final names = <String>[];
     for (final member in _members(ext.body).whereType<MethodDeclaration>()) {
-      if (member.isGetter && member.name.lexeme == getterName) continue;
+      if (member.isGetter && member.name.lexeme == getterName) {
+        continue;
+      }
       final body = member.body.toSource();
       // The accessors written from the getter go with it; every other reader
       // is somebody's own and is reported instead.
-      if (_indexes(body, getterName)) continue;
-      if (!_reads(body, getterName)) continue;
+      if (_indexes(body, getterName)) {
+        continue;
+      }
+      if (!_reads(body, getterName)) {
+        continue;
+      }
       names.add(
         member.isGetter ? member.name.lexeme : '${member.name.lexeme}()',
       );
@@ -646,7 +696,9 @@ class SelectorsSource {
     for (final match in RegExp(
       '\\b${RegExp.escape(name)}\\b',
     ).allMatches(source)) {
-      if (match.start == 0 || source[match.start - 1] != '.') return true;
+      if (match.start == 0 || source[match.start - 1] != '.') {
+        return true;
+      }
     }
     return false;
   }
@@ -662,7 +714,9 @@ class SelectorsSource {
 
   MixinDeclaration? _mixin(CompilationUnit unit, String name) {
     for (final d in unit.declarations) {
-      if (d is MixinDeclaration && d.name.lexeme == name) return d;
+      if (d is MixinDeclaration && d.name.lexeme == name) {
+        return d;
+      }
     }
     return null;
   }

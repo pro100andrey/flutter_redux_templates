@@ -23,7 +23,9 @@ class Fixture {
   }
 
   void dispose() {
-    if (root.existsSync()) root.deleteSync(recursive: true);
+    if (root.existsSync()) {
+      root.deleteSync(recursive: true);
+    }
   }
 
   String path(String relative) => p.join(root.path, relative);
@@ -121,7 +123,7 @@ abstract class ${pascal}State with _\$${pascal}State {
 
   // --- fixture sources (already dart-formatted) ------------------------------
 
-  static const _appState = '''
+  static const _appState = r'''
 import 'package:async_redux/async_redux.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -133,7 +135,7 @@ export 'selectors.dart';
 part 'app_state.freezed.dart';
 
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required ConnectivityState connectivity,
     required LogInState logIn,
@@ -245,7 +247,9 @@ Future<String> _snapshot() => _pending ??= _buildSnapshot();
 
 Future<String> _buildSnapshot() async {
   final out = File(p.join('.dart_tool', 'frx_test', 'frx.dill')).absolute;
-  if (!_isStale(out)) return out.path;
+  if (!_isStale(out)) {
+    return out.path;
+  }
 
   out.parent.createSync(recursive: true);
   // Stage the build in a unique directory beside the target and rename it into
@@ -268,20 +272,30 @@ Future<String> _buildSnapshot() async {
     }
     tmp.renameSync(out.path);
   } finally {
-    if (stage.existsSync()) stage.deleteSync(recursive: true);
+    if (stage.existsSync()) {
+      stage.deleteSync(recursive: true);
+    }
   }
   return out.path;
 }
 
 /// Whether [snapshot] is missing or older than any `lib/` or `bin/` source.
 bool _isStale(File snapshot) {
-  if (!snapshot.existsSync()) return true;
+  if (!snapshot.existsSync()) {
+    return true;
+  }
   final built = snapshot.lastModifiedSync();
   for (final dir in [Directory('lib'), Directory('bin')]) {
-    if (!dir.existsSync()) continue;
+    if (!dir.existsSync()) {
+      continue;
+    }
     for (final entity in dir.listSync(recursive: true)) {
-      if (entity is! File || !entity.path.endsWith('.dart')) continue;
-      if (entity.lastModifiedSync().isAfter(built)) return true;
+      if (entity is! File || !entity.path.endsWith('.dart')) {
+        continue;
+      }
+      if (entity.lastModifiedSync().isAfter(built)) {
+        return true;
+      }
     }
   }
   return false;

@@ -8,6 +8,9 @@
 /// entries rather than as edges that silently do not exist.
 library;
 
+import '../flow/flow_model.dart' show PageFlow;
+import '../flow/route_map.dart' show RouteMap;
+
 /// What an artifact is. The node id is `<kind>:<name>`, and for artifacts that
 /// belong to a substate the name is qualified with it — `SetEmailAction` alone
 /// is not an identifier, this repo has three of them.
@@ -278,7 +281,9 @@ class AppGraph {
 
   GraphNode? node(String id) {
     for (final n in nodes) {
-      if (n.id == id) return n;
+      if (n.id == id) {
+        return n;
+      }
     }
     return null;
   }
@@ -364,9 +369,13 @@ class AppGraph {
     for (var pass = 0; pass < selectors.length; pass++) {
       final before = live.length;
       for (final entry in usedBy.entries) {
-        if (entry.value.any(live.contains)) live.add(entry.key);
+        if (entry.value.any(live.contains)) {
+          live.add(entry.key);
+        }
       }
-      if (live.length == before) break;
+      if (live.length == before) {
+        break;
+      }
     }
 
     return [

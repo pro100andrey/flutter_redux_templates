@@ -78,7 +78,7 @@ void main() {
       expect(retired.existsSync(), isFalse);
     });
 
-    test("a skill the project wrote itself is left alone", () async {
+    test('a skill the project wrote itself is left alone', () async {
       await runInProcess(fx, ['update-skills', '--no-format']);
 
       // Not in the manifest, so not frx's to remove — whatever it is called.

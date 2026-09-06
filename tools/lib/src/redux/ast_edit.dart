@@ -2,6 +2,10 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
 
+import 'app_state_source.dart' show AppStateSource;
+
+import 'selectors_source.dart' show SelectorsSource;
+
 /// The outcome of an idempotent edit to one file: the whole edited source, what
 /// changed, and whether anything did.
 ///
@@ -162,7 +166,9 @@ Edit insertIntoList({
   required String element,
   AstNode? before,
 }) {
-  if (before != null) return Edit.insert(before.offset, '$element, ');
+  if (before != null) {
+    return Edit.insert(before.offset, '$element, ');
+  }
   final last = elements.isEmpty ? null : elements.last;
   return last == null
       ? Edit.insert(closer.offset, '$element,')
@@ -205,8 +211,12 @@ Edit removeListItem(String source, AstNode node) {
       source[lineEnd] == '\n' ||
       source[lineEnd] == '\r';
   if (atLineStart && atLineEnd) {
-    if (lineEnd < source.length && source[lineEnd] == '\r') lineEnd++;
-    if (lineEnd < source.length && source[lineEnd] == '\n') lineEnd++;
+    if (lineEnd < source.length && source[lineEnd] == '\r') {
+      lineEnd++;
+    }
+    if (lineEnd < source.length && source[lineEnd] == '\n') {
+      lineEnd++;
+    }
     return Edit.replace(lineStart, lineEnd, '');
   }
   return Edit.replace(start, end, '');
@@ -216,8 +226,12 @@ Edit removeListItem(String source, AstNode node) {
 /// break that follows so no blank line is left behind.
 Edit removeDirective(String source, Directive directive) {
   var end = directive.end;
-  if (end < source.length && source[end] == '\r') end++;
-  if (end < source.length && source[end] == '\n') end++;
+  if (end < source.length && source[end] == '\r') {
+    end++;
+  }
+  if (end < source.length && source[end] == '\n') {
+    end++;
+  }
   return Edit.replace(directive.offset, end, '');
 }
 
@@ -230,8 +244,12 @@ Edit removeDeclaration(String source, AstNode node) {
     start--;
   }
   var end = node.end;
-  if (end < source.length && source[end] == '\r') end++;
-  if (end < source.length && source[end] == '\n') end++;
+  if (end < source.length && source[end] == '\r') {
+    end++;
+  }
+  if (end < source.length && source[end] == '\n') {
+    end++;
+  }
   return Edit.replace(start, end, '');
 }
 
@@ -262,7 +280,9 @@ Edit importInsertion(List<ImportDirective> imports, String uri) {
   }
   // Section empty: no imports at all → start of file; a package import leads the
   // existing (relative-only) block; a relative import starts a new block below.
-  if (imports.isEmpty) return Edit.insert(0, "import '$uri';\n");
+  if (imports.isEmpty) {
+    return Edit.insert(0, "import '$uri';\n");
+  }
   return incomingIsPackage
       ? Edit.insert(imports.first.offset, "import '$uri';\n")
       : Edit.insert(imports.last.end, "\n\nimport '$uri';");
@@ -296,7 +316,9 @@ typedef ImportProbe = bool Function(String body);
   String source,
   Map<String, ImportProbe> probes,
 ) {
-  if (probes.isEmpty) return (source: source, changes: const []);
+  if (probes.isEmpty) {
+    return (source: source, changes: const []);
+  }
 
   final unit = parseString(content: source, throwIfDiagnostics: false).unit;
   final imports = unit.directives.whereType<ImportDirective>().toList();
@@ -309,7 +331,9 @@ typedef ImportProbe = bool Function(String body);
   for (final imp in imports) {
     final uri = imp.uri.stringValue ?? '';
     final probe = probes[uri];
-    if (probe == null || probe(body)) continue;
+    if (probe == null || probe(body)) {
+      continue;
+    }
     edits.add(removeDirective(source, imp));
     changes.add("import '$uri'");
   }
@@ -348,7 +372,9 @@ typedef ImportProbe = bool Function(String body);
       content: result,
       throwIfDiagnostics: false,
     ).unit.directives.whereType<ImportDirective>().toList();
-    if (directives.any((d) => d.uri.stringValue == uri)) continue;
+    if (directives.any((d) => d.uri.stringValue == uri)) {
+      continue;
+    }
     result = applyEdits(result, [importInsertion(directives, uri)]);
     changes.add("import '$uri';");
   }

@@ -19,7 +19,7 @@ class AddSelectorCommand extends WritingCommand {
 
   @override
   String get description =>
-      'Add a computed getter to a substate\'s Select<Pascal> selector.';
+      "Add a computed getter to a substate's Select<Pascal> selector.";
 
   @override
   String get invocation => 'frx add-selector <substate> <name>';

@@ -111,7 +111,9 @@ Future<int> runChangeset(
           relativeTo: relativeTo ?? repoRoot?.path,
         )
       : null;
-  if (transaction != null && report != null) transaction.reports.add(report);
+  if (transaction != null && report != null) {
+    transaction.reports.add(report);
+  }
 
   if (!asJson) {
     console.out
@@ -142,10 +144,11 @@ Future<int> runChangeset(
 
     if (_flag(results, 'diff')) {
       final diff = plan.diff(from: relativeTo);
-      if (diff.isNotEmpty)
+      if (diff.isNotEmpty) {
         console.out
           ..write(diff)
           ..writeln();
+      }
     }
   }
 
@@ -198,7 +201,9 @@ Future<int> runChangeset(
     }
     return built.code;
   }
-  if (report != null) console.out.writeln(report.render(applied: true));
+  if (report != null) {
+    console.out.writeln(report.render(applied: true));
+  }
   return 0;
 }
 

@@ -3,15 +3,6 @@
 class Casing {
   Casing(this.words);
 
-  /// Lower-cased words, e.g. `['user', 'profile']`.
-  final List<String> words;
-
-  /// A name must start with a letter and contain only letters, digits, and the
-  /// separators space / `_` / `-`. Enforced here — the single normalization
-  /// seam — so no scaffolder (page templates, connector, actions) can emit a
-  /// class name or string literal with an injectable character.
-  static final _validName = RegExp(r'^[A-Za-z][A-Za-z0-9 _-]*$');
-
   factory Casing.parse(String input) {
     if (!_validName.hasMatch(input.trim())) {
       throw const FormatException(
@@ -22,7 +13,7 @@ class Casing {
     final spaced = input
         // split camelCase / PascalCase boundaries: "userProfile" -> "user Profile"
         .replaceAllMapped(
-          RegExp(r'([a-z0-9])([A-Z])'),
+          RegExp('([a-z0-9])([A-Z])'),
           (m) => '${m[1]} ${m[2]}',
         )
         // collapse separators to spaces
@@ -40,6 +31,15 @@ class Casing {
     }
     return Casing(words);
   }
+
+  /// Lower-cased words, e.g. `['user', 'profile']`.
+  final List<String> words;
+
+  /// A name must start with a letter and contain only letters, digits, and the
+  /// separators space / `_` / `-`. Enforced here — the single normalization
+  /// seam — so no scaffolder (page templates, connector, actions) can emit a
+  /// class name or string literal with an injectable character.
+  static final _validName = RegExp(r'^[A-Za-z][A-Za-z0-9 _-]*$');
 
   /// `user_profile`
   String get snake => words.join('_');

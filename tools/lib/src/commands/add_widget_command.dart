@@ -84,7 +84,9 @@ class AddWidgetCommand extends WritingCommand {
     // An existing folder is targetable as it is named. Only a folder about to
     // be created has to follow the convention — otherwise completion and the
     // picker would offer names (`myWidgets`) that this then refuses.
-    if (repo.widgetDirs().contains(raw)) return raw;
+    if (repo.widgetDirs().contains(raw)) {
+      return raw;
+    }
 
     // One path segment: a folder, not a path. Keeps `--dir ../../etc` and
     // nested trees out — a widget folder sits one level under lib/, which is

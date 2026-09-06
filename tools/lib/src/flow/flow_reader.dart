@@ -51,7 +51,9 @@ class FlowReader {
     final seen = <String>{};
 
     void walk(File file, String? owner) {
-      if (!seen.add(p.canonicalize(file.path))) return;
+      if (!seen.add(p.canonicalize(file.path))) {
+        return;
+      }
 
       final unit = sourceIndex.unitFor(file);
 
@@ -91,7 +93,9 @@ class FlowReader {
               : UseCase(name: useCase.name, steps: useCase.steps, owner: owner),
         );
         for (final step in useCase.steps) {
-          if (step.isNavigation || actions.containsKey(step.target)) continue;
+          if (step.isNavigation || actions.containsKey(step.target)) {
+            continue;
+          }
           final actionFile = actionFiles[step.target];
           actions[step.target] = actionFile == null
               ? ActionInfo(className: step.target)
@@ -102,7 +106,9 @@ class FlowReader {
       // Depth-first in source order, so the regions read down the page the way
       // its slots are written.
       for (final nested in _connectorsIn(unit, file.parent).entries) {
-        if (seen.contains(p.canonicalize(nested.value.path))) continue;
+        if (seen.contains(p.canonicalize(nested.value.path))) {
+          continue;
+        }
         regions.add(nested.key);
         walk(nested.value, nested.key);
       }
@@ -161,16 +167,24 @@ class FlowReader {
   Map<String, File> _connectorsIn(CompilationUnit unit, Directory from) {
     final built = <String>{};
     unit.accept(_ConnectorVisitor(built));
-    if (built.isEmpty) return const {};
+    if (built.isEmpty) {
+      return const {};
+    }
 
     final files = <String, File>{};
     for (final directive in unit.directives.whereType<ImportDirective>()) {
       final uri = directive.uri.stringValue;
-      if (uri == null || !uri.endsWith('_connector.dart')) continue;
+      if (uri == null || !uri.endsWith('_connector.dart')) {
+        continue;
+      }
       final file = _resolveImport(uri, from);
-      if (file == null || !file.existsSync()) continue;
+      if (file == null || !file.existsSync()) {
+        continue;
+      }
       final cls = firstClassNameIn(sourceIndex.unitFor(file));
-      if (cls != null && built.contains(cls)) files[cls] = file;
+      if (cls != null && built.contains(cls)) {
+        files[cls] = file;
+      }
     }
     return files;
   }
@@ -234,11 +248,17 @@ class FlowReader {
     final out = <String, File>{};
     for (final directive in unit.directives.whereType<ImportDirective>()) {
       final uri = directive.uri.stringValue;
-      if (uri == null || !uri.endsWith('_action.dart')) continue;
+      if (uri == null || !uri.endsWith('_action.dart')) {
+        continue;
+      }
       final file = _resolveImport(uri, from);
-      if (file == null || !file.existsSync()) continue;
+      if (file == null || !file.existsSync()) {
+        continue;
+      }
       final cls = firstClassNameIn(sourceIndex.unitFor(file));
-      if (cls != null) out[cls] = file;
+      if (cls != null) {
+        out[cls] = file;
+      }
     }
     return out;
   }
@@ -247,12 +267,16 @@ class FlowReader {
   /// scheme is resolved against [from].
   File? _resolveImport(String uri, Directory from) {
     if (!uri.startsWith('package:')) {
-      if (uri.contains(':')) return null; // dart:, http: — not ours
+      if (uri.contains(':')) {
+        return null; // dart:, http: — not ours
+      }
       return File(p.normalize(p.join(from.path, uri)));
     }
     final rest = uri.substring('package:'.length);
     final slash = rest.indexOf('/');
-    if (slash < 0) return null;
+    if (slash < 0) {
+      return null;
+    }
     return File(
       p.join(
         workspace.root.path,
@@ -292,7 +316,9 @@ class _ConnectorVisitor extends RecursiveAstVisitor<void> {
   final Set<String> into;
 
   void _record(String name) {
-    if (name.endsWith('Connector')) into.add(name);
+    if (name.endsWith('Connector')) {
+      into.add(name);
+    }
   }
 
   @override
@@ -303,7 +329,9 @@ class _ConnectorVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitMethodInvocation(MethodInvocation node) {
-    if (node.target == null) _record(node.methodName.name);
+    if (node.target == null) {
+      _record(node.methodName.name);
+    }
     super.visitMethodInvocation(node);
   }
 }
@@ -324,9 +352,13 @@ Map<String, AstNode> _localFunctionBodies(CompilationUnit unit) {
       out[decl.name.lexeme] = decl.functionExpression.body;
     } else if (decl is ClassDeclaration) {
       final body = decl.body;
-      if (body is! BlockClassBody) continue;
+      if (body is! BlockClassBody) {
+        continue;
+      }
       for (final member in body.members) {
-        if (member is MethodDeclaration) out[member.name.lexeme] = member.body;
+        if (member is MethodDeclaration) {
+          out[member.name.lexeme] = member.body;
+        }
       }
     }
   }
@@ -411,8 +443,12 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
   /// call site.
   void _follow(String name, AstNode at) {
     final body = _locals[name];
-    if (body == null || _boundNearby(name, at)) return;
-    if (!_visited.add(name)) return;
+    if (body == null || _boundNearby(name, at)) {
+      return;
+    }
+    if (!_visited.add(name)) {
+      return;
+    }
     final v = _DispatchVisitor(body, _locals, _visited);
     body.accept(v);
     steps.addAll(v.steps);
@@ -428,7 +464,9 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
   /// means.
   static bool _boundNearby(String name, AstNode at) {
     for (AstNode? n = at; n != null; n = n.parent) {
-      if (_bindsIn(n, name)) return true;
+      if (_bindsIn(n, name)) {
+        return true;
+      }
     }
     return false;
   }
@@ -437,7 +475,9 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
     if (node is FunctionExpression) {
       return _inParams(node.parameters, name);
     }
-    if (node is MethodDeclaration) return _inParams(node.parameters, name);
+    if (node is MethodDeclaration) {
+      return _inParams(node.parameters, name);
+    }
     if (node is FunctionDeclaration) {
       return _inParams(node.functionExpression.parameters, name);
     }
@@ -565,7 +605,9 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
         (parent is PropertyAccess && parent.propertyName == node) ||
         parent is PrefixedIdentifier ||
         (parent is MethodInvocation && parent.target == node);
-    if (!isInvocationName && !isPartOfDotted) _follow(node.name, node);
+    if (!isInvocationName && !isPartOfDotted) {
+      _follow(node.name, node);
+    }
     super.visitSimpleIdentifier(node);
   }
 
@@ -605,7 +647,9 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
             .firstOrNull;
         if (inner != null) {
           route = _routeTypeOf(inner);
-          if (route != null) routeArgs = _routeArgsOf(inner);
+          if (route != null) {
+            routeArgs = _routeArgsOf(inner);
+          }
         }
       } else {
         // `RegistrationAction(...)` — a constructor, as far as we can tell.
@@ -628,8 +672,10 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
   /// `onChanged` for a dispatch inside `FieldVm(onChanged: …)`. Null when the
   /// dispatch sits directly in the view-model field's own callback.
   String? _enclosingTrigger(AstNode node) {
-    for (AstNode? n = node.parent; n != null && n != _root; n = n.parent) {
-      if (n is NamedArgument) return n.name.lexeme;
+    for (var n = node.parent; n != null && n != _root; n = n.parent) {
+      if (n is NamedArgument) {
+        return n.name.lexeme;
+      }
     }
     return null;
   }
@@ -639,7 +685,9 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
   /// `key:` auto_route adds to every generated route — `id: id`. Null when it
   /// takes nothing, so a plain route reads no differently than before.
   String? _routeArgsOf(Expression e) {
-    if (e is! InstanceCreationExpression && e is! MethodInvocation) return null;
+    if (e is! InstanceCreationExpression && e is! MethodInvocation) {
+      return null;
+    }
     final args = e is InstanceCreationExpression
         ? e.argumentList.arguments
         : (e as MethodInvocation).argumentList.arguments;
@@ -660,9 +708,13 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
   /// The condition of the nearest enclosing `if`, so a guarded dispatch can be
   /// drawn as an `alt` block. Stops at the callback boundary.
   String? _enclosingCondition(AstNode node) {
-    for (AstNode? n = node.parent; n != null; n = n.parent) {
-      if (n is FunctionExpression) return null; // left the callback
-      if (n is IfStatement) return n.expression.toSource();
+    for (var n = node.parent; n != null; n = n.parent) {
+      if (n is FunctionExpression) {
+        return null; // left the callback
+      }
+      if (n is IfStatement) {
+        return n.expression.toSource();
+      }
     }
     return null;
   }
@@ -694,7 +746,9 @@ class _VmVisitor extends RecursiveAstVisitor<void> {
         // both go through the same row helper, and each is its own use case.
         final v = _DispatchVisitor(a.argumentExpression, _locals);
         a.argumentExpression.accept(v);
-        if (v.steps.isEmpty) continue;
+        if (v.steps.isEmpty) {
+          continue;
+        }
         attributed.addAll(v.callSites);
         useCases.add(UseCase(name: a.name.lexeme, steps: v.steps));
       }
@@ -708,10 +762,10 @@ class _VmVisitor extends RecursiveAstVisitor<void> {
 class _ActionVisitor extends RecursiveAstVisitor<void> {
   String? className;
   List<String> mixins = const [];
-  bool isAsync = false;
+  var isAsync = false;
   List<StateWrite> writes = const [];
   List<DispatchStep> dispatches = const [];
-  bool throwsUserException = false;
+  var throwsUserException = false;
 
   @override
   void visitClassDeclaration(ClassDeclaration node) {
@@ -727,7 +781,9 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
   void visitMethodDeclaration(MethodDeclaration node) {
     // `isAsync` is a fact about the reducer — whether the action makes the
     // round trip a diagram should show — so it stays keyed on `reduce`.
-    if (node.name.lexeme == 'reduce') isAsync = node.body.isAsynchronous;
+    if (node.name.lexeme == 'reduce') {
+      isAsync = node.body.isAsynchronous;
+    }
 
     // The dispatches are not. An action that dispatches from `before()`,
     // `after()`, or a method a mixin requires it to override cascades exactly
@@ -737,7 +793,9 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
     // this".
     final v = _DispatchVisitor();
     node.body.accept(v);
-    if (v.steps.isNotEmpty) dispatches = [...dispatches, ...v.steps];
+    if (v.steps.isNotEmpty) {
+      dispatches = [...dispatches, ...v.steps];
+    }
     super.visitMethodDeclaration(node);
   }
 
@@ -745,7 +803,9 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
   void visitMethodInvocation(MethodInvocation node) {
     // First write wins: an action that branches still writes one substate, and
     // the outermost call is visited first, so a nested copy cannot shadow it.
-    if (writes.isEmpty) writes = _writesOf(node);
+    if (writes.isEmpty) {
+      writes = _writesOf(node);
+    }
     super.visitMethodInvocation(node);
   }
 
@@ -780,9 +840,12 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   if (target is PrefixedIdentifier && target.identifier.name == 'copyWith') {
     return _qualify(node.methodName.name, fields);
   }
-  if (node.methodName.name != 'copyWith') return const [];
-  if (target is PrefixedIdentifier)
+  if (node.methodName.name != 'copyWith') {
+    return const [];
+  }
+  if (target is PrefixedIdentifier) {
     return _qualify(target.identifier.name, fields);
+  }
   // Flat: each argument names a substate, and its value is a whole replacement
   // — there is no field to qualify with. One write per argument, for the reason
   // [_qualify] states for the deep form and this branch used to contradict:
@@ -796,7 +859,9 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   // while the branch kept one argument and wrong twice over once it kept all of
   // them — and `visitMethodInvocation` takes the first `copyWith` it sees, so a
   // local one earlier in the body shadowed the real write entirely.
-  if (target is! SimpleIdentifier || target.name != 'state') return const [];
+  if (target is! SimpleIdentifier || target.name != 'state') {
+    return const [];
+  }
   return [for (final f in fields) (substate: f.name.lexeme, field: null)];
 }
 

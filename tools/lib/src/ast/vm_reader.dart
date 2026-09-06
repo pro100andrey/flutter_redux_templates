@@ -74,13 +74,11 @@ class ViewModel {
   ViewModel({
     required this.className,
     required this.fields,
-    required List<String> equality,
+    required this.equality,
     this.declaresOwnEquals = false,
-    Set<String> equalityMentions = const {},
-    bool equalityReadable = true,
-  }) : equality = equality,
-       equalityMentions = equalityMentions,
-       equalityReadable = equalityReadable;
+    this.equalityMentions = const {},
+    this.equalityReadable = true,
+  });
 
   final String className;
 
@@ -182,27 +180,31 @@ abstract final class VmReader {
 
   static List<ViewModel> _of(CompilationUnit unit) => [
     for (final decl in unit.declarations.whereType<ClassDeclaration>())
-      if (_readClass(decl) case final vm?) vm,
+      ?_readClass(decl),
   ];
 
   /// The view-model named [className] in [source], or null if absent.
   static ViewModel? readClass(String source, String className) {
     for (final vm in read(source)) {
-      if (vm.className == className) return vm;
+      if (vm.className == className) {
+        return vm;
+      }
     }
     return null;
   }
 
   static ViewModel? _readClass(ClassDeclaration decl) {
     final ctor = _dataConstructor(decl);
-    if (ctor == null) return null;
+    if (ctor == null) {
+      return null;
+    }
     final declared = _fieldTypes(decl);
     final stated = _equality(decl, ctor);
     return ViewModel(
       className: decl.namePart.typeName.lexeme,
       fields: [
         for (final p in ctor.parameters.parameters)
-          if (_readParameter(p, declared) case final f?) f,
+          ?_readParameter(p, declared),
       ],
       equality: stated.names,
       equalityMentions: stated.mentions,
@@ -228,11 +230,19 @@ abstract final class VmReader {
     for (final member in _members(decl).whereType<ConstructorDeclaration>()) {
       // Named constructors are alternates (`.fromJson`, `.empty`); the unnamed
       // one is the way to build the thing.
-      if (member.name != null) continue;
-      if (member.factoryKeyword != null) continue;
+      if (member.name != null) {
+        continue;
+      }
+      if (member.factoryKeyword != null) {
+        continue;
+      }
       final params = member.parameters.parameters;
-      if (params.isEmpty) continue;
-      if (params.every((p) => p is FieldFormalParameter)) return member;
+      if (params.isEmpty) {
+        continue;
+      }
+      if (params.every((p) => p is FieldFormalParameter)) {
+        return member;
+      }
     }
     return null;
   }
@@ -241,7 +251,9 @@ abstract final class VmReader {
     FormalParameter param,
     Map<String, String> declaredTypes,
   ) {
-    if (param is! FieldFormalParameter) return null;
+    if (param is! FieldFormalParameter) {
+      return null;
+    }
     final name = param.name.lexeme;
     // `this.x` is almost never written with a type — the type sits on the
     // field declaration. Reading only the parameter reports every field of
@@ -258,9 +270,13 @@ abstract final class VmReader {
   static Map<String, String> _fieldTypes(ClassDeclaration decl) {
     final types = <String, String>{};
     for (final member in _members(decl).whereType<FieldDeclaration>()) {
-      if (member.isStatic) continue;
+      if (member.isStatic) {
+        continue;
+      }
       final type = member.fields.type?.toSource();
-      if (type == null) continue;
+      if (type == null) {
+        continue;
+      }
       for (final v in member.fields.variables) {
         types[v.name.lexeme] = type;
       }
@@ -284,9 +300,13 @@ abstract final class VmReader {
     ConstructorDeclaration ctor,
   ) {
     for (final initializer in ctor.initializers) {
-      if (initializer is! SuperConstructorInvocation) continue;
+      if (initializer is! SuperConstructorInvocation) {
+        continue;
+      }
       for (final arg in initializer.argumentList.arguments) {
-        if (arg is! NamedArgument || arg.name.lexeme != 'equals') continue;
+        if (arg is! NamedArgument || arg.name.lexeme != 'equals') {
+          continue;
+        }
         return _identifiersIn(arg.argumentExpression);
       }
     }
@@ -300,7 +320,9 @@ abstract final class VmReader {
   /// lint stays quiet instead of guessing wrong.
   static _Equality _props(ClassDeclaration decl) {
     for (final m in _members(decl).whereType<MethodDeclaration>()) {
-      if (!m.isGetter || m.name.lexeme != 'props') continue;
+      if (!m.isGetter || m.name.lexeme != 'props') {
+        continue;
+      }
       final body = m.body;
       final expr = switch (body) {
         ExpressionFunctionBody(:final expression) => expression,
@@ -348,7 +370,9 @@ abstract final class VmReader {
   /// an absence — the field is spelled right there, and calling it missing reads
   /// as the tool being wrong.
   static _Equality _identifiersIn(Expression expr) {
-    if (expr is! ListLiteral) return const _Equality.unreadable();
+    if (expr is! ListLiteral) {
+      return const _Equality.unreadable();
+    }
 
     final names = <String>[];
     final mentions = <String>{};
@@ -356,7 +380,9 @@ abstract final class VmReader {
       // A spread, or an `if`/`for` that computes the list: the membership is
       // genuinely wider than the text, and naming the visible part would invent
       // findings for fields the spread may well carry.
-      if (e is! Expression) return const _Equality.unreadable();
+      if (e is! Expression) {
+        return const _Equality.unreadable();
+      }
       if (e is SimpleIdentifier) {
         names.add(e.name);
         continue;
@@ -402,7 +428,9 @@ class _IdentifierNames extends RecursiveAstVisitor<void> {
         (parent is PropertyAccess && parent.propertyName == node) ||
         (parent is PrefixedIdentifier && parent.identifier == node) ||
         (parent is MethodInvocation && parent.methodName == node);
-    if (!isMemberName) onName(node.name);
+    if (!isMemberName) {
+      onName(node.name);
+    }
     super.visitSimpleIdentifier(node);
   }
 }

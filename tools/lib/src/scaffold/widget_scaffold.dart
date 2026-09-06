@@ -300,10 +300,14 @@ class $className extends StatelessWidget {
   };
 
   static bool _endsWith(List<String> words, List<String> suffix) {
-    if (suffix.isEmpty || words.length < suffix.length) return false;
+    if (suffix.isEmpty || words.length < suffix.length) {
+      return false;
+    }
     final start = words.length - suffix.length;
     for (var i = 0; i < suffix.length; i++) {
-      if (words[start + i] != suffix[i]) return false;
+      if (words[start + i] != suffix[i]) {
+        return false;
+      }
     }
     return true;
   }

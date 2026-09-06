@@ -65,10 +65,10 @@ R withConsole<R>(Console replacement, R Function() body) =>
 
 /// A console that keeps what was written, for tests.
 class CapturedConsole extends Console {
-  CapturedConsole._(this._out, this._err, {super.input}) : super(_out, _err);
 
   factory CapturedConsole({String? input}) =>
       CapturedConsole._(StringBuffer(), StringBuffer(), input: input);
+  CapturedConsole._(this._out, this._err, {super.input}) : super(_out, _err);
 
   final StringBuffer _out;
   final StringBuffer _err;

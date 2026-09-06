@@ -22,9 +22,9 @@ FrxWorkspace _workspace() {
       ..writeAsStringSync(content);
   }
 
-  put('business/lib/redux/app_state.dart', '''
+  put('business/lib/redux/app_state.dart', r'''
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required LogInState logIn,
     required RegistrationState registration,
@@ -413,7 +413,7 @@ void main() {
       // node itself instead of its receiver loops forever, and one idiomatic
       // `controller..text = ''` anywhere under app/business/ui took `graph`,
       // `doctor` and the editor's tree down with it.
-      expect(uses("thing..field = 1; other..a = logIn.email;"), {
+      expect(uses('thing..field = 1; other..a = logIn.email;'), {
         'selector:SelectLogIn.email',
       });
     });
@@ -556,7 +556,7 @@ class LogInPage extends StatelessWidget {
       expect(email.substate, 'logIn');
     });
 
-    test('a selector\'s owner is the facade type, not what its body reads', () {
+    test("a selector's owner is the facade type, not what its body reads", () {
       final g = _read();
       // `SelectLogIn.isWaiting` reads `wait`, not `logIn` — attributing by the
       // reads-edge would file it under async_redux's own substate, and a
@@ -803,7 +803,7 @@ class LogInPage extends StatelessWidget {
       );
     });
 
-    test('a second action class in a file does not erase the first\'s '
+    test("a second action class in a file does not erase the first's "
         'dispatches', () {
       // Assignment, not accumulation: every `reduce()` in the unit was visited
       // and the last one won. Measured on a real project, this alone accounted
@@ -947,7 +947,7 @@ class LogInPage extends StatelessWidget {
 
   group('focus', () {
     test('keeps the neighbourhood and drops the rest', () {
-      final g = _read().focusOn('substate:session', depth: 1);
+      final g = _read().focusOn('substate:session');
       expect(
         g.nodes.map((n) => n.id),
         containsAll([
@@ -972,7 +972,7 @@ class LogInPage extends StatelessWidget {
 
     test('the blind spots are scoped to the subgraph', () {
       final whole = _read();
-      final focused = whole.focusOn('substate:session', depth: 1);
+      final focused = whole.focusOn('substate:session');
       // Kept whole, a gap belonging to an unrelated page was reported against
       // whatever you focused — which misattributes it, and misattribution is
       // worse than silence from a list whose only job is to say where the
@@ -981,7 +981,7 @@ class LogInPage extends StatelessWidget {
       expect(
         focused.unresolved.length,
         lessThan(whole.unresolved.length),
-        reason: 'the whole project\'s gaps are not this subgraph\'s',
+        reason: "the whole project's gaps are not this subgraph's",
       );
       for (final u in focused.unresolved) {
         expect(focused.nodes.map((n) => n.id), contains(u.owner));
@@ -1063,7 +1063,7 @@ class LogInPage extends StatelessWidget {
     });
 
     test('a bound that cut the walk short says so', () {
-      final short = _read().focusOn('substate:session', depth: 1);
+      final short = _read().focusOn('substate:session');
       expect(short.focus!.truncated, isTrue);
       expect(short.focus!.depth, 1);
 
@@ -1118,9 +1118,9 @@ class LogInPage extends StatelessWidget {
           ..writeAsStringSync(content);
       }
 
-      put('business/lib/redux/app_state.dart', '''
+      put('business/lib/redux/app_state.dart', r'''
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required LogInState logIn,
     required Wait wait,
@@ -1200,9 +1200,9 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
           ..writeAsStringSync(content);
       }
 
-      put('business/lib/redux/app_state.dart', '''
+      put('business/lib/redux/app_state.dart', r'''
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required LogInState logIn,
     required Wait wait,
@@ -1287,9 +1287,9 @@ class _Reader with Selectors {
           ..writeAsStringSync(content);
       }
 
-      put('business/lib/redux/app_state.dart', '''
+      put('business/lib/redux/app_state.dart', r'''
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required LogInState logIn,
     required Wait wait,
@@ -1331,7 +1331,7 @@ extension type SelectStray(AppState _state) implements Selector {
       final g = read(stray: true);
       expect(g.nodes.where((n) => n.name.contains('Stray')), isEmpty);
       expect(
-        g.edges.where((e) => '\${e.from}\${e.to}'.contains('Stray')),
+        g.edges.where((e) => r'${e.from}${e.to}'.contains('Stray')),
         isEmpty,
       );
     });
@@ -1433,9 +1433,9 @@ extension type SelectStray(AppState _state) implements Selector {
           ..writeAsStringSync(content);
       }
 
-      put('business/lib/redux/app_state.dart', '''
+      put('business/lib/redux/app_state.dart', r'''
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required SessionState session,
     required Wait wait,

@@ -32,13 +32,19 @@ class NavSource {
   /// Read from the connector rather than from the `:id` segments of the route
   /// path: the path says a parameter exists, only the field says its type.
   static List<NavParam> paramsOf(File connector) {
-    if (!connector.existsSync()) return const [];
+    if (!connector.existsSync()) {
+      return const [];
+    }
     final unit = sourceIndex.unitFor(connector);
     for (final d in unit.declarations.whereType<ClassDeclaration>()) {
       final name = d.namePart.typeName.lexeme;
-      if (!name.endsWith('Connector')) continue;
+      if (!name.endsWith('Connector')) {
+        continue;
+      }
       final body = d.body;
-      if (body is! BlockClassBody) continue;
+      if (body is! BlockClassBody) {
+        continue;
+      }
 
       // Only what the constructor binds as `this.<name>`, in the order it
       // takes them. Every field would sweep up anything the connector holds
@@ -92,7 +98,9 @@ class NavSource {
         content: content,
         throwIfDiagnostics: false,
       ).unit.directives.whereType<ImportDirective>().toList();
-      if (dirs.any((d) => d.uri.stringValue == uri)) continue;
+      if (dirs.any((d) => d.uri.stringValue == uri)) {
+        continue;
+      }
       content = applyEdits(content, [importInsertion(dirs, uri)]);
       changes.add("import '$uri';");
     }
@@ -192,9 +200,7 @@ class NavSource {
     final superKey = named.where((p) => p.name?.lexeme == 'key').firstOrNull;
     return Edited(
       source: applyEdits(content, [
-        superKey != null
-            ? Edit.insert(superKey.offset, 'required this.$callback, ')
-            : _namedParamInsertion(ctor, 'required this.$callback'),
+        if (superKey != null) Edit.insert(superKey.offset, 'required this.$callback, ') else _namedParamInsertion(ctor, 'required this.$callback'),
         Edit.insert(cls.end - 1, '\n  final $signature $callback;\n'),
       ]),
       changes: ['$pageClass.$callback ($signature)'],
@@ -203,7 +209,9 @@ class NavSource {
 
   ClassDeclaration? _class(CompilationUnit unit, String name) {
     for (final d in unit.declarations.whereType<ClassDeclaration>()) {
-      if (d.namePart.typeName.lexeme == name) return d;
+      if (d.namePart.typeName.lexeme == name) {
+        return d;
+      }
     }
     return null;
   }
@@ -261,13 +269,17 @@ class NavSource {
   /// The `_Vm(...)` that `fromStore` returns.
   Construction? _vmCreation(ClassDeclaration factory) {
     for (final m in _members(factory).whereType<MethodDeclaration>()) {
-      if (m.name.lexeme != 'fromStore') continue;
+      if (m.name.lexeme != 'fromStore') {
+        continue;
+      }
       final body = m.body;
       final expr = body is ExpressionFunctionBody
           ? body.expression
           : _returned(body);
       final made = Construction.of(expr);
-      if (made != null && made.fullName == '_Vm') return made;
+      if (made != null && made.fullName == '_Vm') {
+        return made;
+      }
     }
     return null;
   }
@@ -315,6 +327,8 @@ class _PageCreationFinder extends GeneralizingAstVisitor<void> {
 
   void _consider(Expression e) {
     final made = Construction.of(e);
-    if (made != null && made.fullName == pageClass) found ??= made;
+    if (made != null && made.fullName == pageClass) {
+      found ??= made;
+    }
   }
 }

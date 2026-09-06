@@ -120,10 +120,14 @@ abstract final class MixinChainReader {
   /// `super` invisible rather than a type error.
   static List<HookOverride> hooksOf(File file, String name) {
     for (final d in sourceIndex.unitFor(file).declarations) {
-      if (d is! MixinDeclaration) continue;
+      if (d is! MixinDeclaration) {
+        continue;
+      }
       // `name`/`body.members`, not the `namePart` spelling `declarations.dart`
       // uses for a class: analyzer 14 gives a mixin a plain name token.
-      if (d.name.lexeme != name) continue;
+      if (d.name.lexeme != name) {
+        continue;
+      }
       return _hooksIn(d.body.members);
     }
     return const [];
@@ -151,7 +155,7 @@ class _CallsSuper extends RecursiveAstVisitor<void> {
   _CallsSuper(this.name);
 
   final String name;
-  bool _found = false;
+  var _found = false;
 
   bool found(FunctionBody body) {
     body.accept(this);

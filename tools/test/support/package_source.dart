@@ -26,7 +26,9 @@ abstract final class PackageSource {
   /// which is different from having learned that frx is wrong.
   static Directory? libOf(String package, {Directory? repoRoot}) {
     final config = _configFor(package, repoRoot ?? Directory.current);
-    if (config == null) return null;
+    if (config == null) {
+      return null;
+    }
 
     final Map<String, Object?> json;
     try {
@@ -36,8 +38,10 @@ abstract final class PackageSource {
     }
     for (final entry in (json['packages'] as List? ?? const [])) {
       final e = entry as Map<String, Object?>;
-      if (e['name'] != package) continue;
-      final root = Uri.parse(e['rootUri'] as String);
+      if (e['name'] != package) {
+        continue;
+      }
+      final root = Uri.parse(e['rootUri']! as String);
       // rootUri is relative to the .dart_tool directory when it is not absolute.
       final base = root.hasScheme
           ? root.toFilePath()
@@ -70,7 +74,9 @@ abstract final class PackageSource {
           candidate.readAsStringSync().contains('"$package"')) {
         return candidate;
       }
-      if (dir.parent.path == dir.path) return null;
+      if (dir.parent.path == dir.path) {
+        return null;
+      }
     }
   }
 }

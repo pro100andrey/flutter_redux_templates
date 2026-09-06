@@ -42,3 +42,4 @@ dependencies:
 
 dev_dependencies:
   test: ^1.31.2
+  pro_lints: ^6.2.0

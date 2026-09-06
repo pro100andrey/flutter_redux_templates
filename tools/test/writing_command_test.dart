@@ -194,7 +194,7 @@ void main() {
 }
 
 /// Empty results, for the tests that read a plan rather than run a command.
-final _noArgs = ArgParser().parse(const []);
+final ArgResults _noArgs = ArgParser().parse(const []);
 
 /// A command that writes one file, so the base's tail has something to carry.
 class _Probe extends WritingCommand {

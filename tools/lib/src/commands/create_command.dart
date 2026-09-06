@@ -153,7 +153,9 @@ class CreateCommand extends Command<int> {
           targetDir: target,
           vars: vars,
         );
-        if (!await _prune(without, target: target)) return 70;
+        if (!await _prune(without, target: target)) {
+          return 70;
+        }
       }
 
       for (final warning in warnings) {
@@ -194,7 +196,9 @@ class CreateCommand extends Command<int> {
     List<PackageKind> omitted, {
     required String target,
   }) async {
-    if (omitted.isEmpty) return true;
+    if (omitted.isEmpty) {
+      return true;
+    }
 
     final transaction = WriteTransaction();
     try {
@@ -278,7 +282,9 @@ class CreateCommand extends Command<int> {
     UnpackPlan plan, {
     required List<PackageKind> omitted,
   }) {
-    if (omitted.isEmpty) return plan.files;
+    if (omitted.isEmpty) {
+      return plan.files;
+    }
     return [
       for (final file in plan.files)
         if (!omitted.any((kind) => PackageScaffold.isUnder(kind.dir, file.to)))

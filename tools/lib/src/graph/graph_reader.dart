@@ -4,9 +4,9 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
 
-import '../flow/flow_model.dart';
 import '../ast/declarations.dart';
 import '../ast/source_index.dart';
+import '../flow/flow_model.dart';
 import '../flow/flow_reader.dart';
 import '../flow/route_map.dart';
 import '../model/placement.dart';
@@ -87,7 +87,9 @@ class GraphReader {
       // split the display string back apart on the `', '` the renderer joined
       // it with.
       for (final w in a.info.writes) {
-        if (!nodes.containsKey('substate:${w.substate}')) continue;
+        if (!nodes.containsKey('substate:${w.substate}')) {
+          continue;
+        }
         addEdge(
           GraphEdge(
             from: a.id,
@@ -111,7 +113,9 @@ class GraphReader {
       required String owner,
     }) {
       final resolved = file == null ? null : actions[p.canonicalize(file.path)];
-      if (resolved != null) return resolved.id;
+      if (resolved != null) {
+        return resolved.id;
+      }
       final id = 'action:$className';
       addNode(
         GraphNode(
@@ -146,7 +150,9 @@ class GraphReader {
     // ---- cascades: an action dispatching another ----------------------
     for (final a in actions.values) {
       for (final step in a.info.dispatches) {
-        if (step.isNavigation) continue;
+        if (step.isNavigation) {
+          continue;
+        }
         addEdge(
           GraphEdge(
             from: a.id,
@@ -182,8 +188,9 @@ class GraphReader {
           },
         ),
       );
-      if (page.connectorFile != null)
+      if (page.connectorFile != null) {
         owners[page.connectorFile!] = 'page:${page.page}';
+      }
       if (page.connectorFile == null) {
         unresolved.add(
           Unresolved(
@@ -230,7 +237,9 @@ class GraphReader {
       final flow = entry.value;
       for (final useCase in flow.useCases) {
         for (final step in useCase.steps) {
-          if (step.isNavigation) continue;
+          if (step.isNavigation) {
+            continue;
+          }
           final info = flow.actions[step.target];
           addEdge(
             GraphEdge(
@@ -253,7 +262,9 @@ class GraphReader {
     // ---- services ------------------------------------------------------
     for (final file in sourceIndex.filesUnder(workspace.businessServices)) {
       final read = flowReader.readDispatches(file);
-      if (read.steps.isEmpty) continue;
+      if (read.steps.isEmpty) {
+        continue;
+      }
       final name =
           firstClassNameIn(sourceIndex.unitFor(file)) ??
           Casing.parse(p.basenameWithoutExtension(file.path)).pascal;
@@ -263,7 +274,9 @@ class GraphReader {
       );
       owners[file.path] = id;
       for (final step in read.steps) {
-        if (step.isNavigation) continue;
+        if (step.isNavigation) {
+          continue;
+        }
         addEdge(
           GraphEdge(
             from: id,
@@ -287,11 +300,15 @@ class GraphReader {
     // file under business/lib is rejected without being parsed.
     for (final file in sourceIndex.filesUnder(workspace.businessLib)) {
       final unit = sourceIndex.unitIf(file, (s) => s.contains('Persistor'));
-      if (unit == null) continue;
+      if (unit == null) {
+        continue;
+      }
       final v = _PersistorVisitor();
       unit.accept(v);
       final name = v.className;
-      if (name == null) continue;
+      if (name == null) {
+        continue;
+      }
       final id = 'persistor:$name';
       addNode(
         GraphNode(
@@ -306,7 +323,9 @@ class GraphReader {
         (v.reads, EdgeKind.reads),
       ]) {
         for (final field in fields) {
-          if (!nodes.containsKey('substate:$field')) continue;
+          if (!nodes.containsKey('substate:$field')) {
+            continue;
+          }
           addEdge(GraphEdge(from: id, to: 'substate:$field', kind: kind));
         }
       }
@@ -364,16 +383,24 @@ class GraphReader {
     // cannot draw to a known action is an edge it has no business inventing.
     for (final consumer in _consumerFiles()) {
       final read = flowReader.readDispatches(consumer);
-      if (read.steps.isEmpty) continue;
+      if (read.steps.isEmpty) {
+        continue;
+      }
 
       final targets = <String>{};
       for (final step in read.steps) {
-        if (step.isNavigation) continue;
+        if (step.isNavigation) {
+          continue;
+        }
         final file = read.actionFiles[step.target];
         final known = file == null ? null : actions[p.canonicalize(file.path)];
-        if (known != null) targets.add(known.id);
+        if (known != null) {
+          targets.add(known.id);
+        }
       }
-      if (targets.isEmpty) continue;
+      if (targets.isEmpty) {
+        continue;
+      }
 
       final path = p.canonicalize(consumer.path);
       var from = owners[consumer.path] ?? owners[path];
@@ -394,7 +421,9 @@ class GraphReader {
       }
 
       for (final to in targets) {
-        if (!linked.add('$from|$to')) continue;
+        if (!linked.add('$from|$to')) {
+          continue;
+        }
         addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.dispatches));
       }
     }
@@ -431,7 +460,9 @@ class GraphReader {
     };
     for (final consumer in _consumerFiles()) {
       final built = flowReader.connectorNamesIn(consumer);
-      if (built.isEmpty) continue;
+      if (built.isEmpty) {
+        continue;
+      }
 
       final path = p.canonicalize(consumer.path);
       // Only to nodes that already exist: constructing something frx does not
@@ -440,7 +471,9 @@ class GraphReader {
         for (final name in built)
           if (connectorNodes[name] != null) connectorNodes[name]!,
       };
-      if (targets.isEmpty) continue;
+      if (targets.isEmpty) {
+        continue;
+      }
 
       var from = owners[consumer.path] ?? owners[path];
       if (from == null) {
@@ -464,7 +497,9 @@ class GraphReader {
         }
       }
       for (final to in targets) {
-        if (to == from) continue;
+        if (to == from) {
+          continue;
+        }
         addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.builds));
       }
     }
@@ -545,7 +580,9 @@ class GraphReader {
   /// Every action under `business/lib/redux/*/actions/`, by canonical path.
   Map<String, _Action> _actionsOnDisk(FlowReader reader) {
     final out = <String, _Action>{};
-    if (!workspace.businessRedux.existsSync()) return out;
+    if (!workspace.businessRedux.existsSync()) {
+      return out;
+    }
     // `substateDirsIn`, which is where the rule lives. This used to walk the
     // directory itself and skip `isSubstateDir` entirely, so an `actions/`
     // under `redux/services/` would have been read as a substate's; the first
@@ -553,7 +590,9 @@ class GraphReader {
     // one level down.
     for (final dir in workspace.substateDirsIn()) {
       final actionsDir = Directory(p.join(dir.path, 'actions'));
-      if (!actionsDir.existsSync()) continue;
+      if (!actionsDir.existsSync()) {
+        continue;
+      }
       final substate = Casing.parse(p.basename(dir.path)).camel;
       for (final file in sourceIndex.filesUnder(actionsDir)) {
         final read = reader.readActionWithImports(file);
@@ -561,7 +600,9 @@ class GraphReader {
         // `mixin … on Action` with the shared `reduce()`, and a mixin is never
         // dispatched — so a node for it could only ever be reported as reached
         // by nobody.
-        if (!read.info.declaresClass) continue;
+        if (!read.info.declaresClass) {
+          continue;
+        }
         out[p.canonicalize(file.path)] = _Action(
           id: 'action:$substate.${read.info.className}',
           substate: substate,
@@ -606,7 +647,9 @@ class GraphReader {
     // it. This located `AppState` to find it anyway — a third spelling of one
     // path.
     final file = workspace.selectorsFile;
-    if (!file.existsSync()) return;
+    if (!file.existsSync()) {
+      return;
+    }
 
     final byClass = <String, List<_Action>>{};
     for (final a in actions.values) {
@@ -659,7 +702,9 @@ class GraphReader {
       );
 
       for (final field in s.readsFields) {
-        if (!hasSubstate(field)) continue;
+        if (!hasSubstate(field)) {
+          continue;
+        }
         addEdge(
           GraphEdge(
             from: id,
@@ -768,10 +813,14 @@ class GraphReader {
     // working code.
     for (final consumer in _consumerFiles()) {
       final path = p.canonicalize(consumer.path);
-      if (path == p.canonicalize(file.path)) continue; // the facade itself
+      if (path == p.canonicalize(file.path)) {
+        continue; // the facade itself
+      }
       final unit = sourceIndex.unitFor(consumer);
       final used = selectorUsesIn(unit, selectorIds, facades: facadesIn(unit));
-      if (used.isEmpty) continue;
+      if (used.isEmpty) {
+        continue;
+      }
       final from = owners[consumer.path] ?? owners[path];
       if (from == null) {
         // A reader with no node of its own — see [NodeKind.consumer].
@@ -853,14 +902,18 @@ class _PersistorVisitor extends RecursiveAstVisitor<void> {
       ?node.extendsClause?.superclass.toSource(),
       ...?node.implementsClause?.interfaces.map((i) => i.toSource()),
     ];
-    if (!supertypes.any((t) => t.startsWith('Persistor'))) return;
+    if (!supertypes.any((t) => t.startsWith('Persistor'))) {
+      return;
+    }
     className = node.namePart.typeName.lexeme;
     super.visitClassDeclaration(node);
   }
 
   @override
   void visitMethodDeclaration(MethodDeclaration node) {
-    if (className == null) return;
+    if (className == null) {
+      return;
+    }
     switch (node.name.lexeme) {
       case 'readState':
         // `AppState.initial().copyWith(theme: …, session: …)` — every named
@@ -878,7 +931,9 @@ class _PersistorVisitor extends RecursiveAstVisitor<void> {
                 .nonNulls
                 .toSet() ??
             const <String>{};
-        if (params.isEmpty) return;
+        if (params.isEmpty) {
+          return;
+        }
         // Off the tree, not off the text, for the reason [_BodyReader] gives:
         // a parameter named in a string literal is not a read of it.
         node.body.accept(_ParamFieldReads(params, reads));
@@ -900,12 +955,16 @@ class _ParamFieldReads extends RecursiveAstVisitor<void> {
   /// Lower-case initial only, as the pattern this replaced required: a field is
   /// not a nested type name.
   void _add(String name) {
-    if (name.isNotEmpty && name[0] == name[0].toLowerCase()) _into.add(name);
+    if (name.isNotEmpty && name[0] == name[0].toLowerCase()) {
+      _into.add(name);
+    }
   }
 
   @override
   void visitPrefixedIdentifier(PrefixedIdentifier node) {
-    if (_params.contains(node.prefix.name)) _add(node.identifier.name);
+    if (_params.contains(node.prefix.name)) {
+      _add(node.identifier.name);
+    }
     super.visitPrefixedIdentifier(node);
   }
 
@@ -1037,7 +1096,9 @@ Set<String> facadesIn(CompilationUnit unit) {
   for (var changed = true; changed;) {
     changed = false;
     for (final entry in declared.supertypes.entries) {
-      if (types.contains(entry.key)) continue;
+      if (types.contains(entry.key)) {
+        continue;
+      }
       if (entry.value.any(types.contains)) {
         types.add(entry.key);
         changed = true;
@@ -1098,7 +1159,9 @@ class _FacadeNameVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitRegularFormalParameter(RegularFormalParameter node) {
     final name = node.name?.lexeme;
-    if (name != null && _named(node.type)) names.add(name);
+    if (name != null && _named(node.type)) {
+      names.add(name);
+    }
     super.visitRegularFormalParameter(node);
   }
 
@@ -1152,9 +1215,13 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
     // A composite reached by its bare name — `if (canEnterApp)`. Skipped when
     // it is a segment of a chain, which `_chain` has already judged as a whole.
     final parent = node.parent;
-    if (parent is PrefixedIdentifier || parent is PropertyAccess) return;
+    if (parent is PrefixedIdentifier || parent is PropertyAccess) {
+      return;
+    }
     final id = index[node.name];
-    if (id != null) used.add(id);
+    if (id != null) {
+      used.add(id);
+    }
   }
 
   /// Judges a dotted access by where the receiver sits in its chain.
@@ -1173,19 +1240,29 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
       return;
     }
     final parts = _segments(node);
-    if (parts == null) return;
+    if (parts == null) {
+      return;
+    }
     for (var i = 0; i + 1 < parts.length; i++) {
       // The receiver either heads the chain, or the facade is in front of it —
       // `…select.logIn.email`, `selectors.logIn.email`.
-      if (i > 0 && !_isFacade(parts[i - 1])) continue;
+      if (i > 0 && !_isFacade(parts[i - 1])) {
+        continue;
+      }
       final id = index['${parts[i]}.${parts[i + 1]}'];
-      if (id != null) used.add(id);
+      if (id != null) {
+        used.add(id);
+      }
     }
     // `state.select.canEnterApp` — a composite behind the facade.
     for (var i = 1; i < parts.length; i++) {
-      if (!_isFacade(parts[i - 1])) continue;
+      if (!_isFacade(parts[i - 1])) {
+        continue;
+      }
       final id = index[parts[i]];
-      if (id != null) used.add(id);
+      if (id != null) {
+        used.add(id);
+      }
     }
   }
 
@@ -1281,11 +1358,17 @@ class _SelectorVisitor extends RecursiveAstVisitor<void> {
   /// exist without an id.
   void _collect(AstNode node) {
     final decl = SelectorShape.of(node);
-    if (decl == null || (decl.declaresOwner && decl.onFacadeSpine)) return;
+    if (decl == null || (decl.declaresOwner && decl.onFacadeSpine)) {
+      return;
+    }
     final type = decl.name;
-    if (type == null) return;
+    if (type == null) {
+      return;
+    }
     for (final m in decl.members.whereType<MethodDeclaration>()) {
-      if (!m.isGetter) continue;
+      if (!m.isGetter) {
+        continue;
+      }
       final s = _Selector(type, decl.owner, m.name.lexeme, m.name.offset);
       m.body.accept(_BodyReader(s));
       s.body = m.body;
@@ -1308,12 +1391,16 @@ class _SelectorVisitor extends RecursiveAstVisitor<void> {
       for (final s in group.values) {
         for (final name in s.siblings) {
           final other = group[name];
-          if (other == null || identical(other, s)) continue;
+          if (other == null || identical(other, s)) {
+            continue;
+          }
           changed |= _merge(s.readsFields, other.readsFields);
           changed |= _merge(s.waitsForActions, other.waitsForActions);
         }
       }
-      if (!changed) break;
+      if (!changed) {
+        break;
+      }
     }
   }
 }
@@ -1358,12 +1445,16 @@ class _BodyReader extends RecursiveAstVisitor<void> {
       }
       return;
     }
-    if (parent is PropertyAccess && parent.propertyName == node) return;
+    if (parent is PropertyAccess && parent.propertyName == node) {
+      return;
+    }
     if (parent is MethodInvocation && parent.methodName == node) {
       _waitedOn(parent);
       return;
     }
-    if (_stateReceivers.contains(node.name)) return;
+    if (_stateReceivers.contains(node.name)) {
+      return;
+    }
 
     // Lower-case initial only, which is what keeps a type name out of the
     // sibling set — the same filter the old pattern's `[a-z]` applied.
@@ -1375,10 +1466,14 @@ class _BodyReader extends RecursiveAstVisitor<void> {
 
   /// The action type in `…isWaitingForType<LogInWithEmailAction>()`.
   void _waitedOn(MethodInvocation node) {
-    if (node.methodName.name != 'isWaitingForType') return;
+    if (node.methodName.name != 'isWaitingForType') {
+      return;
+    }
     for (final arg
         in node.typeArguments?.arguments ?? const <TypeAnnotation>[]) {
-      if (arg is NamedType) _into.waitsForActions.add(arg.name.lexeme);
+      if (arg is NamedType) {
+        _into.waitsForActions.add(arg.name.lexeme);
+      }
     }
   }
 }
@@ -1389,6 +1484,8 @@ class _BodyReader extends RecursiveAstVisitor<void> {
 /// that does not, so this answers false rather than throwing on the latter.
 bool _declaredIn(String path, String className) {
   final file = File(path);
-  if (!file.existsSync()) return false;
+  if (!file.existsSync()) {
+    return false;
+  }
   return classNamed(sourceIndex.unitFor(file), className) != null;
 }

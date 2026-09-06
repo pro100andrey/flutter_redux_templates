@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
-import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:path/path.dart' as p;
 
 import '../ast/rename_edits.dart';
@@ -238,7 +238,9 @@ class RenameCommand extends Command<int> with NameArg {
     for (final f in oldDir.listSync(recursive: true).whereType<File>()) {
       // Generated files stay behind (deleted as stale below) — build_runner
       // regenerates them under the new name.
-      if (FrxWorkspace.isGenerated(f.path)) continue;
+      if (FrxWorkspace.isGenerated(f.path)) {
+        continue;
+      }
       final rel = p.relative(f.path, from: oldDir.path);
       final base = p.basename(rel);
       moves.add((
@@ -334,7 +336,9 @@ class RenameCommand extends Command<int> with NameArg {
     final edits = <String, ({String content, int count})>{};
     for (final dir in ['business', 'app', 'ui']) {
       final lib = Directory(p.join(repoRoot, dir, 'lib'));
-      if (!lib.existsSync()) continue;
+      if (!lib.existsSync()) {
+        continue;
+      }
       for (final f in lib.listSync(recursive: true).whereType<File>()) {
         if (!f.path.endsWith('.dart') || FrxWorkspace.isGenerated(f.path)) {
           continue;

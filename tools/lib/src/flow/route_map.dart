@@ -1,7 +1,7 @@
+import '../ast/source_index.dart';
 import '../model/page_artifact.dart';
 import '../routing/routes_source.dart';
 import '../workspace/frx_workspace.dart';
-import '../ast/source_index.dart';
 import 'flow_model.dart';
 import 'flow_reader.dart';
 
@@ -179,7 +179,9 @@ class RouteMap {
     final out = <String, List<String>>{};
     for (final n in pages) {
       final shell = n.parent == null ? null : byRouteType[n.parent];
-      if (shell != null) (out[shell] ??= []).add(n.page);
+      if (shell != null) {
+        (out[shell] ??= []).add(n.page);
+      }
     }
     return out;
   }
@@ -191,7 +193,9 @@ class RouteMap {
   /// what the O(n²) lookup in the renderer did too.
   String? shellOf(String page) {
     for (final entry in children.entries) {
-      if (entry.value.contains(page)) return entry.key;
+      if (entry.value.contains(page)) {
+        return entry.key;
+      }
     }
     return null;
   }
@@ -241,7 +245,9 @@ class RouteMapReader {
 
     for (final entry in routes.readRoutes()) {
       final artifact = PageArtifact.fromRouteType(entry.routeType);
-      if (artifact == null) continue;
+      if (artifact == null) {
+        continue;
+      }
       final page = artifact.name.camel;
       final connector = artifact.connectorFile(routes.connectorsDir);
       final exists = connector.existsSync();
@@ -273,9 +279,13 @@ class RouteMapReader {
         ),
       );
 
-      if (flow == null) continue;
+      if (flow == null) {
+        continue;
+      }
       for (final edge in _edgesOf(page, flow)) {
-        if (seen.add(edge._key)) edges.add(edge);
+        if (seen.add(edge._key)) {
+          edges.add(edge);
+        }
       }
     }
 
@@ -293,7 +303,9 @@ class RouteMapReader {
         }
         final action = flow.actions[step.target];
         for (final nested in action?.dispatches ?? const <DispatchStep>[]) {
-          if (!nested.isNavigation) continue;
+          if (!nested.isNavigation) {
+            continue;
+          }
           yield _edge(page, nested, via: action!.className, fromAction: true);
         }
       }

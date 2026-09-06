@@ -5,9 +5,9 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
 
-import '../workspace/frx_workspace.dart';
 import '../ast/declarations.dart';
 import '../ast/source_index.dart';
+import '../workspace/frx_workspace.dart';
 import 'ast_edit.dart';
 
 /// One substate composed into the root `AppState`.
@@ -321,6 +321,8 @@ class _AppStateConstruction extends RecursiveAstVisitor<void> {
   }
 
   void _maybe(String name, ArgumentList list) {
-    if (arguments == null && name == 'AppState') arguments = list;
+    if (arguments == null && name == 'AppState') {
+      arguments = list;
+    }
   }
 }

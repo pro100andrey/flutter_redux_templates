@@ -1,6 +1,6 @@
-import 'package:analyzer/dart/ast/ast.dart';
 import 'dart:io';
 
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
 import '../util/casing.dart';
@@ -13,22 +13,6 @@ import 'artifact_name.dart';
 /// route path. Every command that reasons about a page (add / remove / rename /
 /// doctor) reads these here instead of re-deriving them by string interpolation.
 class PageArtifact {
-  /// The annotation auto_route keys a page connector on.
-  static const routePageAnnotation = 'RoutePage';
-
-  /// Whether [unit] declares a class carrying `@RoutePage()`.
-  ///
-  /// Read off the parse tree, never out of the text: `app_router.dart`'s own doc
-  /// comment says the word, and a check that cannot tell prose from code reports
-  /// the file that is most certainly in the right place. One home, because the
-  /// audit's route check and the placement rules both ask — and two syntactic
-  /// tests for one question is the failure this repository has already paid for.
-  static bool carriesRoutePage(CompilationUnit unit) =>
-      unit.declarations.whereType<ClassDeclaration>().any(isRoutePage);
-
-  /// Whether [decl] is an `@RoutePage()` class.
-  static bool isRoutePage(ClassDeclaration decl) =>
-      decl.metadata.any((m) => m.name.name == routePageAnnotation);
 
   /// A page named by a **user**: `Home` and `HomePage` are the same page.
   ///
@@ -60,11 +44,29 @@ class PageArtifact {
   /// makes `frx doctor` report a correctly wired page as unregistered.
   factory PageArtifact.parse(String input) =>
       PageArtifact._(Casing.parse(input));
+  /// The annotation auto_route keys a page connector on.
+  static const routePageAnnotation = 'RoutePage';
+
+  /// Whether [unit] declares a class carrying `@RoutePage()`.
+  ///
+  /// Read off the parse tree, never out of the text: `app_router.dart`'s own doc
+  /// comment says the word, and a check that cannot tell prose from code reports
+  /// the file that is most certainly in the right place. One home, because the
+  /// audit's route check and the placement rules both ask — and two syntactic
+  /// tests for one question is the failure this repository has already paid for.
+  static bool carriesRoutePage(CompilationUnit unit) =>
+      unit.declarations.whereType<ClassDeclaration>().any(isRoutePage);
+
+  /// Whether [decl] is an `@RoutePage()` class.
+  static bool isRoutePage(ClassDeclaration decl) =>
+      decl.metadata.any((m) => m.name.name == routePageAnnotation);
 
   /// Recovers the artifact from a generated route type (`LogInRoute` → the
   /// `logIn` page), or null when [routeType] is not a `<Pascal>Route`.
   static PageArtifact? fromRouteType(String routeType) {
-    if (!routeType.endsWith('Route')) return null;
+    if (!routeType.endsWith('Route')) {
+      return null;
+    }
     final base = routeType.substring(0, routeType.length - 'Route'.length);
     return PageArtifact._(Casing.parse(Casing.parse(base).snake));
   }

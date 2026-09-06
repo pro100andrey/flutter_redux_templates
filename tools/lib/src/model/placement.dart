@@ -32,8 +32,8 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
 import '../ast/source_index.dart';
-import 'page_artifact.dart';
 import '../workspace/frx_workspace.dart';
+import 'page_artifact.dart';
 import 'selector_shape.dart';
 
 /// A convention about where a declaration belongs.
@@ -69,7 +69,7 @@ enum PlacementRule {
   /// callback is a list of type names and a clone is free to typedef its own.
   fieldOutsideEquality(
     'field-outside-equality',
-    "a view-model field missing from the equality it declares",
+    'a view-model field missing from the equality it declares',
   );
 
   const PlacementRule(this.id, this.summary);
@@ -82,7 +82,9 @@ enum PlacementRule {
 
   static PlacementRule? byId(String id) {
     for (final r in values) {
-      if (r.id == id) return r;
+      if (r.id == id) {
+        return r;
+      }
     }
     return null;
   }
@@ -148,7 +150,9 @@ List<PlacementFinding> placementFindings(
           !silenced.contains(PlacementRule.connectorOutsideConnectors) &&
           !p.isWithin(connectors, path) &&
           source.contains('@${PageArtifact.routePageAnnotation}');
-      if (!wantsSelectors && !wantsConnector) continue;
+      if (!wantsSelectors && !wantsConnector) {
+        continue;
+      }
 
       final unit = sourceIndex.unitFor(entity);
 
@@ -186,7 +190,9 @@ List<PlacementFinding> placementFindings(
 
 /// Whether [path] sits at `redux/<substate>/actions/…`.
 bool _isInActionsDir(String path, String reduxDir) {
-  if (!p.isWithin(reduxDir, path)) return false;
+  if (!p.isWithin(reduxDir, path)) {
+    return false;
+  }
   final parts = p.split(p.relative(path, from: reduxDir));
   // <substate>/actions/<file>, and the folder has to be a substate — an action
   // file under `redux/services/actions/` is not in a substate's actions dir.

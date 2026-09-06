@@ -2,10 +2,10 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
+import '../model/artifact_name.dart';
 import '../scaffold/artifact_templates.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
-import '../model/artifact_name.dart';
 
 /// Scaffolds a `StoreConnector` for the dumb widget of the same name.
 ///

@@ -77,7 +77,9 @@ class FlowDocs {
   /// missing, then stale, then orphaned. Empty when the export is in sync (or
   /// was never created).
   List<DocDrift> check([RouteMap? map]) {
-    if (!enabled) return const [];
+    if (!enabled) {
+      return const [];
+    }
     final expected = render(map);
     final drift = <DocDrift>[];
 
@@ -91,7 +93,9 @@ class FlowDocs {
     }
 
     for (final file in _ownedFiles()) {
-      if (expected.containsKey(p.basename(file.path))) continue;
+      if (expected.containsKey(p.basename(file.path))) {
+        continue;
+      }
       drift.add(DocDrift(DocDriftKind.orphan, file.path, _rel(file.path)));
     }
 
@@ -109,7 +113,9 @@ class FlowDocs {
     for (final entry in expected.entries) {
       final file = File(p.join(dir.path, entry.key));
       final exists = file.existsSync();
-      if (exists && file.readAsStringSync() == entry.value) continue;
+      if (exists && file.readAsStringSync() == entry.value) {
+        continue;
+      }
       file.writeAsStringSync(entry.value);
       changed.add(
         DocDrift(
@@ -121,7 +127,9 @@ class FlowDocs {
     }
 
     for (final file in _ownedFiles()) {
-      if (expected.containsKey(p.basename(file.path))) continue;
+      if (expected.containsKey(p.basename(file.path))) {
+        continue;
+      }
       changed.add(DocDrift(DocDriftKind.orphan, file.path, _rel(file.path)));
       file.deleteSync();
     }
@@ -132,10 +140,16 @@ class FlowDocs {
   /// The `.md` files in `docs/flows/` that frx generated — i.e. that carry
   /// [marker]. Anything else in there belongs to the user.
   Iterable<File> _ownedFiles() sync* {
-    if (!dir.existsSync()) return;
+    if (!dir.existsSync()) {
+      return;
+    }
     for (final entity in dir.listSync()) {
-      if (entity is! File || !entity.path.endsWith('.md')) continue;
-      if (entity.readAsStringSync().contains(marker)) yield entity;
+      if (entity is! File || !entity.path.endsWith('.md')) {
+        continue;
+      }
+      if (entity.readAsStringSync().contains(marker)) {
+        yield entity;
+      }
     }
   }
 
@@ -250,7 +264,9 @@ class FlowDocs {
       for (final step in useCase.steps) {
         targets.add('`${step.target}`${step.condition == null ? '' : ' ?'}');
         final w = flow.actions[step.target]?.writesLabel;
-        if (w != null) writes.add('`$w`');
+        if (w != null) {
+          writes.add('`$w`');
+        }
       }
       b.writeln(
         '| `${useCase.qualifiedLabel}` '

@@ -99,11 +99,11 @@ void main() {
     // silence.
     for (final command in [
       r'$CLAUDE_PROJECT_DIR/.claude/hooks/guard.sh | tee /tmp/log',
-      r'bash -c "exit 0"',
+      'bash -c "exit 0"',
       '/usr/local/bin/some-guard',
       'prettier',
     ]) {
-      settings(command.replaceAll(r'"', r'\"'));
+      settings(command.replaceAll('"', r'\"'));
       expect(run(), isEmpty, reason: command);
     }
   });

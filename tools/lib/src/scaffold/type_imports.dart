@@ -82,7 +82,7 @@ abstract final class TypeImports {
   /// The probe for [uri], or null when this module does not supply it.
   static ImportProbe? probeFor(String uri) {
     final pattern = _probes[uri];
-    return pattern == null ? null : pattern.hasMatch;
+    return pattern?.hasMatch;
   }
 }
 
@@ -115,14 +115,18 @@ abstract final class ProjectTypeImports {
   /// hold", and the two disagreed.
   static List<String> forAll(FrxWorkspace repo, Iterable<String?> snippets) {
     final packages = _ImportablePackages.of(repo);
-    if (packages.isEmpty) return const [];
+    if (packages.isEmpty) {
+      return const [];
+    }
 
     final memo = <String, String?>{};
     final found = <String>{};
     for (final snippet in snippets.nonNulls) {
       for (final match in _identifier.allMatches(snippet)) {
         final uri = _uriFor(packages, match.group(1)!, memo);
-        if (uri != null) found.add(uri);
+        if (uri != null) {
+          found.add(uri);
+        }
       }
     }
     return found.toList()..sort();
@@ -145,7 +149,9 @@ abstract final class ProjectTypeImports {
     final hits = <String>{};
     for (final package in packages) {
       final uri = package.uriFor(identifier);
-      if (uri != null) hits.add(uri);
+      if (uri != null) {
+        hits.add(uri);
+      }
     }
     return hits.length == 1 ? hits.single : null;
   });
@@ -169,7 +175,9 @@ abstract final class ProjectTypeImports {
     final memo = <String, String?>{};
     return (body) {
       for (final match in _identifier.allMatches(body)) {
-        if (_uriFor(packages, match.group(1)!, memo) == uri) return true;
+        if (_uriFor(packages, match.group(1)!, memo) == uri) {
+          return true;
+        }
       }
       return false;
     };
@@ -204,19 +212,24 @@ abstract final class _ImportablePackages {
     final dirs = <String, Directory>{};
 
     final models = repo.modelsLib;
-    if (models.existsSync()) dirs[p.canonicalize(models.path)] = models;
+    if (models.existsSync()) {
+      dirs[p.canonicalize(models.path)] = models;
+    }
 
     final business = repo.businessLib.parent;
     for (final dep in _pathDeps(business)) {
       final lib = Directory(p.join(dep.path, 'lib'));
-      if (lib.existsSync())
+      if (lib.existsSync()) {
         dirs.putIfAbsent(p.canonicalize(lib.path), () => lib);
+      }
     }
 
     final packages = <_ImportablePackage>[];
     for (final lib in dirs.values) {
       final name = _packageName(lib.parent);
-      if (name != null) packages.add(_ImportablePackage(name, lib));
+      if (name != null) {
+        packages.add(_ImportablePackage(name, lib));
+      }
     }
     // Sorted so two packages that both resolve a name are detected as an
     // ambiguity in the same order every run, rather than in listing order.
@@ -231,7 +244,9 @@ abstract final class _ImportablePackages {
   /// to have.
   static List<Directory> _pathDeps(Directory dir) {
     final pubspec = File(p.join(dir.path, 'pubspec.yaml'));
-    if (!pubspec.existsSync()) return const [];
+    if (!pubspec.existsSync()) {
+      return const [];
+    }
     final Object? doc;
     try {
       doc = loadYaml(pubspec.readAsStringSync());
@@ -240,14 +255,20 @@ abstract final class _ImportablePackages {
       // worth failing `add-field` over: the resolution degrades to `models`.
       return const [];
     }
-    if (doc is! YamlMap) return const [];
+    if (doc is! YamlMap) {
+      return const [];
+    }
 
     final deps = <Directory>[];
     for (final section in const ['dependencies', 'dependency_overrides']) {
       final entries = doc[section];
-      if (entries is! YamlMap) continue;
+      if (entries is! YamlMap) {
+        continue;
+      }
       for (final spec in entries.values) {
-        if (spec is! YamlMap) continue;
+        if (spec is! YamlMap) {
+          continue;
+        }
         final path = spec['path'];
         if (path is String) {
           deps.add(Directory(p.normalize(p.join(dir.path, path))));
@@ -262,7 +283,9 @@ abstract final class _ImportablePackages {
   /// project that renamed the package is not wrong.
   static String? _packageName(Directory dir) {
     final pubspec = File(p.join(dir.path, 'pubspec.yaml'));
-    if (!pubspec.existsSync()) return null;
+    if (!pubspec.existsSync()) {
+      return null;
+    }
     final match = RegExp(
       r'^name:\s*(\S+)',
       multiLine: true,
@@ -320,8 +343,12 @@ class _ImportablePackage {
     final wanted = _declarationText(identifier);
     for (final file in sourceIndex.filesUnder(lib)) {
       final unit = sourceIndex.unitIf(file, wanted.hasMatch);
-      if (unit == null) continue;
-      if (_declares(unit, identifier)) return file;
+      if (unit == null) {
+        continue;
+      }
+      if (_declares(unit, identifier)) {
+        return file;
+      }
     }
     return null;
   }
@@ -375,12 +402,16 @@ class _ImportablePackage {
   /// bounds a cyclic re-export.
   String? _entryFor(File file, String identifier, Set<String> seen) {
     final key = p.canonicalize(file.path);
-    if (!seen.add(key)) return null;
+    if (!seen.add(key)) {
+      return null;
+    }
 
     final relative = p.url.joinAll(
       p.split(p.relative(file.path, from: lib.path)),
     );
-    if (!relative.startsWith('src/')) return 'package:$name/$relative';
+    if (!relative.startsWith('src/')) {
+      return 'package:$name/$relative';
+    }
 
     // Keyed by the identifier as well as the file: `show`/`hide` mean two names
     // declared side by side in one private file can come out of different entry
@@ -388,12 +419,20 @@ class _ImportablePackage {
     return _entries.putIfAbsent('$identifier|$key', () {
       final basename = p.basename(file.path);
       for (final candidate in sourceIndex.filesUnder(lib)) {
-        if (p.canonicalize(candidate.path) == key) continue;
+        if (p.canonicalize(candidate.path) == key) {
+          continue;
+        }
         final unit = sourceIndex.unitIf(candidate, (s) => s.contains(basename));
-        if (unit == null) continue;
-        if (!_exports(unit, candidate, key, identifier)) continue;
+        if (unit == null) {
+          continue;
+        }
+        if (!_exports(unit, candidate, key, identifier)) {
+          continue;
+        }
         final uri = _entryFor(candidate, identifier, seen);
-        if (uri != null) return uri;
+        if (uri != null) {
+          return uri;
+        }
       }
       return null;
     });
@@ -420,12 +459,18 @@ class _ImportablePackage {
   ) {
     for (final directive in unit.directives.whereType<ExportDirective>()) {
       final uri = directive.uri.stringValue;
-      if (uri == null || uri.contains(':')) continue;
+      if (uri == null || uri.contains(':')) {
+        continue;
+      }
       final resolved = p.canonicalize(
         p.normalize(p.join(p.dirname(from.path), p.fromUri(uri))),
       );
-      if (resolved != target) continue;
-      if (_combinatorsAdmit(directive, identifier, File(target))) return true;
+      if (resolved != target) {
+        continue;
+      }
+      if (_combinatorsAdmit(directive, identifier, File(target))) {
+        return true;
+      }
     }
     return false;
   }
@@ -448,7 +493,9 @@ class _ImportablePackage {
       switch (combinator) {
         case ShowCombinator(:final shownNames):
           final shown = shownNames.map((n) => n.name).toSet();
-          if (shown.contains(identifier)) continue;
+          if (shown.contains(identifier)) {
+            continue;
+          }
           final unit = sourceIndex.unitIf(
             target,
             (s) => s.contains(identifier),
@@ -456,10 +503,14 @@ class _ImportablePackage {
           final owners = unit == null
               ? const <String>{}
               : _redirectOwners(unit, identifier);
-          if (owners.any(shown.contains)) continue;
+          if (owners.any(shown.contains)) {
+            continue;
+          }
           return false;
         case HideCombinator(:final hiddenNames):
-          if (hiddenNames.any((n) => n.name == identifier)) return false;
+          if (hiddenNames.any((n) => n.name == identifier)) {
+            return false;
+          }
       }
     }
     return true;
@@ -544,7 +595,9 @@ abstract final class ImportProbes {
     final probes = <String, ImportProbe>{};
     for (final uri in TypeImports.forAll(snippets)) {
       final probe = TypeImports.probeFor(uri);
-      if (probe != null) probes[uri] = probe;
+      if (probe != null) {
+        probes[uri] = probe;
+      }
     }
     // Keyed by the file, asked by the file: the identifiers the removed snippet
     // happened to name are not the only ones it supplies, and the probe has to

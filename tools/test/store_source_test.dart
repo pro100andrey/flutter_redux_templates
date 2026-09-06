@@ -49,7 +49,7 @@ ${fields.map((f) => "      if ($prev.$f != $next.$f) '$f',").join('\n')}
       ]);
     });
 
-    test('the names around it are the project\'s to choose', () {
+    test("the names around it are the project's to choose", () {
       // Keying on `pending.changed` or on `prev`/`next` would tie frx to
       // identifiers a clone is free to rename.
       store(['logIn'], prev: 'was', next: 'now');
@@ -130,7 +130,7 @@ void observe() {
       expect(
         out,
         contains("'appearance'"),
-        reason: 'a label a project chose on purpose is not frx\'s to change',
+        reason: "a label a project chose on purpose is not frx's to change",
       );
     });
 
@@ -145,12 +145,12 @@ void observe() {
     test('add-substate adds the entry, remove takes it away', () async {
       store(['connectivity', 'logIn']);
       final added = await runInProcess(fx, ['add-substate', 'cart']);
-      expect(added.exitCode, 0, reason: added.stderr.toString());
+      expect(added.exitCode, 0, reason: added.stderr);
       expect(added.stdout, contains("changed: 'cart'"));
       expect(source().changed()!.map((e) => e.field), contains('cart'));
 
       final removed = await runInProcess(fx, ['remove', 'cart', '--apply']);
-      expect(removed.exitCode, 0, reason: removed.stderr.toString());
+      expect(removed.exitCode, 0, reason: removed.stderr);
       expect(source().changed()!.map((e) => e.field), isNot(contains('cart')));
     });
 
@@ -179,7 +179,7 @@ void observe() {
     test('a project without the block gets no entry and no note', () async {
       // Opt-in, like the docs export.
       final r = await runInProcess(fx, ['add-substate', 'cart']);
-      expect(r.exitCode, 0, reason: r.stderr.toString());
+      expect(r.exitCode, 0, reason: r.stderr);
       expect(r.stdout, isNot(contains('store.dart')));
       expect(
         File(fx.path('business/lib/redux/store.dart')).existsSync(),
@@ -234,7 +234,7 @@ void observe() {
       );
 
       final added = await runInProcess(fx, ['add-substate', 'cart']);
-      expect(added.exitCode, 0, reason: added.stderr.toString());
+      expect(added.exitCode, 0, reason: added.stderr);
       expect(
         f.readAsStringSync(),
         isNot(contains("'cart'")),

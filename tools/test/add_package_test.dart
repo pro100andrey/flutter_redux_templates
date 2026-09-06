@@ -121,14 +121,18 @@ void main() {
 
     YamlMap? load(PackageKind kind, String file) {
       final f = File(p.join(repoRoot, kind.dir, file));
-      if (!f.existsSync()) return null;
+      if (!f.existsSync()) {
+        return null;
+      }
       return loadYaml(f.readAsStringSync()) as YamlMap;
     }
 
     for (final kind in PackageKind.values) {
       test('${kind.dir} — the lint excludes', () {
         final options = load(kind, 'analysis_options.yaml');
-        if (options == null) return; // pruned from this checkout
+        if (options == null) {
+          return; // pruned from this checkout
+        }
         expect(
           (options['analyzer'] as YamlMap)['exclude'],
           orderedEquals(kind.lintExcludes),
@@ -138,7 +142,9 @@ void main() {
 
       test('${kind.dir} — the version constraints', () {
         final pubspec = load(kind, 'pubspec.yaml');
-        if (pubspec == null) return;
+        if (pubspec == null) {
+          return;
+        }
         // Path dependencies are `dependents` read from the other end, and the
         // create/add round trip is what holds those.
         Map<String, String> versioned(String block) => {

@@ -2,6 +2,7 @@ import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
 
 import '../model/selector_shape.dart';
+import '../redux/selectors_source.dart' show SelectorsSource;
 import '../util/casing.dart';
 
 /// The flavour of substate to scaffold.
@@ -117,7 +118,9 @@ class SubstateScaffold {
           ..name = name
           ..named = true
           ..type = type;
-        if (annotation != null) p.annotations.add(annotation);
+        if (annotation != null) {
+          p.annotations.add(annotation);
+        }
       });
 
   // --- state model libraries ------------------------------------------------
@@ -243,7 +246,7 @@ class SubstateScaffold {
             '  /// Returns the ordered view of the table\n'
             '  IList<int> get view => _state.$_camel.view;\n',
           ),
-          imports: [_fic, '${_snake}/actions/retrieve_${_snake}_action.dart'],
+          imports: [_fic, '$_snake/actions/retrieve_${_snake}_action.dart'],
         );
     }
   }
@@ -302,8 +305,7 @@ class SubstateScaffold {
   );
 
   /// `Add<Pascal>Action` — folds a list of items into the `byId` table.
-  Library _addAction() {
-    return Library(
+  Library _addAction() => Library(
       (b) => b.body.add(
         Class(
           (c) => c
@@ -403,7 +405,6 @@ class SubstateScaffold {
         ),
       ),
     );
-  }
 
   /// `Retrieve<Pascal>Action` — an async action behind the wait barrier.
   ///
@@ -413,8 +414,7 @@ class SubstateScaffold {
   /// actions all mix it in, `add-action -k waiting` scaffolds it, and the reader
   /// is `isWaitingForType<T>()` — keyed on the action, so no enum has to exist
   /// to name the thing being waited for.
-  Library _retrieveAction() {
-    return Library(
+  Library _retrieveAction() => Library(
       (b) => b.body.add(
         Class(
           (c) => c
@@ -447,5 +447,4 @@ class SubstateScaffold {
         ),
       ),
     );
-  }
 }

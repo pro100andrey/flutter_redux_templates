@@ -11,8 +11,8 @@ import '../flow/flow_docs.dart';
 import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
-import '../util/console.dart';
 import '../skills/skill_gen.dart';
+import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
 import 'wiring.dart';
@@ -86,7 +86,9 @@ class DoctorCommand extends Command<int> {
 
     _report(repo, findings);
 
-    if (findings.isEmpty || !fix) return _exitCode(findings);
+    if (findings.isEmpty || !fix) {
+      return _exitCode(findings);
+    }
 
     final fixes = findings.map((f) => f.fix).nonNulls.toList();
     if (fixes.isEmpty) {
@@ -144,12 +146,16 @@ class DoctorCommand extends Command<int> {
 
     // Last: the docs describe the code, so regenerate them only once the code
     // has stopped moving — an orphan removed above must not survive in a flow.
-    if (flowDocs) _regenerateFlowDocs(repo);
+    if (flowDocs) {
+      _regenerateFlowDocs(repo);
+    }
 
     // Last, and independent of everything above: the skills are a function of
     // the CLI, not of the tree, so nothing another remedy does can change what
     // they should say.
-    if (skills) await _regenerateSkills(repo);
+    if (skills) {
+      await _regenerateSkills(repo);
+    }
 
     console.out
       ..writeln()
@@ -234,7 +240,9 @@ class DoctorCommand extends Command<int> {
   /// The same changeset `frx update-skills` previews, applied.
   Future<void> _regenerateSkills(FrxWorkspace repo) async {
     final changes = SkillGen.changesIn(repo.root);
-    if (changes.isEmpty) return;
+    if (changes.isEmpty) {
+      return;
+    }
     final applied = await apply(Changeset(changes), format: false);
     console.out.writeln(
       '  ✓ ${applied.written.length} skill file(s) written'

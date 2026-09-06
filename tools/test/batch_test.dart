@@ -379,7 +379,7 @@ void main() {
       final out = jsonDecode(r.stdout) as Map<String, Object?>;
       expect(out['command'], 'batch');
       expect(out['applied'], isFalse);
-      final changes = (out['changes'] as List).cast<Map<String, Object?>>();
+      final changes = (out['changes']! as List).cast<Map<String, Object?>>();
       // One object for the whole batch: a batch applied completely or not at all,
       // so several results would suggest a partial state that cannot happen.
       expect(
@@ -431,7 +431,7 @@ void main() {
         ]);
         expect(r.exitCode, 0, reason: r.stderr);
         final changes =
-            ((jsonDecode(r.stdout) as Map<String, Object?>)['changes'] as List)
+            ((jsonDecode(r.stdout) as Map<String, Object?>)['changes']! as List)
                 .cast<Map<String, Object?>>();
         expect(
           changes.map((c) => c['path']).join(' '),

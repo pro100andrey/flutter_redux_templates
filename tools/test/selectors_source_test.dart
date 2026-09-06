@@ -37,7 +37,7 @@ void main() {
   tearDown(() => dir.deleteSync(recursive: true));
 
   /// A `selectors.dart` of some other shape, for the compatibility case.
-  File _tmp(String content) =>
+  File tmp(String content) =>
       File('${dir.path}/other.dart')..writeAsStringSync(content);
 
   test('wire adds the facade getter and appends the extension type', () {
@@ -76,7 +76,7 @@ void main() {
     // mixin alone would have `add-substate` report success while
     // `state.select.cart` did not exist, and the developer would meet a compile
     // error in code the tool had just claimed to wire.
-    final old = _tmp('''
+    final old = tmp('''
 import 'app_state.dart';
 
 extension type const Selector(AppState _state) {

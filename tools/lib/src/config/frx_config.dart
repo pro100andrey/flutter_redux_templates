@@ -49,7 +49,9 @@ class FrxConfig {
   /// ignored (a broken config must never break the CLI).
   static FrxConfig load({String? startDir}) {
     final file = _find(startDir);
-    if (file == null) return const FrxConfig();
+    if (file == null) {
+      return const FrxConfig();
+    }
     try {
       final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
       return FrxConfig(
@@ -72,9 +74,13 @@ class FrxConfig {
     var dir = Directory(startDir ?? Directory.current.path).absolute;
     while (true) {
       final f = File(p.join(dir.path, '.frxrc'));
-      if (f.existsSync()) return f;
+      if (f.existsSync()) {
+        return f;
+      }
       final parent = dir.parent;
-      if (parent.path == dir.path) return null;
+      if (parent.path == dir.path) {
+        return null;
+      }
       dir = parent;
     }
   }
@@ -83,12 +89,18 @@ class FrxConfig {
   /// [cmdName], skipping any the user already set or the command doesn't accept.
   /// [options] is the command's option-name set.
   List<String> applyTo(List<String> args, String cmdName, Set<String> options) {
-    if (isEmpty) return args;
+    if (isEmpty) {
+      return args;
+    }
     final out = [...args];
 
     void injectFlag(String name, String? abbr, bool? value) {
-      if (value == null || !options.contains(name)) return;
-      if (_present(args, name, abbr)) return;
+      if (value == null || !options.contains(name)) {
+        return;
+      }
+      if (_present(args, name, abbr)) {
+        return;
+      }
       out.add(value ? '--$name' : '--no-$name');
     }
 

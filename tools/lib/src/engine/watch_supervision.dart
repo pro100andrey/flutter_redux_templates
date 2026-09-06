@@ -91,14 +91,18 @@ abstract final class WatchSupervision {
 
     void translate(ProcessSignal signal) {
       // `sigterm` cannot be watched on Windows; asking would throw.
-      if (Platform.isWindows && signal != ProcessSignal.sigint) return;
+      if (Platform.isWindows && signal != ProcessSignal.sigint) {
+        return;
+      }
       subs.add(signal.watch().listen((_) => unawaited(_stop(proc))));
     }
 
     var interrupts = 0;
     subs.add(
       ProcessSignal.sigint.watch().listen((_) {
-        if (++interrupts < 2) return;
+        if (++interrupts < 2) {
+          return;
+        }
         console.err.writeln(
           '\n⚠ build_runner is not stopping — leaving it to the reaper.',
         );

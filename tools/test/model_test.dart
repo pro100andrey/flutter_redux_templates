@@ -101,9 +101,9 @@ void main() {
       return RoutesSource(f);
     }
 
-    const appState = '''
+    const appState = r'''
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required LogInState logIn,
     required Wait wait,

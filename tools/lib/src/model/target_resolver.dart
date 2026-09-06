@@ -30,15 +30,7 @@ class Resolution {
 /// own work while [resolve] answers the substate-vs-page question uniformly,
 /// including the "matches both" (exit 64) and "nothing wired" (exit 70) cases.
 class TargetResolver {
-  const TargetResolver(this.appState, this.routes, {String? origin})
-    : _origin = origin;
-
-  final AppStateSource? appState;
-  final RoutesSource? routes;
-
-  /// The search origin (`--root` or the current directory) — surfaced in the
-  /// "not inside a frx project" message.
-  final String? _origin;
+  const TargetResolver(this.appState, this.routes, {this._origin});
 
   /// Locates both wiring sources from [root] (or the current directory),
   /// tolerating a missing one (its `locate` throws [StateError] → null).
@@ -54,6 +46,13 @@ class TargetResolver {
     _tryLocate(() => RoutesSource.locate(startDir: root)),
     origin: root,
   );
+
+  final AppStateSource? appState;
+  final RoutesSource? routes;
+
+  /// The search origin (`--root` or the current directory) — surfaced in the
+  /// "not inside a frx project" message.
+  final String? _origin;
 
   static T? _tryLocate<T>(T Function() locate) {
     try {
@@ -102,8 +101,12 @@ class TargetResolver {
         64,
       );
     }
-    if (substate) return const Resolution.resolved(ArtifactKind.substate);
-    if (page) return const Resolution.resolved(ArtifactKind.page);
+    if (substate) {
+      return const Resolution.resolved(ArtifactKind.substate);
+    }
+    if (page) {
+      return const Resolution.resolved(ArtifactKind.page);
+    }
     return Resolution.failure(
       'Nothing named "${name.pascal}" is wired — no substate field '
       '"${SubstateArtifact(name).field}" in AppState and no route '

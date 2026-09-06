@@ -5,11 +5,11 @@ import 'package:args/command_runner.dart';
 
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
-import '../engine/write_report.dart';
 import '../engine/write_path.dart';
+import '../engine/write_report.dart';
+import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
-import '../util/console.dart';
 
 /// A feature's worth of artifacts, declared once and wired in **one
 /// transaction**.
@@ -320,7 +320,9 @@ class BatchCommand extends Command<int> {
   /// writes, however it was spelled.
   void _refuseBatchFlags(String where, List<String> argv) {
     for (final arg in argv) {
-      if (!arg.startsWith('--')) continue;
+      if (!arg.startsWith('--')) {
+        continue;
+      }
       // `--flag`, `--no-flag` and `--flag=value` all name the same flag.
       final named = arg.substring(2).split('=').first;
       final bare = named.startsWith('no-') ? named.substring(3) : named;
@@ -370,7 +372,9 @@ class BatchCommand extends Command<int> {
     required bool report,
   }) async {
     final byPackage = _byPackage(transaction);
-    if (byPackage.isEmpty) return null;
+    if (byPackage.isEmpty) {
+      return null;
+    }
     final steps = byPackage.values.toList();
     // `ran` and `handedToWatch` are aggregated rather than taken from the first
     // package, because they are the load-bearing fields: reporting the first

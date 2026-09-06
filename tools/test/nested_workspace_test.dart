@@ -45,7 +45,7 @@ void main() {
   test('walking up still wins from inside the project', () {
     project('.');
     Directory(p.join(tmp.path, 'business/lib/redux'))
-      ..createSync(recursive: true);
+      .createSync(recursive: true);
     expect(locate('business/lib/redux').path, tmp.path);
   });
 

@@ -15,7 +15,9 @@ enum DispatchKind {
 
   static DispatchKind? parse(String name) {
     for (final k in values) {
-      if (k.name == name) return k;
+      if (k.name == name) {
+        return k;
+      }
     }
     return null;
   }
@@ -101,7 +103,9 @@ class UseCase {
   /// step came from the same inner callback, else just the field name.
   String get label {
     final trigger = steps.first.trigger;
-    if (trigger == null) return name;
+    if (trigger == null) {
+      return name;
+    }
     return steps.every((s) => s.trigger == trigger) ? '$name.$trigger' : name;
   }
 
@@ -117,7 +121,9 @@ class UseCase {
   /// at a class list, and `ActiveFront ▸ onOpen` reads as a place on it.
   String get qualifiedLabel {
     final owner = this.owner;
-    if (owner == null) return label;
+    if (owner == null) {
+      return label;
+    }
     final region = owner.endsWith('Connector')
         ? owner.substring(0, owner.length - 'Connector'.length)
         : owner;
@@ -205,7 +211,7 @@ class ActionInfo {
     'class': className,
     'mixins': mixins,
     'isAsync': isAsync,
-    if (writesLabel case final w?) 'writes': w,
+    'writes': ?writesLabel,
     'dispatches': [for (final d in dispatches) d.toJson()],
     'throwsUserException': throwsUserException,
     if (file != null) 'file': file,

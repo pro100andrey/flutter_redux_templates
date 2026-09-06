@@ -3,8 +3,8 @@ import 'package:args/command_runner.dart';
 import '../model/page_artifact.dart';
 import '../model/target_resolver.dart';
 import '../util/casing.dart';
-import '../workspace/frx_workspace.dart';
 import '../util/console.dart';
+import '../workspace/frx_workspace.dart';
 
 /// Prints a shell completion script for `frx`. The scripts are tiny: they defer
 /// every decision to `frx __complete`, so completions (including live substate /
@@ -85,17 +85,23 @@ class CompleteCommand extends Command<int> {
     // each match once.
     final seen = <String>{};
     for (final c in _candidates(words)) {
-      if (c.startsWith(current) && seen.add(c)) console.out.writeln(c);
+      if (c.startsWith(current) && seen.add(c)) {
+        console.out.writeln(c);
+      }
     }
     return 0;
   }
 
   List<String> _candidates(List<String> words) {
     // Completing the command name itself (first token).
-    if (words.length <= 1) return _commandNames();
+    if (words.length <= 1) {
+      return _commandNames();
+    }
 
     final command = runner!.commands[words.first];
-    if (command == null) return const [];
+    if (command == null) {
+      return const [];
+    }
     final current = words.last;
     final prev = words[words.length - 2];
 
@@ -106,11 +112,17 @@ class CompleteCommand extends Command<int> {
     // The value for an option with a fixed allowed set (e.g. --kind).
     if (prev.startsWith('--')) {
       final opt = command.argParser.options[prev.substring(2)];
-      if (opt?.allowed != null) return opt!.allowed!.toList();
-      if (prev == '--state') return _substateNames();
+      if (opt?.allowed != null) {
+        return opt!.allowed!.toList();
+      }
+      if (prev == '--state') {
+        return _substateNames();
+      }
       // Existing folders only — `--dir` also accepts a new name, which no
       // completion can guess.
-      if (prev == '--dir') return _widgetDirs();
+      if (prev == '--dir') {
+        return _widgetDirs();
+      }
     }
     // A positional name for a command that targets an artifact.
     switch (command.name) {
@@ -129,7 +141,9 @@ class CompleteCommand extends Command<int> {
 
   List<String> _substateNames() => _safely(() {
     final appState = TargetResolver.locate(null).appState;
-    if (appState == null) return const [];
+    if (appState == null) {
+      return const [];
+    }
     return [
       for (final s in appState.readSubstates())
         if (s.isSubstate) Casing.parse(s.field).snake,
@@ -141,7 +155,9 @@ class CompleteCommand extends Command<int> {
 
   List<String> _routeNames() => _safely(() {
     final routes = TargetResolver.locate(null).routes;
-    if (routes == null) return const [];
+    if (routes == null) {
+      return const [];
+    }
     return [
       for (final r in routes.readRoutes())
         if (PageArtifact.fromRouteType(r.routeType) case final a?) a.name.snake,

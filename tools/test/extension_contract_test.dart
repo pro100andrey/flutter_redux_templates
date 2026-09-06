@@ -56,7 +56,7 @@ void main() {
     // spawns a command that does not exist, frx exits 64, and the user sees
     // "FRX failed (exit 64)" with no clue which name is wrong.
     final invoked = RegExp(
-      r"'(add-[a-z-]+|list-[a-z-]+|remove|rename|doctor|graph|flow|which|new|watch)'",
+      "'(add-[a-z-]+|list-[a-z-]+|remove|rename|doctor|graph|flow|which|new|watch)'",
     ).allMatches(source).map((m) => m.group(1)!).toSet();
     expect(invoked, isNotEmpty, reason: 'found no frx invocations to check');
     expect(
@@ -183,7 +183,7 @@ void main() {
     // What is left to check is that the editor still *reads* it. A hand-written
     // list that happened to be correct today would pass every other gate.
     final ui = File(p.join(vscode.path, 'src', 'ui.ts')).readAsStringSync();
-    final decl = RegExp(r'export const ARTIFACT_KINDS = (.+);').firstMatch(ui);
+    final decl = RegExp('export const ARTIFACT_KINDS = (.+);').firstMatch(ui);
     expect(
       decl,
       isNotNull,
@@ -253,7 +253,7 @@ void main() {
         isNot(contains(literal)),
         reason:
             'codelens.ts spells out "$literal" instead of reading LAYOUT — '
-            'the layout is the CLI\'s to state.',
+            "the layout is the CLI's to state.",
       );
     }
     expect(codelens, contains('LAYOUT.'));

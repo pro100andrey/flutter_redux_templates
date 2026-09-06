@@ -67,10 +67,16 @@ class RenameEdits {
     final edits = <Edit>[];
     for (var token = unit.beginToken; ; token = token.next!) {
       _comments(token, edits);
-      if (token.isEof) break;
-      if (!_isIdentifier(token) || _isLocalisation(token)) continue;
+      if (token.isEof) {
+        break;
+      }
+      if (!_isIdentifier(token) || _isLocalisation(token)) {
+        continue;
+      }
       final to = _rename(token.lexeme);
-      if (to != null) edits.add(Edit.replace(token.offset, token.end, to));
+      if (to != null) {
+        edits.add(Edit.replace(token.offset, token.end, to));
+      }
     }
 
     // Directive URIs first, so their literals are known and the literal walk
@@ -90,19 +96,27 @@ class RenameEdits {
       final was = uri?.stringValue;
       // A URI written as an adjacent-string concatenation has a value but no
       // single span to splice; frx leaves it, which is what it did before.
-      if (uri is! SingleStringLiteral || was == null) continue;
+      if (uri is! SingleStringLiteral || was == null) {
+        continue;
+      }
       uris.add(uri.offset);
       final now = _rewritePath(was);
-      if (now != was) edits.add(_replaceContents(uri, now));
+      if (now != was) {
+        edits.add(_replaceContents(uri, now));
+      }
     }
 
     if (literals.isNotEmpty) {
       final found = <SimpleStringLiteral>[];
       unit.accept(_Literals(found));
       for (final literal in found) {
-        if (uris.contains(literal.offset)) continue;
+        if (uris.contains(literal.offset)) {
+          continue;
+        }
         final now = _rewriteLiteral(literal.value);
-        if (now != literal.value) edits.add(_replaceContents(literal, now));
+        if (now != literal.value) {
+          edits.add(_replaceContents(literal, now));
+        }
       }
     }
     return edits;
@@ -132,7 +146,9 @@ class RenameEdits {
   /// `/`-segment — `'/home'` and `'/home/:id'`, never `'/homepage'`.
   String _rewriteLiteral(String value) {
     for (final entry in literals.entries) {
-      if (value == entry.key) return entry.value;
+      if (value == entry.key) {
+        return entry.value;
+      }
       if (value.startsWith('${entry.key}/')) {
         return entry.value + value.substring(entry.key.length);
       }
@@ -164,7 +180,9 @@ class RenameEdits {
         _word,
         (m) => _rename(m[0]!) ?? paths[m[0]!] ?? m[0]!,
       );
-      if (text != c.lexeme) into.add(Edit.replace(c.offset, c.end, text));
+      if (text != c.lexeme) {
+        into.add(Edit.replace(c.offset, c.end, text));
+      }
     }
   }
 
@@ -178,11 +196,17 @@ class RenameEdits {
   /// boundary did not. Stated once, both work and the second pattern goes.
   String? _rename(String lexeme) {
     final direct = identifiers[lexeme];
-    if (direct != null) return direct;
+    if (direct != null) {
+      return direct;
+    }
     for (final prefix in const [r'_$', '_', r'$']) {
-      if (!lexeme.startsWith(prefix)) continue;
+      if (!lexeme.startsWith(prefix)) {
+        continue;
+      }
       final renamed = identifiers[lexeme.substring(prefix.length)];
-      if (renamed != null) return '$prefix$renamed';
+      if (renamed != null) {
+        return '$prefix$renamed';
+      }
     }
     return null;
   }
@@ -209,7 +233,7 @@ class RenameEdits {
   /// token's type rather than on a list of words.
   static bool _isIdentifier(Token token) =>
       token.type == TokenType.IDENTIFIER ||
-      (token.type.isKeyword && token.keyword?.isBuiltInOrPseudo == true);
+      (token.type.isKeyword && (token.keyword?.isBuiltInOrPseudo ?? false));
 }
 
 class _Literals extends RecursiveAstVisitor<void> {

@@ -7,10 +7,10 @@ import '../flow/flow_reader.dart';
 import '../flow/mermaid.dart';
 import '../flow/route_map.dart';
 import '../model/page_artifact.dart';
+import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'frx_command.dart';
 import 'options.dart';
-import '../util/console.dart';
 
 /// Diagrams what the app actually does, read from the AST.
 ///
@@ -94,8 +94,12 @@ class FlowCommand extends Command<int> with NameArg {
       return 70;
     }
 
-    if (md) return _exportDocs(workspace, json: json);
-    if (routes) return _routeMap(workspace, json: json);
+    if (md) {
+      return _exportDocs(workspace, json: json);
+    }
+    if (routes) {
+      return _routeMap(workspace, json: json);
+    }
     return _pageFlow(workspace, json: json);
   }
 

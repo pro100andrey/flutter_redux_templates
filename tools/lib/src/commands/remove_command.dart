@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../ast/source_index.dart';
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
+import '../engine/write_path.dart';
 import '../model/page_artifact.dart';
 import '../model/removable_artifact.dart';
 import '../model/substate_artifact.dart';
@@ -16,7 +17,6 @@ import '../redux/state_source.dart';
 import '../redux/store_source.dart';
 import '../routing/routes_source.dart';
 import '../scaffold/type_imports.dart';
-import '../engine/write_path.dart';
 import '../util/casing.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
@@ -147,7 +147,9 @@ class RemoveCommand extends WritingCommand {
       final kind = fileKinds[forced]!;
       final found = onDisk.resolve(kind, name, state: state);
       if (found == null) {
-        if (onDisk.blocked != null) usageException(onDisk.blocked!);
+        if (onDisk.blocked != null) {
+          usageException(onDisk.blocked!);
+        }
         refuse(_notFound(kind, name, state));
       }
       return _removeFiles(found, apply: apply);
@@ -170,10 +172,14 @@ class RemoveCommand extends WritingCommand {
       final matched = <RemovableArtifact>[];
       for (final kind in RemovableKind.values) {
         final found = onDisk.resolve(kind, name, state: state);
-        if (found != null) matched.add(found);
+        if (found != null) {
+          matched.add(found);
+        }
         // An ambiguity inside one kind is still an ambiguity; surfacing it here
         // beats reporting "nothing found" for a name that matched twice.
-        if (onDisk.blocked != null) usageException(onDisk.blocked!);
+        if (onDisk.blocked != null) {
+          usageException(onDisk.blocked!);
+        }
       }
 
       // A field is not *resolved* by auto-detection — it is asked for, see
@@ -193,8 +199,9 @@ class RemoveCommand extends WritingCommand {
           'Disambiguate with --kind ${kinds.join('|')}.',
         );
       }
-      if (matched.length == 1)
+      if (matched.length == 1) {
         return _removeFiles(matched.single, apply: apply);
+      }
     }
 
     final resolution = resolver.resolve(name, forced: forced);
@@ -202,7 +209,9 @@ class RemoveCommand extends WritingCommand {
       // The resolver already decides which failure is the user's usage and
       // which is the project's shape; the two exit codes are its answer, and
       // this maps them to the two ways a command has of saying so.
-      if (resolution.code == 64) usageException(resolution.error!);
+      if (resolution.code == 64) {
+        usageException(resolution.error!);
+      }
       // Before refusing, ask the one kind auto-detection does not reach. "Not a
       // wired substate or page" is a true sentence about a name that is plainly
       // *there* as a field, and the reflex it teaches is the hand edit the
@@ -241,27 +250,28 @@ class RemoveCommand extends WritingCommand {
 
   /// The plan for a kind that wired nothing central: delete the set, name what
   /// the set did not include, and say what stops compiling.
-  WritePlan _removeFiles(RemovableArtifact a, {required bool apply}) {
-    return WritePlan(
-      changes: Changeset([
-        for (final f in a.files) DeleteFile(f),
-        for (final d in a.directories) DeleteDirectory(d),
-      ]),
-      header: a.header,
-      narrate: () {
-        for (final m in a.missing) {
-          console.out.writeln('  • ${p.relative(m)} — not found');
-        }
-        if (a.missing.isNotEmpty) console.out.writeln();
-      },
-      previewOnly: !apply,
-      previewNotice: kPreviewNotice,
-      closing: [
-        '✓ Removed ${a.kind.flag} "${a.className}".',
-        if (a.dangles != null) '  Note: ${a.dangles}.',
-      ].join('\n'),
-    );
-  }
+  WritePlan _removeFiles(RemovableArtifact a, {required bool apply}) =>
+      WritePlan(
+        changes: Changeset([
+          for (final f in a.files) DeleteFile(f),
+          for (final d in a.directories) DeleteDirectory(d),
+        ]),
+        header: a.header,
+        narrate: () {
+          for (final m in a.missing) {
+            console.out.writeln('  • ${p.relative(m)} — not found');
+          }
+          if (a.missing.isNotEmpty) {
+            console.out.writeln();
+          }
+        },
+        previewOnly: !apply,
+        previewNotice: kPreviewNotice,
+        closing: [
+          '✓ Removed ${a.kind.flag} "${a.className}".',
+          if (a.dangles != null) '  Note: ${a.dangles}.',
+        ].join('\n'),
+      );
 
   /// The "nothing of this kind here" message, told in terms of where it looked.
   /// A bare "not found" leaves the user unable to tell a typo from a wrong
@@ -308,7 +318,9 @@ class RemoveCommand extends WritingCommand {
     required bool apply,
   }) => inSourceIndex(() {
     final raw = argResults!.rest.isEmpty ? '' : argResults!.rest.first;
-    if (raw.isEmpty) refuse('Which selector? Pass `SelectTheme.isWaiting`.');
+    if (raw.isEmpty) {
+      refuse('Which selector? Pass `SelectTheme.isWaiting`.');
+    }
     final dotted = raw.contains('.');
     final getter = dotted ? raw.split('.').last : Casing.parse(raw).camel;
     final selectorType = dotted
@@ -377,7 +389,9 @@ class RemoveCommand extends WritingCommand {
       narrate: () {
         console.out.writeln();
         wiring.narrate();
-        if (outside.isEmpty) return;
+        if (outside.isEmpty) {
+          return;
+        }
         console.out.writeln(
           'Still reads ".$getter" (left in place, will not compile):',
         );
@@ -561,7 +575,9 @@ class RemoveCommand extends WritingCommand {
       narrate: () {
         console.out.writeln();
         wiring.narrate();
-        if (holders.isEmpty) return;
+        if (holders.isEmpty) {
+          return;
+        }
         console.out.writeln(
           'Still names "$field" (left in place, will not compile):',
         );
@@ -604,13 +620,19 @@ class RemoveCommand extends WritingCommand {
     final dir = Directory(
       p.join(repo.businessRedux.path, artifact.folder, 'actions'),
     );
-    if (!dir.existsSync()) return const [];
+    if (!dir.existsSync()) {
+      return const [];
+    }
 
     final word = RegExp('\\b${RegExp.escape(field)}\\b');
     final naming = <String>[];
     for (final file in sourceIndex.filesUnder(dir, recursive: false)) {
-      if (p.equals(file.path, except.path)) continue;
-      if (word.hasMatch(sourceIndex.sourceOf(file))) naming.add(file.path);
+      if (p.equals(file.path, except.path)) {
+        continue;
+      }
+      if (word.hasMatch(sourceIndex.sourceOf(file))) {
+        naming.add(file.path);
+      }
     }
     return naming..sort();
   }
@@ -671,7 +693,9 @@ class RemoveCommand extends WritingCommand {
         final name = Casing.parse(folder);
         final artifact = SubstateArtifact(name);
         final file = artifact.stateFile(repo.businessRedux);
-        if (!file.existsSync()) continue;
+        if (!file.existsSync()) {
+          continue;
+        }
         // The cheap half: a state file that does not contain the word cannot
         // declare it, and is read without being parsed.
         if (sourceIndex.unitIf(file, (s) => s.contains(field)) == null) {
@@ -680,7 +704,9 @@ class RemoveCommand extends WritingCommand {
         final declared = StateSource(
           file,
         ).declarationOf(className: artifact.stateType, name: field);
-        if (declared != null) owners.add(name);
+        if (declared != null) {
+          owners.add(name);
+        }
       } on FormatException {
         continue;
       } on StateError {

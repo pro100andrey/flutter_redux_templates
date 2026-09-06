@@ -5,9 +5,10 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
 
-import '../ast/declarations.dart';
 import '../ast/construction.dart';
+import '../ast/declarations.dart';
 import '../ast/source_index.dart';
+import '../redux/app_state_source.dart' show AppStateSource;
 import '../redux/ast_edit.dart';
 import '../workspace/frx_workspace.dart';
 
@@ -16,10 +17,10 @@ class RouteEntry {
   const RouteEntry({
     required this.routeType,
     required this.path,
-    String? fullPath,
+    this._fullPath,
     this.initial = false,
     this.parent,
-  }) : _fullPath = fullPath;
+  });
 
   /// The generated route class referenced as `<Type>.page`, e.g. `HomeRoute`.
   final String routeType;
@@ -173,7 +174,9 @@ class RoutesSource {
   ) {
     for (final element in list.elements) {
       final args = _autoRouteArgs(element);
-      if (args == null) continue;
+      if (args == null) {
+        continue;
+      }
       final page = _namedArg(args, 'page')?.toSource();
       final path = _namedArg(args, 'path');
       final initial = _namedArg(args, 'initial');
@@ -207,13 +210,21 @@ class RoutesSource {
     String? own, {
     required bool nested,
   }) {
-    if (own == null) return parentPath;
-    if (own.startsWith('/') || !nested) return own;
+    if (own == null) {
+      return parentPath;
+    }
+    if (own.startsWith('/') || !nested) {
+      return own;
+    }
     // Nested under a shell that declares no `path:`: auto_route derives one
     // from its page name, which frx cannot know. Printing the child's own
     // relative path would be the same untruth composing exists to remove.
-    if (parentPath == null) return own.isEmpty ? null : '…/$own';
-    if (own.isEmpty) return parentPath;
+    if (parentPath == null) {
+      return own.isEmpty ? null : '…/$own';
+    }
+    if (own.isEmpty) {
+      return parentPath;
+    }
     final base = parentPath.endsWith('/')
         ? parentPath.substring(0, parentPath.length - 1)
         : parentPath;
@@ -225,7 +236,9 @@ class RoutesSource {
   /// Empty when there is no guard (or its set can't be read).
   Set<String> readAuthArea() {
     final set = _authAreaSet(_parse());
-    if (set == null) return const {};
+    if (set == null) {
+      return const {};
+    }
     return {
       for (final e in set.elements)
         if (e.toSource().endsWith('.name'))
@@ -300,7 +313,7 @@ class RoutesSource {
       final authArea = _authAreaSet(unit);
       if (authArea == null) {
         warnings.add(
-          '--public: could not find the guard\'s _authArea set — the route was '
+          "--public: could not find the guard's _authArea set — the route was "
           'NOT added to it. Add "$routeType.name" manually if the page should '
           'be reachable while logged out.',
         );
@@ -482,11 +495,17 @@ class RoutesSource {
   bool _anyParamPath(ListLiteral list) {
     for (final element in list.elements) {
       final args = _autoRouteArgs(element);
-      if (args == null) continue;
+      if (args == null) {
+        continue;
+      }
       final path = _namedArg(args, 'path');
-      if (path is SimpleStringLiteral && path.value.contains(':')) return true;
+      if (path is SimpleStringLiteral && path.value.contains(':')) {
+        return true;
+      }
       final children = _namedArg(args, 'children');
-      if (children is ListLiteral && _anyParamPath(children)) return true;
+      if (children is ListLiteral && _anyParamPath(children)) {
+        return true;
+      }
     }
     return false;
   }
@@ -546,7 +565,9 @@ class RoutesSource {
   /// The guard's `static const _authArea = {…}` set, or null if absent.
   SetOrMapLiteral? _authAreaSet(CompilationUnit unit) {
     final guard = classNamed(unit, '_AuthGuard');
-    if (guard == null) return null;
+    if (guard == null) {
+      return null;
+    }
     for (final member in _members(guard).whereType<FieldDeclaration>()) {
       for (final v in member.fields.variables) {
         if (v.name.lexeme == '_authArea' && v.initializer is SetOrMapLiteral) {

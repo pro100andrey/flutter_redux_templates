@@ -4,6 +4,7 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
+import '../model/artifact_name.dart';
 import '../model/substate_artifact.dart';
 import '../redux/selectors_source.dart';
 import '../scaffold/artifact_templates.dart';
@@ -12,7 +13,6 @@ import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
-import '../model/artifact_name.dart';
 
 /// Scaffolds a `ReduxAction` into an existing substate's `actions/` folder.
 class AddActionCommand extends WritingCommand {
@@ -61,7 +61,7 @@ class AddActionCommand extends WritingCommand {
         'selector',
         defaultsTo: true,
         help:
-            'For --kind waiting, also add the substate\'s `isWaiting` getter '
+            "For --kind waiting, also add the substate's `isWaiting` getter "
             'to its Select<Pascal> in selectors.dart.',
       );
   }

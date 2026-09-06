@@ -40,8 +40,12 @@ class SubstateArtifact {
   /// substate — without that the `Selectors` mixin reads as a substate named
   /// `ors`.
   static String? substateOfSelectorType(String type) {
-    if (!SelectorShape.isSelectorType(type)) return null;
-    if (SelectorShape.isFacadeSpine(type)) return null;
+    if (!SelectorShape.isSelectorType(type)) {
+      return null;
+    }
+    if (SelectorShape.isFacadeSpine(type)) {
+      return null;
+    }
     try {
       return Casing.parse(
         type.substring(SelectorShape.facadeType.length),
