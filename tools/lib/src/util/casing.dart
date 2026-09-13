@@ -11,7 +11,8 @@ class Casing {
       );
     }
     final spaced = input
-        // split camelCase / PascalCase boundaries: "userProfile" -> "user Profile"
+        // split camelCase / PascalCase boundaries: "userProfile" -> "user
+        // Profile"
         .replaceAllMapped(
           RegExp('([a-z0-9])([A-Z])'),
           (m) => '${m[1]} ${m[2]}',

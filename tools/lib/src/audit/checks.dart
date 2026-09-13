@@ -34,6 +34,7 @@ import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
 import '../redux/store_source.dart';
+import '../refusal.dart';
 import '../routing/routes_source.dart';
 import '../scaffold/artifact_templates.dart';
 import '../skills/skill_gen.dart';
@@ -52,9 +53,9 @@ class Check {
 
   /// Whether this check observes what is *running* rather than what is on disk.
   ///
-  /// Those appear and vanish with no file changing, so a consumer that re-audits
-  /// on file events — the editor — would keep showing one long after it was
-  /// true.
+  /// Those appear and vanish with no file changing, so a consumer that
+  /// re-audits on file events — the editor — would keep showing one long after
+  /// it was true.
   final bool needsProcessState;
 
   final void Function(FrxWorkspace repo, List<Finding> into) run;
@@ -144,13 +145,13 @@ String _firstFrames(StackTrace stack, {int frames = 4}) => stack
 
 // --- substates ---------------------------------------------------------------
 
-/// Substates composed into `AppState` must have their state file + freezed part;
-/// substate folders that aren't composed are orphans.
+/// Substates composed into `AppState` must have their state file + freezed
+/// part; substate folders that aren't composed are orphans.
 void checkSubstates(FrxWorkspace repo, List<Finding> into) {
   final AppStateSource source;
   try {
     source = AppStateSource.of(repo);
-  } on StateError {
+  } on FrxRefusal {
     into.add(
       const Finding.warn('AppState not found — skipped substate checks.'),
     );
@@ -171,7 +172,8 @@ void checkSubstates(FrxWorkspace repo, List<Finding> into) {
     if (!stateFile.existsSync()) {
       into.add(
         Finding.error(
-          'AppState.${s.field} (${s.type}) has no ${p.relative(stateFile.path)}.',
+          'AppState.${s.field} (${s.type}) has no '
+          '${p.relative(stateFile.path)}.',
           // The state file is missing; anchor on where the field is declared.
           file: source.file.path,
         ),
@@ -181,7 +183,8 @@ void checkSubstates(FrxWorkspace repo, List<Finding> into) {
     ).existsSync()) {
       into.add(
         Finding.error(
-          '${p.relative(stateFile.path)} — freezed part missing (run build_runner).',
+          '${p.relative(stateFile.path)} — freezed part missing (run '
+          'build_runner).',
           file: stateFile.path,
           fix: const BuildRunnerFix('business'),
         ),
@@ -215,8 +218,9 @@ void checkSubstates(FrxWorkspace repo, List<Finding> into) {
 ///
 /// One line per field, feeding the `Δ connectivity, logIn` the action logger
 /// prints. frx wired the `AppState` field and the selectors facade and did not
-/// know this list existed, so a substate added by frx was invisible to the trace
-/// from the moment it was created, and a renamed one kept printing its old name.
+/// know this list existed, so a substate added by frx was invisible to the
+/// trace from the moment it was created, and a renamed one kept printing its
+/// old name.
 ///
 /// **Warnings, never errors.** Nothing crashes; what breaks is the answer the
 /// log gives the person reading it. And the block belongs to the project — one
@@ -248,7 +252,7 @@ void checkChangeLog(FrxWorkspace repo, List<Finding> into) {
   final AppStateSource appState;
   try {
     appState = AppStateSource.of(repo);
-  } on StateError {
+  } on FrxRefusal {
     // `checkSubstates` has already said AppState is missing; saying it twice
     // tells the reader nothing and buries the finding that matters.
     return;
@@ -333,7 +337,7 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
       if (!source.contains('equals:') && !source.contains('get props')) {
         continue;
       }
-      for (final vm in VmReader.of(file)) {
+      for (final vm in viewModelsOfFile(file)) {
         for (final field in vm.fieldsOutsideEquality) {
           // Two ways to be uncompared, and telling a reader which one saves the
           // argument. A field absent from the list is an oversight; a field
@@ -342,7 +346,8 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
           // spelled right there reads as the tool not having looked.
           final how = vm.comparedOnlyDerived(field)
               ? 'is compared only through something derived from it, so two of '
-                    'them differing in it but not in that derived value compare '
+                    'them differing in it but not in that derived value '
+                    'compare '
                     'equal and the rebuild is lost.'
               : 'is outside the equality it declares, so two of them differing '
                     'only in it compare equal and the rebuild is lost.';
@@ -363,11 +368,15 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
 /// Two getters on one facade computing the same thing.
 ///
 /// **The residue of a refusal frx makes correctly.** `add-selector` will not
-/// overwrite a name that is taken — `⚠ SelectInvite.isWaiting is taken — left
-/// as it is. Add a reader by hand under a name of your own.` — and doing
-/// exactly that leaves two getters with one body. Neither is wrong; together
-/// they are a fact with two spellings, and the next change to the state behind
-/// them has to remember both. Nothing recorded the pair, so nothing said so.
+/// overwrite a name that is taken:
+///
+///     ⚠ SelectInvite.isWaiting is taken — left as it is. Add a reader by
+///     hand under a name of your own.
+///
+/// — and doing exactly that leaves two getters with one body. Neither is wrong;
+/// together they are a fact with two spellings, and the next change to the
+/// state behind them has to remember both. Nothing recorded the pair, so
+/// nothing said so.
 ///
 /// A warning, and character-for-character: two getters that compute the same
 /// thing by different routes are a judgement call frx has no business making,
@@ -426,9 +435,9 @@ void checkDuplicateSelectors(FrxWorkspace repo, List<Finding> into) {
 /// Putting `WaitingAction` last is only correct because the project's own
 /// `WaitingAction` chains `super` in both hooks — and that file is the app's,
 /// not frx's. In a clone whose `WaitingAction` still swallows the chain, last
-/// position moves the loss rather than fixing it: the barrier comes down and the
-/// reentrancy lock is never released, so the action never runs a second time.
-/// Both halves have to hold, so both are reported.
+/// position moves the loss rather than fixing it: the barrier comes down and
+/// the reentrancy lock is never released, so the action never runs a second
+/// time. Both halves have to hold, so both are reported.
 ///
 /// An error rather than a silenceable warning: it names async_redux's own
 /// mixins doing what async_redux's own source says they do, so unlike the
@@ -468,7 +477,7 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
     }
     final where = p.relative(file.path);
 
-    for (final hook in MixinChainReader.hooksOf(file, 'WaitingAction')) {
+    for (final hook in hookOverridesOf(file, 'WaitingAction')) {
       if (hook.chainsSuper) {
         continue;
       }
@@ -484,7 +493,7 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
       );
     }
 
-    for (final applied in MixinChainReader.applicationsIn(file)) {
+    for (final applied in mixinApplicationsIn(file)) {
       for (final swallower in applied.after('WaitingAction')) {
         if (!swallowers.contains(swallower)) {
           continue;
@@ -540,24 +549,23 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
 
 /// Files the analyzer could only recover a tree from.
 ///
-/// The reader tier is tolerant of unparseable source on purpose: one broken file
-/// in somebody's repo must not take a whole audit down. The tolerance was
+/// The reader tier is tolerant of unparseable source on purpose: one broken
+/// file in somebody's repo must not take a whole audit down. The tolerance was
 /// silent, and silence is the worse half of that bargain — every check above
-/// answers from whatever tree it was handed, and a file with a missing brace has
-/// no `@RoutePage` as far as the route check can tell. So a broken file used to
-/// make the audit *more* confident, not less: `✓ No issues found.`
+/// answers from whatever tree it was handed, and a file with a missing brace
+/// has no `@RoutePage` as far as the route check can tell. So a broken file
+/// used to make the audit *more* confident, not less: `✓ No issues found.`
 ///
 /// **Bounded by what the audit read, and that is the accurate scope rather than
 /// a compromise.** Sweeping the three lib trees to parse everything was tried:
-/// it does report the broken action file that motivated this, and it costs
-/// 448 → 510 ms on the live monorepo *and* undoes the property
-/// `doctor_test`'s "the pre-filter keeps most of the tree unparsed" pins — the
-/// placement sweep's whole point. It is also answering a question that is not
-/// this one. A file no check read cannot have corrupted a finding, the editor's
-/// Dart plugin already flags syntax errors where the author is typing, and
-/// `frx graph` — which does read every action file — reports the same file as an
-/// unresolved entry. What frx uniquely knows is which of *its own* answers came
-/// from a guess.
+/// it does report the broken action file that motivated this, and it costs 448
+/// → 510 ms on the live monorepo *and* undoes the property `doctor_test`'s "the
+/// pre-filter keeps most of the tree unparsed" pins — the placement sweep's
+/// whole point. It is also answering a question that is not this one. A file no
+/// check read cannot have corrupted a finding, the editor's Dart plugin already
+/// flags syntax errors where the author is typing, and `frx graph` — which does
+/// read every action file — reports the same file as an unresolved entry. What
+/// frx uniquely knows is which of *its own* answers came from a guess.
 ///
 /// **A warning, so the exit code stays 0.** One broken file in a cloned project
 /// is the author's to fix, not a reason to fail their build.
@@ -630,7 +638,7 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
   final RoutesSource routes;
   try {
     routes = RoutesSource.of(repo);
-  } on StateError {
+  } on FrxRefusal {
     into.add(const Finding.warn('AppRouter not found — skipped route checks.'));
     return;
   }
@@ -710,10 +718,10 @@ const _sourcePackages = [
 /// A source file that search tools skip.
 ///
 /// **Why the audit reports this and not the compiler.** A NUL byte is legal
-/// Dart, invisible in an editor, and survives `dart format`. What it destroys is
-/// findability: `grep`, `git grep` and ripgrep classify the file as binary and
-/// skip it, so every symbol declared in it returns no hits — not a wrong answer,
-/// an empty one, which reads as "this does not exist".
+/// Dart, invisible in an editor, and survives `dart format`. What it destroys
+/// is findability: `grep`, `git grep` and ripgrep classify the file as binary
+/// and skip it, so every symbol declared in it returns no hits — not a wrong
+/// answer, an empty one, which reads as "this does not exist".
 ///
 /// Measured, in this repository, on the CLI's own source: one NUL written as a
 /// memo-key separator made `frx_workspace.dart` unsearchable, and
@@ -722,9 +730,9 @@ const _sourcePackages = [
 ///
 /// **This check would not have caught that one**, and saying so is the point:
 /// `tools/` is the CLI's own source and no audited project contains it. The
-/// repository-wide guard is [test/source_text_test.dart]. This check is the half
-/// that serves a *created* project, where the same byte can arrive by a paste
-/// from a terminal, a bad merge, or a generator that writes raw bytes.
+/// repository-wide guard is [test/source_text_test.dart]. This check is the
+/// half that serves a *created* project, where the same byte can arrive by a
+/// paste from a terminal, a bad merge, or a generator that writes raw bytes.
 ///
 /// Generated output is left out, and not for the usual reason. Asking for it
 /// is a different listing key, so it would walk each package's `lib/` a second
@@ -834,7 +842,7 @@ void checkFlowDocs(FrxWorkspace repo, List<Finding> into) {
   final List<DocDrift> drift;
   try {
     drift = docs.check();
-  } on StateError {
+  } on FrxRefusal {
     // No AppRouter — `checkRoutesAndConnectors` already said so.
     return;
   }
@@ -883,9 +891,10 @@ void checkSkills(FrxWorkspace repo, List<Finding> into) {
   // Reporting that would say "an agent is reading a description of a CLI that
   // is not here" about a tree that describes it exactly, and would contradict
   // this check's own rule two paragraphs up. Only the skills count.
-  final stale = SkillGen.changesIn(
-    repo.root,
-  ).where((c) => !c.path.endsWith(SkillGen.manifestName)).toList();
+  final stale = SkillGen()
+      .changesIn(repo.root)
+      .where((c) => !c.path.endsWith(SkillGen.manifestName))
+      .toList();
   if (stale.isEmpty) {
     return;
   }
@@ -910,21 +919,23 @@ void checkSkills(FrxWorkspace repo, List<Finding> into) {
 /// Hooks declared in `.claude/settings.json` must name a script that is there.
 ///
 /// A hook whose command does not resolve is the worst shape a guard can take:
-/// nothing reports it, the tool call it was meant to refuse simply succeeds, and
-/// the project looks guarded from the outside. It fails *open* and silently.
+/// nothing reports it, the tool call it was meant to refuse simply succeeds,
+/// and the project looks guarded from the outside. It fails *open* and
+/// silently.
 ///
 /// Two ways this happens, and both have happened here:
 ///
-///   * **The template was unpacked into a subdirectory.** The shipped command is
-///     `$CLAUDE_PROJECT_DIR/.claude/hooks/…`, which is right only when the
+///   * **The template was unpacked into a subdirectory.** The shipped command
+///     is `$CLAUDE_PROJECT_DIR/.claude/hooks/…`, which is right only when the
 ///     project is the checkout. Unpacked at `apps/tm_console`, the variable
 ///     points at the outer repository and the path misses by two segments — and
 ///     the settings file there had already been hand-patched to compensate.
-///   * **The script moved or was renamed** and the settings file did not follow.
+///   * **The script moved or was renamed** and the settings file did not
+///     follow.
 ///
-/// Warnings, never errors, and silent for a project with no `.claude/settings.json`:
-/// agent hooks are an opt-in convenience, and a project that removed them is not
-/// broken.
+/// Warnings, never errors, and silent for a project with no
+/// `.claude/settings.json`: agent hooks are an opt-in convenience, and a
+/// project that removed them is not broken.
 ///
 /// The variable is resolved against [repo] rather than the environment, because
 /// what is being checked is the file the project ships, not the state of
@@ -983,10 +994,12 @@ void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
         into.add(
           Finding.warn(
             '.claude/settings.json declares a ${event.key} hook whose script is '
-            'not at ${p.relative(script, from: repo.root.path)} — it fails open, '
+            'not at ${p.relative(script, from: repo.root.path)} — it fails '
+            'open, '
             'so what it refuses is being allowed with nothing said. '
             r'$CLAUDE_PROJECT_DIR is the directory holding .claude/, so a '
-            'project unpacked into a subdirectory does not need its own path in '
+            'project unpacked into a subdirectory does not need its own path '
+            'in '
             'the command.',
             file: settings.path,
           ),
@@ -1066,10 +1079,10 @@ void checkPlacement(FrxWorkspace repo, List<Finding> into) {
 ///
 /// **Neither remedy is a plain `kill`, and that is the point.**
 /// `build_runner watch` installs a handler for exactly one signal — `SIGINT`
-/// (`build_runner/lib/src/commands/watch_command.dart`, `ProcessSignal
-/// .sigint.watch()`). A bare `kill` sends `SIGTERM`, which it never hears
-/// about, so the process dies wherever it happens to be with no drain and no
-/// release of its lock.
+/// (`build_runner/lib/src/commands/watch_command.dart`,
+/// `ProcessSignal .sigint.watch()`). A bare `kill` sends `SIGTERM`, which it
+/// never hears about, so the process dies wherever it happens to be with no
+/// drain and no release of its lock.
 ///
 /// `build_runner stop` is named first because it is the sanctioned one: it
 /// writes a `.requested` file beside the build lock and the running watch picks

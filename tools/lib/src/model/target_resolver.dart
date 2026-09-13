@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../redux/app_state_source.dart';
+import '../refusal.dart';
 import '../routing/routes_source.dart';
 import '../util/casing.dart';
 import 'page_artifact.dart';
@@ -33,7 +34,7 @@ class TargetResolver {
   const TargetResolver(this.appState, this.routes, {this._origin});
 
   /// Locates both wiring sources from [root] (or the current directory),
-  /// tolerating a missing one (its `locate` throws [StateError] → null).
+  /// tolerating a missing one (its `locate` throws [FrxRefusal] → null).
   ///
   /// The one place that still *walks* for these files rather than taking them
   /// from a resolved workspace, and it is asking a different question: not
@@ -57,7 +58,7 @@ class TargetResolver {
   static T? _tryLocate<T>(T Function() locate) {
     try {
       return locate();
-    } on StateError {
+    } on FrxRefusal {
       return null;
     }
   }
@@ -95,7 +96,8 @@ class TargetResolver {
     final page = isPage(name);
     if (substate && page) {
       return Resolution.failure(
-        '"${name.pascal}" matches both a substate (${SubstateArtifact(name).field}) '
+        '"${name.pascal}" matches both a substate '
+        '(${SubstateArtifact(name).field}) '
         'and a page (${PageArtifact(name).routeType}). '
         'Disambiguate with --kind substate|page.',
         64,

@@ -1,15 +1,15 @@
 /// The machine-readable result of a write — **one format in two states**.
 ///
 /// Eight reading commands emitted machine output and no writing command did,
-/// which is backwards for an agent: reading source is something an agent already
-/// does well, while writing five wired edits across two packages is what it does
-/// badly.
+/// which is backwards for an agent: reading source is something an agent
+/// already does well, while writing five wired edits across two packages is
+/// what it does badly.
 ///
-/// There is no second format for results. The `--json` flag emits the changeset;
-/// with `--dry-run` it is marked not applied, without it, applied. That only
-/// works because [apply] is atomic — the result *is* the plan plus a marker, so
-/// a partial state has no shape to describe. Terraform needs two objects because
-/// its applies go partial; this one will not.
+/// There is no second format for results. The `--json` flag emits the
+/// changeset; with `--dry-run` it is marked not applied, without it, applied.
+/// That only works because [apply] is atomic — the result *is* the plan plus a
+/// marker, so a partial state has no shape to describe. Terraform needs two
+/// objects because its applies go partial; this one will not.
 ///
 /// **Compatibility is additive-only, with no version number.** Fields are never
 /// removed or repurposed, and a consumer must ignore fields it does not
@@ -29,7 +29,7 @@ import 'diff.dart';
 /// What a `build_runner` step did, for the result of the command that triggered
 /// it.
 ///
-/// [handedToWatch] is the field that had to live here rather than in the audit.
+/// `handedToWatch` is the field that had to live here rather than in the audit.
 /// Around a live watch a command stands down and hands the build over, and an
 /// agent needs to know that at the moment it acts rather than when it audits
 /// later. It is the rule *machine output describes the file tree* deciding a
@@ -57,9 +57,9 @@ typedef BuildReport = ({
 /// Snapshotted **before** the changeset is applied, which is not an
 /// optimisation: a [WriteFile]'s operation is `create` or `overwrite` depending
 /// on what the disk holds, and its diff is computed against that same content.
-/// Read afterwards, every creation would report itself as an overwrite of itself
-/// with an empty diff — and the claim that the planned and applied states share
-/// one shape would be false.
+/// Read afterwards, every creation would report itself as an overwrite of
+/// itself with an empty diff — and the claim that the planned and applied
+/// states share one shape would be false.
 class WriteReport {
   WriteReport._(this._command, this._changes);
 
@@ -85,8 +85,8 @@ class WriteReport {
   /// Merges [parts] into one result, in written order — what a batch emits.
   ///
   /// A batch is one changeset as far as a consumer is concerned: it applied
-  /// completely or not at all, so describing it as several results would suggest
-  /// a partial state the transaction has made impossible.
+  /// completely or not at all, so describing it as several results would
+  /// suggest a partial state the transaction has made impossible.
   factory WriteReport.batch(String command, Iterable<WriteReport> parts) =>
       WriteReport._(command, [for (final p in parts) ...p._changes]);
 
@@ -99,12 +99,13 @@ class WriteReport {
   /// `batch` needs it: by the time it reports, the changesets are staged into a
   /// transaction and all it holds is `written`/`removed` — flat path lists with
   /// no operation on them. So it printed `write` for every one, where the same
-  /// change is `overwrite`, `edit` or `move` in every single-command plan and in
-  /// this report's own JSON, and it printed absolute paths where the rest of the
-  /// CLI prints relative ones.
+  /// change is `overwrite`, `edit` or `move` in every single-command plan and
+  /// in this report's own JSON, and it printed absolute paths where the rest of
+  /// the CLI prints relative ones.
   ///
-  /// The verbs come from [_describe], which is the one place that decides them —
-  /// so a batch and the commands inside it cannot disagree about what happened.
+  /// The verbs come from [_describe], which is the one place that decides them
+  /// — so a batch and the commands inside it cannot disagree about what
+  /// happened.
   String human({String? from}) {
     String rel(String path) =>
         from == null ? p.relative(path) : p.relative(path, from: from);
@@ -143,13 +144,14 @@ class WriteReport {
       },
   });
 
-  /// One change: its address, its operation, and — where there is text to show —
-  /// a unified diff.
+  /// One change: its address, its operation, and — where there is text to show
+  /// — a unified diff.
   ///
   /// A diff rather than file contents, which would make the payload two source
-  /// files large per file touched. A delete and a move carry none: the operation
-  /// and the path already say the whole of what happens, and rendering a removal
-  /// as an all-minus diff is the whole-file payload under another name.
+  /// files large per file touched. A delete and a move carry none: the
+  /// operation and the path already say the whole of what happens, and
+  /// rendering a removal as an all-minus diff is the whole-file payload under
+  /// another name.
   static Map<String, Object?> _describe(
     Change c,
     String Function(String) rel,

@@ -104,7 +104,8 @@ class UpgradeCommand extends Command<int> {
       case UpgradeStatus.available:
         // Only `--check` returns this — an unchecked run installs instead of
         // announcing — so the hint needs no condition. The `check` parameter
-        // stays out of it rather than reading as a branch that can go both ways.
+        // stays out of it rather than reading as a branch that can go both
+        // ways.
         console.out
           ..writeln('frx ${result.to} is available (this is ${result.from}).')
           ..writeln('Run `frx upgrade` to install it.');

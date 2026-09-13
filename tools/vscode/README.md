@@ -452,7 +452,10 @@ flowchart LR
         direction TB
         persistor["AppPersistor<br>persistor"]
         pLogIn["logIn<br>/login"]
-        pHome["home<br>/home"]
+        subgraph pHome["home &nbsp;/home"]
+            direction TB
+            cBar["StatusBarConnector<br>consumer"]
+        end
     end
 
     subgraph state["State"]
@@ -465,11 +468,26 @@ flowchart LR
     pLogIn ---|"dispatches · reads"| sLogIn
     pLogIn ---|"reads"| sSession
     pLogIn ---|"navigates"| pHome
+    cBar ---|"reads"| sSession
 ```
 
 The shape, not the rendering: the webview draws its own SVG — this diagram stands
-in for it here, and the properties below are what that renderer adds. The panel
-also carries what the graph could not resolve:
+in for it here, and the properties below are what that renderer adds. Beside the
+picture sits a pane that says in words what the focused row's lines mean:
+
+```text
+logIn                        page · connectors/log_in_page_connector.dart
+CHANGES
+  logIn · LogInAction        onSubmit
+  session · SetTokenAction   onSubmit
+READS
+  logIn · email
+  session
+BUILDS
+  StatusBarConnector
+```
+
+The panel also carries what the graph could not resolve:
 
 ```text
 ⚠ 1 unresolved edge(s)
@@ -484,6 +502,32 @@ indistinguishable anywhere, and doubling every crossing they take part in.
 Direction folds in too: the picture draws no arrowheads, so two pages that
 navigate to each other are one stroke. Hovering the line names every relation it
 carries, and the ones running the other way are marked.
+
+**A line's colour is what it does to state.** A line that changes it —
+`dispatches`, `writes`, `restores` — is drawn in the theme's accent; a line that
+only reads it is neutral. The first question on arriving anywhere is "who can
+change this", and it used to take a hover per line to answer. A pair related both
+ways is a changing line. Navigation stays dashed; the line a second builder keeps
+is dotted. Every row carries its kind as a coloured edge in the same palette —
+page, connector, service, persistor, substate — so the mixed column sorts itself
+without reading the subtitles.
+
+**Clicking a row pins it, and the pane says what its lines mean.** Hover
+focuses; click holds the focus after the pointer leaves, so the picture can be
+scrolled with one row's relations lit and the pane read at leisure; Esc lets go.
+The pane lists the row's relations grouped by what they do and which way they
+run — *Changed by* heads a substate, *Changes* an actor — each naming the row
+across, the action or selector the fold hid, and what triggers it; every entry
+opens the thing it names. The picture gives the shape; the pane gives the
+specifics a line cannot carry. On a panel too narrow for both it becomes a sheet
+along the bottom, shown only while something is focused.
+
+**What a row builds folds, like what a substate owns.** `▸ 10 regions` on a
+screen hides its regions and lands their lines on it — the same fold that puts
+an action's edges on its substate — so a console app of one page and twenty-six
+connectors is one screen of overview and unfolds into the detail. A row with more
+than three regions starts folded; the choice is remembered across a refresh, and
+so is the pin.
 
 **Two relations never leave a row from the same point.** Each is given a slot
 along the row's edge, ordered by the row it reaches so a row's fan does not cross
@@ -501,6 +545,16 @@ it. Those
 relations also get a say in the order, so a page that only navigates sits beside
 the page it navigates to instead of sinking to the bottom.
 
+**Composition is nesting, not wires.** A screen is built out of connectors, and
+those out of more; the graph carries that as `builds` edges. Drawn as lines they
+are a rope down the left margin — on a real console app, one page, twenty-six
+connectors and twenty-five such lines — and the relation a reader can follow
+least is the one that says how the screen is put together. So a row sits
+**indented under the row that builds it**, however deep, and no line is drawn
+for it. A row two things build sits under the first by name and keeps a line to
+the other. What remains a wire is what a row does to state, and to rows it does
+not build.
+
 **The rows are ordered by their edges, not by name.** The number of crossings in a
 two-column drawing is decided entirely by the order of the two columns, so the
 columns are arranged to reduce it — each row placed near the mean position of the
@@ -510,7 +564,25 @@ repository it left **44** crossings where **2** was available, over the same
 nineteen rows and twenty lines. The arrangement is a function of the graph
 alone, so re-opening the picture or refreshing it after an unrelated edit does not
 rearrange it. A row nothing connects to has no place to be near, so it sinks to
-the bottom of its column rather than splitting the connected ones apart.
+the bottom of its column rather than splitting the connected ones apart. Nesting
+is a constraint on the order: a built row only moves among its siblings, and a
+screen is placed by the mean of everything under it, so it and its regions move
+as one block.
+
+**The shorter column is placed level with what it relates to.** Thirty-four rows
+facing nine put every line on a long diagonal into a short stack, bundled beside
+the taller column; the order was right and the heights were not. Each row of the
+shorter column is set at the mean height of the rows across from it, kept in
+order and apart, so a line runs level to the row it names — a hub substate sits
+in the middle of the screen that reads it. The taller column stays a plain list,
+which is what the page scrolls by.
+
+**A column is as wide as its widest row, and no narrower.** Measured from the
+content — the longest name at its own indent, since a row three levels deep has
+lost 72px before it starts — so a name never breaks across two lines or runs out
+of its box, and a narrow panel gives up margin and gap before it gives up a
+column. Past that the page scrolls sideways rather than squeezing a count onto
+two lines.
 
 **Legibility comes from a skeleton, not from filtering.** Substates and pages are
 always visible and form the shape of "how it is built"; **actions and selectors
@@ -524,7 +596,8 @@ into a hairball. Four dispatches from one page into one substate are **one** lin
 in legibility, and the one that changes nothing about what the picture contains:
 the crossings that remain stop mattering when a reader can isolate one row's
 relations instead of following a line through the ones that cross it. Attached
-means *directly* — the rows this one relates to and the wires between them; the
+means *directly* — the rows this one relates to and the wires between them, as
+drawn, so a folded row is attached to whatever its regions' lines now reach; the
 transitive reach is what `frx graph --focus X -d inbound` is for.
 
 **Every node opens its source** — a substate its state file, a page its connector,
@@ -560,10 +633,19 @@ On the monorepo's conventional files (always on — see [Settings](#settings)):
 - `app/lib/connectors/<x>_page_connector.dart` — **Open page** jump (shown only
   when the counterpart file exists) and **Flow**, which opens that page's
   sequence diagram.
+- `app/lib/connectors/<x>_connector.dart` — **Open widget** jump to the `ui`
+  file the connector wraps. No Flow: `frx flow` walks a page.
 - `ui/lib/pages/<x>_page.dart` — **Open connector** jump (same condition).
+- any other `ui/lib/**/<x>.dart` — **Open connector** jump to
+  `<x>_connector.dart`, when there is one.
 
 Lenses are derived from paths and a class-name regex — no CLI call, so they
-render instantly.
+render instantly. The one read past the path is a widget connector's imports:
+which widget it wraps is stated there and nowhere else, since `add-widget -k
+field` puts `Pin` in `pin_form_field.dart` and a widget may live in any folder
+of the `ui` package. The `package:ui/` import named for the connector's stem
+wins; failing that, the only `package:ui/` import; two or more and none named
+is a guess, and no lens is shown rather than a wrong one.
 
 ### Doctor → Problems panel
 

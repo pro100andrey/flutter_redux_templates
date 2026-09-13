@@ -4,6 +4,7 @@ import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
 import '../engine/watch_supervision.dart';
+import '../refusal.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
@@ -54,7 +55,7 @@ class WatchCommand extends Command<int> {
     } else {
       cwd = p.join(workspace.root.path, package);
       if (!File(p.join(cwd, 'pubspec.yaml')).existsSync()) {
-        throw StateError(
+        throw FrxRefusal(
           'No package "$package" at ${p.relative(cwd)} '
           '(looked for its pubspec.yaml).',
         );

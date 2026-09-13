@@ -60,13 +60,13 @@ class WidgetScaffold {
 
   /// `PinFormField`, `SubmitButton`, `ExerciseCard`.
   ///
-  /// [name] is already stripped by the constructor, so this appends and does not
-  /// strip again. Making it call [classNameFor] instead stripped twice on the
-  /// scaffolding path and once on the removal path — `add-widget
-  /// SubmitButtonButton -k action` wrote `submit_button.dart` while `remove
-  /// SubmitButtonButton` looked for `submit_button_button.dart`, which is the
-  /// same disagreement the public accessor was added to end, reintroduced by
-  /// ending it carelessly.
+  /// [name] is already stripped by the constructor, so this appends and does
+  /// not strip again. Making it call [classNameFor] instead stripped twice on
+  /// the scaffolding path and once on the removal path —
+  /// `add-widget SubmitButtonButton -k action` wrote `submit_button.dart` while
+  /// `remove SubmitButtonButton` looked for `submit_button_button.dart`, which
+  /// is the same disagreement the public accessor was added to end,
+  /// reintroduced by ending it carelessly.
   String get className => _classOf(name, kind);
 
   /// The class `add-widget <typed> --kind <kind>` writes, for the name as the

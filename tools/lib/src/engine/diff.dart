@@ -130,7 +130,8 @@ List<_Hunk> _hunks(List<_Line> script, int context) {
     final from = (lo - context).clamp(0, script.length);
     final to = (hi + context + 1).clamp(0, script.length);
     // Compute the 1-based start lines by counting entries before `from`.
-    var oldLine = 1, newLine = 1;
+    var oldLine = 1;
+    var newLine = 1;
     for (var k = 0; k < from; k++) {
       if (script[k].tag != '+') {
         oldLine++;

@@ -7,6 +7,7 @@ import 'package:analyzer/dart/ast/visitor.dart';
 import '../ast/construction.dart';
 import '../ast/source_index.dart';
 import '../redux/ast_edit.dart';
+import '../refusal.dart';
 
 /// One argument the destination route takes — `id` of type `int`.
 class NavParam {
@@ -109,7 +110,7 @@ class NavSource {
     final vm = _class(unit, '_Vm');
     final factory = _class(unit, '_Factory');
     if (vm == null || factory == null) {
-      throw StateError(
+      throw const FrxRefusal(
         'the connector has no `_Vm`/`_Factory` pair — it was not written by '
         'frx, so where the callback goes is a guess',
       );
@@ -124,22 +125,26 @@ class NavSource {
     // `_Vm({required this.onTapItem, …})` plus the field it initialises.
     final ctor = _constructor(vm);
     if (ctor == null) {
-      throw StateError('`_Vm` has no constructor to add the callback to');
+      throw const FrxRefusal('`_Vm` has no constructor to add the callback to');
     }
-    edits.add(_namedParamInsertion(ctor, 'required this.$callback'));
-    edits.add(Edit.insert(vm.end - 1, '\n  final $signature $callback;\n'));
+    edits
+      ..add(_namedParamInsertion(ctor, 'required this.$callback'))
+      ..add(Edit.insert(vm.end - 1, '\n  final $signature $callback;\n'));
     changes.add('_Vm.$callback ($signature)');
 
     // `_Vm fromStore() => _Vm(onTapItem: (id) => dispatch(…))`.
     final created = _vmCreation(factory);
     if (created == null) {
-      throw StateError('`_Factory.fromStore` does not return a `_Vm(...)`');
+      throw const FrxRefusal(
+        '`_Factory.fromStore` does not return a `_Vm(...)`',
+      );
     }
     final lambda = params.map((p) => p.name).join(', ');
     // `const` exactly when the route takes nothing. `pro_lints` turns on
-    // `prefer_const_constructors`, so a scaffolded `GoAction.push(TasksRoute())`
-    // was code this repository's own analyzer refuses — and with arguments the
-    // keyword would be wrong, so it cannot simply always be there.
+    // `prefer_const_constructors`, so a scaffolded
+    // `GoAction.push(TasksRoute())` was code this repository's own analyzer
+    // refuses — and with arguments the keyword would be wrong, so it cannot
+    // simply always be there.
     final route = args.isEmpty ? 'const $routeType()' : '$routeType($args)';
     final dispatched = 'GoAction.$method($route)';
     edits.add(
@@ -184,14 +189,14 @@ class NavSource {
     final unit = parseString(content: content, throwIfDiagnostics: false).unit;
     final cls = _class(unit, pageClass);
     if (cls == null) {
-      throw StateError('no `class $pageClass` in the page file');
+      throw FrxRefusal('no `class $pageClass` in the page file');
     }
     if (_hasField(cls, callback)) {
       return Edited.nothing(content);
     }
     final ctor = _constructor(cls);
     if (ctor == null) {
-      throw StateError('`$pageClass` has no constructor');
+      throw FrxRefusal('`$pageClass` has no constructor');
     }
 
     final signature = 'void Function(${params.map((p) => p.type).join(', ')})';
@@ -200,7 +205,10 @@ class NavSource {
     final superKey = named.where((p) => p.name?.lexeme == 'key').firstOrNull;
     return Edited(
       source: applyEdits(content, [
-        if (superKey != null) Edit.insert(superKey.offset, 'required this.$callback, ') else _namedParamInsertion(ctor, 'required this.$callback'),
+        if (superKey != null)
+          Edit.insert(superKey.offset, 'required this.$callback, ')
+        else
+          _namedParamInsertion(ctor, 'required this.$callback'),
         Edit.insert(cls.end - 1, '\n  final $signature $callback;\n'),
       ]),
       changes: ['$pageClass.$callback ($signature)'],
@@ -255,7 +263,7 @@ class NavSource {
     // source that does not parse. Refused rather than mangled, like a
     // connector frx did not write.
     if (params.parameters.any((p) => p.isOptionalPositional)) {
-      throw StateError(
+      throw FrxRefusal(
         'the constructor takes optional positional parameters, which Dart '
         'does not allow alongside named ones — add `$element` by hand',
       );

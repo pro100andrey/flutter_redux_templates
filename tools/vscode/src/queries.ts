@@ -112,7 +112,15 @@ export interface GraphGap {
 export interface GraphEdge {
   from: string;
   to: string;
-  kind: 'writes' | 'dispatches' | 'navigates' | 'reads' | 'restores' | 'waitsFor' | 'uses';
+  kind:
+    | 'writes'
+    | 'dispatches'
+    | 'navigates'
+    | 'reads'
+    | 'restores'
+    | 'builds'
+    | 'waitsFor'
+    | 'uses';
   /** What triggers it — a callback, a `copyWith` field list, a getter name. */
   via?: string;
   condition?: string;

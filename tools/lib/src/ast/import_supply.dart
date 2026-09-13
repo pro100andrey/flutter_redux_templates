@@ -2,31 +2,32 @@
 /// imports it took the last reason for.
 ///
 /// The inverse of `TypeImports`, and needed because that direction only answers
-/// for what it knows. `TypeImports` is a table — "a snippet naming `IList` needs
-/// fast_immutable_collections" — and a table can only be asked about the entries
-/// somebody wrote into it. Every other import in a file is invisible to it, so
-/// `frx remove … --kind selector` took
+/// for what it knows. `TypeImports` is a table — "a snippet naming `IList`
+/// needs fast_immutable_collections" — and a table can only be asked about the
+/// entries somebody wrote into it. Every other import in a file is invisible to
+/// it, so `frx remove … --kind selector` took
 ///
-///     bool get isWaiting => _state.wait.isWaitingForType<LoadContactsAction>();
+///     bool get isWaiting =>
+///         _state.wait.isWaitingForType<LoadContactsAction>();
 ///
-/// out of the facade and left `import 'contacts/actions/load_contacts_action.dart'`
-/// behind, and did the same with the package that supplied the return type of the
-/// one other getter that named it. Two `unused_import`s and a hand edit to a file
-/// under the placement guard — which is the shape of thing the command exists to
-/// avoid.
+/// out of the facade and left
+/// `import 'contacts/actions/load_contacts_action.dart'` behind, and did the
+/// same with the package that supplied the return type of the one other getter
+/// that named it. Two `unused_import`s and a hand edit to a file under the
+/// placement guard — which is the shape of thing the command exists to avoid.
 ///
 /// **The question is answered by reading, not by a table.** An import URI
-/// resolves to a file; a file declares names and hands on the ones it exports; a
-/// name in the surviving source is what keeps the import. That covers a relative
-/// import, a package one, the project's own packages and pub's alike, and it
-/// needs no entry written in advance.
+/// resolves to a file; a file declares names and hands on the ones it exports;
+/// a name in the surviving source is what keeps the import. That covers a
+/// relative import, a package one, the project's own packages and pub's alike,
+/// and it needs no entry written in advance.
 ///
 /// **A name can have two suppliers, and that decides nothing on its own.** A
 /// project on a generated Serverpod client gets `UuidValue` from it *and* from
-/// the auth package beside it. An import still naming something the file uses is
-/// only kept when no import that is *staying* supplies that name too — which is
-/// the rule the analyzer's own `unused_import` applies, and without it the second
-/// of two suppliers can never be removed.
+/// the auth package beside it. An import still naming something the file uses
+/// is only kept when no import that is *staying* supplies that name too — which
+/// is the rule the analyzer's own `unused_import` applies, and without it the
+/// second of two suppliers can never be removed.
 ///
 /// **Every uncertainty keeps the import.** An export that does not resolve, a
 /// package outside `package_config.json`, a URI in a scheme this cannot read —
@@ -49,17 +50,17 @@ import '../redux/ast_edit.dart';
 /// Removes the imports of [source] that nothing in it needs any more.
 ///
 /// [file] is the file [source] belongs to — where it sits decides what a
-/// relative URI means and which `package_config.json` answers for a package one.
-/// [source] is the text *after* the removal, since the question is about what
-/// survived it.
+/// relative URI means and which `package_config.json` answers for a package
+/// one. [source] is the text *after* the removal, since the question is about
+/// what survived it.
 ///
 /// [removedNames] scopes the pass to the edit that prompted it: an import is a
 /// candidate only when it supplies a name the removal took out of the file
-/// altogether. An import that was already unused before this command ran stays —
-/// cleaning it up is not this edit's business, and a `remove` that quietly tidies
-/// imports it was not pointed at is a diff nobody asked for. It is also what
-/// keeps the pass off the disk in the ordinary case: no name vanished, no import
-/// can have died, and not one library is opened.
+/// altogether. An import that was already unused before this command ran stays
+/// — cleaning it up is not this edit's business, and a `remove` that quietly
+/// tidies imports it was not pointed at is a diff nobody asked for. It is also
+/// what keeps the pass off the disk in the ordinary case: no name vanished, no
+/// import can have died, and not one library is opened.
 ({String source, List<String> changes}) pruneUnusedImports(
   String source, {
   required File file,
@@ -75,10 +76,10 @@ import '../redux/ast_edit.dart';
     return (source: source, changes: const []);
   }
 
-  // A library whose parts are not in front of us is a library whose uses are not
-  // either: a `part` names types on the importing file's behalf, and a generated
-  // one is usually stale at exactly the moment a removal runs. There is nothing
-  // to say about such a file, so nothing is said.
+  // A library whose parts are not in front of us is a library whose uses are
+  // not either: a `part` names types on the importing file's behalf, and a
+  // generated one is usually stale at exactly the moment a removal runs. There
+  // is nothing to say about such a file, so nothing is said.
   if (unit.directives.whereType<PartDirective>().isNotEmpty) {
     return (source: source, changes: const []);
   }
@@ -96,8 +97,8 @@ import '../redux/ast_edit.dart';
     if (uri == null) {
       continue;
     }
-    // A prefixed import is reached by its prefix and by nothing else, so what it
-    // supplies never has to be resolved.
+    // A prefixed import is reached by its prefix and by nothing else, so what
+    // it supplies never has to be resolved.
     final prefix = imp.prefix?.name;
     final names = prefix != null ? {prefix} : supply.of(uri);
     if (names == null) {
@@ -111,8 +112,8 @@ import '../redux/ast_edit.dart';
   final gone = <ImportDirective>{};
   for (final imp in imports) {
     final names = supplied[imp];
-    // Every import that could answer for a vanished name is judged, not just the
-    // first one that can.
+    // Every import that could answer for a vanished name is judged, not just
+    // the first one that can.
     if (names == null || !names.any(vanished.contains)) {
       continue;
     }
@@ -144,12 +145,14 @@ import '../redux/ast_edit.dart';
 /// needed" comes down to.
 ///
 /// Read off the tree rather than scanned out of the text, and the difference is
-/// not academic: a facade whose prose said "this *slice* has more than one thing"
-/// counted `slice` as a use, and an import that happened to declare that name
-/// somewhere could never be removed again. Doc *references* — the `[Thing]` kind
-/// — are in the tree and do count, which is the same line the analyzer draws.
+/// not academic: a facade whose prose said "this *slice* has more than one
+/// thing" counted `slice` as a use, and an import that happened to declare that
+/// name somewhere could never be removed again. Doc *references* — the
+/// `[Thing]` kind — are in the tree and do count, which is the same line the
+/// analyzer draws.
 ///
-/// The directives are skipped: an import naming what it shows is not a use of it.
+/// The directives are skipped: an import naming what it shows is not a use of
+/// it.
 Set<String> namesUsedIn(CompilationUnit unit) {
   final visitor = _UsedNameVisitor();
   for (final declaration in unit.declarations) {
@@ -158,8 +161,8 @@ Set<String> namesUsedIn(CompilationUnit unit) {
   return visitor.names;
 }
 
-/// The names [node] names — [namesUsedIn] asked of one declaration, which is how
-/// a caller says what its removal took away.
+/// The names [node] names — [namesUsedIn] asked of one declaration, which is
+/// how a caller says what its removal took away.
 Set<String> namesIn(AstNode node) {
   final visitor = _UsedNameVisitor();
   node.accept(visitor);
@@ -248,13 +251,13 @@ class _Supply {
   ///
   /// Reached because packages re-export them — `serverpod_auth_core_client`
   /// hands on `dart:collection`, `flutter/painting.dart` hands on `dart:ui` —
-  /// and a re-export that could not be read made the whole answer unknown. Which
-  /// meant the pass could prune a relative import and never a package one, since
-  /// every package worth importing reaches the SDK somewhere.
+  /// and a re-export that could not be read made the whole answer unknown.
+  /// Which meant the pass could prune a relative import and never a package
+  /// one, since every package worth importing reaches the SDK somewhere.
   ///
-  /// Two files hold the mapping and a project has exactly one of them: a Flutter
-  /// project resolves `dart:ui` and the rest through `sky_engine`'s embedder
-  /// file, a plain Dart one through the SDK's own `libraries.json`.
+  /// Two files hold the mapping and a project has exactly one of them: a
+  /// Flutter project resolves `dart:ui` and the rest through `sky_engine`'s
+  /// embedder file, a plain Dart one through the SDK's own `libraries.json`.
   File? _sdk(String uri) {
     if (!_readSdk) {
       _readSdk = true;
@@ -326,8 +329,8 @@ class _Supply {
         // declares `part 'patch.dart'`, and the patch is supplied by the build
         // rather than shipped beside the source. What such a part declares is
         // the SDK's implementation of itself, which no import of a project file
-        // is there for — so it is skipped, where an export that does not resolve
-        // still makes the whole answer unknown.
+        // is there for — so it is skipped, where an export that does not
+        // resolve still makes the whole answer unknown.
         if (directive is PartDirective) {
           continue;
         }
@@ -344,8 +347,8 @@ class _Supply {
 /// Every name a compilation unit hands to whoever imports it.
 ///
 /// An extension contributes its member names as well as its own: `.toIList()`
-/// names neither the extension nor the type it is on, and an import that supplies
-/// only that is still an import the code needs.
+/// names neither the extension nor the type it is on, and an import that
+/// supplies only that is still an import the code needs.
 Set<String> declaredNamesIn(CompilationUnit unit) {
   final names = _Public();
   for (final d in unit.declarations) {
@@ -404,8 +407,8 @@ class _Public {
 
 /// `dart:x → file`, from a Flutter project's `sky_engine/lib/_embedder.yaml`.
 ///
-/// Null when there is no `sky_engine` to read, which is what a plain Dart project
-/// looks like.
+/// Null when there is no `sky_engine` to read, which is what a plain Dart
+/// project looks like.
 Map<String, String>? _embeddedLibraries(String? skyEngineLib) {
   if (skyEngineLib == null) {
     return null;
@@ -450,16 +453,17 @@ Map<String, String>? _sdkLibraries() {
   if (doc is! Map) {
     return null;
   }
-  // The VM's list, since that is the platform frx and its project are built for.
-  // The others describe the same libraries for a different compiler.
+  // The VM's list, since that is the platform frx and its project are built
+  // for. The others describe the same libraries for a different compiler.
   final platform = doc['vm'];
   if (platform is! Map || platform['libraries'] is! Map) {
     return null;
   }
   return {
-    for (final entry in (platform['libraries'] as Map).entries)
+    for (final entry
+        in (platform['libraries']! as Map<String, Object?>).entries)
       if (entry.key case final String name)
-        if (entry.value case final Map spec)
+        if (entry.value case final Map<String, Object?> spec)
           if (spec['uri'] case final String uri)
             'dart:$name': p.normalize(p.join(lib, uri)),
   };
@@ -469,8 +473,8 @@ Map<String, String>? _sdkLibraries() {
 /// [dir].
 ///
 /// Walked up rather than joined onto a known root because both layouts have to
-/// answer: a pub workspace writes one config at the workspace root, a standalone
-/// package writes its own.
+/// answer: a pub workspace writes one config at the workspace root, a
+/// standalone package writes its own.
 Map<String, String>? _readPackageConfig(String dir) {
   for (var at = Directory(dir); at.parent.path != at.path; at = at.parent) {
     final config = File(p.join(at.path, '.dart_tool', 'package_config.json'));

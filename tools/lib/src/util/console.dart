@@ -1,12 +1,12 @@
 /// Where the CLI writes.
 ///
 /// Every command wrote to the process streams directly — about 150 call sites —
-/// and that single fact shaped the whole test suite. `test/support/fixture.dart`
-/// states it outright: *"Running the CLI in-process is awkward (it writes to
-/// real stdout)"*, which is why every command test shells out to a cached
-/// kernel snapshot, and why fifteen of the twenty-seven commands had no test at
-/// all: covering one meant a subprocess, a fixture repo on disk, and a
-/// second-guess at what the output should look like.
+/// and that single fact shaped the whole test suite.
+/// `test/support/fixture.dart` states it outright: *"Running the CLI in-process
+/// is awkward (it writes to real stdout)"*, which is why every command test
+/// shells out to a cached kernel snapshot, and why fifteen of the twenty-seven
+/// commands had no test at all: covering one meant a subprocess, a fixture repo
+/// on disk, and a second-guess at what the output should look like.
 ///
 /// The sinks are [StringSink]s, so the swap costs nothing at the call site —
 /// a bare `stdout.writeln(x)` becomes `console.out.writeln(x)`, cascades and
@@ -26,6 +26,9 @@ import 'dart:io' as io;
 class Console {
   const Console(this.out, this.err, {this.input});
 
+  /// The real process streams.
+  factory Console.standard() => Console(io.stdout, io.stderr);
+
   /// The report: plans, tables, JSON, the ✓ lines.
   final StringSink out;
 
@@ -36,23 +39,20 @@ class Console {
   /// Standard input, when a test supplies one. Null means the process's own.
   ///
   /// Only `frx batch -` reads it, and it is here rather than read directly for
-  /// the reason the sinks are: a test that had to pipe a real stdin would need a
-  /// subprocess, which is what kept fifteen commands untested.
+  /// the reason the sinks are: a test that had to pipe a real stdin would need
+  /// a subprocess, which is what kept fifteen commands untested.
   final String? input;
 
   /// Everything on standard input, as text.
   Future<String> stdinText() async =>
       input ?? await io.systemEncoding.decodeStream(io.stdin);
-
-  /// The real process streams.
-  static Console get standard => Console(io.stdout, io.stderr);
 }
 
 const _key = #frxConsole;
 
 /// The console for the current scope — the process streams unless a
 /// [withConsole] is in effect.
-Console get console => (Zone.current[_key] as Console?) ?? Console.standard;
+Console get console => (Zone.current[_key] as Console?) ?? Console.standard();
 
 /// Runs [body] with everything it writes going to [replacement].
 ///
@@ -65,7 +65,6 @@ R withConsole<R>(Console replacement, R Function() body) =>
 
 /// A console that keeps what was written, for tests.
 class CapturedConsole extends Console {
-
   factory CapturedConsole({String? input}) =>
       CapturedConsole._(StringBuffer(), StringBuffer(), input: input);
   CapturedConsole._(this._out, this._err, {super.input}) : super(_out, _err);

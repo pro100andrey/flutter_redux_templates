@@ -102,7 +102,8 @@ void main() {
 
     test('falls back to appending when the anchor is absent', () {
       // The AppState wire hits this when the state has no `wait` field. It used
-      // to insert at the delimiter and emit `int aint b` — which does not parse.
+      // to insert at the delimiter and emit `int aint b` — which does not
+      // parse.
       const src = 'class S { const factory S({int a}) = _S; }';
       final out = intoParams(src, 'int b', before: 'wait');
       expect(out, contains('int a, int b'));
@@ -207,8 +208,8 @@ void main() {
 
     test('keeps the package block above a relative one added beside it', () {
       // The two branches that can name the same offset from different sections:
-      // `package:` after the last package import, relative after the last import
-      // overall — the same token when the file has only package imports.
+      // `package:` after the last package import, relative after the last
+      // import overall — the same token when the file has only package imports.
       const src = "import 'package:a/a.dart';\n";
       final out = addImports(src, ['package:z/z.dart', '../foo.dart']);
       expect(

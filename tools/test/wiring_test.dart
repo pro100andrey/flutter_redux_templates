@@ -89,7 +89,8 @@ void main() {
 
   group('the heading', () {
     test('a file named by its path carries the trailing colon', () {
-      // The convention three call sites used to spell out, `p.relative` and all.
+      // The convention three call sites used to spell out, `p.relative` and
+      // all.
       final out = narrating(
         () => Wiring.at(
           file,
@@ -153,8 +154,8 @@ void main() {
     });
 
     test('a skip that names the artifact drops the heading', () {
-      // `add-nav` says "LogInPage already has `onTapHome`", which the path above
-      // it would not make any clearer.
+      // `add-nav` says "LogInPage already has `onTapHome`", which the path
+      // above it would not make any clearer.
       final out = narrating(
         () => Wiring(
           file,

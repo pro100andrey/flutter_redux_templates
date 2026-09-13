@@ -56,10 +56,10 @@ class RenameEdits {
   ///   on a screen the user is looking at.
   ///
   /// Whole, and that is the narrowing: the old sweep rewrote the class name
-  /// *anywhere* inside *any* string, so `'Go to HomePage now'` moved too, and so
-  /// would a storage key that happened to contain it. A literal that is exactly
-  /// the old name is the scaffold's; one that merely contains it is somebody's
-  /// sentence.
+  /// *anywhere* inside *any* string, so `'Go to HomePage now'` moved too, and
+  /// so would a storage key that happened to contain it. A literal that is
+  /// exactly the old name is the scaffold's; one that merely contains it is
+  /// somebody's sentence.
   final Map<String, String> literals;
 
   /// The edits [unit] needs, in no particular order — `applyEdits` sorts.
@@ -125,10 +125,10 @@ class RenameEdits {
   /// [literal]'s contents replaced with [text], leaving its quoting alone.
   ///
   /// Asked of the node rather than computed as `offset + 1`: a quote is not one
-  /// character. `r'/home'` has two before the content and a triple-quoted string
-  /// has three, and splicing past them wrote `r/landing'` — source that does not
-  /// parse, out of a command whose whole promise is that it either lands or does
-  /// not.
+  /// character. `r'/home'` has two before the content and a triple-quoted
+  /// string has three, and splicing past them wrote `r/landing'` — source that
+  /// does not parse, out of a command whose whole promise is that it either
+  /// lands or does not.
   static Edit _replaceContents(SingleStringLiteral literal, String text) =>
       Edit.replace(literal.contentsOffset, literal.contentsEnd, text);
 

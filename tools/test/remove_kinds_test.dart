@@ -99,8 +99,8 @@ void main() {
       );
       expect(file.existsSync(), isTrue);
 
-      // No --kind: auto-detection has to reach the file kinds, or the reflex this
-      // command exists to replace (`rm`) is the only thing left.
+      // No --kind: auto-detection has to reach the file kinds, or the reflex
+      // this command exists to replace (`rm`) is the only thing left.
       await ok(['remove', 'ArchiveTask', '--apply']);
       expect(file.existsSync(), isFalse);
     },
@@ -227,10 +227,11 @@ void main() {
 
   test('a page-suffixed tab scaffolds one consistent spelling', () async {
     // `add-tabs` handed each --tab name raw to the scaffolder and stemmed to
-    // the artifact, so a tab called `BasketPage` produced `class BasketPagePage`
-    // inside `basket_page.dart`, a connector importing a `basket_page_page.dart`
-    // nobody wrote, and a route registered as `BasketRoute`. Four spellings,
-    // exit 0, and a project that does not compile.
+    // the artifact, so a tab called `BasketPage` produced
+    // `class BasketPagePage` inside `basket_page.dart`, a connector importing a
+    // `basket_page_page.dart` nobody wrote, and a route registered as
+    // `BasketRoute`. Four spellings, exit 0, and a project that does not
+    // compile.
     await ok([
       'add-tabs',
       'Main',
@@ -315,9 +316,9 @@ void main() {
         add: ['add-service', 'SyncService'],
         remove: ['SyncService', '--kind', 'service'],
       ),
-      // `add-enum` and `add-model` write to one directory and `remove --kind
-      // model` covers both — untested until now, which is what the ticket asked
-      // for rather than what it got.
+      // `add-enum` and `add-model` write to one directory and
+      // `remove --kind model` covers both — untested until now, which is what
+      // the ticket asked for rather than what it got.
       'enum': (
         add: ['add-enum', 'Status', '--value', 'pending', '--value', 'done'],
         remove: ['Status', '--kind', 'model'],

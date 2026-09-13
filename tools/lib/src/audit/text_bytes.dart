@@ -25,12 +25,12 @@ enum Unsearchable {
 /// What makes [bytes] unsearchable and where, or null when nothing does.
 ///
 /// The offset is a byte index, not a line: the point of the report is to be
-/// actionable on a file no editor will show you the problem in, and `xxd -s
-/// <offset>` is the tool that works there.
+/// actionable on a file no editor will show you the problem in, and
+/// `xxd -s <offset>` is the tool that works there.
 ///
 /// **Why this rule and not "any control byte".** Only these two cause the
-/// skipping. A stray `0x01` is untidy, but `grep` still reads the file and still
-/// finds what is in it, so reporting it would be this module claiming a
+/// skipping. A stray `0x01` is untidy, but `grep` still reads the file and
+/// still finds what is in it, so reporting it would be this module claiming a
 /// consequence it cannot demonstrate.
 ({Unsearchable kind, int offset})? unsearchableIn(List<int> bytes) {
   // NUL first, over the *whole* array. Folding this into the ASCII scan below
@@ -78,7 +78,8 @@ enum Unsearchable {
 String describeUnsearchable(Unsearchable kind, int offset) => switch (kind) {
   Unsearchable.nulByte =>
     'holds a NUL byte at offset $offset, which makes the whole file binary to '
-        'grep, git grep and ripgrep — they skip it, so nothing declared here is '
+        'grep, git grep and ripgrep — they skip it, so nothing declared here '
+        'is '
         r'findable. Write it as an escape (`\u0000`), or key on something that '
         'needs no separator.',
   Unsearchable.notUtf8 =>

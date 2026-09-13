@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../ast/import_supply.dart';
 import '../ast/source_index.dart';
 import '../model/selector_shape.dart';
+import '../refusal.dart';
 import '../scaffold/type_imports.dart';
 import 'ast_edit.dart';
 
@@ -41,9 +42,10 @@ class SelectorsAddResult implements EditOutcome {
 ///
 /// This repo exposes every substate's selectors through the `Selectors` mixin
 /// in `selectors.dart` — a consumer mixes it in and reads `login.email` —
-/// rather than through free functions. Wiring a substate means two edits here: a
-/// `Select<Pascal> get <field>` on the mixin, and the new `extension type
-/// Select<Pascal>` appended at the end, plus any imports the getters need.
+/// rather than through free functions. Wiring a substate means two edits here:
+/// a `Select<Pascal> get <field>` on the mixin, and the new
+/// `extension type Select<Pascal>` appended at the end, plus any imports the
+/// getters need.
 ///
 /// It was three, against a `Select` extension type that carried the same getter
 /// list and that nothing called. That type is gone from what `create` writes;
@@ -52,11 +54,11 @@ class SelectorsAddResult implements EditOutcome {
 class SelectorsSource {
   SelectorsSource(this.file);
 
-  final File file;
-
   /// The `selectors.dart` sitting next to [appState] in the redux directory.
-  static SelectorsSource beside(File appState) =>
+  factory SelectorsSource.beside(File appState) =>
       SelectorsSource(File(p.join(appState.parent.path, 'selectors.dart')));
+
+  final File file;
 
   bool get exists => file.existsSync();
 
@@ -83,11 +85,11 @@ class SelectorsSource {
       return Edited.nothing(content);
     }
 
-    // One spine, so one getter. There used to be two — an `extension type
-    // Select` carrying the same list as the mixin — and wiring a substate meant
-    // keeping both in step. Nothing called the first: no consumer constructed a
-    // `Selector` or read `.select`, so half of every substate's facade cost was
-    // a list only this writer ever touched.
+    // One spine, so one getter. There used to be two — an
+    // `extension type Select` carrying the same list as the mixin — and wiring
+    // a substate meant keeping both in step. Nothing called the first: no
+    // consumer constructed a `Selector` or read `.select`, so half of every
+    // substate's facade cost was a list only this writer ever touched.
     //
     // A project scaffolded before that collapse still has the extension type,
     // and its screens may read `state.select.<field>` — one of the three ways
@@ -100,7 +102,7 @@ class SelectorsSource {
     final select = _extensionType(unit, SelectorShape.facadeType);
     final selectors = _mixin(unit, SelectorShape.mixinType);
     if (selectors == null) {
-      throw StateError(
+      throw FrxRefusal(
         'selectors.dart is missing the `${SelectorShape.mixinType}` mixin — '
         'cannot wire selectors automatically (${file.path}).',
       );
@@ -254,13 +256,13 @@ class SelectorsSource {
   /// Whether [source] indexes [getter] *itself* — a bare `getter[…]`, not
   /// `subgetter[…]` and not `something.getter[…]`.
   ///
-  /// The substring test this replaces matched any name *ending* in the getter's,
-  /// so a hand-written `_state.tasks.subtable[id]` counted as an accessor of
-  /// `table` and was retyped over a collection that never changed.
+  /// The substring test this replaces matched any name *ending* in the
+  /// getter's, so a hand-written `_state.tasks.subtable[id]` counted as an
+  /// accessor of `table` and was retyped over a collection that never changed.
   ///
-  /// **A leading `.` disqualifies it too**, and that is not the same rule as the
-  /// one above. `Object? labelFor(int id) => _state.labels.table[id];` written
-  /// inside `SelectTasks` indexes *another slice's* identically-named
+  /// **A leading `.` disqualifies it too**, and that is not the same rule as
+  /// the one above. `Object? labelFor(int id) => _state.labels.table[id];`
+  /// written inside `SelectTasks` indexes *another slice's* identically-named
   /// collection; it survives `SelectTasks.table` and must not be judged by it.
   /// The cost of getting this wrong is asymmetric: in [_accessorEdits] a false
   /// positive rewrites a type annotation, in [removeSelector] it deletes a
@@ -325,7 +327,7 @@ class SelectorsSource {
   /// Adds a `<returnType> get <getterName> => <expr>;` getter to the
   /// `Select<Pascal>` extension type (before its closing `}`) — a computed
   /// selector on an existing substate. Idempotent when a getter of that name is
-  /// already present. Throws [StateError] when the type isn't there (the
+  /// already present. Throws [FrxRefusal] when the type isn't there (the
   /// substate isn't wired).
   ///
   /// [imports] are whatever [returnType] needs to resolve here. A getter is
@@ -344,7 +346,7 @@ class SelectorsSource {
     final unit = sourceIndex.unitFor(file);
     final ext = _extensionType(unit, selectorType);
     if (ext == null) {
-      throw StateError(
+      throw FrxRefusal(
         '$selectorType not found in ${file.path} — is the substate wired? '
         '(see `frx list-substates`).',
       );
@@ -370,9 +372,9 @@ class SelectorsSource {
           returnType,
         ),
       ];
-      // The doc line `add-substate` writes names the type — `/// Returns
-      // [IMap<int, Object>] table`. Left alone it says the opposite of the
-      // signature above it, which is worse than saying nothing.
+      // The doc line `add-substate` writes names the type —
+      // `/// Returns [IMap<int, Object>] table`. Left alone it says the
+      // opposite of the signature above it, which is worse than saying nothing.
       final doc = existing.documentationComment;
       if (doc != null) {
         for (final token in doc.tokens) {
@@ -404,22 +406,22 @@ class SelectorsSource {
       );
     }
 
-    final edits = <Edit>[];
     // Before the type's closing `}` (node.end - 1, matching how [wire] inserts
     // the facade getters), so `dart format` places it among the others.
     //
     // With the `///` line: every other getter in the facade carries one — the
     // four written by hand in the template and every one `add-substate`
     // scaffolds — and a getter arriving bare was this command disagreeing with
-    // its own neighbours. No `[…]` reference in it, because `comment_references`
-    // is on and a return type like `DateTime?` is not a resolvable one.
-    edits.add(
+    // its own neighbours. No `[…]` reference in it, because
+    // `comment_references` is on and a return type like `DateTime?` is not a
+    // resolvable one.
+    final edits = <Edit>[
       Edit.insert(
         ext.end - 1,
         '  /// Returns $getterName\n'
         '  $returnType get $getterName => $expr;\n',
       ),
-    );
+    ];
 
     final added = addImports(applyEdits(content, edits), imports);
     return SelectorsAddResult(
@@ -430,17 +432,17 @@ class SelectorsSource {
   }
 
   /// Shared package imports the selector facade may carry, each with what
-  /// proves it is still needed. A block for a `search`/`table` substate pulls in
-  /// fast_immutable_collections for its `IList`/`IMap` getters; once the last
-  /// such block is gone the import is dead and must be pruned or it trips
+  /// proves it is still needed. A block for a `search`/`table` substate pulls
+  /// in fast_immutable_collections for its `IList`/`IMap` getters; once the
+  /// last such block is gone the import is dead and must be pruned or it trips
   /// `unused_import`. Relative model imports are folder-scoped instead (see
   /// [unwire]).
   ///
   /// Asked of [TypeImports] rather than restated here. It was restated, and the
   /// two copies drifted the moment the second one was written: this file's
-  /// pattern dropped the trailing `\b` so `IListConst` and `IMapOfSets` keep the
-  /// import alive, the other kept it, and the same `selectors.dart` then got
-  /// opposite answers depending on whether a field or a whole substate was
+  /// pattern dropped the trailing `\b` so `IListConst` and `IMapOfSets` keep
+  /// the import alive, the other kept it, and the same `selectors.dart` then
+  /// got opposite answers depending on whether a field or a whole substate was
   /// removed. A new shared import needs one entry, in [TypeImports].
   static final Map<String, ImportProbe> _sharedImportProbes = {
     for (final uri in [TypeImports.fastImmutableCollections])
@@ -484,15 +486,16 @@ class SelectorsSource {
     // names. [prune] answers for the types the caller knows about; this answers
     // for the rest, which on a real facade is most of them — a `wait` selector
     // is keyed on an action *type*, so the read layer imports one file of the
-    // write layer per waiting getter, and taking the getter out left the import.
+    // write layer per waiting getter, and taking the getter out left the
+    // import.
     final removed = {...namesIn(getter)};
 
-    // The accessors derived from it go too: `Object byId(int id) =>
-    // table[id]!;` does not compile once `table` is gone, and a facade left
-    // like that is the half-job this command exists to avoid. Same rule
-    // [_accessorEdits] retypes by — a method qualifies by *indexing* the
-    // getter, so a `byId` that reads something else is somebody's own and
-    // stays.
+    // The accessors derived from it go too:
+    // `Object byId(int id) => table[id]!;` does not compile once `table` is
+    // gone, and a facade left like that is the half-job this command exists to
+    // avoid. Same rule [_accessorEdits] retypes by — a method qualifies by
+    // *indexing* the getter, so a `byId` that reads something else is
+    // somebody's own and stays.
     for (final member in _members(ext.body).whereType<MethodDeclaration>()) {
       if (member.isGetter || member.isSetter) {
         continue;
@@ -556,9 +559,10 @@ class SelectorsSource {
     }
 
     // The model import, scoped to this substate's folder (`<snake>/models/…`).
-    // Match the leading folder segment, not any segment — a substate named for a
-    // shared directory (`models`, `actions`) would otherwise prune every other
-    // substate's `foo/models/…` import. Unique to the substate, so unconditional.
+    // Match the leading folder segment, not any segment — a substate named for
+    // a shared directory (`models`, `actions`) would otherwise prune every
+    // other substate's `foo/models/…` import. Unique to the substate, so
+    // unconditional.
     for (final imp in unit.directives.whereType<ImportDirective>()) {
       final uri = imp.uri.stringValue ?? '';
       if (uri.startsWith('$snake/')) {
@@ -597,7 +601,8 @@ class SelectorsSource {
   List<ClassMember> _members(ClassBody body) =>
       body is BlockClassBody ? body.members : const <ClassMember>[];
 
-  /// The members of [selectorType] that still read [getterName] and are not the
+  /// The members of `selectorType` that still read `getterName` and are not
+  /// the
   /// derived accessors [removeSelector] takes with it.
   ///
   /// The facade is the one file of this architecture the guard *allows* a hand

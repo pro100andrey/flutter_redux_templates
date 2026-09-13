@@ -68,17 +68,19 @@ class AddWidgetCommand extends WritingCommand {
     final raw = value?.trim();
     if (raw == null || raw.isEmpty) {
       final inUse = repo.widgetDirs();
+      final home = kind.homeDir;
       usageException(
         'Missing --dir: name the folder under ui/lib/ to write into.\n'
         '${inUse.isEmpty ? '' : 'In use: ${inUse.join(', ')}.\n'}'
-        '${kind.homeDir == null ? '' : 'A ${kind.name} usually lives in ${kind.homeDir}.\n'}'
+        '${home == null ? '' : 'A ${kind.name} usually lives in $home.\n'}'
         'A name that does not exist yet creates the folder.',
       );
     }
     if (FrxWorkspace.notWidgetDirs.contains(raw)) {
       usageException(
         '--dir "$raw" is not a widget folder. ${_whyNot(raw)}\n'
-        'Name the folder the widget belongs in, e.g. ${kind.homeDir ?? 'cards'}.',
+        'Name the folder the widget belongs in, e.g. '
+        '${kind.homeDir ?? 'cards'}.',
       );
     }
     // An existing folder is targetable as it is named. Only a folder about to

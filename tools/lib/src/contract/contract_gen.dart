@@ -15,18 +15,18 @@ import '../workspace/frx_workspace.dart';
 /// the seam: it reads `option.allowed` off the parser, so shell completion
 /// cannot drift, ever. Everything the editor knows was hand-copied instead —
 /// the marker path four times, `remove --kind` in seven places, and four more
-/// `--kind` sets that no test covered at all. `extension_contract_test` stood in
-/// for the missing seam by regexing the TypeScript, and its fifth check asserts
-/// that a constant does *not* exist, which is a test whose job is to stop a
-/// duplicate coming back.
+/// `--kind` sets that no test covered at all. `extension_contract_test` stood
+/// in for the missing seam by regexing the TypeScript, and its fifth check
+/// asserts that a constant does *not* exist, which is a test whose job is to
+/// stop a duplicate coming back.
 ///
 /// The same shape as `SkillGen` and the packed template: derived from the
 /// command objects, written to disk because the consumer's CI has Node and no
 /// Dart, and guarded by a freshness test rather than by anyone remembering.
 ///
 /// **Values only.** What must not drift is the set a flag accepts. The prose
-/// beside each value in a picker is the editor's, and it stays there — joined to
-/// this by a `Record<Kind<'x'>, …>`, so adding a kind in Dart makes the
+/// beside each value in a picker is the editor's, and it stays there — joined
+/// to this by a `Record<Kind<'x'>, …>`, so adding a kind in Dart makes the
 /// TypeScript fail to compile until somebody writes its description.
 class ContractGen {
   const ContractGen._();
@@ -49,7 +49,8 @@ class ContractGen {
         continue;
       }
       // `add-substate` → `substate`; `remove` and `rename` keep their own name,
-      // since their kinds are artifact kinds rather than a flavour of one thing.
+      // since their kinds are artifact kinds rather than a flavour of one
+      // thing.
       final key = command.name.startsWith('add-')
           ? command.name.substring('add-'.length)
           : command.name;
@@ -169,12 +170,12 @@ class ContractGen {
 
   /// Where the conventional files live, for the providers that key on a path.
   ///
-  /// **Read off `FrxWorkspace` and `PageArtifact` rather than transcribed**: the
-  /// generator builds a workspace at a sentinel root and asks it, so a directory
-  /// that moves in Dart moves here. `codelens.ts` had the layout spelled out in
-  /// four regexes and two `path.join`s, which is the same class of copy as the
-  /// `--kind` sets — a lens that silently stops appearing is how it would have
-  /// been noticed.
+  /// **Read off `FrxWorkspace` and `PageArtifact` rather than transcribed**:
+  /// the generator builds a workspace at a sentinel root and asks it, so a
+  /// directory that moves in Dart moves here. `codelens.ts` had the layout
+  /// spelled out in four regexes and two `path.join`s, which is the same class
+  /// of copy as the `--kind` sets — a lens that silently stops appearing is how
+  /// it would have been noticed.
   static String _layout() {
     // A sentinel root the relative paths are taken against. Nothing touches the
     // filesystem: every one of these getters is a `join`.
@@ -195,8 +196,10 @@ class ContractGen {
       ..writeln(' * relative to the repo root.')
       ..writeln(' *')
       ..writeln(' * Join with the platform separator before touching disk.')
+      ..writeln(' * `ui` is the root a `package:ui/` import resolves under.')
       ..writeln(' */')
       ..writeln('export const LAYOUT = {')
+      ..writeln("  ui: '${rel(repo.uiLib)}',")
       ..writeln("  pages: '${rel(repo.uiPages)}',")
       ..writeln("  connectors: '${rel(repo.appConnectors)}',")
       ..writeln("  redux: '${rel(repo.businessRedux)}',")
@@ -204,6 +207,9 @@ class ContractGen {
       ..writeln(
         "  connectorSuffix: '${suffix(page.connectorClass, 'SampleName')}',",
       )
+      // What `add-connector` writes for a widget's connector, as opposed to the
+      // page connector above — the two are told apart by this suffix alone.
+      ..writeln("  widgetConnectorSuffix: '_connector.dart',")
       ..writeln("  stateSuffix: '_state.dart',")
       ..writeln('} as const;');
     return b.toString();
@@ -259,10 +265,11 @@ class ContractGen {
 
   /// The remedy ids.
   ///
-  /// The list is written out — `Fix` being sealed does not make a `const <Fix>[]`
-  /// literal exhaustive, and the first version of this claimed it did. What
-  /// makes it exhaustive is [_idOf]: a fourth subclass makes that switch
-  /// non-exhaustive and the generator stops compiling until the id is listed.
+  /// The list is written out — `Fix` being sealed does not make a
+  /// `const <Fix>[]` literal exhaustive, and the first version of this claimed
+  /// it did. What makes it exhaustive is [_idOf]: a fourth subclass makes that
+  /// switch non-exhaustive and the generator stops compiling until the id is
+  /// listed.
   static String _fixIds() => const <Fix>[
     BuildRunnerFix(''),
     OrphanFix(''),
@@ -274,8 +281,8 @@ class ContractGen {
   ///
   /// Exhaustive over the sealed hierarchy, so adding a remedy to `Fix` is a
   /// compile error here rather than a quick-fix that reaches the Problems panel
-  /// with no label — `code_actions.ts` widens to index, deliberately, so nothing
-  /// downstream would have failed.
+  /// with no label — `code_actions.ts` widens to index, deliberately, so
+  /// nothing downstream would have failed.
   static String _idOf(Fix fix) => switch (fix) {
     BuildRunnerFix() => fix.id,
     OrphanFix() => fix.id,

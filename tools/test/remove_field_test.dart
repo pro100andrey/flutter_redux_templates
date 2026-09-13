@@ -33,8 +33,8 @@ void main() {
   /// Every applying test here passes `--no-format`, so nothing downstream
   /// normalises what the splices wrote — which is the point. `dart format`
   /// failing is a *warning* the write path swallows (build_step.dart), so a
-  /// command that produced unparseable Dart still exits 0, and a suite that only
-  /// reads the text with `contains` cannot tell the two apart.
+  /// command that produced unparseable Dart still exits 0, and a suite that
+  /// only reads the text with `contains` cannot tell the two apart.
   void expectParses(String relative) {
     final source = fx.read(relative);
     expect(
@@ -481,9 +481,9 @@ abstract class SessionState with _$SessionState {
   test(
     'an odd folder under redux/ does not crash an unrelated remove',
     () async {
-      // The field search runs on the failure path of *every* remove, so a folder
-      // name `Casing` will not read — `_shared/`, `2fa/`, `__gen/` — turned a
-      // plain typo into an unhandled FormatException and exit 255.
+      // The field search runs on the failure path of *every* remove, so a
+      // folder name `Casing` will not read — `_shared/`, `2fa/`, `__gen/` —
+      // turned a plain typo into an unhandled FormatException and exit 255.
       fx.file('business/lib/redux/_shared/models/_shared_state.dart')
         ..parent.createSync(recursive: true)
         ..writeAsStringSync('// not a state class\n');
@@ -509,31 +509,34 @@ abstract class SessionState with _$SessionState {
     expect(state(), contains('tags'));
   });
 
-  test('the slice actions that still assign it are named, not deleted', () async {
-    // `add_tasks_action.dart` is the slice's, not the field's — deleting it is
-    // not this command's call. But it assigns the field, so it stops compiling,
-    // and "run the audit" does not say which file.
-    await ok(['add-substate', 'Tasks', '--kind', 'table', '--no-format']);
-    final adder = fx.file(
-      'business/lib/redux/tasks/actions/add_tasks_action.dart',
-    );
-    expect(adder.readAsStringSync(), contains('table'));
+  test(
+    'the slice actions that still assign it are named, not deleted',
+    () async {
+      // `add_tasks_action.dart` is the slice's, not the field's — deleting it
+      // is not this command's call. But it assigns the field, so it stops
+      // compiling, and "run the audit" does not say which file.
+      await ok(['add-substate', 'Tasks', '--kind', 'table', '--no-format']);
+      final adder = fx.file(
+        'business/lib/redux/tasks/actions/add_tasks_action.dart',
+      );
+      expect(adder.readAsStringSync(), contains('table'));
 
-    final res = await runFrx(fx, [
-      'remove',
-      'table',
-      '--kind',
-      'field',
-      '--state',
-      'tasks',
-      '--apply',
-      '--no-format',
-    ]);
-    expect(res.exitCode, 0, reason: res.stderr.toString());
-    expect(adder.existsSync(), isTrue);
-    expect(res.stdout.toString(), contains('add_tasks_action.dart'));
-    expect(res.stdout.toString(), contains('will not compile'));
-  });
+      final res = await runFrx(fx, [
+        'remove',
+        'table',
+        '--kind',
+        'field',
+        '--state',
+        'tasks',
+        '--apply',
+        '--no-format',
+      ]);
+      expect(res.exitCode, 0, reason: res.stderr.toString());
+      expect(adder.existsSync(), isTrue);
+      expect(res.stdout.toString(), contains('add_tasks_action.dart'));
+      expect(res.stdout.toString(), contains('will not compile'));
+    },
+  );
 
   test('a state file that does not parse is refused, not spliced', () async {
     fx
@@ -560,17 +563,20 @@ abstract class LogInState with _$LogInState {
     expect(res.stderr.toString(), contains('does not parse'));
   });
 
-  test('a bare remove of a field name names the command that does it', () async {
-    // Auto-detection deliberately does not reach fields: a field is spelled
-    // like a substate's own field, and detecting one would put `--kind page`
-    // between the user and a page whose name a field happens to share. What
-    // carries the discoverability instead is this message — without it the next
-    // move is the hand edit the guard refuses.
-    await ok(['add-field', 'log_in', 'nickname:String?', '--no-format']);
+  test(
+    'a bare remove of a field name names the command that does it',
+    () async {
+      // Auto-detection deliberately does not reach fields: a field is spelled
+      // like a substate's own field, and detecting one would put `--kind page`
+      // between the user and a page whose name a field happens to share. What
+      // carries the discoverability instead is this message — without it the
+      // next move is the hand edit the guard refuses.
+      await ok(['add-field', 'log_in', 'nickname:String?', '--no-format']);
 
-    final res = await runFrx(fx, ['remove', 'nickname', '--apply']);
-    expect(res.exitCode, 70);
-    expect(res.stderr.toString(), contains('--kind field'));
-    expect(res.stderr.toString(), contains('log_in'));
-  });
+      final res = await runFrx(fx, ['remove', 'nickname', '--apply']);
+      expect(res.exitCode, 70);
+      expect(res.stderr.toString(), contains('--kind field'));
+      expect(res.stderr.toString(), contains('log_in'));
+    },
+  );
 }

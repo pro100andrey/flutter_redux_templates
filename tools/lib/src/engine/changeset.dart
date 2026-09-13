@@ -142,7 +142,8 @@ class Changeset {
       // change every existing plan.
       out.writeln(switch (c) {
         WriteFile() =>
-          '  ${File(c.path).existsSync() ? 'overwrite' : 'create'}  ${rel(c.path)}',
+          '  ${File(c.path).existsSync() ? 'overwrite' : 'create'}  '
+              '${rel(c.path)}',
         EditFile() => '  edit  ${rel(c.path)}',
         DeleteFile() => '  delete  ${rel(c.path)}',
         DeleteDirectory() => '  delete  ${rel(c.path)}${p.separator}',
@@ -241,13 +242,13 @@ class ApplyFailure implements Exception {
 ///
 /// **The transaction covers the filesystem changeset only.** [formatFiles], the
 /// `docs/flows` refresh and (in the caller) codegen run afterwards and roll
-/// nothing back — undoing a correct edit because a formatter failed is the worse
-/// outcome. They report their own failures instead.
+/// nothing back — undoing a correct edit because a formatter failed is the
+/// worse outcome. They report their own failures instead.
 ///
-/// **A transaction in effect widens the boundary rather than nesting one.** When
-/// [currentTransaction] is set, the changeset is staged into it: the post steps
-/// are the batch's to run once at the end, and a failure unwinds *the whole
-/// batch* rather than this one changeset. See [WriteTransaction].
+/// **A transaction in effect widens the boundary rather than nesting one.**
+/// When [currentTransaction] is set, the changeset is staged into it: the post
+/// steps are the batch's to run once at the end, and a failure unwinds *the
+/// whole batch* rather than this one changeset. See [WriteTransaction].
 Future<Applied> apply(
   Changeset plan, {
   required bool format,
@@ -256,8 +257,8 @@ Future<Applied> apply(
   if (currentTransaction case final joined?) {
     final before = joined.written.length;
     final removedBefore = joined.removed.length;
-    // No catch: the batch owns the unwind, and swallowing the failure here would
-    // leave it with a half-applied transaction it was told nothing about.
+    // No catch: the batch owns the unwind, and swallowing the failure here
+    // would leave it with a half-applied transaction it was told nothing about.
     joined.stage(plan);
     return (
       written: joined.written.sublist(before),
@@ -299,10 +300,10 @@ Future<void> settle(
 
 /// One rollback boundary, across as many changesets as are staged into it.
 ///
-/// A single [apply] is a one-changeset transaction. A batch is the reason this is
-/// a value: a batch is not merely fewer keystrokes, it is **one rollback boundary
-/// where eight invocations are eight boundaries**, and a failure at the fifth
-/// leaves the first four applied.
+/// A single [apply] is a one-changeset transaction. A batch is the reason this
+/// is a value: a batch is not merely fewer keystrokes, it is **one rollback
+/// boundary where eight invocations are eight boundaries**, and a failure at
+/// the fifth leaves the first four applied.
 class WriteTransaction {
   final _journal = _Journal();
 
@@ -312,23 +313,25 @@ class WriteTransaction {
   /// Paths removed, in the order they were removed.
   final List<String> removed = [];
 
-  /// Build steps the staged changesets asked for, for the caller to run **once**
-  /// after the transaction closes. Codegen is not part of the transaction: it
-  /// rolls nothing back, and running it per changeset would run it eight times.
+  /// Build steps the staged changesets asked for, for the caller to run
+  /// **once** after the transaction closes. Codegen is not part of the
+  /// transaction: it rolls nothing back, and running it per changeset would run
+  /// it eight times.
   final List<BuildStep> buildSteps = [];
 
   /// Each staged changeset in the machine write format, in order — what a batch
   /// emits as one combined plan.
   ///
-  /// Collected by `runChangeset` rather than derived here, because a report has to
-  /// be frozen *before* its changeset is applied: `create` vs `overwrite` and the
-  /// diff are both read off the disk as it stands.
+  /// Collected by `runChangeset` rather than derived here, because a report has
+  /// to be frozen *before* its changeset is applied: `create` vs `overwrite`
+  /// and the diff are both read off the disk as it stands.
   final List<WriteReport> reports = [];
 
   /// Carries out [plan], recording how to undo every step.
   ///
-  /// Throws on failure without unwinding — the owner decides, because in a batch
-  /// the failure of the fifth changeset has to take the first four with it.
+  /// Throws on failure without unwinding — the owner decides, because in a
+  /// batch the failure of the fifth changeset has to take the first four with
+  /// it.
   void stage(Changeset plan) {
     // Deletes first: `add-substate --force` clears a folder it is about to
     // repopulate, so writing before deleting would throw the new files away.
@@ -360,8 +363,9 @@ class WriteTransaction {
       switch (c) {
         case WriteFile():
           final file = File(c.path);
-          _journal.createParents(file);
-          _journal.capture(file);
+          _journal
+            ..createParents(file)
+            ..capture(file);
           file.writeAsStringSync(c.content);
           written.add(c.path);
         case EditFile():
@@ -371,12 +375,13 @@ class WriteTransaction {
           written.add(c.path);
         case MoveFile():
           final dest = File(c.path);
-          _journal.createParents(dest);
-          // `renameSync` overwrites its destination, so the victim is captured
-          // before the move that replaces it — recorded first so the unwind
-          // puts the move back before restoring what it displaced.
-          _journal.capture(dest);
-          _journal.captureMove(from: c.from, to: c.path);
+          _journal
+            ..createParents(dest)
+            // `renameSync` overwrites its destination, so the victim is
+            // captured before the move that replaces it — recorded first so the
+            // unwind puts the move back before restoring what it displaced.
+            ..capture(dest)
+            ..captureMove(from: c.from, to: c.path);
           File(c.from).renameSync(dest.path);
           written.add(c.path);
         case DeleteFile():
@@ -386,8 +391,8 @@ class WriteTransaction {
     }
   }
 
-  /// Puts everything back. Returns the steps that failed — empty when the tree is
-  /// as it was.
+  /// Puts everything back. Returns the steps that failed — empty when the tree
+  /// is as it was.
   List<String> rollback() => _journal.rollback();
 }
 
@@ -396,10 +401,10 @@ const _transactionKey = #frxTransaction;
 /// The transaction [apply] joins, or null when each changeset is its own.
 ///
 /// A zone value for the reason the console is one: [apply] is reached through
-/// fifteen commands, and threading a parameter through every one of them would be
-/// a larger change than the batch it serves. A zone value is scoped to the body
-/// that asked for it and cannot leak into whatever runs next — which a mutable
-/// global would, since `dart test` runs a suite's cases on one isolate.
+/// fifteen commands, and threading a parameter through every one of them would
+/// be a larger change than the batch it serves. A zone value is scoped to the
+/// body that asked for it and cannot leak into whatever runs next — which a
+/// mutable global would, since `dart test` runs a suite's cases on one isolate.
 WriteTransaction? get currentTransaction =>
     Zone.current[_transactionKey] as WriteTransaction?;
 
@@ -409,10 +414,10 @@ R withTransaction<R>(WriteTransaction transaction, R Function() body) =>
 
 /// The undo log [apply] builds as it goes, unwound in reverse on failure.
 ///
-/// Recorded while applying rather than derived from the plan up front, because a
-/// plan says what it *intends* and only the applier knows what it found: whether
-/// a write target existed, which parent directories it had to create, what a
-/// delete removed.
+/// Recorded while applying rather than derived from the plan up front, because
+/// a plan says what it *intends* and only the applier knows what it found:
+/// whether a write target existed, which parent directories it had to create,
+/// what a delete removed.
 ///
 /// That last one is the addition atomicity forced. An [EditFile] carries its
 /// `before` and a [MoveFile] knows both ends, but a delete knows only a path,
@@ -493,10 +498,10 @@ class _Journal {
   /// Creates the parent directories of [file], recording the topmost one that
   /// did not exist so the unwind can take the whole branch away with it.
   ///
-  /// Called *before* the change's other captures, because the unwind runs newest
-  /// first and removing the branch has to be the last thing it does: a move into
-  /// a fresh directory is undone by moving the file back out, and a branch
-  /// removed first would delete the file the move-back was looking for.
+  /// Called *before* the change's other captures, because the unwind runs
+  /// newest first and removing the branch has to be the last thing it does: a
+  /// move into a fresh directory is undone by moving the file back out, and a
+  /// branch removed first would delete the file the move-back was looking for.
   void createParents(File file) {
     final parent = file.parent;
     if (parent.existsSync()) {

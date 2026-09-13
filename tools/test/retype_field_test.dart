@@ -5,13 +5,14 @@ import 'support/fixture.dart';
 /// `add-field --force` on a field that already exists: rewrite its declaration
 /// rather than answering "already present".
 ///
-/// The gap this closes was created by closing another one. `add-substate --kind
-/// table` scaffolds `IMap<int, Object>` because the element type is not known
-/// when the slice is made, and tightening it to `IMap<int, Task>` was hand work
-/// — fine while a state file could be hand-edited. Once the guard refused that
-/// channel there was no way left, and a traced run shipped `Object` because of
-/// it: the agent tried `Write`, then `Edit`, was refused both times, probed
-/// `add-field`, and found it silently did nothing.
+/// The gap this closes was created by closing another one.
+/// `add-substate --kind table` scaffolds `IMap<int, Object>` because the
+/// element type is not known when the slice is made, and tightening it to
+/// `IMap<int, Task>` was hand work — fine while a state file could be
+/// hand-edited. Once the guard refused that channel there was no way left, and
+/// a traced run shipped `Object` because of it: the agent tried `Write`, then
+/// `Edit`, was refused both times, probed `add-field`, and found it silently
+/// did nothing.
 void main() {
   late Fixture fx;
 
@@ -308,11 +309,11 @@ void main() {
   });
 
   test('--force refuses to drop a default it was not told about', () async {
-    // The silent one. Retyping rebuilds the declaration from this invocation, so
-    // an `@Default(0)` the old one carried and the new one does not is written
-    // away — changing what `AppState.initial()` produces for every reader, with
-    // nothing in the report saying so. A nullable target does not require
-    // `--default`, which is exactly where it slipped through.
+    // The silent one. Retyping rebuilds the declaration from this invocation,
+    // so an `@Default(0)` the old one carried and the new one does not is
+    // written away — changing what `AppState.initial()` produces for every
+    // reader, with nothing in the report saying so. A nullable target does not
+    // require `--default`, which is exactly where it slipped through.
     await ok([
       'add-field',
       'log_in',
@@ -337,7 +338,8 @@ void main() {
       reason: 'refused, so nothing was rewritten',
     );
 
-    // Saying so explicitly is the way through — either keeping it or changing it.
+    // Saying so explicitly is the way through — either keeping it or changing
+    // it.
     await ok([
       'add-field',
       'log_in',
@@ -355,8 +357,8 @@ void main() {
 
   test('a type this project defines reaches the setter action too', () async {
     // The setter was the one file of the three that never got the project-type
-    // lookup: the state file and the facade both did. `final Task? picked;` in a
-    // file importing only app_state.dart is an undefined name.
+    // lookup: the state file and the facade both did. `final Task? picked;` in
+    // a file importing only app_state.dart is an undefined name.
     await ok([
       'add-field',
       'log_in',

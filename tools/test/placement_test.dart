@@ -14,8 +14,8 @@ import 'support/in_process.dart';
 /// Every rule keys on a folder, a filename convention, or an annotation that is
 /// present or absent — the admission test for a rule here is that its syntactic
 /// form cannot be wrong in the common case. So the cases worth pinning are the
-/// near misses: the file the architecture puts exactly where it belongs, and the
-/// prose that mentions an annotation without carrying one.
+/// near misses: the file the architecture puts exactly where it belongs, and
+/// the prose that mentions an annotation without carrying one.
 void main() {
   late Directory root;
 
@@ -114,8 +114,8 @@ extension SelectComposites on Select {
     test('an unrelated extension type is not a selector', () {
       // The bare prefix is not the rule — the rest of the name has to start a
       // new word. `Selectable` is an ordinary Dart name that happens to begin
-      // with the same six letters, and `on String` is not a selector however the
-      // extension is called.
+      // with the same six letters, and `on String` is not a selector however
+      // the extension is called.
       put('business/lib/redux/selectors.dart', facadeSource);
       put('ui/lib/widgets/selectable.dart', '''
 extension type Selectable(String _s) {

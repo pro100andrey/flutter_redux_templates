@@ -6,17 +6,18 @@ import 'package:test/test.dart';
 
 /// The contract between `.claude/settings.json` and the hook it registers.
 ///
-/// The guard states which tools it handles twice: the matcher in `settings.json`
-/// decides whether the hook is spawned at all, and the `case` inside the script
-/// decides what it does once it is. Only the second one reads like the rule, so
-/// that is the one that gets edited — and a matcher narrower than the case is a
-/// guard that silently never fires.
+/// The guard states which tools it handles twice: the matcher in
+/// `settings.json` decides whether the hook is spawned at all, and the `case`
+/// inside the script decides what it does once it is. Only the second one reads
+/// like the rule, so that is the one that gets edited — and a matcher narrower
+/// than the case is a guard that silently never fires.
 ///
 /// That is not hypothetical. The script has handled `Write | Edit | MultiEdit`
 /// since it was written, while the matcher said `Write`; a traced run then made
-/// six hand edits to state files with `Edit` and every one of them went through.
-/// The two runs on either side of it, where the same edits happened to be
-/// `Write`, were blocked — so the hole looked like agent variance, not a bug.
+/// six hand edits to state files with `Edit` and every one of them went
+/// through. The two runs on either side of it, where the same edits happened to
+/// be `Write`, were blocked — so the hole looked like agent variance, not a
+/// bug.
 ///
 /// A test rather than a `doctor` check, for the reason `skills_freshness_test`
 /// gives: a project made by `frx create` carries both files but nothing to
@@ -31,10 +32,10 @@ void main() {
     ).readAsStringSync();
 
     // Every named arm of `case "$tool"` — the script's own statement of its
-    // subject. All of them, not the first: the shell channel arrived as a second
-    // arm (`Bash) guard_shell`), and a reader that stopped at the first would
-    // have gone on requiring the matcher to be exactly the tools it already had,
-    // which is the drift this test exists to catch, one level up.
+    // subject. All of them, not the first: the shell channel arrived as a
+    // second arm (`Bash) guard_shell`), and a reader that stopped at the first
+    // would have gone on requiring the matcher to be exactly the tools it
+    // already had, which is the drift this test exists to catch, one level up.
     final block = RegExp(
       r'case\s+"\$tool"\s+in\n(.*?)\nesac',
       dotAll: true,
@@ -111,11 +112,12 @@ void main() {
 
     // The payload arrives on stdin, which `Process.runSync` cannot write — so
     // go through a shell that can.
-    ProcessResult call(String tool, String path) => Process.runSync('bash', [
-      '-c',
-      'printf %s ${_shellQuote(jsonEncode({'tool_name': tool, 'file_path': path}))} '
-          '| bash ${_shellQuote(script)}',
-    ]);
+    ProcessResult call(String tool, String path) {
+      final payload = jsonEncode({'tool_name': tool, 'file_path': path});
+      final piped =
+          'printf %s ${_shellQuote(payload)} | bash ${_shellQuote(script)}';
+      return Process.runSync('bash', ['-c', piped]);
+    }
 
     expect(
       call(
@@ -151,11 +153,12 @@ void main() {
     // minutes later, in a single command that wrote four of them.
     final script = p.join(claude, 'hooks', 'guard-wired-files.sh');
 
-    ProcessResult bash(String command) => Process.runSync('bash', [
-      '-c',
-      'printf %s ${_shellQuote(jsonEncode({'tool_name': 'Bash', 'command': command}))} '
-          '| bash ${_shellQuote(script)}',
-    ]);
+    ProcessResult bash(String command) {
+      final payload = jsonEncode({'tool_name': 'Bash', 'command': command});
+      final piped =
+          'printf %s ${_shellQuote(payload)} | bash ${_shellQuote(script)}';
+      return Process.runSync('bash', ['-c', piped]);
+    }
 
     // Refused: whole-file writes, however the path is spelled.
     for (final command in [
@@ -202,8 +205,8 @@ void main() {
     // passed, while moving one *away* — which only reads it — was refused.
     //
     // The paths are assembled rather than written out because this repository's
-    // own guard is active while these tests are edited, and a literal one in the
-    // file would refuse the edit.
+    // own guard is active while these tests are edited, and a literal one in
+    // the file would refuse the edit.
     const stateFile = 'business/lib/redux/tasks/models/tasks_${'state'}.dart';
     const facade = 'business/lib/redux/${'selectors'}.dart';
     for (final command in [

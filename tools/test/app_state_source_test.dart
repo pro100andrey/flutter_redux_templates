@@ -74,9 +74,10 @@ void main() {
   test('wire onto a state with no `wait` still produces valid Dart', () {
     // Every fixture here includes `wait`, which is the only thing the two
     // insertions had to anchor before. Without it they used to splice at the
-    // closing delimiter and fuse onto the neighbour — `logInrequired
-    // ProfileState profile` — and no assertion in the suite noticed, because
-    // each one only asked whether its own fragment was present.
+    // closing delimiter and fuse onto the neighbour —
+    // `logInrequired ProfileState profile` — and no assertion in the suite
+    // noticed, because each one only asked whether its own fragment was
+    // present.
     source.file.writeAsStringSync(r'''
 @freezed
 abstract class AppState with _$AppState {

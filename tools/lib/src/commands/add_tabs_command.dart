@@ -19,7 +19,8 @@ class AddTabsCommand extends WritingCommand {
 
   @override
   String get description =>
-      'Scaffold an AutoTabsScaffold shell + tab pages and wire the nested route.';
+      'Scaffold an AutoTabsScaffold shell + tab pages and wire the nested '
+      'route.';
 
   @override
   String get invocation => 'frx add-tabs <name> --tab <t1> --tab <t2> …';

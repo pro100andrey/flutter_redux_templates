@@ -96,7 +96,8 @@ PageFlow _read() {
 
 /// A page connector that holds no view-model at all, handing each slot to a
 /// region connector — the shape a screen takes once its view-model has been
-/// split. `frame` builds two regions; one of them takes a third as its own slot.
+/// split. `frame` builds two regions; one of them takes a third as its own
+/// slot.
 ({Directory root, File connector}) _composed() {
   final root = Directory.systemTemp.createTempSync('frx_regions_');
   addTearDown(() => root.deleteSync(recursive: true));
@@ -636,7 +637,8 @@ void main() {
         isEmpty,
         reason:
             'a plain local, a destructuring `final (pair, _)`, an `if-case` '
-            'variable, a `switch` arm variable, a `session.userName` read and a '
+            'variable, a `switch` arm variable, a `session.userName` read and '
+            'a '
             '`refresh` parameter each collide with a dispatching method, and '
             'none of the six is a call to it',
       );
@@ -650,10 +652,10 @@ void main() {
 
     test('one helper answering for two fields still leaves gaps visible', () {
       // The accounting subtracted a tally of attributions from a tally of call
-      // sites. `_open()` is one site answering for two fields, so the two totals
-      // cancelled and the report concluded nothing was missing — while `BAction`,
-      // held in a field, was genuinely undrawn. A silence produced *by* the thing
-      // built to break silence.
+      // sites. `_open()` is one site answering for two fields, so the two
+      // totals cancelled and the report concluded nothing was missing — while
+      // `BAction`, held in a field, was genuinely undrawn. A silence produced
+      // *by* the thing built to break silence.
       final flow = _readShared();
 
       expect(

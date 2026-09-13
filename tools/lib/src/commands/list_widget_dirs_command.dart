@@ -46,8 +46,7 @@ class ListWidgetDirsCommand extends Command<int> {
           // Where each kind usually goes, so a picker can offer it first.
           // `view` has no home — a card, a tile and a header are all views.
           'home': {
-            for (final k in WidgetKind.values)
-              k.name: ?k.homeDir,
+            for (final k in WidgetKind.values) k.name: ?k.homeDir,
           },
         }),
       );

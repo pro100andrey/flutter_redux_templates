@@ -14,8 +14,9 @@ import 'support/shape.dart';
 /// transaction**.
 ///
 /// The properties worth pinning are the ones a batch exists for: that a failure
-/// at the fifth intent leaves nothing of the first four, that the order written is
-/// the order applied, and that what a batch refuses it refuses with a reason.
+/// at the fifth intent leaves nothing of the first four, that the order written
+/// is the order applied, and that what a batch refuses it refuses with a
+/// reason.
 void main() {
   late Fixture fx;
 
@@ -29,8 +30,8 @@ void main() {
 
   /// Writes a declaration file **outside** the fixture and returns its path.
   ///
-  /// Outside because the tests compare the tree byte for byte, and a declaration
-  /// sitting inside it would be a change the batch did not make.
+  /// Outside because the tests compare the tree byte for byte, and a
+  /// declaration sitting inside it would be a change the batch did not make.
   String declare(List<Map<String, Object?>> intents) {
     final file = File(p.join(outside.path, 'feature.json'))
       ..writeAsStringSync(jsonEncode({'intents': intents}));
@@ -169,51 +170,54 @@ void main() {
       );
     });
 
-    test('the ordering case: the action after its substate, not before', () async {
-      // Ordered wrongly it fails; ordered rightly the same intents succeed. That
-      // asymmetry is the reason topological sorting was rejected — silently
-      // reordering would hide a prerequisite that belongs to the architecture,
-      // not to frx's internals.
-      final wrong = await batch([
-        declare([
-          {
-            'command': 'add-action',
-            'args': ['save'],
-            'options': {'state': 'cart'},
-          },
-          {
-            'command': 'add-substate',
-            'args': ['cart'],
-          },
-        ]),
-      ]);
-      expect(wrong.exitCode, isNot(0));
-      expect(
-        Directory(fx.path('business/lib/redux/cart')).existsSync(),
-        isFalse,
-      );
+    test(
+      'the ordering case: the action after its substate, not before',
+      () async {
+        // Ordered wrongly it fails; ordered rightly the same intents succeed.
+        // That asymmetry is the reason topological sorting was rejected —
+        // silently reordering would hide a prerequisite that belongs to the
+        // architecture, not to frx's internals.
+        final wrong = await batch([
+          declare([
+            {
+              'command': 'add-action',
+              'args': ['save'],
+              'options': {'state': 'cart'},
+            },
+            {
+              'command': 'add-substate',
+              'args': ['cart'],
+            },
+          ]),
+        ]);
+        expect(wrong.exitCode, isNot(0));
+        expect(
+          Directory(fx.path('business/lib/redux/cart')).existsSync(),
+          isFalse,
+        );
 
-      final right = await batch([
-        declare([
-          {
-            'command': 'add-substate',
-            'args': ['cart'],
-          },
-          {
-            'command': 'add-action',
-            'args': ['save'],
-            'options': {'state': 'cart'},
-          },
-        ]),
-      ]);
-      expect(right.exitCode, 0, reason: right.stderr);
-      expect(
-        fx
-            .file('business/lib/redux/cart/actions/save_action.dart')
-            .existsSync(),
-        isTrue,
-      );
-    });
+        final right = await batch([
+          declare([
+            {
+              'command': 'add-substate',
+              'args': ['cart'],
+            },
+            {
+              'command': 'add-action',
+              'args': ['save'],
+              'options': {'state': 'cart'},
+            },
+          ]),
+        ]);
+        expect(right.exitCode, 0, reason: right.stderr);
+        expect(
+          fx
+              .file('business/lib/redux/cart/actions/save_action.dart')
+              .existsSync(),
+          isTrue,
+        );
+      },
+    );
   });
 
   group('the declaration', () {
@@ -380,8 +384,9 @@ void main() {
       expect(out['command'], 'batch');
       expect(out['applied'], isFalse);
       final changes = (out['changes']! as List).cast<Map<String, Object?>>();
-      // One object for the whole batch: a batch applied completely or not at all,
-      // so several results would suggest a partial state that cannot happen.
+      // One object for the whole batch: a batch applied completely or not at
+      // all, so several results would suggest a partial state that cannot
+      // happen.
       expect(
         changes.map((c) => c['path']).join(' '),
         allOf(contains('cart_state.dart'), contains('checkout_page.dart')),
@@ -476,9 +481,10 @@ void main() {
       ]),
     ]);
     expect(r.exitCode, 0, reason: r.stderr);
-    // One build step for the batch. Counted as the number of package directories
-    // named, not as occurrences of "build_runner": around a live watch the report
-    // says the words twice for the one step it stood down from.
+    // One build step for the batch. Counted as the number of package
+    // directories named, not as occurrences of "build_runner": around a live
+    // watch the report says the words twice for the one step it stood down
+    // from.
     expect(
       RegExp(r'cd \S*business').allMatches(r.stdout).length,
       lessThanOrEqualTo(1),

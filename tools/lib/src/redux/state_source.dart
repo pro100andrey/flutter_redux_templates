@@ -4,6 +4,7 @@ import 'package:analyzer/dart/ast/ast.dart';
 
 import '../ast/declarations.dart';
 import '../ast/source_index.dart';
+import '../refusal.dart';
 import 'app_state_source.dart' show AppStateSource;
 import 'ast_edit.dart';
 
@@ -17,20 +18,20 @@ class StateSource {
 
   /// Adds a `<type> <name>` field to the factory of class [className]
   /// (`<Pascal>State`). [defaultExpr] wraps it in `@Default(...)`; [imports]
-  /// are added (sorted) when the type needs them (e.g. fast_immutable_collections
-  /// for an `IList`).
+  /// are added (sorted) when the type needs them (e.g.
+  /// fast_immutable_collections for an `IList`).
   ///
   /// A field of that name already there is left alone unless [retype], which
   /// rewrites its declaration to the one asked for.
   ///
-  /// **Why retyping belongs here at all.** `add-substate --kind table` scaffolds
-  /// `IMap<int, Object>` on purpose — the element type is not known when the
-  /// slice is made, and tightening it later was hand work. That was fine while
-  /// the state file could be edited by hand; once the guard refused that
-  /// channel, the only way to turn `Object` into `Task` was gone, and a traced
-  /// run shipped `IMap<int, Object>` because of it. A command that silently
-  /// answers "already present" to "make this field a `Task`" is not idempotent,
-  /// it is unhelpful.
+  /// **Why retyping belongs here at all.** `add-substate --kind table`
+  /// scaffolds `IMap<int, Object>` on purpose — the element type is not known
+  /// when the slice is made, and tightening it later was hand work. That was
+  /// fine while the state file could be edited by hand; once the guard refused
+  /// that channel, the only way to turn `Object` into `Task` was gone, and a
+  /// traced run shipped `IMap<int, Object>` because of it. A command that
+  /// silently answers "already present" to "make this field a `Task`" is not
+  /// idempotent, it is unhelpful.
   Edited addField({
     required String className,
     required String name,
@@ -68,11 +69,14 @@ class StateSource {
     final edits = <Edit>[
       // A factory with no named group at all has to grow one; from there the
       // shared comma rule applies.
-      if (delimiter == null) Edit.insert(params.rightParenthesis.offset, '{$decl}') else insertIntoList(
-              elements: params.parameters,
-              closer: delimiter,
-              element: decl,
-            ),
+      if (delimiter == null)
+        Edit.insert(params.rightParenthesis.offset, '{$decl}')
+      else
+        insertIntoList(
+          elements: params.parameters,
+          closer: delimiter,
+          element: decl,
+        ),
     ];
 
     // Imports the field's type needs, each in sorted position in its section.
@@ -130,7 +134,7 @@ class StateSource {
     );
   }
 
-  /// Whether [param] is the last one inside its delimiters — the `{…}` of a
+  /// Whether `param` is the last one inside its delimiters — the `{…}` of a
   /// named group or the `[…]` of an optional positional one.
   ///
   /// Counted within the group, not across the list. `parameters.length == 1`
@@ -171,10 +175,11 @@ class StateSource {
   /// getter over it, a method reading it.
   ///
   /// Asked before the field is taken out, because nothing else will catch them:
-  /// the guard refuses a hand edit to this file, so a `bool get isAuthenticated
-  /// => token != null;` left behind is a state class that does not compile and
-  /// that its owner is not allowed to fix. Named rather than deleted — the
-  /// factory is frx's to write, a member somebody added is not.
+  /// the guard refuses a hand edit to this file, so a
+  /// `bool get isAuthenticated => token != null;` left behind is a state class
+  /// that does not compile and that its owner is not allowed to fix. Named
+  /// rather than deleted — the factory is frx's to write, a member somebody
+  /// added is not.
   List<String> readersOf({required String className, required String field}) {
     final unit = sourceIndex.unitFor(file);
     final cls = classNamed(unit, className);
@@ -278,7 +283,7 @@ class StateSource {
   ClassDeclaration _stateClass(CompilationUnit unit, String className) {
     final cls = classNamed(unit, className);
     if (cls == null) {
-      throw StateError('class $className not found in "${file.path}".');
+      throw FrxRefusal('class $className not found in "${file.path}".');
     }
     return cls;
   }
@@ -302,7 +307,7 @@ class StateSource {
         )
         .firstOrNull;
     if (ctor == null) {
-      throw StateError(
+      throw FrxRefusal(
         '$className has no redirecting factory constructor in "${file.path}" '
         '— is it a `@freezed` state class?',
       );

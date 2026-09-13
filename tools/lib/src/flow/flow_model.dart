@@ -48,8 +48,9 @@ class DispatchStep {
   /// For a navigation dispatch, the destination route type (`LogInRoute`).
   final String? route;
 
-  /// What was passed to it — `id: id`, `productId: connector.id, reviewId:
-  /// reviewId` — or null when the route takes nothing.
+  /// What was passed to it — `id: id`,
+  /// `productId: connector.id, reviewId: reviewId` — or null when the route
+  /// takes nothing.
   ///
   /// On a parameterised route this is the half worth reading: `ProductRoute`
   /// says where you land, and only this says which product.
@@ -141,8 +142,8 @@ class UseCase {
 /// One `copyWith` target: the substate, and the field inside it when the write
 /// names one.
 ///
-/// [field] is null for the flat shape `state.copyWith(logIn: …)`, which replaces
-/// a whole substate and so has no field to name.
+/// `field` is null for the flat shape `state.copyWith(logIn: …)`, which
+/// replaces a whole substate and so has no field to name.
 typedef StateWrite = ({String substate, String? field});
 
 extension StateWriteLabel on StateWrite {
@@ -184,11 +185,11 @@ class ActionInfo {
   /// The AppState fields it writes, from `state.copyWith(<field>: …)`.
   ///
   /// **Structured, because it has two readers.** This was a `String?` that
-  /// [_qualify] built by joining `'<substate>.<field>'` with `', '`, and
+  /// `_qualify` built by joining `'<substate>.<field>'` with `', '`, and
   /// `graph_reader` split it back apart on the same separator to raise one edge
-  /// per substate touched. A *rendering* choice was the only channel between two
-  /// readers of one fact: change the separator, or a field name containing one,
-  /// and the graph silently loses its write edges with nothing failing.
+  /// per substate touched. A *rendering* choice was the only channel between
+  /// two readers of one fact: change the separator, or a field name containing
+  /// one, and the graph silently loses its write edges with nothing failing.
   ///
   /// [writesLabel] keeps the string, so the JSON and the diagrams say exactly
   /// what they always did.
@@ -223,9 +224,9 @@ class ActionInfo {
 ///
 /// The whole value of this type is that it is *said*. Whatever the reader
 /// follows, something will eventually be written in a shape it does not — and
-/// the failure mode is not a wrong diagram but a plausible one: a region with no
-/// use case gets no lane and leaves the drawing entirely, so a map missing six
-/// of eleven regions reads exactly like the map of a page that has five. An
+/// the failure mode is not a wrong diagram but a plausible one: a region with
+/// no use case gets no lane and leaves the drawing entirely, so a map missing
+/// six of eleven regions reads exactly like the map of a page that has five. An
 /// empty file is obvious; a quietly shortened map is not.
 ///
 /// So the arithmetic is deliberately crude. Count every `dispatch*(` in the

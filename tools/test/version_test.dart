@@ -17,8 +17,8 @@ import 'package:tools/src/version.dart';
 /// know you made is not in the tool you are running — which reads as the fix
 /// being wrong.
 ///
-/// A constant and not a read of the pubspec at runtime, because after `dart
-/// install` the pubspec no longer sits beside the executable.
+/// A constant and not a read of the pubspec at runtime, because after
+/// `dart install` the pubspec no longer sits beside the executable.
 void main() {
   final toolsRoot = Directory.current.absolute.path;
 

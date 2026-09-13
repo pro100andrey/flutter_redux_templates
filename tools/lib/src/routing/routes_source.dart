@@ -10,6 +10,7 @@ import '../ast/declarations.dart';
 import '../ast/source_index.dart';
 import '../redux/app_state_source.dart' show AppStateSource;
 import '../redux/ast_edit.dart';
+import '../refusal.dart';
 import '../workspace/frx_workspace.dart';
 
 /// One route registered in `AppRouter.routes`.
@@ -113,6 +114,27 @@ class RouteUnwireResult with Unwiring {
 class RoutesSource {
   RoutesSource(this.file);
 
+  /// The `app_router.dart` of an already-resolved workspace.
+  ///
+  /// [FrxWorkspace] keys on this very file, so the two cannot disagree about
+  /// where the router is — which makes re-walking the tree from a command that
+  /// already holds a workspace a second answer to a question already answered.
+  factory RoutesSource.of(FrxWorkspace repo) =>
+      RoutesSource(File(p.join(repo.root.path, _relativePath)));
+
+  /// Finds `app_router.dart` by walking up from [startDir] (or the current
+  /// directory) until `app/lib/navigation/app_router.dart` is found.
+  factory RoutesSource.locate({String? startDir}) {
+    final root = walkUpForMarker(
+      startDir,
+      _relativePath,
+      (origin) =>
+          'Could not find "$_relativePath" walking up from "$origin". '
+          'Run this from inside the monorepo, or pass --root.',
+    );
+    return RoutesSource(File(p.join(root.path, _relativePath)));
+  }
+
   final File file;
 
   /// Path of `app_router.dart` relative to the repo root.
@@ -132,27 +154,6 @@ class RoutesSource {
   /// The `ui/lib/pages` directory that holds the dumb pages.
   Directory get pagesDir =>
       Directory(p.join(repoRoot.path, 'ui', 'lib', 'pages'));
-
-  /// Finds `app_router.dart` by walking up from [startDir] (or the current
-  /// directory) until `app/lib/navigation/app_router.dart` is found.
-  static RoutesSource locate({String? startDir}) {
-    final root = walkUpForMarker(
-      startDir,
-      _relativePath,
-      (origin) =>
-          'Could not find "$_relativePath" walking up from "$origin". '
-          'Run this from inside the monorepo, or pass --root.',
-    );
-    return RoutesSource(File(p.join(root.path, _relativePath)));
-  }
-
-  /// The `app_router.dart` of an already-resolved workspace.
-  ///
-  /// [FrxWorkspace] keys on this very file, so the two cannot disagree about
-  /// where the router is — which makes re-walking the tree from a command that
-  /// already holds a workspace a second answer to a question already answered.
-  static RoutesSource of(FrxWorkspace repo) =>
-      RoutesSource(File(p.join(repo.root.path, _relativePath)));
 
   /// The routes currently registered in `AppRouter.routes`, in source order.
   ///
@@ -232,8 +233,8 @@ class RoutesSource {
   }
 
   /// The route types the guard lets through while logged out — the
-  /// `<Route>.name` members of `_AuthGuard._authArea`, with the `.name` dropped.
-  /// Empty when there is no guard (or its set can't be read).
+  /// `<Route>.name` members of `_AuthGuard._authArea`, with the `.name`
+  /// dropped. Empty when there is no guard (or its set can't be read).
   Set<String> readAuthArea() {
     final set = _authAreaSet(_parse());
     if (set == null) {
@@ -246,10 +247,11 @@ class RoutesSource {
     };
   }
 
-  /// Wires a page into `AppRouter`: adds the connector import (kept sorted among
-  /// the relative imports), an `AutoRoute(page: <Route>.page, path: '<path>')`
-  /// entry in `routes`, and — when [public] — the route name in the guard's
-  /// `_authArea` set. Idempotent when the route is already registered.
+  /// Wires a page into `AppRouter`: adds the connector import (kept sorted
+  /// among the relative imports), an
+  /// `AutoRoute(page: <Route>.page, path: '<path>')` entry in `routes`, and —
+  /// when [public] — the route name in the guard's `_authArea` set. Idempotent
+  /// when the route is already registered.
   RouteWireResult wirePage({
     required String routeType,
     required String connectorImport,
@@ -340,9 +342,10 @@ class RoutesSource {
   }
 
   /// Wires a tab flow into `AppRouter`: adds the shell + every tab connector
-  /// import, and a nested `AutoRoute(page: <Shell>.page, path: '<path>',
-  /// children: [AutoRoute(page: <Tab>.page, path: '<tab>'), …])` entry.
-  /// Idempotent when the shell route is already registered.
+  /// import, and a nested
+  /// `AutoRoute(page: <Shell>.page, path: '<path>', children: [...])`, whose
+  /// children are `AutoRoute(page: <Tab>.page, path: '<tab>')`
+  /// entry. Idempotent when the shell route is already registered.
   ///
   /// Imports are applied one at a time (re-parsing between) so several relative
   /// imports each land in their own sorted position instead of colliding.
@@ -401,12 +404,12 @@ class RoutesSource {
     );
   }
 
-  /// Removes a page from `AppRouter`: drops its `AutoRoute(page: <routeType>
-  /// .page, …)` entry, the connector import [connectorImport], and
-  /// `<routeType>.name` from the guard's `_authArea` set when present. The
-  /// inverse of [wirePage]; `found: false` when no such route is registered. A
-  /// removed entry carrying nested `children` (a tab shell) is flagged so the
-  /// caller can note the child pages were left in place.
+  /// Removes a page from `AppRouter`: drops its
+  /// `AutoRoute(page: <routeType> .page, …)` entry, the connector import
+  /// [connectorImport], and `<routeType>.name` from the guard's `_authArea` set
+  /// when present. The inverse of [wirePage]; `found: false` when no such route
+  /// is registered. A removed entry carrying nested `children` (a tab shell) is
+  /// flagged so the caller can note the child pages were left in place.
   RouteUnwireResult unwirePage({
     required String routeType,
     required String connectorImport,
@@ -435,7 +438,8 @@ class RoutesSource {
     final entryArgs = _autoRouteArgs(entry);
     if (entryArgs != null && _namedArg(entryArgs, 'children') != null) {
       warnings.add(
-        '$routeType has nested children (a tab shell) — its child tab pages and '
+        '$routeType has nested children (a tab shell) — its child tab pages '
+        'and '
         'their connectors were left in place; remove them separately.',
       );
     }
@@ -467,9 +471,10 @@ class RoutesSource {
     // Prune the Flutter import once the last param route is gone. `add-page`
     // adds it only for a route with path params, so the generated `.gr.dart`
     // args class (which references `Key`) compiles; `app_router.dart` itself
-    // uses no material symbols. Left dangling it would be an unused-import lint,
-    // so drop it when no remaining route path carries a `:` segment. Re-parsed
-    // (not offset-spliced) so this stays independent of the edits above.
+    // uses no material symbols. Left dangling it would be an unused-import
+    // lint, so drop it when no remaining route path carries a `:` segment.
+    // Re-parsed (not offset-spliced) so this stays independent of the edits
+    // above.
     const material = 'package:flutter/material.dart';
     final after = _parse(source);
     final materialImport = after.directives
@@ -521,7 +526,7 @@ class RoutesSource {
   ClassDeclaration _class(CompilationUnit unit, String name) {
     final cls = classNamed(unit, name);
     if (cls == null) {
-      throw StateError('class $name not found in "${file.path}".');
+      throw FrxRefusal('class $name not found in "${file.path}".');
     }
     return cls;
   }
@@ -539,7 +544,7 @@ class RoutesSource {
         .where((m) => m.isGetter && m.name.lexeme == 'routes')
         .firstOrNull;
     if (getter == null) {
-      throw StateError('AppRouter.routes getter not found in "${file.path}".');
+      throw FrxRefusal('AppRouter.routes getter not found in "${file.path}".');
     }
     final body = getter.body;
     final expr = body is ExpressionFunctionBody
@@ -548,7 +553,7 @@ class RoutesSource {
         ? _returnedExpression(body)
         : null;
     if (expr is! ListLiteral) {
-      throw StateError(
+      throw const FrxRefusal(
         'AppRouter.routes does not return a list literal — cannot wire '
         'automatically.',
       );

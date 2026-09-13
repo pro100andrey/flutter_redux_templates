@@ -8,7 +8,8 @@
 /// `ArtifactTemplates.fieldSetter` took the type as an opaque string and
 /// hardcoded its two relative imports, so
 ///
-///     frx add-field session tags:IList<String> --default 'IListConst([])' --action
+///     frx add-field session tags:IList<String> --default 'IListConst([])'
+///     --action
 ///
 /// wrote `final IList<String> tags;` into a file with nothing importing
 /// `IList`. `add-selector --type 'IList<String>'` had the same hole.
@@ -68,13 +69,13 @@ abstract final class TypeImports {
   /// this snippet a sufficient reason to add the import", and a sufficient
   /// condition for adding is not a necessary one for keeping: the package also
   /// exports `IListView`, `IMapOfSets` and the rest, which the add rule's
-  /// trailing `\b` excludes and which stop compiling the moment the import goes.
-  /// Erring wide leaves an import nothing uses — a lint; erring narrow takes one
-  /// out from under live code — a build.
+  /// trailing `\b` excludes and which stop compiling the moment the import
+  /// goes. Erring wide leaves an import nothing uses — a lint; erring narrow
+  /// takes one out from under live code — a build.
   ///
   /// One registry, shared with the facade's own pruning: the same
-  /// `selectors.dart` must not get opposite answers depending on whether a field
-  /// or a whole substate was removed.
+  /// `selectors.dart` must not get opposite answers depending on whether a
+  /// field or a whole substate was removed.
   static final _probes = <String, RegExp>{
     fastImmutableCollections: RegExp(r'\b(?:IList|IMap|ISet)'),
   };
@@ -156,9 +157,9 @@ abstract final class ProjectTypeImports {
     return hits.length == 1 ? hits.single : null;
   });
 
-  /// What proves the import [uri] is still needed by [body].
+  /// What proves the import [uri] is still needed by `body`.
   ///
-  /// The same resolution read backwards: an identifier in [body] keeps the
+  /// The same resolution read backwards: an identifier in `body` keeps the
   /// import alive when it resolves to *that URI*. Not "does `Result` still
   /// appear" — a union's cases are supplied by the file its union names, so
   /// `ResultSuccess` alone keeps `result.dart`, and not "does anything starting
@@ -238,10 +239,10 @@ abstract final class _ImportablePackages {
 
   /// The directories of the `path:` dependencies declared in [dir]'s pubspec.
   ///
-  /// Direct only, and deliberately: Dart lets a file import the packages its own
-  /// package declares and no others, so a transitive walk would resolve names to
-  /// imports that do not compile — the one failure mode this module promises not
-  /// to have.
+  /// Direct only, and deliberately: Dart lets a file import the packages its
+  /// own package declares and no others, so a transitive walk would resolve
+  /// names to imports that do not compile — the one failure mode this module
+  /// promises not to have.
   static List<Directory> _pathDeps(Directory dir) {
     final pubspec = File(p.join(dir.path, 'pubspec.yaml'));
     if (!pubspec.existsSync()) {
@@ -312,13 +313,13 @@ class _ImportablePackage {
   ///
   /// There used to be a third, asked first and cheapest: `Task` is in
   /// `task.dart`, the convention `add-model` writes, one `existsSync`. It is
-  /// gone because it answered from the *file name* and never opened the file.
-  /// A `models/lib/task.dart` holding `class TaskList` and a `Task` next door in
+  /// gone because it answered from the *file name* and never opened the file. A
+  /// `models/lib/task.dart` holding `class TaskList` and a `Task` next door in
   /// `other.dart` made it answer `package:models/task.dart` for `Task` — an
-  /// import that resolves and does not supply the name, which is the one failure
-  /// this module's doc promises it cannot have. The convention it encoded is not
-  /// lost: when `task.dart` does declare `Task`, the declaration search finds it
-  /// there, having checked.
+  /// import that resolves and does not supply the name, which is the one
+  /// failure this module's doc promises it cannot have. The convention it
+  /// encoded is not lost: when `task.dart` does declare `Task`, the declaration
+  /// search finds it there, having checked.
   String? uriFor(String identifier) {
     final file = _byDeclaration(identifier);
     return file == null ? null : _entryFor(file, identifier, {});
@@ -329,13 +330,14 @@ class _ImportablePackage {
   ///
   /// Text first: [SourceIndex.unitIf] reads each file and parses only the ones
   /// that contain the word at all, so a miss costs reads and no parses. That
-  /// pre-filter is what makes the widened search space affordable — the six path
-  /// dependencies of one real app are 228 files and 1.3 MB, of which a given
-  /// identifier matches a handful.
+  /// pre-filter is what makes the widened search space affordable — the six
+  /// path dependencies of one real app are 228 files and 1.3 MB, of which a
+  /// given identifier matches a handful.
   ///
   /// Recursive, unlike the `models`-only lookup this replaces: `lib/src/` is
-  /// where a package with a barrel keeps everything, and `models/lib/converters/`
-  /// was invisible to the old walk for the same reason.
+  /// where a package with a barrel keeps everything, and
+  /// `models/lib/converters/` was invisible to the old walk for the same
+  /// reason.
   ///
   /// Generated files are not searched — `result.freezed.dart` declares the case
   /// too, and importing *it* is not how anybody reaches the class.
@@ -355,11 +357,12 @@ class _ImportablePackage {
 
   /// The text a file must contain before it is worth parsing for [identifier].
   ///
-  /// A plain `contains` is not a pre-filter here, it is a full scan wearing one:
-  /// `String` occurs in essentially every Dart file, so `add-field x note:String?`
-  /// parsed all 161 files of one real app's dependency closure to conclude that
-  /// none of them declares it — 400 ms and 161 parses to answer "no". Matching
-  /// the *declaration* instead costs the same read and almost never the parse.
+  /// A plain `contains` is not a pre-filter here, it is a full scan wearing
+  /// one: `String` occurs in essentially every Dart file, so
+  /// `add-field x note:String?` parsed all 161 files of one real app's
+  /// dependency closure to conclude that none of them declares it — 400 ms and
+  /// 161 parses to answer "no". Matching the *declaration* instead costs the
+  /// same read and almost never the parse.
   ///
   /// Kept deliberately in step with [_declares], which is the authority: this
   /// only has to be no *narrower*, and `type_imports` asserts exactly that over
@@ -445,12 +448,13 @@ class _ImportablePackage {
   /// the name — the other one is, and it is resolved on its own if it is a
   /// dependency and correctly not resolved if it is not.
   ///
-  /// The combinators are honoured, and that is not pedantry: this module's whole
-  /// safety argument is that it can miss an import but never invent a wrong one,
-  /// and `export 'src/store.dart' show SqliteEventStore` is a real barrel in a
-  /// real dependency here. Answering `package:tm_store_sqlite/tm_store_sqlite.dart`
-  /// for the *other* class in that file would be an import that resolves and
-  /// does not supply the name — the exact failure the doc above promises away.
+  /// The combinators are honoured, and that is not pedantry: this module's
+  /// whole safety argument is that it can miss an import but never invent a
+  /// wrong one, and `export 'src/store.dart' show SqliteEventStore` is a real
+  /// barrel in a real dependency here. Answering
+  /// `package:tm_store_sqlite/tm_store_sqlite.dart` for the *other* class in
+  /// that file would be an import that resolves and does not supply the name —
+  /// the exact failure the doc above promises away.
   static bool _exports(
     CompilationUnit unit,
     File from,
@@ -475,15 +479,17 @@ class _ImportablePackage {
     return false;
   }
 
-  /// Whether [directive]'s `show`/`hide` list lets [identifier] out of [target].
+  /// Whether [directive]'s `show`/`hide` list lets [identifier] out of
+  /// [target].
   ///
   /// A union case is admitted by its union's name too — `show Result` exports
   /// `ResultSuccess`, because the case is a constructor redirect on the class
-  /// the combinator names, not a separate top-level name to list. Established by
-  /// reading that redirect in [target], **not** by `ResultSuccess.startsWith`:
-  /// the prefix guess admits `MemoryDigestInternals` for a `show MemoryDigest`,
-  /// which is the same guess this module's `probeFor` doc records having thrown
-  /// out for keeping `task.dart` alive for a surviving `TaskList`.
+  /// the combinator names, not a separate top-level name to list. Established
+  /// by reading that redirect in [target], **not** by
+  /// `ResultSuccess.startsWith`: the prefix guess admits
+  /// `MemoryDigestInternals` for a `show MemoryDigest`, which is the same guess
+  /// this module's `probeFor` doc records having thrown out for keeping
+  /// `task.dart` alive for a surviving `TaskList`.
   static bool _combinatorsAdmit(
     ExportDirective directive,
     String identifier,
@@ -516,8 +522,8 @@ class _ImportablePackage {
     return true;
   }
 
-  /// Whether [unit] supplies [identifier] — declares it outright, or names it as
-  /// the case of a union it declares.
+  /// Whether [unit] supplies [identifier] — declares it outright, or names it
+  /// as the case of a union it declares.
   static bool _declares(CompilationUnit unit, String identifier) =>
       _declaredNames(unit).contains(identifier) ||
       _redirectOwners(unit, identifier).isNotEmpty;
@@ -549,8 +555,8 @@ class _ImportablePackage {
   };
 
   /// The classes in [unit] that redirect a factory to [identifier] — the shape
-  /// `const factory Result.success() = ResultSuccess;` has, where the case class
-  /// itself is generated and this is where the source says its name.
+  /// `const factory Result.success() = ResultSuccess;` has, where the case
+  /// class itself is generated and this is where the source says its name.
   ///
   /// One reading of the redirect, asked two ways. "Does this file supply
   /// `ResultSuccess`?" is `isNotEmpty`; "does `show Result` carry it?" is

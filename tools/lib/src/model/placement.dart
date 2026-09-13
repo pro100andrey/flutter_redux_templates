@@ -3,18 +3,18 @@
 /// The audit's other checks are about **drift** — two things out of sync with
 /// each other. This is about *convention*: a selector declared outside the
 /// facade, an action file outside its substate's `actions/` directory, an
-/// annotated page connector outside the connectors package. Nothing else catches
-/// it. The Dart analyzer knows Dart, not this architecture.
+/// annotated page connector outside the connectors package. Nothing else
+/// catches it. The Dart analyzer knows Dart, not this architecture.
 ///
 /// **Why here and not in an analyzer plugin.** A plugin would get resolved
 /// types, which is strictly more information. But `tools/` sits outside the pub
-/// workspace by design (so its `analyzer` dependency stays isolated), so a plugin
-/// could not import the modules that own these conventions — [FrxWorkspace] for
-/// which folders under `redux/` are substates and where the facade and the
-/// connectors package live, and `model/` for the naming — and the conventions
-/// would fork. That is the failure this repository has already paid for once,
-/// when a command list copied into the editor drifted to eight of ten entries. So
-/// a check that needs the conventions lives beside them.
+/// workspace by design (so its `analyzer` dependency stays isolated), so a
+/// plugin could not import the modules that own these conventions —
+/// [FrxWorkspace] for which folders under `redux/` are substates and where the
+/// facade and the connectors package live, and `model/` for the naming — and
+/// the conventions would fork. That is the failure this repository has already
+/// paid for once, when a command list copied into the editor drifted to eight
+/// of ten entries. So a check that needs the conventions lives beside them.
 ///
 /// **The scope is therefore placement, not inheritance.** Parsing can judge
 /// where a declaration sits. It cannot soundly judge what a class *extends*:
@@ -22,8 +22,8 @@
 ///
 /// **The rule for admitting a future rule: it ships only if its syntactic form
 /// cannot be wrong in the common case.** Every rule here keys on a folder, a
-/// filename convention, or an annotation that is present or absent. A rule about
-/// what a type *is* stays with the analyzer.
+/// filename convention, or an annotation that is present or absent. A rule
+/// about what a type *is* stays with the analyzer.
 library;
 
 import 'dart:io';
@@ -38,10 +38,10 @@ import 'selector_shape.dart';
 
 /// A convention about where a declaration belongs.
 ///
-/// Each is separately silenceable through `.frxrc`, by [id]. False positives here
-/// are guaranteed by construction rather than by accident — this template is
-/// cloned and diverged from on purpose — so a project that means it must be able
-/// to say so per rule rather than switching the whole check off.
+/// Each is separately silenceable through `.frxrc`, by [id]. False positives
+/// here are guaranteed by construction rather than by accident — this template
+/// is cloned and diverged from on purpose — so a project that means it must be
+/// able to say so per rule rather than switching the whole check off.
 enum PlacementRule {
   /// A selector declared anywhere but the facade.
   selectorOutsideFacade(
@@ -178,7 +178,8 @@ List<PlacementFinding> placementFindings(
             rule: PlacementRule.connectorOutsideConnectors,
             file: entity.path,
             message:
-                '${rel(entity.path)} — @RoutePage() ${decl.namePart.typeName.lexeme} '
+                '${rel(entity.path)} — @RoutePage() '
+                '${decl.namePart.typeName.lexeme} '
                 'belongs in ${rel(repo.appConnectors.path)}.',
           ));
         }

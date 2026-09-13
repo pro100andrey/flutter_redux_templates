@@ -138,11 +138,13 @@ void main() {
   });
 
   test(
-    'a method call on a receiver reads as a construction, and must not be trusted',
+    'a method call on a receiver reads as a construction, and must not be '
+    'trusted',
     () {
       // Documented, not defended: `a.b()` is indistinguishable from a named
-      // constructor without resolution. A caller matches typeName against a type
-      // it expects rather than treating this as proof a type was constructed.
+      // constructor without resolution. A caller matches typeName against a
+      // type it expects rather than treating this as proof a type was
+      // constructed.
       final c = read('controller.dispose()')!;
       expect(c.typeName, 'controller');
       expect(c.constructorName, 'dispose');

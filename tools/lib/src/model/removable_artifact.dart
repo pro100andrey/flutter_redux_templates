@@ -11,30 +11,31 @@ import 'target_resolver.dart' show TargetResolver;
 
 /// The artifacts `remove` can delete that are *file sets* rather than wiring.
 ///
-/// A substate and a page are not here, and the split is the point. Those two are
-/// registered somewhere — a field in `AppState`, a route in `AppRouter` — so
-/// removing one is an unwiring problem, resolved through [TargetResolver] from
-/// what the project declares. Everything in this enum is instead a set of files
-/// in a known place, scaffolded by a command that wired nothing central, and so
-/// resolved from the filesystem.
+/// A substate and a page are not here, and the split is the point. Those two
+/// are registered somewhere — a field in `AppState`, a route in `AppRouter` —
+/// so removing one is an unwiring problem, resolved through [TargetResolver]
+/// from what the project declares. Everything in this enum is instead a set of
+/// files in a known place, scaffolded by a command that wired nothing central,
+/// and so resolved from the filesystem.
 ///
 /// Keeping the two apart is why `ArtifactKind` did not grow: it is also the
-/// input to `rename` and `which`, which ask "what does this class name decompose
-/// to" — a question no member of this enum answers, because none of them has a
-/// class name convention to read backwards.
+/// input to `rename` and `which`, which ask "what does this class name
+/// decompose to" — a question no member of this enum answers, because none of
+/// them has a class name convention to read backwards.
 ///
-/// What this buys over `rm`, which is what the traced runs reached for 60+ times
-/// across six builds: the *set*. A service is two files in a folder, and a model
-/// leaves `.freezed.dart` and `.g.dart` siblings that do not compile once their
-/// source is gone.
+/// What this buys over `rm`, which is what the traced runs reached for 60+
+/// times across six builds: the *set*. A service is two files in a folder, and
+/// a model leaves `.freezed.dart` and `.g.dart` siblings that do not compile
+/// once their source is gone.
 enum RemovableKind {
   /// `business/lib/redux/<substate>/actions/<snake>_action.dart` — one file,
   /// under whichever substate owns it.
   action,
 
-  /// `models/lib/<snake>.dart`, plus its build_runner siblings. Covers `add-model`
-  /// and `add-enum` alike: both write one file to the same directory, and from
-  /// the outside a deleted freezed model and a deleted enum are the same job.
+  /// `models/lib/<snake>.dart`, plus its build_runner siblings. Covers
+  /// `add-model` and `add-enum` alike: both write one file to the same
+  /// directory, and from the outside a deleted freezed model and a deleted enum
+  /// are the same job.
   model,
 
   /// `ui/lib/<dir>/<file>.dart` — one file.
@@ -106,9 +107,10 @@ class RemovableArtifact {
 /// Resolves a name plus a [RemovableKind] to the files that make it up.
 ///
 /// Returns null when nothing of that kind carries the name. A name it will not
-/// answer for — matching under two substates, in two widget folders, or naming a
-/// connector that belongs to a page — is reported through [blocked] rather than
-/// guessed at, because picking one and deleting it is not a recoverable mistake.
+/// answer for — matching under two substates, in two widget folders, or naming
+/// a connector that belongs to a page — is reported through [blocked] rather
+/// than guessed at, because picking one and deleting it is not a recoverable
+/// mistake.
 class RemovableResolver {
   RemovableResolver(this.repo);
 
@@ -180,15 +182,16 @@ class RemovableResolver {
   // --- model / enum ----------------------------------------------------------
 
   RemovableArtifact? _model(Casing name) {
-    final source = File(ArtifactFiles.model(repo, name));
+    final source = File(modelFile(repo, name));
     if (!source.existsSync()) {
       return null;
     }
 
     // The generated siblings go with it. Left behind they are the worse half of
     // the failure: `task.freezed.dart` still `part of 'task.dart'`, so the
-    // package stops compiling on a file the user never wrote and did not delete.
-    final generated = ArtifactFiles.modelGenerated(repo, name);
+    // package stops compiling on a file the user never wrote and did not
+    // delete.
+    final generated = modelGeneratedFiles(repo, name);
 
     return RemovableArtifact(
       kind: RemovableKind.model,
@@ -205,13 +208,13 @@ class RemovableResolver {
 
   /// The backward read of [WidgetScaffold.fileNameFor].
   ///
-  /// A widget's file is named after its *class*, not after the argument: `-k
-  /// field` turns `Pin` into `PinFormField` and writes `pin_form_field.dart`.
-  /// So the name the user types does not name the file, and looking for
-  /// `<typed>.dart` found nothing for exactly the kinds that rename — measured:
-  /// `add-widget Pin --dir inputs -k field` then `remove Pin --kind widget`
-  /// exited 70. Every kind's spelling is tried, because `remove` is not told
-  /// which one built it.
+  /// A widget's file is named after its *class*, not after the argument:
+  /// `-k field` turns `Pin` into `PinFormField` and writes
+  /// `pin_form_field.dart`. So the name the user types does not name the file,
+  /// and looking for `<typed>.dart` found nothing for exactly the kinds that
+  /// rename — measured: `add-widget Pin --dir inputs -k field` then
+  /// `remove Pin --kind widget` exited 70. Every kind's spelling is tried,
+  /// because `remove` is not told which one built it.
   RemovableArtifact? _widget(Casing name) {
     final spellings = {
       for (final kind in WidgetKind.values)
@@ -253,7 +256,8 @@ class RemovableResolver {
         return '$cls (ui/lib/${h.dir}/${h.file})';
       }).toList()..sort();
       blocked =
-          '"${name.pascal}" names ${hits.length} widgets — ${named.join(', ')}. '
+          '"${name.pascal}" names ${hits.length} widgets — '
+          '${named.join(', ')}. '
           'Re-run with the class of the one you mean. If that is the name you '
           'just typed, it is also the stem of the other, so nothing tells them '
           'apart: rename one, or delete the file directly.';
@@ -286,10 +290,11 @@ class RemovableResolver {
     }
 
     // A page's connector is half of the page, not a connector of its own:
-    // `add-page` writes both and registers the route against this file. Deleting
-    // it alone leaves a route pointing at nothing — and the two are told apart by
-    // the name, since `add-page` writes `<name>_page_connector.dart` where
-    // `add-connector` writes `<name>_connector.dart`.
+    // `add-page` writes both and registers the route against this file.
+    // Deleting it alone leaves a route pointing at nothing — and the two are
+    // told apart by the name, since `add-page` writes
+    // `<name>_page_connector.dart` where `add-connector` writes
+    // `<name>_connector.dart`.
     //
     // Caught by `remove HomePage`, which auto-detection resolved here and would
     // have silently orphaned the page: the page's own canonical name is `Home`,
@@ -319,7 +324,7 @@ class RemovableResolver {
 
   RemovableArtifact? _service(Casing name) {
     final stem = ArtifactName.serviceStem(name);
-    final dir = ArtifactFiles.serviceDir(repo, name);
+    final dir = serviceDir(repo, name);
     if (!dir.existsSync()) {
       return null;
     }
@@ -340,10 +345,10 @@ class RemovableResolver {
           'Remove service "${stem.pascal}Service"  (${held.length} file(s))',
       files: const [],
       directories: [dir.path],
-      // `add-service` does not write `dependencies.dart` either — the field that
-      // constructs the service is hand-written, so removal stays symmetric and
-      // points at it instead of editing it. Naming the file is the whole value:
-      // it is the one place the project will not compile from.
+      // `add-service` does not write `dependencies.dart` either — the field
+      // that constructs the service is hand-written, so removal stays symmetric
+      // and points at it instead of editing it. Naming the file is the whole
+      // value: it is the one place the project will not compile from.
       dangles:
           'business/lib/dependencies.dart still constructs it — drop its field '
           'and import',

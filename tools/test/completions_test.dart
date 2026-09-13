@@ -8,7 +8,8 @@ void main() {
   tearDown(() => fx.dispose());
 
   // __complete resolves substate/route names from the current directory, so run
-  // it with cwd = the fixture root (and no injected --root polluting the words).
+  // it with cwd = the fixture root (and no injected --root polluting the
+  // words).
   Future<List<String>> complete(List<String> words) async {
     final res = await runFrxIn(fx, ['__complete', '--', ...words]);
     expect(res.exitCode, 0, reason: res.stderr.toString());

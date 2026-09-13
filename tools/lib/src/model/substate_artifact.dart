@@ -81,8 +81,8 @@ class SubstateArtifact {
 
   /// The frx-generated action file basenames this substate can carry, mapped to
   /// their equivalents under [to] — used by `rename` to move `<old>_state.dart`
-  /// → `<new>_state.dart` etc. while leaving hand-written files untouched (their
-  /// classes match no rename pattern, so file and class stay in step).
+  /// → `<new>_state.dart` etc. while leaving hand-written files untouched
+  /// (their classes match no rename pattern, so file and class stay in step).
   Map<String, String> renamableBasenames(SubstateArtifact to) => {
     '${name.snake}_state.dart': '${to.name.snake}_state.dart',
     '${name.snake}_action.dart': '${to.name.snake}_action.dart',

@@ -7,6 +7,7 @@ import '../flow/flow_reader.dart';
 import '../flow/mermaid.dart';
 import '../flow/route_map.dart';
 import '../model/page_artifact.dart';
+import '../refusal.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'frx_command.dart';
@@ -89,7 +90,7 @@ class FlowCommand extends Command<int> with NameArg {
     final FrxWorkspace workspace;
     try {
       workspace = FrxWorkspace.locate(startDir: argResults?['root'] as String?);
-    } on StateError catch (e) {
+    } on FrxRefusal catch (e) {
       console.err.writeln('frx: ${e.message}');
       return 70;
     }
@@ -103,7 +104,8 @@ class FlowCommand extends Command<int> with NameArg {
     return _pageFlow(workspace, json: json);
   }
 
-  // --- one page ---------------------------------------------------------------
+  // --- one page
+  // ---------------------------------------------------------------
 
   int _pageFlow(FrxWorkspace workspace, {required bool json}) {
     final input = requireName();
@@ -130,11 +132,11 @@ class FlowCommand extends Command<int> with NameArg {
     }
 
     if (flow.isEmpty) {
-      // "Nothing to diagram" is a claim about the code, and it has to be earned.
-      // A page whose every dispatch was written in a shape the reader does not
-      // follow reaches here too, and saying the same sentence turns a gap in the
-      // reader into a statement about the page — the purest form of the failure
-      // `untraced` exists to prevent.
+      // "Nothing to diagram" is a claim about the code, and it has to be
+      // earned. A page whose every dispatch was written in a shape the reader
+      // does not follow reaches here too, and saying the same sentence turns a
+      // gap in the reader into a statement about the page — the purest form of
+      // the failure `untraced` exists to prevent.
       if (flow.untraced.isEmpty) {
         console.out.writeln(
           '${artifact.connectorClass} has no dispatching callbacks — '
@@ -146,8 +148,8 @@ class FlowCommand extends Command<int> with NameArg {
       // rather than as a diagnosis. Part of what is counted here is a callback
       // the reader could not follow; part of it never was a callback, such as a
       // `StoreConnector(onInit: …)` that dispatches on open. Naming a cause the
-      // tool cannot tell apart would be guessing in the one output added to stop
-      // guesses being read as facts.
+      // tool cannot tell apart would be guessing in the one output added to
+      // stop guesses being read as facts.
       console.out.writeln(
         '${artifact.connectorClass}: no interaction to diagram, and these '
         'files dispatch anyway:',
@@ -167,13 +169,14 @@ class FlowCommand extends Command<int> with NameArg {
     return 0;
   }
 
-  // --- the whole app ----------------------------------------------------------
+  // --- the whole app
+  // ----------------------------------------------------------
 
   int _routeMap(FrxWorkspace workspace, {required bool json}) {
     final RouteMap map;
     try {
       map = RouteMapReader(workspace).read();
-    } on StateError catch (e) {
+    } on FrxRefusal catch (e) {
       console.err.writeln('frx: ${e.message}');
       return 70;
     }
@@ -192,7 +195,8 @@ class FlowCommand extends Command<int> with NameArg {
     return 0;
   }
 
-  // --- markdown export --------------------------------------------------------
+  // --- markdown export
+  // --------------------------------------------------------
 
   int _exportDocs(FrxWorkspace workspace, {required bool json}) {
     final check = argResults!.flag('check');
@@ -201,7 +205,7 @@ class FlowCommand extends Command<int> with NameArg {
     final RouteMap map;
     try {
       map = RouteMapReader(workspace).read();
-    } on StateError catch (e) {
+    } on FrxRefusal catch (e) {
       console.err.writeln('frx: ${e.message}');
       return 70;
     }
@@ -213,7 +217,9 @@ class FlowCommand extends Command<int> with NameArg {
           'frx: ${docs.dir.path} does not exist — run `frx flow --md` to '
           'create it.';
       if (json) {
-        console.out.writeln(jsonEncode({'enabled': false, 'drift': []}));
+        console.out.writeln(
+          jsonEncode({'enabled': false, 'drift': <String>[]}),
+        );
       } else {
         console.err.writeln(msg);
       }

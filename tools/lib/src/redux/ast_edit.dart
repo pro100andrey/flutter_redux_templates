@@ -11,11 +11,11 @@ import 'selectors_source.dart' show SelectorsSource;
 ///
 /// Nine result types in this tier carried exactly these three facts, under four
 /// spellings of the boolean — `alreadyWired` for a registration,
-/// `alreadyPresent` for a member, `found` for a removal, and `alreadyPresent &&
-/// !retyped` for an edit that rewrites what it finds. Nothing named the shape,
-/// so every command holding one wrote the same two derivations by hand: the
-/// change to apply (fifteen sites) and the block that reports it (nine). Named,
-/// both are derived once, in `commands/wiring.dart`.
+/// `alreadyPresent` for a member, `found` for a removal, and
+/// `alreadyPresent && !retyped` for an edit that rewrites what it finds.
+/// Nothing named the shape, so every command holding one wrote the same two
+/// derivations by hand: the change to apply (fifteen sites) and the block that
+/// reports it (nine). Named, both are derived once, in `commands/wiring.dart`.
 ///
 /// Four of the nine are gone, measured against their callers rather than
 /// assumed: see [Edited]. Three survive, and each earns it — `RouteWireResult`
@@ -79,8 +79,8 @@ class Edited implements EditOutcome {
 /// An [EditOutcome] that took something away rather than adding it.
 ///
 /// A mixin and not one-line getters on each result because this is the one of
-/// the four spellings that inverts, and inverting it back is a silent bug of the
-/// worst kind: `unchanged => found` skips the edit in exactly the case that
+/// the four spellings that inverts, and inverting it back is a silent bug of
+/// the worst kind: `unchanged => found` skips the edit in exactly the case that
 /// needed one, and the report says "nothing to unwire" about a field that is
 /// still there. Written once, no unwire result can get it wrong.
 mixin Unwiring implements EditOutcome {
@@ -95,11 +95,11 @@ mixin Unwiring implements EditOutcome {
 /// a wiring.
 ///
 /// It exists rather than folding the unwirings into [Edited] because `found` is
-/// the word their tests are written in, and `expect(unwired.found, isTrue)` says
-/// what happened where `expect(unwired.unchanged, isFalse)` makes the reader
-/// invert it in their head. Tests are callers too, so the criterion on [Edited]
-/// — does anything read the specific word — does not stop applying just because
-/// the caller is a test.
+/// the word their tests are written in, and `expect(unwired.found, isTrue)`
+/// says what happened where `expect(unwired.unchanged, isFalse)` makes the
+/// reader invert it in their head. Tests are callers too, so the criterion on
+/// [Edited] — does anything read the specific word — does not stop applying
+/// just because the caller is a test.
 class Unwired with Unwiring {
   /// What was named was there, and [changes] describe taking it out.
   const Unwired({required this.source, required this.changes}) : found = true;
@@ -150,16 +150,16 @@ String applyEdits(String source, List<Edit> edits) {
 /// Inserting *at* [closer] is the trap this exists to close. A list whose last
 /// element has no trailing comma — `{String? value}`, or a single-element set
 /// that `dart format` collapsed onto one line — fuses with the new text:
-/// `valueString? nickname`, `LogInRoute.nameHomeRoute.name`. The result does not
-/// parse, and nothing downstream of the splice notices. Appending *after* the
-/// last element with a leading comma is correct in both shapes; only an empty
-/// list has to insert before [closer].
+/// `valueString? nickname`, `LogInRoute.nameHomeRoute.name`. The result does
+/// not parse, and nothing downstream of the splice notices. Appending *after*
+/// the last element with a leading comma is correct in both shapes; only an
+/// empty list has to insert before [closer].
 ///
 /// Pass [before] to insert ahead of a particular element instead, for a list
 /// with a member that has to stay last (`wait` on `AppState`).
 ///
-/// This rule was discovered independently three times and missed twice before it
-/// lived here; [removeListItem] is its inverse.
+/// This rule was discovered independently three times and missed twice before
+/// it lived here; [removeListItem] is its inverse.
 Edit insertIntoList({
   required Iterable<AstNode> elements,
   required Token closer,
@@ -253,12 +253,12 @@ Edit removeDeclaration(String source, AstNode node) {
   return Edit.replace(start, end, '');
 }
 
-/// Where to splice a new `import '$uri';`, keeping it sorted within its section:
-/// `dart:`/`package:` imports sort together above relative ones.
+/// Where to splice a new `import '$uri';`, keeping it sorted within its
+/// section: `dart:`/`package:` imports sort together above relative ones.
 ///
 /// Note: sorting is by `String.compareTo` (UTF-16 code units), which matches
-/// `directives_ordering` for the lowercase `package:`/snake_case paths this tool
-/// generates; a pre-existing import with uppercase/digit segments could be
+/// `directives_ordering` for the lowercase `package:`/snake_case paths this
+/// tool generates; a pre-existing import with uppercase/digit segments could be
 /// ordered slightly differently.
 Edit importInsertion(List<ImportDirective> imports, String uri) {
   bool isPackage(String u) => u.startsWith('dart:') || u.startsWith('package:');
@@ -278,8 +278,9 @@ Edit importInsertion(List<ImportDirective> imports, String uri) {
   if (section.isNotEmpty) {
     return Edit.insert(section.last.end, "\nimport '$uri';");
   }
-  // Section empty: no imports at all → start of file; a package import leads the
-  // existing (relative-only) block; a relative import starts a new block below.
+  // Section empty: no imports at all → start of file; a package import leads
+  // the existing (relative-only) block; a relative import starts a new block
+  // below.
   if (imports.isEmpty) {
     return Edit.insert(0, "import '$uri';\n");
   }
@@ -352,8 +353,8 @@ typedef ImportProbe = bool Function(String body);
 /// whatever tie [applyEdits] happened to break, not sorted order. Adding
 /// `package:collection/collection.dart` and
 /// `package:fast_immutable_collections/…` to a file importing only
-/// `package:freezed_annotation/…` put both before `freezed_annotation` at offset
-/// 0, and emitted `fast_immutable_collections` above `collection`.
+/// `package:freezed_annotation/…` put both before `freezed_annotation` at
+/// offset 0, and emitted `fast_immutable_collections` above `collection`.
 ///
 /// `NavSource` and `RoutesSource` each learned this and re-parse in place; four
 /// other call sites did not. This is that rule, stated once.

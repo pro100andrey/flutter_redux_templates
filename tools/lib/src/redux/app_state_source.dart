@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 
 import '../ast/declarations.dart';
 import '../ast/source_index.dart';
+import '../refusal.dart';
 import '../workspace/frx_workspace.dart';
 import 'ast_edit.dart';
 
@@ -42,6 +43,53 @@ class Substate {
 class AppStateSource {
   AppStateSource(this.file);
 
+  /// The `app_state.dart` inside an already-resolved workspace.
+  ///
+  /// A command that holds a workspace has already answered "where is the
+  /// monorepo". Walking up again would answer it a second time and, because
+  /// [AppStateSource.locate] keys on a different marker, could answer it
+  /// *differently* — a
+  /// repo whose `AppState` is missing sends it climbing past the root it was
+  /// just handed, to report the absence against some ancestor directory.
+  factory AppStateSource.of(FrxWorkspace repo) {
+    final file = File(p.join(repo.root.path, _relativePath));
+    if (!file.existsSync()) {
+      // Not [locate]'s advice. "Run this from inside the monorepo, or pass
+      // --root" is what you say to someone who is somewhere else; the root here
+      // is already resolved and already honoured `--root`. What is wrong is the
+      // project. Says what is missing and where it was looked for, and nothing
+      // about what the caller wanted with it: `graph` and `doctor` reach this
+      // too, and "no AppState to wire into" is wrong for a command that only
+      // reads.
+      throw FrxRefusal(
+        'No "$_relativePath" under ${repo.root.path} — this project has no '
+        'AppState.',
+      );
+    }
+    return AppStateSource(file);
+  }
+
+  /// Finds `app_state.dart` by walking up from [startDir] (or the current
+  /// directory) until a `business/lib/redux/app_state.dart` is found. This lets
+  /// the CLI run from anywhere inside the monorepo, or after a global install.
+  ///
+  /// For a caller with **no** workspace yet — `list-substates` resolving from
+  /// the user's `--root`, and `TargetResolver` asking whether there is a
+  /// project of either kind above. A caller that already holds one uses
+  /// [AppStateSource.of]:
+  /// walking up from a root already found can only return the same file, or one
+  /// outside the repo, and the second is what it did.
+  factory AppStateSource.locate({String? startDir}) {
+    final root = walkUpForMarker(
+      startDir,
+      _relativePath,
+      (origin) =>
+          'Could not find "$_relativePath" walking up from "$origin". '
+          'Run this from inside the monorepo, or pass --root.',
+    );
+    return AppStateSource(File(p.join(root.path, _relativePath)));
+  }
+
   final File file;
 
   /// Path of `app_state.dart` relative to the repo root.
@@ -53,51 +101,6 @@ class AppStateSource {
 
   /// The monorepo root — `redux` → `lib` → `business` → root.
   Directory get repoRoot => reduxDir.parent.parent.parent;
-
-  /// Finds `app_state.dart` by walking up from [startDir] (or the current
-  /// directory) until a `business/lib/redux/app_state.dart` is found. This lets
-  /// the CLI run from anywhere inside the monorepo, or after a global install.
-  ///
-  /// For a caller with **no** workspace yet — `list-substates` resolving from
-  /// the user's `--root`, and `TargetResolver` asking whether there is a project
-  /// of either kind above. A caller that already holds one uses [of]: walking up
-  /// from a root already found can only return the same file, or one outside the
-  /// repo, and the second is what it did.
-  static AppStateSource locate({String? startDir}) {
-    final root = walkUpForMarker(
-      startDir,
-      _relativePath,
-      (origin) =>
-          'Could not find "$_relativePath" walking up from "$origin". '
-          'Run this from inside the monorepo, or pass --root.',
-    );
-    return AppStateSource(File(p.join(root.path, _relativePath)));
-  }
-
-  /// The `app_state.dart` inside an already-resolved workspace.
-  ///
-  /// A command that holds a workspace has already answered "where is the
-  /// monorepo". Walking up again would answer it a second time and, because
-  /// [locate] keys on a different marker, could answer it *differently* — a
-  /// repo whose `AppState` is missing sends it climbing past the root it was
-  /// just handed, to report the absence against some ancestor directory.
-  static AppStateSource of(FrxWorkspace repo) {
-    final file = File(p.join(repo.root.path, _relativePath));
-    if (!file.existsSync()) {
-      // Not [locate]'s advice. "Run this from inside the monorepo, or pass
-      // --root" is what you say to someone who is somewhere else; the root here
-      // is already resolved and already honoured `--root`. What is wrong is the
-      // project.
-      // Says what is missing and where it was looked for, and nothing about
-      // what the caller wanted with it: `graph` and `doctor` reach this too, and
-      // "no AppState to wire into" is wrong for a command that only reads.
-      throw StateError(
-        'No "$_relativePath" under ${repo.root.path} — this project has no '
-        'AppState.',
-      );
-    }
-    return AppStateSource(file);
-  }
 
   /// Returns the substates currently composed into `AppState`, in source order.
   List<Substate> readSubstates() {
@@ -238,7 +241,7 @@ class AppStateSource {
   ClassDeclaration _appStateClass(CompilationUnit unit) {
     final appState = classNamed(unit, 'AppState');
     if (appState == null) {
-      throw StateError('class AppState not found in "${file.path}".');
+      throw FrxRefusal('class AppState not found in "${file.path}".');
     }
     return appState;
   }
@@ -262,7 +265,7 @@ class AppStateSource {
         )
         .firstOrNull;
     if (ctor == null) {
-      throw StateError(
+      throw FrxRefusal(
         'AppState redirecting factory constructor not found in "${file.path}".',
       );
     }
@@ -274,7 +277,7 @@ class AppStateSource {
       cls,
     ).where((c) => c.name?.lexeme == 'initial').firstOrNull;
     if (ctor == null) {
-      throw StateError(
+      throw FrxRefusal(
         'AppState.initial() factory not found in "${file.path}".',
       );
     }
@@ -292,7 +295,7 @@ class AppStateSource {
     initial.body.accept(finder);
     final args = finder.arguments;
     if (args == null) {
-      throw StateError(
+      throw const FrxRefusal(
         'AppState.initial() does not construct AppState(...) — '
         'cannot wire automatically.',
       );
@@ -303,8 +306,8 @@ class AppStateSource {
 
 /// Finds the argument list of the first `AppState(...)` construction, matching
 /// both the `const`/`new` form ([InstanceCreationExpression]) and the
-/// un-keyworded form ([MethodInvocation]) — how an *unresolved* parse represents
-/// a constructor call it can't tell apart from a function call.
+/// un-keyworded form ([MethodInvocation]) — how an *unresolved* parse
+/// represents a constructor call it can't tell apart from a function call.
 class _AppStateConstruction extends RecursiveAstVisitor<void> {
   ArgumentList? arguments;
 

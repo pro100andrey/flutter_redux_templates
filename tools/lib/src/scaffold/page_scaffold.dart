@@ -3,8 +3,8 @@ import '../util/casing.dart';
 /// A typed route parameter, e.g. `(name: 'id', type: 'int')` → `/…/:id`.
 typedef PageParam = ({String name, String type});
 
-/// Produces the two source files for a new page: a dumb [StatelessWidget] in the
-/// `ui` package and a `@RoutePage()` StoreConnector in the `app` package.
+/// Produces the two source files for a new page: a dumb `StatelessWidget` in
+/// the `ui` package and a `@RoutePage()` StoreConnector in the `app` package.
 ///
 /// Plain string templates (no `code_builder`) — pages and connectors are boring
 /// boilerplate whose shape mirrors the hand-written connectors already in the
@@ -12,7 +12,8 @@ typedef PageParam = ({String name, String type});
 /// `dart format` normalizes the output afterwards.
 ///
 /// [params] become constructor fields on both the connector and the page (and
-/// path params on the route); auto_route binds `/:id` to the `id` field by name.
+/// path params on the route); auto_route binds `/:id` to the `id` field by
+/// name.
 class PageScaffold {
   const PageScaffold(this.name, {this.params = const []});
 
@@ -29,9 +30,10 @@ class PageScaffold {
 
   /// The dumb page — lives in `ui/lib/pages/<snake>_page.dart`, store-agnostic.
   String page() {
+    final shown = params.map((p) => '${p.name}: \$${p.name}').join(', ');
     final body = params.isEmpty
         ? "const Center(child: Text('$_pascal — coming soon'))"
-        : "Center(child: Text('${params.map((p) => '${p.name}: \$${p.name}').join(', ')}'))";
+        : "Center(child: Text('$shown'))";
     return '''
 import 'package:flutter/material.dart';
 
@@ -55,9 +57,10 @@ $_fields
   /// `@RoutePage()` makes auto_route generate a `${_pascal}Route` class. The
   /// empty `_Vm` is the seam to fill in as the page starts reading state.
   String connector() {
+    final args = params.map((p) => '${p.name}: ${p.name}').join(', ');
     final pageCall = params.isEmpty
         ? 'const ${_pascal}Page()'
-        : '${_pascal}Page(${params.map((p) => '${p.name}: ${p.name}').join(', ')})';
+        : '${_pascal}Page($args)';
     return '''
 import 'package:async_redux/async_redux.dart';
 import 'package:auto_route/auto_route.dart';

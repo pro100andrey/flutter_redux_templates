@@ -2,6 +2,10 @@ import 'package:test/test.dart';
 
 import 'support/fixture.dart';
 
+/// The one package whose import line is longer than a source line:
+/// its name is both the package and the file.
+const _fic = 'fast_immutable_collections';
+
 /// `frx add-field` splices a field into an existing @freezed state class.
 void main() {
   late Fixture fx;
@@ -101,8 +105,7 @@ void main() {
     expect(
       src,
       contains(
-        "import 'package:fast_immutable_collections/"
-        "fast_immutable_collections.dart';",
+        "import 'package:$_fic/$_fic.dart';",
       ),
     );
   });
@@ -149,12 +152,10 @@ void main() {
   });
 
   test('--action never clobbers an existing setter', () async {
-    final setter = fx.file(
-      'business/lib/redux/log_in/actions/set_nickname_action.dart',
-    );
-    setter
-      ..parent.createSync(recursive: true)
-      ..writeAsStringSync('// hand-written setter\n');
+    final setter =
+        fx.file('business/lib/redux/log_in/actions/set_nickname_action.dart')
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync('// hand-written setter\n');
 
     final res = await runFrx(fx, [
       'add-field',

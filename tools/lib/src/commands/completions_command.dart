@@ -7,8 +7,9 @@ import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 
 /// Prints a shell completion script for `frx`. The scripts are tiny: they defer
-/// every decision to `frx __complete`, so completions (including live substate /
-/// route names) stay in sync with the CLI instead of being re-encoded in shell.
+/// every decision to `frx __complete`, so completions (including live substate
+/// / route names) stay in sync with the CLI instead of being re-encoded in
+/// shell.
 class CompletionsCommand extends Command<int> {
   @override
   String get name => 'completions';
@@ -168,7 +169,7 @@ class CompleteCommand extends Command<int> {
   static List<String> _safely(List<String> Function() f) {
     try {
       return f();
-    } catch (_) {
+    } on Object catch (_) {
       return const [];
     }
   }

@@ -7,8 +7,8 @@ import 'package:tools/src/engine/watch_supervision.dart';
 /// is a *launcher* that compiles the build script and runs it as a child
 /// (`dartaotruntime`), and only that child installs build_runner's `SIGINT`
 /// handler. Two `SIGINT`s sent to the launcher's pid left both processes
-/// running; one sent to the process group ended both. Anything here that aims at
-/// the launcher alone is a guard that reports success and does nothing — the
+/// running; one sent to the process group ended both. Anything here that aims
+/// at the launcher alone is a guard that reports success and does nothing — the
 /// failure this module exists to prevent.
 void main() {
   group('when we lead the child’s process group', () {
@@ -29,8 +29,8 @@ void main() {
 
     test('the escalation never uses the group — we are in it', () {
       // `kill -KILL -<us>` takes frx down with the watch: `run()`'s `finally`
-      // never cancels the handlers or stops the reaper, the child's exit code is
-      // never returned, and the shell reports `Killed: 9` for what the user
+      // never cancels the handlers or stops the reaper, the child's exit code
+      // is never returned, and the shell reports `Killed: 9` for what the user
       // asked to be a clean stop. `INT` is safe there only because we hold a
       // handler for it.
       expect(plan('KILL'), [
@@ -67,8 +67,8 @@ void main() {
     });
 
     test('children are signalled before the launcher', () {
-      // `pkill -P` finds children of a *living* process. Kill the launcher first
-      // and the build script is already reparented to init, so the second
+      // `pkill -P` finds children of a *living* process. Kill the launcher
+      // first and the build script is already reparented to init, so the second
       // command matches nothing — the escalation manufactures the very orphan
       // this module exists to prevent.
       final commands = plan('KILL').map((c) => c.first).toList();
@@ -95,8 +95,8 @@ void main() {
   });
 
   test('an unreadable group is treated as somebody else’s', () {
-    // `ps` failing must not be read as "we lead it": that would send a signal to
-    // a negative pid chosen from nothing.
+    // `ps` failing must not be read as "we lead it": that would send a signal
+    // to a negative pid chosen from nothing.
     expect(
       WatchSupervision.signalPlan(
         selfPid: 100,

@@ -35,6 +35,7 @@ import 'commands/watch_command.dart';
 import 'commands/which_command.dart';
 import 'config/frx_config.dart';
 import 'engine/changeset.dart';
+import 'refusal.dart';
 import 'util/console.dart';
 import 'version.dart';
 
@@ -122,8 +123,8 @@ class FrxRunner extends CommandRunner<int> {
       console.err.writeln();
       console.err.writeln(e.usage);
       return exitUsage;
-    } on StateError catch (e) {
-      // Commands throw StateError for user-facing "can't do this here" cases
+    } on FrxRefusal catch (e) {
+      // Commands throw FrxRefusal for user-facing "can't do this here" cases
       // (project not found, an AppState/selectors shape we can't wire). Surface
       // the message cleanly instead of letting it escape as an unhandled crash.
       console.err.writeln('✗ ${e.message}');

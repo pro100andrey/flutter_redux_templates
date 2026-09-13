@@ -258,9 +258,9 @@ class Upgrader {
 
     // Ordered, not compared for inequality. `!=` called every difference an
     // upgrade, so a source build made after a version bump lands but before its
-    // tag is published — the state this repository is in for most of a release —
-    // was told to "upgrade" *backwards*, and `--check` exited 1 at it, which is
-    // what a gating script acts on.
+    // tag is published — the state this repository is in for most of a release
+    // — was told to "upgrade" *backwards*, and `--check` exited 1 at it, which
+    // is what a gating script acts on.
     if (compareVersions(target, currentVersion) <= 0) {
       return UpgradeResult(
         UpgradeStatus.current,
@@ -481,7 +481,8 @@ class Upgrader {
       _discard(staged);
       throw UpgradeException(
         'cannot write beside $target — ${e.osError?.message ?? e.message}. '
-        'Install it somewhere you own, or re-run with the rights to replace it.',
+        'Install it somewhere you own, or re-run with the rights to replace '
+        'it.',
       );
     }
   }
@@ -494,7 +495,8 @@ class Upgrader {
         staged.deleteSync();
       }
     } on FileSystemException {
-      /* nothing further to try, and the caller is already reporting a failure */
+      // Nothing further to try, and the caller is already reporting a
+      // failure.
     }
   }
 }

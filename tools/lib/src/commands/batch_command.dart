@@ -7,6 +7,7 @@ import '../engine/build_step.dart';
 import '../engine/changeset.dart';
 import '../engine/write_path.dart';
 import '../engine/write_report.dart';
+import '../refusal.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
@@ -14,21 +15,22 @@ import 'options.dart';
 /// A feature's worth of artifacts, declared once and wired in **one
 /// transaction**.
 ///
-/// Building a feature meant several invocations — two substates, three pages, the
-/// navigation between them — each its own unit, each potentially running codegen.
-/// Atomicity changed what that is worth: a batch is not merely fewer keystrokes,
-/// it is **one rollback boundary where eight calls are eight boundaries**, and a
-/// failure at the fifth call leaves the first four applied.
+/// Building a feature meant several invocations — two substates, three pages,
+/// the navigation between them — each its own unit, each potentially running
+/// codegen. Atomicity changed what that is worth: a batch is not merely fewer
+/// keystrokes, it is **one rollback boundary where eight calls are eight
+/// boundaries**, and a failure at the fifth call leaves the first four applied.
 ///
-/// **The input is a declaration of intents** — the commands you would have typed,
-/// as data. A file is reviewable, diffable and committable; standard input suits
-/// an agent generating one.
+/// **The input is a declaration of intents** — the commands you would have
+/// typed, as data. A file is reviewable, diffable and committable; standard
+/// input suits an agent generating one.
 ///
 /// **It is deliberately not the changeset format.** A changeset describes file
 /// operations; a batch declares intents. Feeding a changeset back in would mean
-/// "apply exactly these file edits", bypassing the readers that derive them — and
-/// deriving the edits rather than being told them is where frx's value lives. The
-/// appealing symmetry of "plan out, plan in" was examined and withdrawn.
+/// "apply exactly these file edits", bypassing the readers that derive them —
+/// and deriving the edits rather than being told them is where frx's value
+/// lives. The appealing symmetry of "plan out, plan in" was examined and
+/// withdrawn.
 class BatchCommand extends Command<int> {
   BatchCommand() {
     argParser
@@ -118,18 +120,18 @@ class BatchCommand extends Command<int> {
     _Failure? failure;
     final done = <_Intent>[];
 
-    // Each intent's own narration is swallowed: the batch reports the batch, and
-    // a `--json` consumer's stdout must carry one object. The captured output is
-    // what the failure report quotes.
+    // Each intent's own narration is swallowed: the batch reports the batch,
+    // and a `--json` consumer's stdout must carry one object. The captured
+    // output is what the failure report quotes.
     final captured = CapturedConsole();
     await withConsole(
       captured,
       () => withTransaction(transaction, () async {
         for (final intent in intents) {
-          // Every way an intent can refuse is caught here, because the batch owns
-          // the unwind: a `StateError` escaping to the runner's own handler would
-          // report the refusal and leave the transaction half applied, with
-          // nobody left to roll it back.
+          // Every way an intent can refuse is caught here, because the batch
+          // owns the unwind: a `FrxRefusal` escaping to the runner's own
+          // handler would report the refusal and leave the transaction half
+          // applied, with nobody left to roll it back.
           final int code;
           try {
             code =
@@ -138,7 +140,7 @@ class BatchCommand extends Command<int> {
           } on UsageException catch (e) {
             failure = _Failure(intent, 64, e.message);
             return;
-          } on StateError catch (e) {
+          } on FrxRefusal catch (e) {
             failure = _Failure(intent, 70, e.message);
             return;
           } on Object catch (e) {
@@ -174,8 +176,8 @@ class BatchCommand extends Command<int> {
     if (dryRun) {
       // The batch really was applied, and is now unwound. Planning each intent
       // against the untouched tree would be a different question: `add-nav`
-      // refuses a destination that is not registered, so intent five's plan does
-      // not exist until intents one to four have happened.
+      // refuses a destination that is not registered, so intent five's plan
+      // does not exist until intents one to four have happened.
       final planned = _plannedBuild(transaction);
       _reportRollback(transaction.rollback());
       console.out.writeln(
@@ -211,12 +213,12 @@ class BatchCommand extends Command<int> {
 
   /// The declaration, validated. Throws [FormatException] with what to fix.
   ///
-  /// **Scope is the additive commands only** — every creation command, including
-  /// the field, selector and navigation commands, which are the ordering case and
-  /// cannot be excluded without removing the point. Rename and removal stay out: a
-  /// declaration file that deletes artifacts is a different class of risk, nothing
-  /// asked for it, and the asymmetry runs one way — widening later is additive,
-  /// narrowing after release is a break.
+  /// **Scope is the additive commands only** — every creation command,
+  /// including the field, selector and navigation commands, which are the
+  /// ordering case and cannot be excluded without removing the point. Rename
+  /// and removal stay out: a declaration file that deletes artifacts is a
+  /// different class of risk, nothing asked for it, and the asymmetry runs one
+  /// way — widening later is additive, narrowing after release is a break.
   List<_Intent> _parse(String raw) {
     final Object? decoded;
     try {
@@ -254,7 +256,7 @@ class BatchCommand extends Command<int> {
       switch (entry['args']) {
         case null:
           break;
-        case final List raw:
+        case final List<Object?> raw:
           for (final a in raw) {
             if (a is! String) {
               throw FormatException(
@@ -298,7 +300,8 @@ class BatchCommand extends Command<int> {
     };
     if (destructive[command] case final why?) {
       throw FormatException(
-        '$where: "$command" is not allowed in a batch — $why, and a declaration '
+        '$where: "$command" is not allowed in a batch — $why, and a '
+        'declaration '
         'file that does it is a different class of risk. Run it on its own.',
       );
     }
@@ -310,7 +313,8 @@ class BatchCommand extends Command<int> {
     }
     if (!command.startsWith('add-')) {
       throw FormatException(
-        '$where: "$command" is not a creation command. A batch wires artifacts; '
+        '$where: "$command" is not a creation command. A batch wires '
+        'artifacts; '
         'reading and auditing commands are not part of one.',
       );
     }
@@ -446,8 +450,8 @@ class _Failure {
   final _Intent intent;
   final int code;
 
-  /// What the intent said before it gave up — the last line of its stderr, which
-  /// is where every command's refusal lands.
+  /// What the intent said before it gave up — the last line of its stderr,
+  /// which is where every command's refusal lands.
   final String reason;
 
   static String _lastLine(String captured) {

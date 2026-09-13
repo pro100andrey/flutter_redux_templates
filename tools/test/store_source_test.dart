@@ -10,9 +10,9 @@ import 'support/in_process.dart';
 /// The persistor's change log — one line per `AppState` field, feeding the
 /// `Δ connectivity, logIn` the action logger prints.
 ///
-/// frx wired the `AppState` field and the selectors facade and did not know this
-/// list existed, so a substate it created was invisible to the trace from the
-/// moment it was created, and a renamed one kept printing its old name.
+/// frx wired the `AppState` field and the selectors facade and did not know
+/// this list existed, so a substate it created was invisible to the trace from
+/// the moment it was created, and a renamed one kept printing its old name.
 void main() {
   late Fixture fx;
 
@@ -156,9 +156,9 @@ void observe() {
 
     test('the entry order follows AppState field order', () async {
       // The coupling `wire` relies on: AppState appends a new field before
-      // `wait`, so the newest substate is the last one this list tracks. Nothing
-      // enforces it across the two modules, so it is asserted here rather than
-      // left in a doc comment.
+      // `wait`, so the newest substate is the last one this list tracks.
+      // Nothing enforces it across the two modules, so it is asserted here
+      // rather than left in a doc comment.
       store(['connectivity', 'logIn']);
       for (final name in ['cart', 'basket']) {
         expect((await runInProcess(fx, ['add-substate', name])).exitCode, 0);

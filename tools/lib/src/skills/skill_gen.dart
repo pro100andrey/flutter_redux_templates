@@ -27,8 +27,17 @@ import '../version.dart';
 /// command is called. "A value computed from state" finds `add-selector`;
 /// "add-selector" only finds it if you already knew.
 class SkillGen {
-  /// path (relative to repo root) -> file content.
-  static Map<String, String> generate() {
+  Map<String, String>? _generated;
+
+  /// path (relative to repo root) -> file content, rendered once per instance.
+  ///
+  /// Rendering builds a `FrxRunner` — every command object and its parser —
+  /// and writes every skill. The audit runs on every debounced save in the
+  /// editor and asks three questions of the same tree, so the answer is held
+  /// here rather than re-derived per question.
+  Map<String, String> generate() => _generated ??= _render();
+
+  static Map<String, String> _render() {
     final runner = FrxRunner();
     final out = <String, String>{};
 
@@ -66,7 +75,7 @@ class SkillGen {
   static const String version = frxVersion;
 
   /// [manifestName]'s content for what [generate] produces.
-  static String manifest() => _manifestOf(directories());
+  String manifest() => _manifestOf(directories());
 
   static String _manifestOf(Set<String> produced) {
     final b = StringBuffer()
@@ -83,13 +92,14 @@ class SkillGen {
   }
 
   /// The skill directory names [generate] produces.
-  static Set<String> directories() => _directoriesOf(generate());
+  Set<String> directories() => _directoriesOf(generate());
 
   static Set<String> _directoriesOf(Map<String, String> generated) => {
     for (final path in generated.keys) p.split(path)[2],
   };
 
-  /// What the manifest under [skillsDir] says was written, and by which version.
+  /// What the manifest under [skillsDir] says was written, and by which
+  /// version.
   ///
   /// Empty when there is none — a project made before this command existed, or
   /// one whose `.claude/skills/` frx has never written. The caller decides what
@@ -115,11 +125,11 @@ class SkillGen {
         continue;
       }
       // A name, never a path. The line is joined to `.claude/skills/` and the
-      // result is deleted *recursively*, so a manifest carrying `../../business/lib`
-      // — hand-edited despite the banner, mangled by a merge, or written by a
-      // future frx in a format this one does not know — would take a package
-      // with it. Anything that is not a bare segment is not something this
-      // wrote, and is ignored rather than acted on.
+      // result is deleted *recursively*, so a manifest carrying
+      // `../../business/lib` — hand-edited despite the banner, mangled by a
+      // merge, or written by a future frx in a format this one does not know —
+      // would take a package with it. Anything that is not a bare segment is
+      // not something this wrote, and is ignored rather than acted on.
       if (p.basename(trimmed) != trimmed || trimmed == '.' || trimmed == '..') {
         continue;
       }
@@ -136,17 +146,9 @@ class SkillGen {
   /// shape this repository keeps paying for.
   ///
   /// An unchanged file is left out, so a project already current plans nothing.
-  /// [generated] lets a caller that already rendered the tree hand it over.
-  /// `generate()` builds a `FrxRunner` — every command object and its parser —
-  /// and renders every skill, and the audit calls this on every debounced save
-  /// in the editor; without it this ran twice per call, and three times per
-  /// `update-skills`.
-  static List<Change> changesIn(
-    Directory root, {
-    Map<String, String>? generated,
-  }) {
+  List<Change> changesIn(Directory root) {
     final skillsDir = Directory(p.join(root.path, '.claude', 'skills'));
-    generated ??= generate();
+    final generated = generate();
     final changes = <Change>[];
 
     for (final entry in generated.entries) {
@@ -236,13 +238,15 @@ class SkillGen {
 
     // Context first: what the thing is comes before what to watch out for.
     if (s.context != null) {
-      b.writeln(s.context!.trim());
-      b.writeln();
+      b
+        ..writeln(s.context!.trim())
+        ..writeln();
     }
 
     if (s.traps.isNotEmpty) {
-      b.writeln('## Before you run it');
-      b.writeln();
+      b
+        ..writeln('## Before you run it')
+        ..writeln();
       for (final t in s.traps) {
         b.writeln('- ${_wrap(t, '  ').trimLeft()}');
       }
@@ -377,16 +381,18 @@ explicit flag always wins.
   static String _wrap(String text, String indent) {
     final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
     final lines = <String>[];
-    var line = indent;
+    final line = StringBuffer(indent);
     for (final w in words) {
-      if (line.length + w.length + 1 > 76 && line.trim().isNotEmpty) {
-        lines.add(line.trimRight());
-        line = indent;
+      if (line.length + w.length + 1 > 76 && '$line'.trim().isNotEmpty) {
+        lines.add('$line'.trimRight());
+        line
+          ..clear()
+          ..write(indent);
       }
-      line += '$w ';
+      line.write('$w ');
     }
-    if (line.trim().isNotEmpty) {
-      lines.add(line.trimRight());
+    if ('$line'.trim().isNotEmpty) {
+      lines.add('$line'.trimRight());
     }
     return lines.join('\n');
   }
@@ -405,8 +411,8 @@ reaches.''';
 
 class _Situation {
   /// A command that writes or moves an artifact of this architecture. Its skill
-  /// carries the prohibition, because hand-writing one of these writes the files
-  /// and misses the wiring.
+  /// carries the prohibition, because hand-writing one of these writes the
+  /// files and misses the wiring.
   const _Situation.wired(
     this.when, {
     this.context,
@@ -435,8 +441,8 @@ class _Situation {
   ///
   /// It is not `cmd is WritingCommand`: `batch` and `rename` wire artifacts
   /// without extending it, and `update-skills` extends it and writes frx's own
-  /// files rather than the project's — though that one never reaches here, since
-  /// a command with no situation gets no skill.
+  /// files rather than the project's — though that one never reaches here,
+  /// since a command with no situation gets no skill.
   final bool wires;
 
   /// The trigger. Written the way the task sounds before the command is known.
@@ -447,7 +453,7 @@ class _Situation {
   /// The measured failure this targets: an agent read five state files and
   /// rewrote them wholesale ten minutes after reading the skill that says not
   /// to. A description cannot fix that, because the standard says an agent
-  /// "only consult[s] skills for tasks that require knowledge or capabilities
+  /// "only consult\[s\] skills for tasks that require knowledge or capabilities
   /// beyond what they can handle alone" — and writing a Dart file looks like
   /// one it can. `paths` fires on the file instead of on the intent.
   ///
@@ -460,11 +466,11 @@ class _Situation {
   /// The command help says what the command writes; it cannot say how the body
   /// is written afterwards, and that is where an agent falls back on recalled
   /// async_redux knowledge — which is right about the library and wrong here in
-  /// five places (freezed rather than a hand-written `copy()`, an `extension
-  /// type` facade rather than memoised selector functions, `extends Action`
-  /// rather than `extends ReduxAction`, `IList` rather than `List`, private
-  /// `_Factory`/`_Vm` in the connector file). Raw markdown, so it can carry the
-  /// fenced code that makes the shape unambiguous.
+  /// five places (freezed rather than a hand-written `copy()`, an
+  /// `extension type` facade rather than memoised selector functions,
+  /// `extends Action` rather than `extends ReduxAction`, `IList` rather than
+  /// `List`, private `_Factory`/`_Vm` in the connector file). Raw markdown, so
+  /// it can carry the fenced code that makes the shape unambiguous.
   final String? context;
 
   final List<String> traps;
@@ -476,8 +482,8 @@ class _Situation {
 /// The async_redux context that belongs to no single command.
 ///
 /// Not a copy of the library's documentation. What an agent already knows about
-/// async_redux is mostly right and, in five places, exactly wrong here — so this
-/// states the divergence and stops. Anything a command owns lives in that
+/// async_redux is mostly right and, in five places, exactly wrong here — so
+/// this states the divergence and stops. Anything a command owns lives in that
 /// command's skill instead.
 const _asyncRedux = '''
 ---
@@ -709,12 +715,13 @@ selector facade, so a screen says `todos.view` and so does a reducer —
 `_state.todos.view` appears only inside the facade itself.
 ''',
     traps: [
-      'The kind decides the shape: `table` for a keyed collection with an '
-          'ordering, `search` for a query with results, `value` for one value. '
-          'Ask which before scaffolding — changing it later is a rewrite.',
-      'It wires the `AppState` field *and* its `initial()` entry, the selectors '
-          'facade and the change log. What dispatches its starter actions is '
-          'yours.',
+      '''
+The kind decides the shape: `table` for a keyed collection with an ordering,
+`search` for a query with results, `value` for one value. Ask which before
+scaffolding — changing it later is a rewrite.''',
+      '''
+It wires the `AppState` field *and* its `initial()` entry, the selectors
+facade and the change log. What dispatches its starter actions is yours.''',
     ],
   ),
   'add-field': _Situation.wired(
@@ -772,20 +779,22 @@ That `state.copyWith.<slice>(<field>: …)` form is how every write to a slice i
 spelled — not `state.copyWith(todos: state.todos.copyWith(…))`.
 ''',
     traps: [
-      'The field is spliced into the `@freezed` factory via AST. A '
-          'non-nullable type **requires** `--default`, because a state is '
-          'constructed with no arguments.',
-      'It also writes the `Select…` getter, unless `--no-selector`. A field a '
-          'connector cannot read is half-wired — which is why hand-writing the '
-          'field means hand-writing the facade too, and usually forgetting it.',
-      '`IList` / `IMap` / `ISet` types auto-import '
-          '`fast_immutable_collections`. `--action` scaffolds the '
-          '`Set<Field>Action` setter and never clobbers an existing one.',
-      'Taking one out is `frx remove <field> --kind field --state <slice>` — '
-          'the inverse of this command, and the only way: the state file '
-          'refuses a hand edit in either direction. It takes the factory '
-          'parameter, the facade getter and the `Set<Field>Action` together, '
-          'and prunes an import nothing else needs.',
+      '''
+The field is spliced into the `@freezed` factory via AST. A non-nullable type
+**requires** `--default`, because a state is constructed with no arguments.''',
+      '''
+It also writes the `Select…` getter, unless `--no-selector`. A field a
+connector cannot read is half-wired — which is why hand-writing the field
+means hand-writing the facade too, and usually forgetting it.''',
+      '''
+`IList` / `IMap` / `ISet` types auto-import `fast_immutable_collections`.
+`--action` scaffolds the `Set<Field>Action` setter and never clobbers an
+existing one.''',
+      '''
+Taking one out is `frx remove <field> --kind field --state <slice>` — the
+inverse of this command, and the only way: the state file refuses a hand edit
+in either direction. It takes the factory parameter, the facade getter and the
+`Set<Field>Action` together, and prunes an import nothing else needs.''',
     ],
   ),
   'add-selector': _Situation.wired(
@@ -838,11 +847,13 @@ reach its siblings, and in the whole template not one of them tried to.
 (`selector-outside-facade`), so the file is the convention, not a habit.
 ''',
     traps: [
-      '`--expr` is the getter body and defaults to reading the state field of '
-          'the same name; `--type` tightens the return type from `Object?`. No '
-          'codegen — selectors are hand code.',
-      'A selector nothing reads is reported by the graph as a fact, not a '
-          'defect: in a template it can be API for whoever builds on it.',
+      '''
+`--expr` is the getter body and defaults to reading the state field of the
+same name; `--type` tightens the return type from `Object?`. No codegen —
+selectors are hand code.''',
+      '''
+A selector nothing reads is reported by the graph as a fact, not a defect: in
+a template it can be API for whoever builds on it.''',
     ],
   ),
   'add-action': _Situation.wired(
@@ -909,63 +920,70 @@ synchronous setter, `dispatchAndWait` when the next step depends on the result,
 plain `dispatch` for fire-and-forget.
 ''',
     traps: [
-      'The suffix is optional and idempotent: `ArchiveTask` and `ArchiveTaskAction` scaffold the '
-          'same artifact. Do not strip it yourself, and do not add it — pass '
-          'the name as you have it. `frx remove` reads the same rule, so '
-          'whichever spelling created it removes it.',
-      'Mixins conflict, and the conflict is an **analyzer error**: async_redux '
-          'makes groups mutually exclusive by colliding on a private member, so '
-          '`dart analyze` reports `private_collision_in_mixin_application`. '
-          'The compiler does not — `flutter test` on such a file runs, and an '
-          '`assert` inside async_redux throws on the first dispatch, in a debug '
-          'build only. Ask `frx list-mixins` which exclude which and let the '
-          'scaffolder write the `with` clause; it refuses a bad pair up front.',
-      "`-k waiting` also adds the substate's `isWaiting` getter, on the same "
-          "ground as a field's getter: a waiting action a page cannot ask "
-          'about is half-wired.',
-      'The **order** of a `with` clause is load-bearing, and getting it wrong '
-          'is not a compile error. Dart runs one `after()` — the last '
-          "mixin's — and `NonReentrant`, `Throttle` and `Fresh` override it "
-          'without calling `super.after()`. `with WaitingAction, NonReentrant` '
-          'therefore analyzes clean and never lowers the wait barrier: the '
-          'button reading `isWaiting` stays dead for the session. '
-          '`WaitingAction` goes **last**; `add-action` writes it there, '
-          '`frx list-mixins` says which mixins end the chain, and '
-          '`frx doctor` reports a clause that has it wrong.',
+      '''
+The suffix is optional and idempotent: `ArchiveTask` and `ArchiveTaskAction`
+scaffold the same artifact. Do not strip it yourself, and do not add it — pass
+the name as you have it. `frx remove` reads the same rule, so whichever
+spelling created it removes it.''',
+      '''
+Mixins conflict, and the conflict is an **analyzer error**: async_redux makes
+groups mutually exclusive by colliding on a private member, so `dart analyze`
+reports `private_collision_in_mixin_application`. The compiler does not —
+`flutter test` on such a file runs, and an `assert` inside async_redux throws
+on the first dispatch, in a debug build only. Ask `frx list-mixins` which
+exclude which and let the scaffolder write the `with` clause; it refuses a bad
+pair up front.''',
+      '''
+`-k waiting` also adds the substate's `isWaiting` getter, on the same ground
+as a field's getter: a waiting action a page cannot ask about is half-wired.''',
+      '''
+The **order** of a `with` clause is load-bearing, and getting it wrong is not
+a compile error. Dart runs one `after()` — the last mixin's — and
+`NonReentrant`, `Throttle` and `Fresh` override it without calling
+`super.after()`. `with WaitingAction, NonReentrant` therefore analyzes clean
+and never lowers the wait barrier: the button reading `isWaiting` stays dead
+for the session. `WaitingAction` goes **last**; `add-action` writes it there,
+`frx list-mixins` says which mixins end the chain, and `frx doctor` reports a
+clause that has it wrong.''',
     ],
   ),
   'add-page': _Situation.wired(
     'A new screen and the route that reaches it.',
     context: _connectorContext,
     traps: [
-      'The suffix is optional and idempotent: `Home` and `HomePage` scaffold the '
-          'same artifact. Do not strip it yourself, and do not add it — pass '
-          'the name as you have it. `frx remove` reads the same rule, so '
-          'whichever spelling created it removes it.',
-      'It wires the page, its `@RoutePage()` connector, the `AutoRoute` entry '
-          'and auth-area membership (`--public`). Navigation **to** it is a '
-          'separate decision — that is `add-nav`.',
-      '`--param name:type` becomes both a `/:name` path segment and a '
-          'constructor field.',
+      '''
+The suffix is optional and idempotent: `Home` and `HomePage` scaffold the same
+artifact. Do not strip it yourself, and do not add it — pass the name as you
+have it. `frx remove` reads the same rule, so whichever spelling created it
+removes it.''',
+      '''
+It wires the page, its `@RoutePage()` connector, the `AutoRoute` entry and
+auth-area membership (`--public`). Navigation **to** it is a separate decision
+— that is `add-nav`.''',
+      '''
+`--param name:type` becomes both a `/:name` path segment and a constructor
+field.''',
     ],
   ),
   'add-tabs': _Situation.wired(
     'A tabbed shell — several screens living under one tab bar, as a nested '
     'route.',
     traps: [
-      'The suffix is optional and idempotent: `Main` and `MainPage` scaffold the '
-          'same artifact. Do not strip it yourself, and do not add it — pass '
-          'the name as you have it. `frx remove` reads the same rule, so '
-          'whichever spelling created it removes it.',
+      '''
+The suffix is optional and idempotent: `Main` and `MainPage` scaffold the same
+artifact. Do not strip it yourself, and do not add it — pass the name as you
+have it. `frx remove` reads the same rule, so whichever spelling created it
+removes it.''',
     ],
   ),
   'add-nav': _Situation.wired(
     'Getting from one screen to another — a tap that opens another page.',
     paths: ['app/lib/connectors/*.dart', 'app/lib/navigation/*.dart'],
     traps: [
-      'Five edits across two packages, four of which alone leave code that '
-          'does not compile. `--kind` picks the `GoAction` factory: `push`, '
-          '`replace` or `navigate`.',
+      '''
+Five edits across two packages, four of which alone leave code that does not
+compile. `--kind` picks the `GoAction` factory: `push`, `replace` or
+`navigate`.''',
     ],
   ),
   'add-widget': _Situation.wired(
@@ -1011,30 +1029,34 @@ connector where the locale and the domain both live. `ChoiceItemVm.label` puts i
 in one line: *label is data, not design*.
 ''',
     traps: [
-      'It writes the file; what the widget is *handed* is the part that goes '
-          'wrong. `data-driven-widgets` carries it — the render model, where it '
-          'lives, and what belongs in its equality.',
-      '`--dir` is required and open-ended: a name that does not exist creates '
-          'the folder. Ask `frx list-widget-dirs` which already hold widgets '
-          'instead of inventing a home.',
-      '`-k` picks what it takes in: `field` takes a `FieldVm`, `choice` a '
-          '`ChoiceVm`, `action` is a labelled button, `view` draws a render '
-          'model, `container` wraps children.',
-      '**The kind adds a suffix to the name**, and the file is named after the '
-          'resulting class: `-k field Pin` writes `PinFormField` in '
-          '`pin_form_field.dart`, `-k action Submit` writes `SubmitButton`. '
-          '`view` and `container` add none. Adding it yourself is harmless — '
-          'the suffix is idempotent — but a name that reads right in the '
-          'command can come out different on disk, so check the plan before '
-          '`--apply` if the spelling matters.',
-      'None of the kinds wraps `SegmentedControl`. A control over a set the '
-          'design fixes is `-k view` plus a `FieldVm` — `ThemeSwitcher` and '
-          '`LanguageSwitcher` are the precedent, and `data-driven-widgets` '
-          'says why it is not a `ChoiceVm`.',
-      'A component with its own lifecycle earns a file in a family folder — '
-          'never a private `StatefulWidget` inside a page. Hidden there it has '
-          'no name anything else can reach, so the next screen that needs it '
-          'copies it instead. There is not one in the package.',
+      '''
+It writes the file; what the widget is *handed* is the part that goes wrong.
+`data-driven-widgets` carries it — the render model, where it lives, and what
+belongs in its equality.''',
+      '''
+`--dir` is required and open-ended: a name that does not exist creates the
+folder. Ask `frx list-widget-dirs` which already hold widgets instead of
+inventing a home.''',
+      '''
+`-k` picks what it takes in: `field` takes a `FieldVm`, `choice` a `ChoiceVm`,
+`action` is a labelled button, `view` draws a render model, `container` wraps
+children.''',
+      '''
+**The kind adds a suffix to the name**, and the file is named after the
+resulting class: `-k field Pin` writes `PinFormField` in
+`pin_form_field.dart`, `-k action Submit` writes `SubmitButton`. `view` and
+`container` add none. Adding it yourself is harmless — the suffix is
+idempotent — but a name that reads right in the command can come out different
+on disk, so check the plan before `--apply` if the spelling matters.''',
+      '''
+None of the kinds wraps `SegmentedControl`. A control over a set the design
+fixes is `-k view` plus a `FieldVm` — `ThemeSwitcher` and `LanguageSwitcher`
+are the precedent, and `data-driven-widgets` says why it is not a `ChoiceVm`.''',
+      '''
+A component with its own lifecycle earns a file in a family folder — never a
+private `StatefulWidget` inside a page. Hidden there it has no name anything
+else can reach, so the next screen that needs it copies it instead. There is
+not one in the package.''',
     ],
   ),
   'add-connector': _Situation.wired(
@@ -1043,29 +1065,31 @@ in one line: *label is data, not design*.
     paths: ['app/lib/connectors/*.dart'],
     context: _connectorContext,
     traps: [
-      'Converting a domain value here means **naming its type here**, and `app` '
-          'does not depend on `models` out of the box — no connector in the '
-          'template converts one. Add `models` to `app/pubspec.yaml` and run '
-          '`flutter pub get`; `frx add-package` creates a workspace member and '
-          'does not draw a dependency edge between two that exist.',
-      'The suffix is optional and idempotent: `Toolbar` and `ToolbarConnector` scaffold the '
-          'same artifact. Do not strip it yourself, and do not add it — pass '
-          'the name as you have it. `frx remove` reads the same rule, so '
-          'whichever spelling created it removes it.',
+      '''
+Converting a domain value here means **naming its type here**, and `app` does
+not depend on `models` out of the box — no connector in the template converts
+one. Add `models` to `app/pubspec.yaml` and run `flutter pub get`; `frx
+add-package` creates a workspace member and does not draw a dependency edge
+between two that exist.''',
+      '''
+The suffix is optional and idempotent: `Toolbar` and `ToolbarConnector`
+scaffold the same artifact. Do not strip it yourself, and do not add it — pass
+the name as you have it. `frx remove` reads the same rule, so whichever
+spelling created it removes it.''',
     ],
   ),
   'add-model': _Situation.wired(
     'A data shape the app passes around — a freezed model, or a sealed union '
     'when the value is one of several cases.',
     traps: [
-      'It writes `factory Task({required int id})` and stops. **The fields are '
-          'yours to add**, by hand, in the factory it wrote — `add-field` is '
-          "for a substate's state class and refuses a model. Then run "
-          '`build_runner` in `models`, or nothing compiles: a freezed model is '
-          'half generated.',
-      '`-c <case>` twice or more makes it a sealed union with one factory per '
-          'case. Three answers as three cases beat a nullable field with a '
-          'flag beside it.',
+      '''
+It writes `factory Task({required int id})` and stops. **The fields are yours
+to add**, by hand, in the factory it wrote — `add-field` is for a substate's
+state class and refuses a model. Then run `build_runner` in `models`, or
+nothing compiles: a freezed model is half generated.''',
+      '''
+`-c <case>` twice or more makes it a sealed union with one factory per case.
+Three answers as three cases beat a nullable field with a flag beside it.''',
     ],
   ),
   'add-enum': _Situation.wired(
@@ -1074,7 +1098,11 @@ in one line: *label is data, not design*.
   'add-service': _Situation.wired(
     'A service and the Redux dispatcher that lets it reach the store.',
     traps: [
-      'The suffix is optional and idempotent: `Sync` and `SyncService` scaffold the same artifact. Do not strip it yourself, and do not add it — pass the name as you have it. `frx remove` reads the same rule, so whichever spelling created it removes it.',
+      '''
+The suffix is optional and idempotent: `Sync` and `SyncService` scaffold the
+same artifact. Do not strip it yourself, and do not add it — pass the name as
+you have it. `frx remove` reads the same rule, so whichever spelling created
+it removes it.''',
     ],
   ),
   'add-package': _Situation.wired(
@@ -1112,11 +1140,13 @@ directory the analyzer cannot see. That is why this command runs no codegen of
 its own — build_runner needs the resolution it just invalidated.
 ''',
     traps: [
-      'It declares the dependency in the packages the template declares it in, '
-          'and nowhere else. A **different** package that wants to import '
-          '`package:models/…` still needs the entry in its own `pubspec.yaml`.',
-      'Asking for a package that is already a member is not an error: it '
-          'writes nothing and says so.',
+      '''
+It declares the dependency in the packages the template declares it in, and
+nowhere else. A **different** package that wants to import `package:models/…`
+still needs the entry in its own `pubspec.yaml`.''',
+      '''
+Asking for a package that is already a member is not an error: it writes
+nothing and says so.''',
     ],
   ),
   'add-retrofit': _Situation.wired(
@@ -1130,14 +1160,17 @@ its own — build_runner needs the resolution it just invalidated.
     "Several artifacts at once — a whole feature's worth of state, screens "
     'and actions, wired together.',
     traps: [
-      'One rollback boundary where eight invocations are eight boundaries: a '
-          'failure at the fifth intent leaves nothing of the first four.',
-      'Intents apply **in the order written** and fail loudly — `add-action` '
-          'refuses a substate that is not there — so a prerequisite comes '
-          'first. Nothing is reordered for you, on purpose.',
-      'Creation commands only. `rename` and `remove` are refused, and an '
-          'intent carrying `--dry-run`, `--json`, `--build-runner` or '
-          '`--format` is refused too: those decide whether the batch writes.',
+      '''
+One rollback boundary where eight invocations are eight boundaries: a failure
+at the fifth intent leaves nothing of the first four.''',
+      '''
+Intents apply **in the order written** and fail loudly — `add-action` refuses
+a substate that is not there — so a prerequisite comes first. Nothing is
+reordered for you, on purpose.''',
+      '''
+Creation commands only. `rename` and `remove` are refused, and an intent
+carrying `--dry-run`, `--json`, `--build-runner` or `--format` is refused too:
+those decide whether the batch writes.''',
     ],
   ),
   'remove': _Situation.wired(
@@ -1146,73 +1179,80 @@ its own — build_runner needs the resolution it just invalidated.
     'points at it.',
     traps: [
       'Previews by default; `--apply` is what touches disk.',
-      'The kind is auto-detected; pass `--kind` only when the name matches '
-          'more than one, and `--state` when an action name is used under more '
-          'than one substate.',
-      'A **field** is the exception: it is never auto-detected, so it is '
-          '`--kind field` every time, plus `--state` unless one slice alone '
-          'has a field of that name. It takes the factory parameter, the '
-          '`Select…` getter and the `Set<Field>Action` together — and it is '
-          'the only way out of a field, since the state file refuses a hand '
-          'edit.',
-      'Removing a field is **refused** while something still reads it — a '
-          'computed getter on the state class, a hand-written selector over '
-          'it. Rewrite those first: a selector body is yours to edit, so that '
-          'is the end you start from. Actions that merely assign the field are '
-          'named in the plan and left alone; fix them after.',
-      'Reach for it instead of `rm`, which deletes the file you name and '
-          "leaves the rest of the set: a service's dispatcher, a model's "
-          '`.freezed.dart` and `.g.dart` — '
-          'and those two stop the package compiling once their source is gone.',
-      'It deletes the artifact and unwires what registered it. It does not '
-          'chase the code that used it: what still dispatches a deleted action '
-          'or imports a deleted model is yours to fix, so run the audit after.',
+      '''
+The kind is auto-detected; pass `--kind` only when the name matches more than
+one, and `--state` when an action name is used under more than one substate.''',
+      '''
+A **field** is the exception: it is never auto-detected, so it is `--kind
+field` every time, plus `--state` unless one slice alone has a field of that
+name. It takes the factory parameter, the `Select…` getter and the
+`Set<Field>Action` together — and it is the only way out of a field, since the
+state file refuses a hand edit.''',
+      '''
+Removing a field is **refused** while something still reads it — a computed
+getter on the state class, a hand-written selector over it. Rewrite those
+first: a selector body is yours to edit, so that is the end you start from.
+Actions that merely assign the field are named in the plan and left alone; fix
+them after.''',
+      '''
+Reach for it instead of `rm`, which deletes the file you name and leaves the
+rest of the set: a service's dispatcher, a model's `.freezed.dart` and
+`.g.dart` — and those two stop the package compiling once their source is
+gone.''',
+      '''
+It deletes the artifact and unwires what registered it. It does not chase the
+code that used it: what still dispatches a deleted action or imports a deleted
+model is yours to fix, so run the audit after.''',
     ],
   ),
   'rename': _Situation.wired(
     'Renaming a state slice or a screen — files, classes and every wiring '
     'reference.',
     traps: [
-      'Previews by default; `--apply` is what touches disk. Identifiers move '
-          'off the parse tree, so a name inside a persistence key survives '
-          'untouched.',
+      '''
+Previews by default; `--apply` is what touches disk. Identifiers move off the
+parse tree, so a name inside a persistence key survives untouched.''',
     ],
   ),
   'doctor': _Situation.read(
     'Checking the project is still consistent — after hand edits, after a '
     'deletion, or before calling something done.',
     traps: [
-      'It finds wiring drift, ungenerated code and misplaced declarations — '
-          'what the Dart analyzer cannot know. Run both.',
-      '`--fix` repairs what is safe to repair: runs codegen, removes an orphan '
-          'substate folder that holds nothing. Placement findings never '
-          'auto-fix — a deliberately placed file is the false positive being '
-          'accepted.',
+      '''
+It finds wiring drift, ungenerated code and misplaced declarations — what the
+Dart analyzer cannot know. Run both.''',
+      '''
+`--fix` repairs what is safe to repair: runs codegen, removes an orphan
+substate folder that holds nothing. Placement findings never auto-fix — a
+deliberately placed file is the false positive being accepted.''',
     ],
   ),
   'graph': _Situation.read(
     'What reaches what — who can change this slice, what breaks if it is '
     'touched, and which selectors or actions nothing reaches at all.',
     traps: [
-      '`--focus` takes a node id, a symbol or a bare name; `-d inbound` '
-          'answers "what breaks if I touch this" and is unbounded by default.',
-      'The `unresolved` section matters as much as the edges: a missing edge '
-          'and a relation that does not exist look identical, so the gaps are '
-          'named rather than dropped.',
-      '**"No dispatcher found" is not always dead code.** The walk starts at '
-          'connectors, actions and service dispatchers, so an action '
-          'dispatched from anywhere else — the boot in `run_env.dart` being '
-          'the one the template itself needs — is reported as reached by '
-          'nobody. Check where it is dispatched before deleting it; a '
-          "substate's `Retrieve…Action` is the expected case.",
+      '''
+`--focus` takes a node id, a symbol or a bare name; `-d inbound` answers "what
+breaks if I touch this" and is unbounded by default.''',
+      '''
+The `unresolved` section matters as much as the edges: a missing edge and a
+relation that does not exist look identical, so the gaps are named rather than
+dropped.''',
+      '''
+**"No dispatcher found" is not always dead code.** The walk starts at
+connectors, actions and service dispatchers, so an action dispatched from
+anywhere else — the boot in `run_env.dart` being the one the template itself
+needs — is reported as reached by nobody. Check where it is dispatched before
+deleting it; a substate's `Retrieve…Action` is the expected case.''',
     ],
   ),
   'flow': _Situation.read(
     'What actually happens when the user taps something, how the screens '
     'connect, or refreshing the generated flow docs.',
     traps: [
-      '`--md` writes `docs/flows/`; `--check` verifies it is current and exits '
-          '1 when not. Never hand-edit that folder.',
+      '''
+`--md` writes `docs/flows/`; `--check` verifies it is current and exits 1 when
+not. Never hand-edit that folder.''',
     ],
   ),
   'which': _Situation.read(

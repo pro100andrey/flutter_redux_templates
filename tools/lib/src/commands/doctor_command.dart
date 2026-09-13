@@ -11,6 +11,7 @@ import '../flow/flow_docs.dart';
 import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
+import '../refusal.dart';
 import '../skills/skill_gen.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
@@ -37,8 +38,7 @@ class DoctorCommand extends Command<int> {
             'parts, remove orphan substate folders, regenerate docs/flows and '
             'rewrite .claude/skills. It applies without a preview — '
             '`frx update-skills --dry-run --diff` is the one that shows the '
-            'skill changes first.'
-            'and remove orphan substate folders.',
+            'skill changes first.',
       )
       ..addFlag(
         'json',
@@ -137,9 +137,9 @@ class DoctorCommand extends Command<int> {
       }
     }
 
-    // Then remove orphan folders (dead code not wired into AppState). Nothing is
-    // regenerated afterwards: an orphan isn't in AppState, so deleting it leaves
-    // no generated part stale.
+    // Then remove orphan folders (dead code not wired into AppState). Nothing
+    // is regenerated afterwards: an orphan isn't in AppState, so deleting it
+    // leaves no generated part stale.
     for (final folder in orphans) {
       await _removeOrphan(repo, folder);
     }
@@ -197,7 +197,7 @@ class DoctorCommand extends Command<int> {
     final AppStateSource appState;
     try {
       appState = AppStateSource.of(repo);
-    } on StateError {
+    } on FrxRefusal {
       return;
     }
     // Use the raw folder name the audit reported for the path (it's the actual
@@ -221,11 +221,11 @@ class DoctorCommand extends Command<int> {
     //
     // [apply] and not the writing-command tail either, and deliberately: the
     // audit is not a writing command. It reports, and repairs only when asked;
-    // it has no plan to print, no overwrite guard, no `--diff`, and its own exit
-    // codes. What it wants is exactly the engine — the journal that makes a
-    // failed repair leave the tree as it was, the formatting, the docs refresh —
-    // and that is what [apply] is. What it was *also* doing by hand is the
-    // change construction, which is [OutcomeAsChange].
+    // it has no plan to print, no overwrite guard, no `--diff`, and its own
+    // exit codes. What it wants is exactly the engine — the journal that makes
+    // a failed repair leave the tree as it was, the formatting, the docs
+    // refresh — and that is what [apply] is. What it was *also* doing by hand
+    // is the change construction, which is [OutcomeAsChange].
     await apply(
       Changeset([
         if (dir.existsSync()) DeleteDirectory(dir.path),
@@ -239,14 +239,16 @@ class DoctorCommand extends Command<int> {
 
   /// The same changeset `frx update-skills` previews, applied.
   Future<void> _regenerateSkills(FrxWorkspace repo) async {
-    final changes = SkillGen.changesIn(repo.root);
+    final changes = SkillGen().changesIn(repo.root);
     if (changes.isEmpty) {
       return;
     }
     final applied = await apply(Changeset(changes), format: false);
+    final removed = applied.removed.isEmpty
+        ? ''
+        : ', ${applied.removed.length} removed';
     console.out.writeln(
-      '  ✓ ${applied.written.length} skill file(s) written'
-      '${applied.removed.isEmpty ? '' : ', ${applied.removed.length} removed'}.',
+      '  ✓ ${applied.written.length} skill file(s) written$removed.',
     );
   }
 

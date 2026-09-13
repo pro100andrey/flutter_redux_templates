@@ -275,9 +275,9 @@ void main() {
       'a parent route with no page of its own leaves the child top-level',
       () {
         // The shape the old renderer handled by returning null from its lookup:
-        // a `parent` naming a route frx could not pair with a page. Keeping that
-        // behaviour matters — the alternative is dropping the node entirely,
-        // which is the bug the public-shell fix was about.
+        // a `parent` naming a route frx could not pair with a page. Keeping
+        // that behaviour matters — the alternative is dropping the node
+        // entirely, which is the bug the public-shell fix was about.
         const map = RouteMap(
           pages: [
             PageNode(

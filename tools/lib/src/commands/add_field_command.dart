@@ -126,9 +126,9 @@ class AddFieldCommand extends WritingCommand {
 
     // Retyping rebuilds the declaration from what this invocation was given, so
     // an `@Default(...)` the old one carried and this one does not is dropped —
-    // silently changing `AppState.initial()` for every reader. Nullable types do
-    // not require `--default`, which is exactly where it would slip through, so
-    // the ask is made explicit rather than inferred.
+    // silently changing `AppState.initial()` for every reader. Nullable types
+    // do not require `--default`, which is exactly where it would slip through,
+    // so the ask is made explicit rather than inferred.
     if ((results['force'] as bool) && defaultExpr == null) {
       final existing = StateSource(
         stateFile,
@@ -170,9 +170,9 @@ class AddFieldCommand extends WritingCommand {
     // hand-editing selectors.dart, so wire it here rather than leaving the
     // substate half-wired.
     //
-    // Located only when asked for: there may be no app_state.dart to sit beside,
-    // and --no-selector has to be a way out of that, not a flag consulted after
-    // the throw.
+    // Located only when asked for: there may be no app_state.dart to sit
+    // beside, and --no-selector has to be a way out of that, not a flag
+    // consulted after the throw.
     final selectors = (results['selector'] as bool)
         ? SelectorsSource.beside(AppStateSource.of(repo).file)
         : null;
@@ -232,8 +232,8 @@ class AddFieldCommand extends WritingCommand {
         )
         ..addIf(selector?.edit),
       header: 'Add field "${field.camel}" ($type) to ${artifact.stateType}',
-      // Not [WiringReport.narrate]: the two blocks are not adjacent, because two
-      // notes about what was *not* written can land between them.
+      // Not [WiringReport.narrate]: the two blocks are not adjacent, because
+      // two notes about what was *not* written can land between them.
       narrate: () {
         state.narrate();
         if (withAction && !writeAction) {

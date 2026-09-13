@@ -120,8 +120,9 @@ void main() {
   test('a substate outside the facade still gets its action', () async {
     // The action is what was asked for; refusing the whole command over the
     // half it volunteered would be the worse trade.
-    Directory(fx.path('business/lib/redux/stray/actions'))
-      .createSync(recursive: true);
+    Directory(
+      fx.path('business/lib/redux/stray/actions'),
+    ).createSync(recursive: true);
     final r = await addAction(['save', '-s', 'stray', '-k', 'waiting']);
     expect(r.stderr, contains('SelectStray is not wired'));
     expect(
@@ -147,9 +148,9 @@ void main() {
   });
 
   test('a --json consumer hears about a skipped reader too', () async {
-    // The whole point of routing the note to stderr: an agent that only reads the
-    // changeset would otherwise see the action created and never learn that the
-    // reader it implies was left out.
+    // The whole point of routing the note to stderr: an agent that only reads
+    // the changeset would otherwise see the action created and never learn that
+    // the reader it implies was left out.
     await addAction(['save_profile', '-s', 'log_in', '-k', 'waiting']);
     final second = await runInProcess(fx, [
       'add-action',
@@ -185,9 +186,10 @@ void main() {
   });
 
   // A table substate waits the same way an action does. It used to arrive with
-  // a second spelling of the idea — an `X Waiting` enum, and a `Retrieve` action
-  // hand-writing the `before()`/`after()` pair that `WaitingAction` exists to
-  // provide — which nothing in the template itself used. One spelling.
+  // a second spelling of the idea — an `X Waiting` enum, and a `Retrieve`
+  // action hand-writing the `before()`/`after()` pair that `WaitingAction`
+  // exists to provide — which nothing in the template itself used. One
+  // spelling.
   group('a table substate waits the way the rest of the template does', () {
     setUp(() async {
       final r = await runInProcess(fx, [

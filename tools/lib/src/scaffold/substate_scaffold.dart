@@ -105,9 +105,9 @@ class SubstateScaffold {
   /// extends. Not generic: `Action` already pins `ReduxAction<AppState>`.
   Reference get _houseAction => refer('Action', '../../common/action.dart');
 
-  /// A freezed `@Default(<expr>)` annotation. The inner expression is raw code;
-  /// its symbols (`IListConst`, `IMapConst`) resolve via the FIC import that the
-  /// field's own [Reference] type already pulls in.
+  /// A freezed `@Default(<expr>)` annotation. The inner expression is raw
+  /// code; its symbols (`IListConst`, `IMapConst`) resolve via the FIC import
+  /// that the field's own [Reference] type already pulls in.
   Expression _default(String constExpr) =>
       refer('Default', _freezed).call([CodeExpression(Code(constExpr))]);
 
@@ -125,8 +125,10 @@ class SubstateScaffold {
 
   // --- state model libraries ------------------------------------------------
 
-  /// A `@freezed abstract class <Pascal>State with _$<Pascal>State { const
-  /// factory … }` library, with an optional trailing [extraBody] (e.g. an enum).
+  /// A
+  /// `@freezed abstract class <Pascal>State with _$<Pascal>State`, holding
+  /// `const factory …`
+  /// library, with an optional trailing `extraBody` (e.g. an enum).
   Library _stateLibrary(List<Parameter> params) {
     final className = '${_pascal}State';
     return Library(
@@ -199,11 +201,11 @@ class SubstateScaffold {
   // --- selector facade block ------------------------------------------------
 
   /// The `extension type Select<Pascal>(AppState _state) implements Selector`
-  /// block for this substate, plus the imports its getters need. This is emitted
-  /// as text (code_builder has no `extension type` support) and wired into the
-  /// repo's `selectors.dart` facade by [SelectorsSource], so the substate is
-  /// reachable as `state.select.<field>` like every other one. Formatting is
-  /// normalized by `dart format` on the edited `selectors.dart`.
+  /// block for this substate, plus the imports its getters need. This is
+  /// emitted as text (code_builder has no `extension type` support) and wired
+  /// into the repo's `selectors.dart` facade by [SelectorsSource], so the
+  /// substate is reachable as `state.select.<field>` like every other one.
+  /// Formatting is normalized by `dart format` on the edited `selectors.dart`.
   ({String block, List<String> imports}) selectorBlock() {
     final type = SelectorShape.typeFor(_pascal);
     String wrap(String body) => SelectorShape.declare(type: type, body: body);
@@ -232,7 +234,8 @@ class SubstateScaffold {
           block: wrap(
             '  /// Returns waiting value\n'
             '  bool get isWaiting =>\n'
-            '      _state.wait.isWaitingForType<Retrieve${_pascal}Action>();\n\n'
+            '      '
+            '_state.wait.isWaitingForType<Retrieve${_pascal}Action>();\n\n'
             '  /// Returns [IMap<int, Object>] table\n'
             '  IMap<int, Object> get table => _state.$_camel.table;\n\n'
             '  /// Returns [Object] value by id\n'
@@ -253,8 +256,8 @@ class SubstateScaffold {
 
   // --- action libraries -----------------------------------------------------
 
-  /// `class <ClassName> extends Action` that sets a single
-  /// `String <field>` on this substate via `state.copyWith.<camel>(<field>: …)`.
+  /// `class <ClassName> extends Action` that sets a single `String <field>` on
+  /// this substate via `state.copyWith.<camel>(<field>: …)`.
   ///
   /// The constructor is positional, matching `ArtifactTemplates.fieldSetter` —
   /// `add-substate` and `add-field --action` drop their setters into the same
@@ -306,145 +309,145 @@ class SubstateScaffold {
 
   /// `Add<Pascal>Action` — folds a list of items into the `byId` table.
   Library _addAction() => Library(
-      (b) => b.body.add(
-        Class(
-          (c) => c
-            ..name = 'Add${_pascal}Action'
-            ..extend = _houseAction
-            // Private, and positional because a private named parameter is not
-            // a thing a caller can pass. **The name is the point.** `Action`
-            // mixes in `Selectors`, which gains a getter per substate, so a
-            // public field here collides with the facade the same command
-            // generates: `frx add-substate items -k table` wrote
-            // `AddItemsAction.items` over `Selectors.items` and the analyzer
-            // refused it — `'IList<Object> Function()' isn't a valid override
-            // of 'SelectItems Function()'`. A leading underscore cannot be a
-            // substate's camel name, so this collision is not merely unlikely,
-            // it is unreachable.
-            ..constructors.add(
-              Constructor(
-                (ctor) => ctor.requiredParameters.add(
-                  Parameter(
-                    (p) => p
-                      ..name = '_items'
-                      ..toThis = true,
-                  ),
+    (b) => b.body.add(
+      Class(
+        (c) => c
+          ..name = 'Add${_pascal}Action'
+          ..extend = _houseAction
+          // Private, and positional because a private named parameter is not a
+          // thing a caller can pass. **The name is the point.** `Action` mixes
+          // in `Selectors`, which gains a getter per substate, so a public
+          // field here collides with the facade the same command generates:
+          // `frx add-substate items -k table` wrote `AddItemsAction.items` over
+          // `Selectors.items` and the analyzer refused it, with
+          // `'IList<Object> Function()' isn't a valid override of`
+          // `'SelectItems Function()'`.
+          // A leading underscore cannot be a substate's camel name, so this
+          // collision is not merely unlikely, it is unreachable.
+          ..constructors.add(
+            Constructor(
+              (ctor) => ctor.requiredParameters.add(
+                Parameter(
+                  (p) => p
+                    ..name = '_items'
+                    ..toThis = true,
                 ),
               ),
-            )
-            ..fields.add(
-              Field(
-                (f) => f
-                  ..name = '_items'
-                  ..modifier = FieldModifier.final$
-                  ..type = _iList(refer('Object')),
-              ),
-            )
-            ..methods.addAll([
-              Method(
-                (m) => m
-                  ..name = 'reduce'
-                  ..annotations.add(refer('override'))
-                  ..returns = _appStateFromActions
-                  ..body = Block(
-                    (bl) => bl.statements.addAll([
-                      declareFinal('byId')
-                          .assign(
-                            _iMap(
-                              refer('int'),
-                              refer('Object'),
-                            ).newInstanceNamed('fromValues', [], {
-                              'values': refer('_items'),
-                              'keyMapper': refer('_idOf'),
-                            }),
-                          )
-                          .statement,
-                      declareFinal('updated')
-                          .assign(
-                            _tableRead
-                                .property('table')
-                                .property('addAll')
-                                .call([refer('byId')]),
-                          )
-                          .statement,
-                      refer('state')
-                          .property('copyWith')
-                          .property(_camel)
-                          .call([], {'table': refer('updated')})
-                          .returned
-                          .statement,
-                    ]),
+            ),
+          )
+          ..fields.add(
+            Field(
+              (f) => f
+                ..name = '_items'
+                ..modifier = FieldModifier.final$
+                ..type = _iList(refer('Object')),
+            ),
+          )
+          ..methods.addAll([
+            Method(
+              (m) => m
+                ..name = 'reduce'
+                ..annotations.add(refer('override'))
+                ..returns = _appStateFromActions
+                ..body = Block(
+                  (bl) => bl.statements.addAll([
+                    declareFinal('byId')
+                        .assign(
+                          _iMap(
+                            refer('int'),
+                            refer('Object'),
+                          ).newInstanceNamed('fromValues', [], {
+                            'values': refer('_items'),
+                            'keyMapper': refer('_idOf'),
+                          }),
+                        )
+                        .statement,
+                    declareFinal('updated')
+                        .assign(
+                          _tableRead.property('table').property('addAll').call([
+                            refer('byId'),
+                          ]),
+                        )
+                        .statement,
+                    refer('state')
+                        .property('copyWith')
+                        .property(_camel)
+                        .call([], {'table': refer('updated')})
+                        .returned
+                        .statement,
+                  ]),
+                ),
+            ),
+            // Fail loud until the caller wires in a real model type + id.
+            Method(
+              (m) => m
+                ..name = '_idOf'
+                ..docs.add(
+                  '// TODO(frx): replace `Object` with your model type and return its int id.',
+                )
+                ..returns = refer('int')
+                ..lambda = true
+                ..requiredParameters.add(
+                  Parameter(
+                    (p) => p
+                      ..name = 'item'
+                      ..type = refer('Object'),
                   ),
-              ),
-              // Fail loud until the caller wires in a real model type + id.
-              Method(
-                (m) => m
-                  ..name = '_idOf'
-                  ..docs.add(
-                    '// TODO(frx): replace `Object` with your model type and return its int id.',
-                  )
-                  ..returns = refer('int')
-                  ..lambda = true
-                  ..requiredParameters.add(
-                    Parameter(
-                      (p) => p
-                        ..name = 'item'
-                        ..type = refer('Object'),
-                    ),
-                  )
-                  ..body = refer('UnimplementedError')
-                      .call([
-                        literalString(
-                          'Add${_pascal}Action._idOf: map your model to its int id',
-                        ),
-                      ])
-                      .thrown
-                      .code,
-              ),
-            ]),
-        ),
+                )
+                ..body = refer('UnimplementedError')
+                    .call([
+                      literalString(
+                        'Add${_pascal}Action._idOf: map your model to its int '
+                        'id',
+                      ),
+                    ])
+                    .thrown
+                    .code,
+            ),
+          ]),
       ),
-    );
+    ),
+  );
 
   /// `Retrieve<Pascal>Action` — an async action behind the wait barrier.
   ///
-  /// The barrier comes from the `WaitingAction` mixin rather than a hand-written
-  /// `before()`/`after()` pair over an enum flag, which is what this used to
-  /// emit. Two spellings of one idea is one too many: the template's own waiting
-  /// actions all mix it in, `add-action -k waiting` scaffolds it, and the reader
-  /// is `isWaitingForType<T>()` — keyed on the action, so no enum has to exist
-  /// to name the thing being waited for.
+  /// The barrier comes from the `WaitingAction` mixin rather than a
+  /// hand-written `before()`/`after()` pair over an enum flag, which is what
+  /// this used to emit. Two spellings of one idea is one too many: the
+  /// template's own waiting actions all mix it in, `add-action -k waiting`
+  /// scaffolds it, and the reader is `isWaitingForType<T>()` — keyed on the
+  /// action, so no enum has to exist to name the thing being waited for.
   Library _retrieveAction() => Library(
-      (b) => b.body.add(
-        Class(
-          (c) => c
-            ..name = 'Retrieve${_pascal}Action'
-            ..extend = _houseAction
-            ..mixins.add(refer('WaitingAction', '../../common/action.dart'))
-            ..methods.addAll([
-              Method(
-                (m) => m
-                  ..name = 'reduce'
-                  ..annotations.add(refer('override'))
-                  ..returns = TypeReference(
-                    (t) => t
-                      ..symbol = 'Future'
-                      ..types.add(
-                        TypeReference(
-                          (x) => x
-                            ..symbol = 'AppState'
-                            ..url = '../../app_state.dart'
-                            ..isNullable = true,
-                        ),
+    (b) => b.body.add(
+      Class(
+        (c) => c
+          ..name = 'Retrieve${_pascal}Action'
+          ..extend = _houseAction
+          ..mixins.add(refer('WaitingAction', '../../common/action.dart'))
+          ..methods.addAll([
+            Method(
+              (m) => m
+                ..name = 'reduce'
+                ..annotations.add(refer('override'))
+                ..returns = TypeReference(
+                  (t) => t
+                    ..symbol = 'Future'
+                    ..types.add(
+                      TypeReference(
+                        (x) => x
+                          ..symbol = 'AppState'
+                          ..url = '../../app_state.dart'
+                          ..isNullable = true,
                       ),
-                  )
-                  ..lambda = true
-                  ..body = refer(
-                    'Future',
-                  ).property('value').call([refer('state')]).code,
-              ),
-            ]),
-        ),
+                    ),
+                )
+                ..lambda = true
+                ..body = refer(
+                  'Future',
+                ).property('value').call([refer('state')]).code,
+            ),
+          ]),
       ),
-    );
+    ),
+  );
 }

@@ -11,9 +11,9 @@ import 'artifact_name.dart';
 /// The single source of truth for "how a page is spelled" — its route type,
 /// page and connector class names, file paths, connector import and default
 /// route path. Every command that reasons about a page (add / remove / rename /
-/// doctor) reads these here instead of re-deriving them by string interpolation.
+/// doctor) reads these here instead of re-deriving them by string
+/// interpolation.
 class PageArtifact {
-
   /// A page named by a **user**: `Home` and `HomePage` are the same page.
   ///
   /// The stemming belongs on this constructor and not inside each command,
@@ -38,22 +38,24 @@ class PageArtifact {
   /// a route type — taken exactly as read.
   ///
   /// Beside [fromRouteType] and non-stemming for the same reason: the audit
-  /// derives a route type from `home_page_page_connector.dart` to ask whether it
-  /// is registered, and a project scaffolded before the stemming really does
+  /// derives a route type from `home_page_page_connector.dart` to ask whether
+  /// it is registered, and a project scaffolded before the stemming really does
   /// contain that file behind a registered `HomePageRoute`. Stemming there
   /// makes `frx doctor` report a correctly wired page as unregistered.
   factory PageArtifact.parse(String input) =>
       PageArtifact._(Casing.parse(input));
+
   /// The annotation auto_route keys a page connector on.
   static const routePageAnnotation = 'RoutePage';
 
   /// Whether [unit] declares a class carrying `@RoutePage()`.
   ///
-  /// Read off the parse tree, never out of the text: `app_router.dart`'s own doc
-  /// comment says the word, and a check that cannot tell prose from code reports
-  /// the file that is most certainly in the right place. One home, because the
-  /// audit's route check and the placement rules both ask — and two syntactic
-  /// tests for one question is the failure this repository has already paid for.
+  /// Read off the parse tree, never out of the text: `app_router.dart`'s own
+  /// doc comment says the word, and a check that cannot tell prose from code
+  /// reports the file that is most certainly in the right place. One home,
+  /// because the audit's route check and the placement rules both ask — and two
+  /// syntactic tests for one question is the failure this repository has
+  /// already paid for.
   static bool carriesRoutePage(CompilationUnit unit) =>
       unit.declarations.whereType<ClassDeclaration>().any(isRoutePage);
 

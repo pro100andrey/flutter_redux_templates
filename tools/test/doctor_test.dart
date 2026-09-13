@@ -496,8 +496,7 @@ mixin WaitingAction on ReduxAction<AppState> {
           for (final f in ix.filesUnder(
             Directory(p.join(fx.root.path, pkg, 'lib')),
           ))
-            if (ix.parsesOf(f) > 1)
-              r'${p.basename(f.path)} ×${ix.parsesOf(f)}',
+            if (ix.parsesOf(f) > 1) r'${p.basename(f.path)} ×${ix.parsesOf(f)}',
       ];
       expect(twice, isEmpty);
     });

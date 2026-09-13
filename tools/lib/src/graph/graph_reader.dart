@@ -24,14 +24,15 @@ import 'graph_model.dart';
 /// `session.token`" needs them joined, and joining them raises two problems
 /// this class exists to solve:
 ///
-/// * **Identity.** A `PageFlow` keys actions by class name, which is unambiguous
-///   *within* one page because it was resolved through that connector's
-///   imports. Globally it is not: this repo has three `SetEmailAction`s. Node
-///   ids are therefore qualified with the owning substate, derived from the
-///   file path — which leaves `frx flow --json` untouched.
+/// * **Identity.** A `PageFlow` keys actions by class name, which is
+///   unambiguous *within* one page because it was resolved through that
+///   connector's imports. Globally it is not: this repo has three
+///   `SetEmailAction`s. Node ids are therefore qualified with the owning
+///   substate, derived from the file path — which leaves `frx flow --json`
+///   untouched.
 /// * **Coverage.** Walking connectors finds only what a screen dispatches. An
-///   action dispatched by a service dispatcher, or by another action, would read as
-///   dispatched by nobody.
+///   action dispatched by a service dispatcher, or by another action, would
+///   read as dispatched by nobody.
 class GraphReader {
   GraphReader(this.workspace);
 
@@ -48,9 +49,9 @@ class GraphReader {
     void addEdge(GraphEdge e) => edges.putIfAbsent(e.key, () => e);
 
     /// Canonical file path → the node that owns it, for the files that read
-    /// selectors: a connector, an action, a service dispatcher. Collected as each
-    /// section runs so the selector pass can say *who* reads what, rather than
-    /// re-deriving the same file-to-artifact map a third time.
+    /// selectors: a connector, an action, a service dispatcher. Collected as
+    /// each section runs so the selector pass can say *who* reads what, rather
+    /// than re-deriving the same file-to-artifact map a third time.
     final owners = <String, String>{};
 
     final flowReader = FlowReader(workspace);
@@ -361,9 +362,10 @@ class GraphReader {
     // of eleven reported orphan actions.
     //
     // Additive, and deliberately after everything that attributes an edge more
-    // precisely: a flow edge carries the interaction it belongs to (`via
-    // onSubmit`), and this pass must not shadow one with a bare duplicate. So
-    // it fills gaps only — a pair already linked is left as the richer edge.
+    // precisely: a flow edge carries the interaction it belongs to
+    // (`via onSubmit`), and this pass must not shadow one with a bare
+    // duplicate. So it fills gaps only — a pair already linked is left as the
+    // richer edge.
     final linked = {
       for (final e in edges.values)
         if (e.kind == EdgeKind.dispatches) '${e.from}|${e.to}',
@@ -508,9 +510,9 @@ class GraphReader {
     // The graph reads selector *declarations* from `selectors.dart` and nothing
     // else, while the placement rules sweep all three lib trees for them. So a
     // hand-written selector outside the facade was reported by the audit and
-    // absent here: no node, no edges, and the selectors it reads counted as read
-    // by nobody — which is a false "nothing reads this" in the dead-selector
-    // analysis, the one place frx says "you can delete this".
+    // absent here: no node, no edges, and the selectors it reads counted as
+    // read by nobody — which is a false "nothing reads this" in the
+    // dead-selector analysis, the one place frx says "you can delete this".
     //
     // An unresolved entry rather than a node, because both halves matter. The
     // false reading goes away, since the selector is no longer absent. And the
@@ -519,8 +521,8 @@ class GraphReader {
     //
     // Asked of the module the audit asks, so the two cannot disagree about what
     // a selector is or where it may live — but *not* honouring `.frxrc`: a
-    // project silencing the placement rule has said the file may stay there, not
-    // that frx can now follow it.
+    // project silencing the placement rule has said the file may stay there,
+    // not that frx can now follow it.
     for (final finding in placementFindings(
       workspace,
       silenced: const {
@@ -536,7 +538,8 @@ class GraphReader {
           at: finding.file,
           why:
               '$rel declares a selector outside the facade. frx reads selector '
-              'declarations from selectors.dart only, so what this one reads and '
+              'declarations from selectors.dart only, so what this one reads '
+              'and '
               'who reads it are both unknown here — move it to the facade and '
               'the graph can follow it.',
         ),
@@ -672,10 +675,10 @@ class GraphReader {
       selectorIds[site] = s.id;
     }
 
-    // A getter reached from *inside* the type that declares it, where the facade
-    // hop above is not written: `email` inside `SelectLogIn`, or inside an
-    // `extension … on SelectLogIn`. Keyed by owning type, because a bare name
-    // means different getters on different types.
+    // A getter reached from *inside* the type that declares it, where the
+    // facade hop above is not written: `email` inside `SelectLogIn`, or inside
+    // an `extension … on SelectLogIn`. Keyed by owning type, because a bare
+    // name means different getters on different types.
     final siblingIds = <String, Map<String, String>>{};
     for (final s in selectors) {
       (siblingIds[s.ownerType] ??= {})[s.getter] = s.id;
@@ -744,11 +747,11 @@ class GraphReader {
 
         // The type argument may name a *mixin* rather than a class, and then it
         // means every action carrying it. `WaitAction.add(this)` files the
-        // action itself as the flag and `isWaitingForType<T>` tests `flag is T`,
-        // so `isWaitingForType<WaitingAction>()` — the modal barrier's whole
-        // question — waits for all of them at once. Read before this existed, it
-        // was an action class by that name, found none, and reported the barrier
-        // as following something frx could not.
+        // action itself as the flag and `isWaitingForType<T>` tests
+        // `flag is T`, so `isWaitingForType<WaitingAction>()` — the modal
+        // barrier's whole question — waits for all of them at once. Read before
+        // this existed, it was an action class by that name, found none, and
+        // reported the barrier as following something frx could not.
         final byMixin = [
           for (final a in actions.values)
             if (a.info.mixins.contains(className)) a,
@@ -804,7 +807,8 @@ class GraphReader {
     // ---- who reads them --------------------------------------------------
     // The only edges that point *into* a selector, and so the only way to ask
     // which ones nothing reads. Scanned from source rather than resolved: a
-    // selector call is a plain getter, with no dispatch or annotation to key on.
+    // selector call is a plain getter, with no dispatch or annotation to key
+    // on.
     //
     // Every Dart file of the app's own packages, not just the ones that already
     // have a node. A read is a read whether or not frx models the reader, and
@@ -1034,9 +1038,9 @@ class _Selector {
 /// "something reads this" untrustworthy in exactly the direction that hides
 /// dead code — and the files are parsed here anyway.
 ///
-/// Two call shapes, because a selector is reached two ways: `<substate>.<getter>`
-/// for the ones hanging off a substate, and a bare `<getter>` for a composite
-/// declared on `Select` itself.
+/// Two call shapes, because a selector is reached two ways:
+/// `<substate>.<getter>` for the ones hanging off a substate, and a bare
+/// `<getter>` for a composite declared on `Select` itself.
 ///
 /// Still deliberately generous about the bare shape: a composite's name can
 /// collide with a local of the same name, which files a selector as used when
@@ -1066,12 +1070,12 @@ Set<String> selectorUsesIn(
 ///     final selectors = _Reader(state);
 ///     final unread = selectors.chats.unreadTotal;
 ///
-/// — and the same read has a segment in front of it, which [_SelectorUseVisitor]
-/// accepted only when it was the literal `select` of the spine that no longer
-/// exists. `app_tray.dart` reads `SelectChats.unreadTotal` exactly that way and
-/// nothing else in the application does, so the selector was reported as read by
-/// nobody: a live selector on the dead list, which is the one direction that
-/// invites deleting working code.
+/// — and the same read has a segment in front of it, which
+/// [_SelectorUseVisitor] accepted only when it was the literal `select` of the
+/// spine that no longer exists. `app_tray.dart` reads `SelectChats.unreadTotal`
+/// exactly that way and nothing else in the application does, so the selector
+/// was reported as read by nobody: a live selector on the dead list, which is
+/// the one direction that invites deleting working code.
 ///
 /// Bound by *type*, never by name. A receiver is a facade because what it holds
 /// mixes in `Selectors` — which is also why `vm.logIn.email` and
@@ -1081,10 +1085,10 @@ Set<String> selectorUsesIn(
 /// `SelectSession.token` and hidden every genuinely dead selector behind the
 /// substate it reads.
 ///
-/// Syntactic, like the rest of the graph: a name is bound to a facade when it is
-/// *declared* as one or *constructed* from one in this unit. A facade arriving
-/// from another file with no type annotation is not seen, and that costs a
-/// missed cleanup rather than a wrong deletion.
+/// Syntactic, like the rest of the graph: a name is bound to a facade when it
+/// is *declared* as one or *constructed* from one in this unit. A facade
+/// arriving from another file with no type annotation is not seen, and that
+/// costs a missed cleanup rather than a wrong deletion.
 Set<String> facadesIn(CompilationUnit unit) {
   final types = {SelectorShape.mixinType, SelectorShape.facadeType};
 
@@ -1228,10 +1232,10 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
   ///
   /// `logIn.email` is a selector: the receiver heads the chain, which is how a
   /// class mixing in `Selectors` reaches one. `state.select.logIn.email` is the
-  /// same selector through the facade. `vm.logIn.email` and `_state.logIn.email`
-  /// are not — a view-model field and the substate behind the selector. Text
-  /// scanning could not tell the three apart without listing the receivers to
-  /// refuse; the position in the chain says it outright.
+  /// same selector through the facade. `vm.logIn.email` and
+  /// `_state.logIn.email` are not — a view-model field and the substate behind
+  /// the selector. Text scanning could not tell the three apart without listing
+  /// the receivers to refuse; the position in the chain says it outright.
   void _chain(Expression node) {
     // Only the outermost node of a chain: an inner one is judged with it.
     final parent = node.parent;
@@ -1310,11 +1314,12 @@ bool _merge(Set<String> into, Set<String> from) {
 class _SelectorVisitor extends RecursiveAstVisitor<void> {
   final selectors = <_Selector>[];
 
-  /// Every selector declared in [unit], with each one's sibling reads folded in.
+  /// Every selector declared in [unit], with each one's sibling reads folded
+  /// in.
   ///
-  /// The single entry point, because the fold has to happen after the whole file
-  /// is visited — an extension can be declared above the type it extends — and a
-  /// caller that has to remember a second call would eventually not.
+  /// The single entry point, because the fold has to happen after the whole
+  /// file is visited — an extension can be declared above the type it extends —
+  /// and a caller that has to remember a second call would eventually not.
   static List<_Selector> read(CompilationUnit unit) {
     final v = _SelectorVisitor();
     unit.accept(v);

@@ -37,7 +37,7 @@ class AddRetrofitCommand extends WritingCommand {
       );
     }
 
-    final file = ArtifactFiles.retrofit(repo, name);
+    final file = retrofitFile(repo, name);
 
     return WritePlan(
       changes: Changeset([WriteFile(file, ArtifactTemplates.retrofit(name))]),

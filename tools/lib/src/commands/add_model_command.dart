@@ -51,9 +51,9 @@ class AddModelCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    // The name first: a usage error is about the command line and this is
-    // about the workspace, so checking the workspace first answered `frx
-    // add-model` with no argument by sending the user to create a package.
+    // The name first: a usage error is about the command line and this is about
+    // the workspace, so checking the workspace first answered `frx add-model`
+    // with no argument by sending the user to create a package.
     final name = requireName();
 
     // `models` is optional, so this is a target-existence check like the one
@@ -78,7 +78,7 @@ class AddModelCommand extends WritingCommand {
       usageException(e.message);
     }
 
-    final file = ArtifactFiles.model(repo, name);
+    final file = modelFile(repo, name);
     final serializable = results['serializable'] as bool;
 
     return WritePlan(

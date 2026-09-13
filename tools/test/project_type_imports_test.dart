@@ -9,11 +9,12 @@ import 'package:tools/src/workspace/frx_workspace.dart';
 /// What a generated file has to import to name a type this *project* declares —
 /// across every package `business` depends on, not just `models`.
 ///
-/// The hole these cover: the resolver used to join `<root>/models/lib/<snake>.dart`
-/// and stop, so `add-field boot 'digest:MemoryDigest?'` wrote a field into
-/// `boot_state.dart` and a getter onto `selectors.dart` with nothing importing
-/// the type — two files that do not compile, and neither of them one a hand edit
-/// is allowed to fix.
+/// The hole these cover: the resolver used to join
+/// `<root>/models/lib/<snake>.dart` and stop, so
+/// `add-field boot 'digest:MemoryDigest?'` wrote a field into `boot_state.dart`
+/// and a getter onto `selectors.dart` with nothing importing the type — two
+/// files that do not compile, and neither of them one a hand edit is allowed to
+/// fix.
 void main() {
   late Directory root;
 

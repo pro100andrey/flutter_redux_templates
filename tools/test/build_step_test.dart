@@ -7,8 +7,9 @@ import 'package:tools/src/engine/build_step.dart';
 /// A second build_runner asks a running one to exit, so every path through
 /// [runBuild] has to stand down while a watch is up.
 void main() {
-  // A root no build could succeed in: if the watch guard fails to short-circuit,
-  // the spawned `dart run build_runner build` exits non-zero and the test sees it.
+  // A root no build could succeed in: if the watch guard fails to
+  // short-circuit, the spawned `dart run build_runner build` exits non-zero and
+  // the test sees it.
   BuildStep step() =>
       BuildStep.build('/frx-nonexistent', nextHint: 'regenerate the parts');
 
@@ -44,22 +45,21 @@ void main() {
     // IDE dies, and the case that made the first cut of this guard skip builds
     // nobody was going to run.
     //
-    // It orphans a *real* process rather than stubbing the answer, which is what
-    // makes it worth running: the first cut split on `ppid <= 1` and this case
-    // failed on any machine with a subreaper between the process and init —
-    // `systemd --user` reparents an orphan to the user manager, whose pid is not
+    // It orphans a *real* process rather than stubbing the answer, which is
+    // what makes it worth running: the first cut split on `ppid <= 1` and this
+    // case failed on any machine with a subreaper between the process and init
+    // — `systemd --user` reparents an orphan to the user manager, whose pid is
+    // not
     // 1. So what is asserted below is the behaviour, not the mechanism.
     // `... build_runner_decoy.sh watch` — `watch` as the token after the
     // build_runner one, the shape the scan looks for.
     final script = File(
       p.join(Directory.systemTemp.path, 'build_runner_decoy.sh'),
     )..writeAsStringSync('sleep 20\n');
-    final started = await Process.run('sh', [
-      '-c',
-      'nohup sh '
-          '${script.path}'
-          r' watch >/dev/null 2>&1 & echo $!',
-    ]);
+    final spawn =
+        'nohup sh ${script.path}'
+        r' watch >/dev/null 2>&1 & echo $!';
+    final started = await Process.run('sh', ['-c', spawn]);
     final decoy = int.parse((started.stdout as String).trim());
     addTearDown(() {
       Process.runSync('kill', ['-9', '$decoy']);
@@ -92,9 +92,9 @@ void main() {
   }, testOn: 'posix');
 
   test('a watch whose launcher is alive is live, and not an orphan', () async {
-    // The other half, and the one that must not regress while the orphan case is
-    // being fixed: this process is the decoy's parent and is very much alive, so
-    // frx has to stand down for it.
+    // The other half, and the one that must not regress while the orphan case
+    // is being fixed: this process is the decoy's parent and is very much
+    // alive, so frx has to stand down for it.
     final script = File(
       p.join(Directory.systemTemp.path, 'build_runner_live.sh'),
     )..writeAsStringSync('sleep 20\n');
@@ -158,12 +158,10 @@ void main() {
     final log = File(
       p.join(Directory.systemTemp.path, 'build_runner-watch.log'),
     )..writeAsStringSync('');
-    final started = await Process.run('sh', [
-      '-c',
-      'nohup tail -f '
-          '${log.path}'
-          r' >/dev/null 2>&1 & echo $!',
-    ]);
+    final spawn =
+        'nohup tail -f ${log.path}'
+        r' >/dev/null 2>&1 & echo $!';
+    final started = await Process.run('sh', ['-c', spawn]);
     final impostor = int.parse((started.stdout as String).trim());
     addTearDown(() {
       Process.runSync('kill', ['-9', '$impostor']);

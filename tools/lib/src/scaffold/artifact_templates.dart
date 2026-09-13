@@ -24,7 +24,8 @@ class ${n.pascal} extends StatelessWidget {
 }
 ''';
 
-  /// A `StoreConnector` for the dumb widget of the same name (in `ui/widgets/`).
+  /// A `StoreConnector` for the dumb widget of the same name (in
+  /// `ui/widgets/`).
   static String connector(Casing n) =>
       '''
 import 'package:async_redux/async_redux.dart';
@@ -72,8 +73,8 @@ class _Vm extends Vm {
     //
     // `WaitingAction` goes **last**, after the behaviour mixins. Dart calls one
     // `after()` — the last mixin's — and [ActionMixin.swallowsAfter] marks the
-    // three that override it without calling `super.after()`. Emitted first,
-    // as this used to, `WaitingAction` sat behind one of those and its `after()`
+    // three that override it without calling `super.after()`. Emitted first, as
+    // this used to, `WaitingAction` sat behind one of those and its `after()`
     // never ran: the wait barrier went up and never came down, and every widget
     // reading `isWaitingForType<T>()` stayed disabled for good. The generated
     // file compiled, analyzed clean, and was wrong at runtime.
@@ -136,9 +137,10 @@ class _Vm extends Vm {
   ///
   /// [extraImports] carries what [TypeImports] cannot answer: a type this
   /// *project* defines, which is only resolvable against a workspace this
-  /// template does not have. Without it the setter was the one file of the three
-  /// `add-field --action` writes that missed the models import — the state file
-  /// and the facade both got it — so `final Task? selected;` arrived undefined.
+  /// template does not have. Without it the setter was the one file of the
+  /// three `add-field --action` writes that missed the models import — the
+  /// state file and the facade both got it — so `final Task? selected;` arrived
+  /// undefined.
   static String fieldSetter(
     Casing substate,
     Casing field,
@@ -187,6 +189,12 @@ $fromJson}
 ''';
   }
 
+  /// One case of a sealed union: the redirecting factory and the note that
+  /// its fields are still to be written.
+  static String _unionCase(Casing n, Casing c) =>
+      '  // TODO(frx): give the ${c.camel} case its fields.\n'
+      '  const factory ${n.pascal}.${c.camel}() = ${n.pascal}${c.pascal};\n';
+
   /// A `@freezed` sealed union (in `models/lib/`): one factory per case,
   /// `<Pascal><Case>` implementation classes. With [json], a discriminated
   /// `fromJson` (freezed keys on `runtimeType` by default).
@@ -196,11 +204,7 @@ $fromJson}
         ? '\n  factory ${n.pascal}.fromJson(Map<String, dynamic> json) =>\n'
               '      _\$${n.pascal}FromJson(json);\n'
         : '';
-    final factories = [
-      for (final c in cases)
-        '  // TODO(frx): give the ${c.camel} case its fields.\n'
-            '  const factory ${n.pascal}.${c.camel}() = ${n.pascal}${c.pascal};\n',
-    ].join('\n');
+    final factories = [for (final c in cases) _unionCase(n, c)].join('\n');
     return '''
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -489,12 +493,12 @@ enum ActionMixin {
   ///
   /// Dart calls one `after()` per class — the last mixin's. One of these placed
   /// last therefore ends the chain, and every earlier mixin's cleanup is simply
-  /// never run. That is not a hazard the analyzer can see: `with WaitingAction,
-  /// NonReentrant` compiles, analyzes clean, and leaves the wait barrier raised
-  /// for the rest of the session.
+  /// never run. That is not a hazard the analyzer can see:
+  /// `with WaitingAction, NonReentrant` compiles, analyzes clean, and leaves
+  /// the wait barrier raised for the rest of the session.
   ///
   /// So it is data, in the catalogue, next to [implies] and [exclusiveGroups] —
-  /// the two other facts frx transcribes from async_redux. It is why [action]
+  /// the two other facts frx transcribes from async_redux. It is why `action`
   /// emits `WaitingAction` last (unconditionally: last is safe whether or not
   /// one of these is present, and a rule with no branch cannot take the wrong
   /// one). `list-mixins` prints it, and the `action-mixin-order` audit check

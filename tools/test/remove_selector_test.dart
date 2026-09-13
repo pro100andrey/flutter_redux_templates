@@ -109,14 +109,15 @@ void main() {
 
   /// The imports the facade was carrying for one getter.
   ///
-  /// `add-selector` writes an import for what the getter names; nothing took one
-  /// out, so removing
+  /// `add-selector` writes an import for what the getter names; nothing took
+  /// one out, so removing
   ///
-  ///     bool get isWaiting => _state.wait.isWaitingForType<LoadContactsAction>();
+  ///     bool get isWaiting =>
+  ///         _state.wait.isWaitingForType<LoadContactsAction>();
   ///
   /// left the action file imported by a file that no longer names it. On a real
-  /// project the facade imports one write-layer file per waiting getter — eighteen
-  /// of them — so this is the ordinary case, not the corner one.
+  /// project the facade imports one write-layer file per waiting getter —
+  /// eighteen of them — so this is the ordinary case, not the corner one.
   group('the imports the getter was the last reason for', () {
     late Fixture fx;
     setUp(() => fx = Fixture.create());
@@ -199,8 +200,9 @@ void main() {
     });
 
     test('a name in prose is not a reason to keep it', () async {
-      // The use is read off the tree, not scanned out of the text. A facade whose
-      // comment says the word was a facade whose import could never be removed.
+      // The use is read off the tree, not scanned out of the text. A facade
+      // whose comment says the word was a facade whose import could never be
+      // removed.
       put('log_in/actions/log_in_action.dart', 'class LogInAction {}\n');
       facade(
         '''
@@ -217,10 +219,11 @@ void main() {
     });
 
     test('an import that shares its names with one that stays goes', () async {
-      // Two imports supplying `Token`, which is ordinary rather than an error: a
-      // generated client re-exports the package beside it. Keeping every import
-      // that still names something means the second can never be removed, so what
-      // decides is whether an import that is *staying* answers for the name.
+      // Two imports supplying `Token`, which is ordinary rather than an error:
+      // a generated client re-exports the package beside it. Keeping every
+      // import that still names something means the second can never be
+      // removed, so what decides is whether an import that is *staying* answers
+      // for the name.
       put('log_in/models/token.dart', 'class Token {}\n');
       put('log_in/models/extras.dart', '''
   export 'token.dart';
@@ -246,8 +249,8 @@ void main() {
     });
 
     test('an import that cannot be read is left alone', () async {
-      // A package no `package_config.json` here resolves. Unknown is not "unused":
-      // erring wide leaves a lint, erring narrow leaves a build.
+      // A package no `package_config.json` here resolves. Unknown is not
+      // "unused": erring wide leaves a lint, erring narrow leaves a build.
       facade(
         '''
     String? get email => _state.logIn.email;

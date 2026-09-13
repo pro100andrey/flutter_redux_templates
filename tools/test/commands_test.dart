@@ -71,15 +71,16 @@ void main() {
   });
 
   group('list-widget-dirs', () {
-    test('--json reports an empty repo as no folders, not as a failure', () {
-      // The fixture has `ui/lib/widgets/.keep` and no .dart anywhere, which is
-      // deliberately the empty case: a folder with no widget in it is not an
-      // established home.
-      return expectLater(
+    // The fixture has `ui/lib/widgets/.keep` and no .dart anywhere, which is
+    // deliberately the empty case: a folder with no widget in it is not an
+    // established home.
+    test(
+      '--json reports an empty repo as no folders, not as a failure',
+      () => expectLater(
         json(['list-widget-dirs', '--json']).then((o) => o['dirs']),
         completion(isEmpty),
-      );
-    });
+      ),
+    );
   });
 
   group('list-mixins', () {
@@ -95,14 +96,16 @@ void main() {
       expect(retry['conflictsWith'], contains('debounce'));
     });
 
-    test('--json also carries the mixins the project itself declares', () async {
-      // The catalogue is async_redux's, so the one mixin in this architecture
-      // that *must* go last — the app's own `WaitingAction` — was absent from
-      // the command whose job is to say what combines with what. It reads the
-      // repo now, which is what `--root` had been accepted and ignored for.
-      fx.file('business/lib/redux/common/action.dart')
-        ..parent.createSync(recursive: true)
-        ..writeAsStringSync('''
+    test(
+      '--json also carries the mixins the project itself declares',
+      () async {
+        // The catalogue is async_redux's, so the one mixin in this architecture
+        // that *must* go last — the app's own `WaitingAction` — was absent from
+        // the command whose job is to say what combines with what. It reads the
+        // repo now, which is what `--root` had been accepted and ignored for.
+        fx.file('business/lib/redux/common/action.dart')
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync('''
 mixin WaitingAction on ReduxAction<AppState> {
   @override
   Future<void> before() async {
@@ -123,17 +126,19 @@ mixin MarksRowBusy on Action {
 }
 ''');
 
-      final out = await json(['list-mixins', '--json']);
-      final rows = (out['projectMixins']! as List).cast<Map<String, Object?>>();
-      final byName = {for (final m in rows) m['name']: m};
+        final out = await json(['list-mixins', '--json']);
+        final rows = (out['projectMixins']! as List)
+            .cast<Map<String, Object?>>();
+        final byName = {for (final m in rows) m['name']: m};
 
-      expect(byName.keys, containsAll(['WaitingAction', 'MarksRowBusy']));
-      expect(byName['WaitingAction']!['on'], 'ReduxAction<AppState>');
-      expect(byName['WaitingAction']!['swallowsAfter'], isFalse);
-      // The shape the whole mixin-order defect was: an `after()` that cleans up
-      // and returns, so anything mixed in before it never runs.
-      expect(byName['MarksRowBusy']!['swallowsAfter'], isTrue);
-    });
+        expect(byName.keys, containsAll(['WaitingAction', 'MarksRowBusy']));
+        expect(byName['WaitingAction']!['on'], 'ReduxAction<AppState>');
+        expect(byName['WaitingAction']!['swallowsAfter'], isFalse);
+        // The shape the whole mixin-order defect was: an `after()` that cleans
+        // up and returns, so anything mixed in before it never runs.
+        expect(byName['MarksRowBusy']!['swallowsAfter'], isTrue);
+      },
+    );
 
     test('a root with no project still answers about async_redux', () async {
       // It reads the repo now, so "reads nothing from disk" is no longer the
@@ -156,7 +161,7 @@ mixin MarksRowBusy on Action {
       final kinds = nodes.map((n) => n['kind']).toSet();
       expect(kinds, contains('substate'));
       expect(kinds, contains('page'));
-      expect(out['edges'], isA<List>());
+      expect(out['edges'], isA<List<Object?>>());
       // Every edge points at a node that exists — the property a consumer
       // relies on and nothing checked.
       final ids = nodes.map((n) => n['id']).toSet();
@@ -180,8 +185,9 @@ mixin MarksRowBusy on Action {
     );
 
     test('--focus takes a symbol, not only a node id', () async {
-      // Through the same resolver `frx which` and the editor's F2 use — a second
-      // implementation of "what does LogInRoute mean" is how conventions fork.
+      // Through the same resolver `frx which` and the editor's F2 use — a
+      // second implementation of "what does LogInRoute mean" is how conventions
+      // fork.
       for (final token in ['page:logIn', 'LogInRoute', 'LogInPageConnector']) {
         final out = await json(['graph', '--json', '--focus', token]);
         expect(
@@ -274,16 +280,19 @@ mixin MarksRowBusy on Action {
       expect(out['suffix'], 'PageConnector');
     });
 
-    test('a name nothing wires is kind:null and exit 0, not a failure', () async {
-      // Not an oversight — the editor depends on it. `queries.which` reads
-      // `m && m.kind ? m : null`, and its `_json` helper turns a non-zero exit
-      // into null before that runs. Exiting non-zero here would make "I looked
-      // and it is not an artifact" indistinguishable from "frx broke", and F2
-      // rename would fall back to Dart-Code either way — silently.
-      final r = await runInProcess(fx, ['which', 'NoSuchThing', '--json']);
-      expect(r.exitCode, 0);
-      expect(jsonDecode(r.stdout), {'kind': null});
-    });
+    test(
+      'a name nothing wires is kind:null and exit 0, not a failure',
+      () async {
+        // Not an oversight — the editor depends on it. `queries.which` reads
+        // `m && m.kind ? m : null`, and its `_json` helper turns a non-zero
+        // exit into null before that runs. Exiting non-zero here would make "I
+        // looked and it is not an artifact" indistinguishable from "frx broke",
+        // and F2 rename would fall back to Dart-Code either way — silently.
+        final r = await runInProcess(fx, ['which', 'NoSuchThing', '--json']);
+        expect(r.exitCode, 0);
+        expect(jsonDecode(r.stdout), {'kind': null});
+      },
+    );
   });
 
   group('add-tabs', () {
@@ -352,8 +361,8 @@ mixin MarksRowBusy on Action {
       () async {
         // The check that makes the scaffold compile: auto_route generates no
         // route class for an unregistered page, so there is nothing to push.
-        // Ordered after the connector check, which is why this needs a connector
-        // on disk to reach it at all.
+        // Ordered after the connector check, which is why this needs a
+        // connector on disk to reach it at all.
         File(fx.path('app/lib/connectors/stray_page_connector.dart'))
           ..parent.createSync(recursive: true)
           ..writeAsStringSync('@RoutePage()\nclass StrayPageConnector {}\n');

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/ast/source_index.dart';
+import 'package:tools/src/refusal.dart';
 
 /// One place that reads and parses Dart, so the same file is not opened four
 /// times in one command — and so "does this have to parse cleanly?" is answered
@@ -58,12 +59,12 @@ void main() {
     });
 
     test('but is refused to a caller computing edit offsets', () {
-      // StateError is the convention the runner renders as `✗ msg`, exit 70 —
+      // FrxRefusal is the convention the runner renders as `✗ msg`, exit 70 —
       // an ArgumentError here escaped as a stack trace for the most user-facing
       // failure there is.
       expect(
         () => index.unitToEdit(put('a.dart', broken)),
-        throwsA(isA<StateError>()),
+        throwsA(isA<FrxRefusal>()),
       );
     });
 

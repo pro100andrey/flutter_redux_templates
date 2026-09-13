@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/redux/ast_edit.dart';
+import 'package:tools/src/refusal.dart';
 import 'package:tools/src/routing/nav_source.dart';
 
 import 'support/parses.dart';
@@ -226,7 +227,7 @@ class ItemPageConnector extends StatelessWidget {
           params: const [],
           pageClass: 'CatalogPage',
         ),
-        throwsA(isA<StateError>()),
+        throwsA(isA<FrxRefusal>()),
       );
     });
   });
@@ -263,7 +264,7 @@ class ItemPageConnector extends StatelessWidget {
           pageClass: 'P',
           params: const [],
         ),
-        throwsA(isA<StateError>()),
+        throwsA(isA<FrxRefusal>()),
       );
     });
 

@@ -129,8 +129,9 @@ class AddNavCommand extends WritingCommand {
           )
         : null;
 
-    // Said twice, and by two different mechanisms: as the skip block, and as the
-    // closing line the write engine prints whether or not there was narration.
+    // Said twice, and by two different mechanisms: as the skip block, and as
+    // the closing line the write engine prints whether or not there was
+    // narration.
     final nothingToDo =
         '${from.pageClass} already has `$callback` — nothing to do.';
 

@@ -4,6 +4,7 @@ import * as assert from 'node:assert';
 import * as vm from 'node:vm';
 import { buildHtml, picture } from '../src/map';
 import type { AppGraph, GraphEdge, GraphNode } from '../src/queries';
+import type { PictureNode } from '../src/map';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -249,6 +250,26 @@ test('unresolved edges are carried into the picture', () => {
   assert.match(p.gaps[0].why, /no imported/);
 });
 
+test('a gap names its file relative to the repo', () => {
+  // The CLI names files absolutely; in a box of fixed width that broke
+  // mid-word, and the repo-relative form is what the rest of the editor shows.
+  const gap = {
+    kind: 'dispatch-target',
+    owner: 'page:logIn',
+    at: '/repo/app/lib/connectors/log_in_page_connector.dart',
+    why: 'no imported *_action.dart declares it',
+  };
+  assert.strictEqual(
+    picture(graphOf({ unresolved: [gap] }), '/repo').gaps[0].at,
+    'app/lib/connectors/log_in_page_connector.dart',
+  );
+  assert.strictEqual(
+    picture(graphOf({ unresolved: [gap] })).gaps[0].at,
+    gap.at,
+    'and stays as it came when the root is unknown',
+  );
+});
+
 test('hygiene marks do not reach the picture', () => {
   // They describe an absence of relationships and belong to the tree, which has a
   // row to hang them on. The tree keeps showing them — see tree.test.ts.
@@ -354,23 +375,139 @@ test('a pair related both ways is still one line', () => {
   );
 });
 
-test('two relations leaving one node get different anchors', () => {
-  // The picture-level half of the slot: without it, a page that both dispatches
-  // into a substate and reads it drew one line twice, and its two relations to
-  // different substates left from the same point.
+test('a line end takes its own slot on the row, ordered by where the far end is', () => {
+  // Without slots, a page that both dispatches into a substate and reads it
+  // drew one line twice, and its relations to different substates left from
+  // one point. The slots live in the page, not the picture: which lines exist
+  // is the drawing's business once a row can fold and take over the lines of
+  // everything under it — so what is pinned here is that the page assigns
+  // them, per line end, by the far end's height, and draws with them.
+  const html = buildHtml(
+    picture(
+      graphOf({
+        nodes: [PAGE('logIn', '/login'), SUB('a', 'A'), SUB('b', 'B')],
+        edges: [edge('page:logIn', 'substate:a', 'dispatches'), edge('page:logIn', 'substate:b', 'reads')],
+      }),
+    ),
+  );
+  assert.match(html, /function slotsOf\(drawn\)/);
+  assert.match(html, /sort\(\(a, b\) => a\.y - b\.y \|\| a\.arrival - b\.arrival\)/, 'by far height, ties by arrival');
+  assert.match(html, /slots\[index\]\[end\] = \{ slot, of: ordered\.length \}/);
+  assert.match(html, /anchorY\(ra, slots\[i\]\.from, board\.top\)/, 'and the drawing uses them');
+});
+
+test('every row says its kind, so the page can colour it', () => {
   const p = picture(
     graphOf({
-      nodes: [PAGE('logIn', '/login'), SUB('a', 'A'), SUB('b', 'B'), SUB('c', 'C')],
-      edges: [
-        edge('page:logIn', 'substate:a', 'dispatches'),
-        edge('page:logIn', 'substate:b', 'reads'),
-        edge('page:logIn', 'substate:c', 'uses'),
+      nodes: [
+        SUB('logIn', 'LogInState'),
+        PAGE('logIn', '/login'),
+        CONSUMER('Bar'),
+        { id: 'service:S', kind: 'service', name: 'S', file: '/s.dart' },
+        { id: 'persistor:P', kind: 'persistor', name: 'P', file: '/p.dart' },
+        ACTION('logIn', 'A'),
       ],
     }),
   );
-  const slots = p.edges.map((e) => e.anchors.from.slot);
-  assert.strictEqual(new Set(slots).size, 3, 'three lines, three anchors');
-  for (const e of p.edges) assert.strictEqual(e.anchors.from.of, 3);
+  assert.deepStrictEqual(
+    [...p.actors, ...p.state].map((n) => [n.title, n.kind]).sort(),
+    [['Bar', 'consumer'], ['P', 'persistor'], ['S', 'service'], ['logIn', 'page'], ['logIn', 'substate']],
+  );
+  assert.strictEqual(p.state[0].owned[0].kind, 'action');
+  assert.match(buildHtml(p), /\.node\.k-substate \{ border-left-color/);
+});
+
+test('a folded relation remembers the action or selector it ended on', () => {
+  // "dispatches into logIn" is the shape; "dispatches LogInAction (onSubmit)"
+  // is what a reader came to find out, and the line cannot say it.
+  const p = picture(
+    graphOf({
+      nodes: [SUB('logIn', 'LogInState'), PAGE('logIn', '/login'), ACTION('logIn', 'A'), ACTION('logIn', 'B'), SELECTOR('logIn', 'email')],
+      edges: [
+        edge('page:logIn', 'action:logIn.A', 'dispatches', 'onSubmit'),
+        edge('page:logIn', 'action:logIn.B', 'dispatches', 'onSubmit'),
+        edge('page:logIn', 'selector:SelectlogIn.email', 'uses'),
+        edge('page:logIn', 'substate:logIn', 'reads'),
+      ],
+    }),
+  );
+  assert.strictEqual(p.edges.length, 1, 'still one line');
+  assert.deepStrictEqual(
+    p.edges[0].relations.map((r) => [r.kind, r.via, r.through]),
+    [
+      ['dispatches', 'onSubmit', 'action:logIn.A'],
+      ['dispatches', 'onSubmit', 'action:logIn.B'],
+      ['uses', '', 'selector:SelectlogIn.email'],
+      ['reads', '', undefined],
+    ],
+    'two actions behind one trigger are two relations; an edge already on the substate has none',
+  );
+});
+
+test('a line is coloured by what it does to state', () => {
+  const html = buildHtml(
+    picture(
+      graphOf({
+        nodes: [PAGE('logIn', '/login'), SUB('a', 'A')],
+        edges: [edge('page:logIn', 'substate:a', 'dispatches'), edge('page:logIn', 'substate:a', 'uses')],
+      }),
+    ),
+  );
+  assert.match(html, /const CHANGES = new Set\(\['dispatches', 'writes', 'restores'\]\)/);
+  assert.match(html, /\(changes \? ' changes' : ''\)/, 'a line that changes among other things is still a changing line');
+  assert.match(html, /path\.wire\.changes \{ stroke: var\(--changes\)/);
+  assert.match(html, /path\.wire \{ pointer-events: stroke; \}/, 'and its tooltip can be reached');
+});
+
+test('a row pins on click, holds the focus, and lets go on Escape', () => {
+  const html = buildHtml(
+    picture(
+      graphOf({
+        nodes: [PAGE('logIn', '/login'), SUB('a', 'A')],
+        edges: [edge('page:logIn', 'substate:a', 'reads')],
+      }),
+    ),
+  );
+  assert.match(html, /pinned = pinned === id \? null : id;/);
+  assert.match(html, /const current = \(\) => focused \|\| pinned;/, 'the hovered row wins while the pointer is on one');
+  assert.match(html, /event\.key !== 'Escape'/);
+  assert.match(html, /vscode\.setState\(\{ folded: \[\.\.\.folded\], pinned \}\)/, 'and a refresh keeps it');
+});
+
+test('the pane says in words what the focused row\'s lines mean', () => {
+  const html = buildHtml(
+    picture(
+      graphOf({
+        nodes: [PAGE('logIn', '/login'), SUB('a', 'A'), ACTION('a', 'SetA')],
+        edges: [edge('page:logIn', 'action:a.SetA', 'dispatches', 'onSubmit')],
+      }),
+    ),
+  );
+  assert.match(html, /function describe\(id\)/);
+  for (const group of ['Changed by', 'Changes', 'Read by', 'Reads', 'Built by', 'Builds']) {
+    assert.ok(html.includes(`'${group}'`), `the pane groups by "${group}"`);
+  }
+  assert.match(html, /entry\.far\.title \+ \(entry\.what \? ' · ' \+ entry\.what\.title : ''\)/, 'and names the action behind the line');
+  assert.match(html, /open\(entry\.what \|\| entry\.far\)/, 'which is what an entry opens');
+});
+
+test('a row with many regions starts folded, and folded lines land on it', () => {
+  const html = buildHtml(
+    picture(
+      graphOf({
+        nodes: [PAGE('home', '/home'), CONSUMER('R1'), CONSUMER('R2'), CONSUMER('R3'), CONSUMER('R4'), SUB('a', 'A')],
+        edges: [
+          ...['R1', 'R2', 'R3', 'R4'].map((r) => edge('page:home', `consumer:${r}`, 'builds')),
+          edge('consumer:R1', 'substate:a', 'uses'),
+        ],
+      }),
+    ),
+  );
+  assert.match(html, /const FOLD_OVER = 3;/);
+  assert.match(html, /n\.built\.length > FOLD_OVER\) folded\.add\(n\.id\)/);
+  assert.match(html, /function shownAs\(id\)/, 'a hidden row is drawn as the folded row above it');
+  assert.match(html, /const from = shownAs\(e\.from\), to = shownAs\(e\.to\);/);
+  assert.match(html, /if \(from === to\) continue;/, 'a region relating to its own builder is folded away');
 });
 
 test('a same-column edge is not drawn as a straight chord', () => {
@@ -401,8 +538,15 @@ test('hovering a row dims what it is not attached to', () => {
   // The rule is in the stylesheet, so it applies to rows and wires alike and
   // needs no per-element bookkeeping beyond one class.
   assert.match(html, /#board\.focusing[^{]*:not\(\.lit\)/);
-  assert.match(html, /mouseenter/);
-  assert.match(html, /mouseleave/, 'and it lets go again');
+  // Resolved from the pointer to the innermost row, on one listener: a row
+  // nested in another is inside its builder's box, and per-row enter/leave
+  // would light the builder on the way in and let go of both on the way out.
+  assert.match(html, /mouseover/);
+  assert.match(html, /closest\('\.node'\)/);
+  assert.match(html, /focused = id;/, 'and a move off every row lets go again');
+  // Dimmed by the row's own head, not the box: opacity on the box would dim a
+  // lit row nested inside an unlit one.
+  assert.match(html, /\.node:not\(\.lit\) > \.head/);
   // The wires carry their endpoints, which is what lets a wire be lit without
   // re-deriving the picture in the DOM.
   assert.match(html, /wire\.dataset\.from/);
@@ -430,6 +574,148 @@ test('a redraw restores the focus instead of half-dimming the picture', () => {
   // And the ways the pointer can leave without a row saying so.
   assert.match(html, /pointerleave/);
   assert.match(html, /visibilitychange/);
+});
+
+const CONSUMER = (name: string): GraphNode => ({
+  id: `consumer:${name}`,
+  kind: 'consumer',
+  name,
+  file: `/repo/app/lib/connectors/${name}.dart`,
+});
+
+/** The actor rows top to bottom, each with its depth. */
+const outline = (nodes: PictureNode[], depth = 0): [string, number][] =>
+  nodes.flatMap((n) => [[n.title, depth] as [string, number], ...outline(n.built, depth + 1)]);
+
+test('a connector sits under the row that builds it, and the line is gone', () => {
+  // Composition is the one relation the picture says by nesting. On a real
+  // console app it was twenty-five lines down the left margin, and the one
+  // relation least worth a line: a region is *inside* its screen.
+  const p = picture(
+    graphOf({
+      nodes: [PAGE('console', '/'), CONSUMER('SidebarConnector'), CONSUMER('ProjectPicker'), SUB('a', 'A')],
+      edges: [
+        edge('page:console', 'consumer:SidebarConnector', 'builds'),
+        edge('consumer:SidebarConnector', 'consumer:ProjectPicker', 'builds'),
+        edge('consumer:ProjectPicker', 'substate:a', 'uses', 'projects'),
+      ],
+    }),
+  );
+  assert.deepStrictEqual(outline(p.actors), [
+    ['console', 0],
+    ['SidebarConnector', 1],
+    ['ProjectPicker', 2],
+  ]);
+  assert.deepStrictEqual(
+    p.edges.map(relation),
+    [{ from: 'consumer:ProjectPicker', to: 'substate:a', kind: 'uses', via: 'projects', side: 'across' }],
+    'what the nested row does to state is still a line; what builds it is not',
+  );
+});
+
+test('a row built by two things sits under one and keeps a line to the other', () => {
+  // A page constructs a region, and so does a bar inside that page. The row can
+  // only be in one place; the second builder is the relation the nesting cannot
+  // say, so it stays a wire.
+  const p = picture(
+    graphOf({
+      nodes: [PAGE('console', '/'), CONSUMER('StatusBar'), CONSUMER('Embedder')],
+      edges: [
+        edge('page:console', 'consumer:StatusBar', 'builds'),
+        edge('page:console', 'consumer:Embedder', 'builds'),
+        edge('consumer:StatusBar', 'consumer:Embedder', 'builds'),
+      ],
+    }),
+  );
+  assert.deepStrictEqual(outline(p.actors), [
+    ['console', 0],
+    ['Embedder', 1],
+    ['StatusBar', 1],
+  ]);
+  assert.deepStrictEqual(p.edges.map(relation), [
+    { from: 'consumer:StatusBar', to: 'consumer:Embedder', kind: 'builds', via: '', side: 'left' },
+  ]);
+});
+
+test('two connectors that build each other still both appear, once', () => {
+  // There is no top to a cycle; one of them has to be it. What must not happen
+  // is a row vanishing, or appearing twice, or the ordering and the drawing
+  // disagreeing about which is under which.
+  const p = picture(
+    graphOf({
+      nodes: [CONSUMER('A'), CONSUMER('B')],
+      edges: [edge('consumer:A', 'consumer:B', 'builds'), edge('consumer:B', 'consumer:A', 'builds')],
+    }),
+  );
+  const rows = outline(p.actors);
+  assert.deepStrictEqual(rows.map(([t]) => t).sort(), ['A', 'B']);
+  assert.deepStrictEqual(rows.map(([, d]) => d), [0, 1], 'one is the root, the other under it');
+  assert.strictEqual(p.edges.length, 1, 'the builder-of-the-root relation keeps its line');
+});
+
+test('a screen is ordered by what its regions read, not only by what it reads', () => {
+  // The page itself reads nothing. Its regions read `s2`; an unrelated actor
+  // reads `s1`. The page and its regions must move as one block to sit level
+  // with `s2`, which is the barycenter of the subtree rather than of the row.
+  const p = picture(
+    graphOf({
+      nodes: [
+        PAGE('a', '/a'), CONSUMER('Region'), PAGE('b', '/b'),
+        SUB('s1', 'S1'), SUB('s2', 'S2'),
+      ],
+      edges: [
+        edge('page:a', 'consumer:Region', 'builds'),
+        edge('consumer:Region', 'substate:s2', 'uses'),
+        edge('page:b', 'substate:s1', 'uses'),
+      ],
+    }),
+  );
+  assert.strictEqual(p.crossings, 0);
+  const rows = outline(p.actors).map(([t]) => t);
+  const facing = p.state.map((n) => n.title);
+  assert.strictEqual(
+    rows.indexOf('a') < rows.indexOf('b'),
+    facing.indexOf('s2') < facing.indexOf('s1'),
+    'the block holding the region faces the substate the region reads',
+  );
+  assert.strictEqual(rows.indexOf('Region'), rows.indexOf('a') + 1, 'and the region stays under its page');
+});
+
+test('the shorter column is placed level with what it relates to', () => {
+  // Thirty-four rows facing nine put every line on a long diagonal into a short
+  // stack, bundled into a rope beside the taller column. The order was right;
+  // the heights were not. The placement is a drawing-time step — it needs the
+  // measured heights — so what can be pinned here is that the drawing has it,
+  // runs it before it measures the wires, and places by the mean of the rows
+  // across.
+  const html = buildHtml(
+    picture(
+      graphOf({
+        nodes: [PAGE('a', '/a'), PAGE('b', '/b'), SUB('s', 'S')],
+        edges: [edge('page:a', 'substate:s', 'uses'), edge('page:b', 'substate:s', 'uses')],
+      }),
+    ),
+  );
+  const draw = html.slice(html.indexOf('function draw()'));
+  assert.match(draw.slice(0, 40), /place\(\);/, 'placed before the wires are measured');
+  assert.match(html, /\.rows\.placed > \.node \{ position: absolute/);
+  assert.match(html, /ys\.reduce\(\(a, b\) => a \+ b, 0\) \/ ys\.length/, 'by the mean height across');
+  assert.match(html, /Math\.max\(cursor, /, 'kept in order and apart');
+});
+
+test('a line meets a column at the column edge, not the row edge', () => {
+  // A nested row is indented inside its builder's box; a line into its own
+  // edge would cut across the box that holds it.
+  const html = buildHtml(
+    picture(
+      graphOf({
+        nodes: [PAGE('a', '/a'), CONSUMER('Region'), SUB('s', 'S')],
+        edges: [edge('page:a', 'consumer:Region', 'builds'), edge('consumer:Region', 'substate:s', 'uses')],
+      }),
+    ),
+  );
+  assert.match(html, /const x1 = edgeX\(line\.from/);
+  assert.ok(!/ra\.right - board\.left/.test(html), 'no line starts at a row edge');
 });
 
 test('the page it builds is JavaScript that actually parses', () => {

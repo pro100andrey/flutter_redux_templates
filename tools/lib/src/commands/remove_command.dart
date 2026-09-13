@@ -15,6 +15,7 @@ import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
 import '../redux/state_source.dart';
 import '../redux/store_source.dart';
+import '../refusal.dart';
 import '../routing/routes_source.dart';
 import '../scaffold/type_imports.dart';
 import '../util/casing.dart';
@@ -184,10 +185,10 @@ class RemoveCommand extends WritingCommand {
 
       // A field is not *resolved* by auto-detection — it is asked for, see
       // [_removeField] — but it does count as a collision. Without this,
-      // `add-field log_in tags:String?` plus a `Tags` model made `remove tags
-      // --apply` delete the model and never mention the field: an ambiguity
-      // resolved by a rule, which this command's own doctrine says is still an
-      // ambiguity and under `--apply` is unrecoverable.
+      // `add-field log_in tags:String?` plus a `Tags` model made
+      // `remove tags --apply` delete the model and never mention the field: an
+      // ambiguity resolved by a rule, which this command's own doctrine says is
+      // still an ambiguity and under `--apply` is unrecoverable.
       final kinds = [
         ...wired,
         if (_substatesWithField(repo, name.camel).isNotEmpty) 'field',
@@ -195,7 +196,8 @@ class RemoveCommand extends WritingCommand {
       ];
       if (kinds.length > 1) {
         usageException(
-          '"${name.pascal}" matches ${kinds.length} kinds (${kinds.join(', ')}). '
+          '"${name.pascal}" matches ${kinds.length} kinds '
+          '(${kinds.join(', ')}). '
           'Disambiguate with --kind ${kinds.join('|')}.',
         );
       }
@@ -218,10 +220,12 @@ class RemoveCommand extends WritingCommand {
       // guard refuses — after which there is nothing left to try.
       final owners = _substatesWithField(repo, name.camel);
       if (owners.isNotEmpty) {
+        final owner = owners.length == 1
+            ? 'substate "${owners.single.snake}"'
+            : 'substates ${owners.map((o) => o.snake).join(', ')}';
         refuse(
           '${resolution.error!}\n'
-          '  "${name.camel}" is a field of '
-          '${owners.length == 1 ? 'substate "${owners.single.snake}"' : 'substates ${owners.map((o) => o.snake).join(', ')}'} '
+          '  "${name.camel}" is a field of $owner '
           '— remove it with `frx remove ${name.camel} --kind field'
           '${owners.length == 1 ? '' : ' --state <substate>'}`.',
         );
@@ -330,7 +334,8 @@ class RemoveCommand extends WritingCommand {
               state ??
                   refuse(
                     'Which selector? Pass the facade — `frx remove '
-                    'SelectTheme.$getter --kind selector` — or name the substate '
+                    'SelectTheme.$getter --kind selector` — or name the '
+                    'substate '
                     'with `--state`.',
                   ),
             ),
@@ -431,11 +436,11 @@ class RemoveCommand extends WritingCommand {
   /// leaves the field, and `rm` cannot open a file to take one line out of it.
   ///
   /// **Not auto-detected, unlike every other kind.** A field is named in camel
-  /// case, which is also how a substate's own field is spelled: making `remove
-  /// Home` consult the fields would turn a project with a `home` field into one
-  /// where the page needs `--kind page`. So `--kind field` is asked for, and
-  /// what carries the discoverability is the failure path above, which names
-  /// the command when the name it was handed is a field.
+  /// case, which is also how a substate's own field is spelled: making
+  /// `remove Home` consult the fields would turn a project with a `home` field
+  /// into one where the page needs `--kind page`. So `--kind field` is asked
+  /// for, and what carries the discoverability is the failure path above, which
+  /// names the command when the name it was handed is a field.
   WritePlan _removeField(
     Casing name,
     FrxWorkspace repo, {
@@ -685,7 +690,8 @@ class RemoveCommand extends WritingCommand {
   /// missing, does not parse, holds no `@freezed` class, or is not even named
   /// like one (`_shared/`, `2fa/`). All three failures are caught, because this
   /// runs on the failure path of *every* `frx remove`: an unhandled
-  /// `FormatException` here turned a plain typo into exit 255 and a stack trace.
+  /// `FormatException` here turned a plain typo into exit 255 and a stack
+  /// trace.
   List<Casing> _substatesWithField(FrxWorkspace repo, String field) {
     final owners = <Casing>[];
     for (final folder in repo.substateDirs()) {
@@ -709,7 +715,7 @@ class RemoveCommand extends WritingCommand {
         }
       } on FormatException {
         continue;
-      } on StateError {
+      } on FrxRefusal {
         continue;
       }
     }
@@ -788,7 +794,8 @@ class RemoveCommand extends WritingCommand {
       narrate: () {
         if (!canDeleteFolder) {
           console.out.writeln(
-            '  • ${p.relative(substateDir.path)} — no ${name.snake}_state.dart, '
+            '  • ${p.relative(substateDir.path)} — no '
+            '${name.snake}_state.dart, '
             'left in place',
           );
         }

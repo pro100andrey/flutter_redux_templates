@@ -63,6 +63,14 @@ class ChangedEntry {
 class StoreSource {
   StoreSource(this.file);
 
+  /// The `store.dart` of an already-resolved workspace.
+  ///
+  /// No `locate`: nothing looks for a project *by* its store, and walking up
+  /// from a root already resolved is how a reader ends up outside the repo it
+  /// was pointed at.
+  factory StoreSource.of(FrxWorkspace repo) =>
+      StoreSource(File(p.join(repo.root.path, _relativePath)));
+
   final File file;
 
   /// Path of `store.dart` relative to the repo root.
@@ -76,29 +84,21 @@ class StoreSource {
   static bool owns(String path, {required String root}) =>
       p.equals(path, p.join(root, _relativePath));
 
-  /// The `store.dart` of an already-resolved workspace.
-  ///
-  /// No `locate`: nothing looks for a project *by* its store, and walking up
-  /// from a root already resolved is how a reader ends up outside the repo it
-  /// was pointed at.
-  static StoreSource of(FrxWorkspace repo) =>
-      StoreSource(File(p.join(repo.root.path, _relativePath)));
-
   bool get exists => file.existsSync();
 
   /// The block, or null when this project has none frx can act on.
   ///
   /// Recognised by shape rather than by the names around it — a list literal
   /// whose *every* element is `if (a.<field> != b.<field>) '<label>'`, assigned
-  /// to something. Keying on `pending.changed` or on `prev`/`next` would tie frx
-  /// to identifiers a clone is free to rename.
+  /// to something. Keying on `pending.changed` or on `prev`/`next` would tie
+  /// frx to identifiers a clone is free to rename.
   ///
   /// **Two candidates is no candidate.** Shape alone is not a unique key: a
   /// helper elsewhere in the file can rhyme with it, and taking the first in
   /// traversal order is a coin flip that loses silently — measured, a decoy
   /// declared above the observer took `add-substate`'s entry and turned the
   /// audit into nine bogus findings. Ambiguity is reported by
-  /// [checkChangeLog], not resolved by position.
+  /// `checkChangeLog`, not resolved by position.
   ///
   /// An empty list is not the block either: there is nothing in it to
   /// recognise, and a monorepo with no substates has nothing to trace.

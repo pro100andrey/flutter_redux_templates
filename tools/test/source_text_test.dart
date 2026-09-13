@@ -19,13 +19,13 @@ import 'support/fixture.dart';
 /// hides any of those exactly as well.
 ///
 /// What it guards, measured: `frx_workspace.dart` carried one NUL byte, written
-/// as a memo-key separator. Legal Dart, invisible in an editor, survived `dart
-/// format`. But `grep`, `git grep` and ripgrep classify a file holding a NUL as
-/// binary and skip it, so `notSubstateDirs`, `isSubstateDir`, `packageRootOf`
-/// and `_marker` returned no hits anywhere in the repository — the module that
-/// owns the monorepo's layout was absent from every search. `dart analyze` was
-/// clean, 690 tests passed, and the only symptom was an architecture review
-/// undercounting because its own greps came back empty.
+/// as a memo-key separator. Legal Dart, invisible in an editor, survived
+/// `dart format`. But `grep`, `git grep` and ripgrep classify a file holding a
+/// NUL as binary and skip it, so `notSubstateDirs`, `isSubstateDir`,
+/// `packageRootOf` and `_marker` returned no hits anywhere in the repository —
+/// the module that owns the monorepo's layout was absent from every search.
+/// `dart analyze` was clean, 690 tests passed, and the only symptom was an
+/// architecture review undercounting because its own greps came back empty.
 void main() {
   final repoRoot = p.dirname(Directory.current.absolute.path);
 

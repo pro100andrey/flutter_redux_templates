@@ -8,19 +8,20 @@ import 'package:tools/src/template/template.g.dart';
 
 /// The embedded template must be the repository it was packed from.
 ///
-/// `frx create` unpacks an archive frozen into `lib/src/template/template.g.dart`,
-/// so every change to the monorepo leaves that archive one commit behind until it
-/// is repacked. This is the same guard `frx doctor` puts on `docs/flows/`: a
-/// derived artifact is only trustworthy if something fails when it drifts.
+/// `frx create` unpacks an archive frozen into
+/// `lib/src/template/template.g.dart`, so every change to the monorepo leaves
+/// that archive one commit behind until it is repacked. This is the same guard
+/// `frx doctor` puts on `docs/flows/`: a derived artifact is only trustworthy
+/// if something fails when it drifts.
 ///
 /// **It lives in a test rather than in `doctor` on purpose.** The audit runs on
-/// every debounced file event in the editor, and this check has to read and gzip
-/// the whole repository — a cost that belongs to CI, not to typing.
+/// every debounced file event in the editor, and this check has to read and
+/// gzip the whole repository — a cost that belongs to CI, not to typing.
 ///
 /// **Compared by content, not by bytes.** Two packs of an identical tree do not
-/// produce identical archives: gzip framing and tar headers carry timestamps. So
-/// the archives are decoded and their `files` maps compared, which is the claim
-/// that actually matters — that the captured *content* is current.
+/// produce identical archives: gzip framing and tar headers carry timestamps.
+/// So the archives are decoded and their `files` maps compared, which is the
+/// claim that actually matters — that the captured *content* is current.
 void main() {
   test('the embedded template matches the repository', () async {
     final repoRoot = p.dirname(Directory.current.absolute.path);

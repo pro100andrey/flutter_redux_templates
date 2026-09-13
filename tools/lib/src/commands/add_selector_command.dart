@@ -10,9 +10,9 @@ import '../workspace/frx_workspace.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
 
-/// Adds a computed getter to a substate's `Select<Pascal>` extension type in the
-/// selectors facade — the manual edit (open selectors.dart, find the block, add
-/// a getter) done for you. No codegen: selectors are hand-written code.
+/// Adds a computed getter to a substate's `Select<Pascal>` extension type in
+/// the selectors facade — the manual edit (open selectors.dart, find the block,
+/// add a getter) done for you. No codegen: selectors are hand-written code.
 class AddSelectorCommand extends WritingCommand {
   @override
   String get name => 'add-selector';

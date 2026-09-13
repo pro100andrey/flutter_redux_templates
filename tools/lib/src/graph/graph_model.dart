@@ -188,9 +188,9 @@ class Unresolved {
   /// The node whose reading hit the gap — `page:logIn`, `selector:logIn.email`.
   ///
   /// What makes a gap attributable, and therefore what lets [AppGraph.focusOn]
-  /// keep only the ones belonging to the subgraph it returns. [at] cannot do it:
-  /// it is a display string, and across the readers it has been a file path, a
-  /// node id and a route class name.
+  /// keep only the ones belonging to the subgraph it returns. [at] cannot do
+  /// it: it is a display string, and across the readers it has been a file
+  /// path, a node id and a route class name.
   final String owner;
 
   /// The file to go read. No line number: the parse-only readers do not carry
@@ -396,8 +396,8 @@ class AppGraph {
   ///
   /// [depth] null follows the edges until the set closes. Unbounded is the
   /// sensible default for an impact question and terminates for the same reason
-  /// a bounded one does: the node set is finite and each pass either grows it or
-  /// stops.
+  /// a bounded one does: the node set is finite and each pass either grows it
+  /// or stops.
   AppGraph focusOn(
     String id, {
     int? depth = 1,
@@ -440,9 +440,9 @@ class AppGraph {
         for (final e in edges)
           if (reached.contains(e.from) && reached.contains(e.to)) e,
       ],
-      // Scoped to the subgraph. Kept whole, a gap belonging to an unrelated page
-      // was reported against whatever you focused, which misattributes it — and
-      // the one thing this list exists to do is say where the answer is
+      // Scoped to the subgraph. Kept whole, a gap belonging to an unrelated
+      // page was reported against whatever you focused, which misattributes it
+      // — and the one thing this list exists to do is say where the answer is
       // incomplete.
       unresolved: [
         for (final u in unresolved)

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:tools/src/refusal.dart';
 import 'package:tools/src/scaffold/package_scaffold.dart';
 import 'package:yaml/yaml.dart';
 
@@ -63,13 +64,13 @@ void main() {
     fx
         .file('pubspec.yaml')
         .writeAsStringSync(
-          PackageScaffold.removeFromWorkspace(fx.read('pubspec.yaml'), pkg),
+          removeFromWorkspaceList(fx.read('pubspec.yaml'), pkg),
         );
   }
 
   group('addToWorkspace', () {
     test('appends the member and keeps the comment above the list', () {
-      final out = PackageScaffold.addToWorkspace(_rootPubspec, 'models');
+      final out = addToWorkspaceList(_rootPubspec, 'models');
 
       expect(out, contains('- models'));
       expect(
@@ -81,28 +82,28 @@ void main() {
     });
 
     test('is idempotent — a member already there changes nothing', () {
-      final once = PackageScaffold.addToWorkspace(_rootPubspec, 'models');
-      expect(PackageScaffold.addToWorkspace(once, 'models'), once);
+      final once = addToWorkspaceList(_rootPubspec, 'models');
+      expect(addToWorkspaceList(once, 'models'), once);
     });
 
     test('refuses a pubspec with no workspace list', () {
       expect(
-        () => PackageScaffold.addToWorkspace('name: x\n', 'models'),
-        throwsStateError,
+        () => addToWorkspaceList('name: x\n', 'models'),
+        throwsA(isA<FrxRefusal>()),
       );
     });
 
     test('removeFromWorkspace is the inverse', () {
-      final added = PackageScaffold.addToWorkspace(_rootPubspec, 'models');
+      final added = addToWorkspaceList(_rootPubspec, 'models');
       expect(
-        PackageScaffold.removeFromWorkspace(added, 'models'),
+        removeFromWorkspaceList(added, 'models'),
         _rootPubspec,
       );
     });
 
     test('removing a non-member changes nothing', () {
       expect(
-        PackageScaffold.removeFromWorkspace(_rootPubspec, 'nope'),
+        removeFromWorkspaceList(_rootPubspec, 'nope'),
         _rootPubspec,
       );
     });
@@ -164,7 +165,7 @@ void main() {
     };
 
     test('names the files outside the package that import it', () {
-      final found = PackageScaffold.importersOf(
+      final found = packageImportersOf(
         tree({
           'business/lib/persistor.dart':
               "import 'package:storage/storage.dart';",
@@ -178,7 +179,7 @@ void main() {
     });
 
     test("a package's own files are not importers of itself", () {
-      final found = PackageScaffold.importersOf(
+      final found = packageImportersOf(
         tree({
           'storage/test/x_test.dart': "import 'package:storage/storage.dart';",
         }),
@@ -198,13 +199,13 @@ void main() {
       });
 
       expect(
-        PackageScaffold.importersOf(sources, [
+        packageImportersOf(sources, [
           PackageKind.models,
           PackageKind.httpClient,
         ]),
         isEmpty,
       );
-      expect(PackageScaffold.importersOf(sources, [PackageKind.models]), {
+      expect(packageImportersOf(sources, [PackageKind.models]), {
         PackageKind.models: ['http_client/lib/api/auth.dart'],
       }, reason: 'dropping models alone really would break http_client');
     });
@@ -213,7 +214,7 @@ void main() {
       // The planned-file shape this used to read carries no content for an
       // entry mold copies verbatim, so a Dart file in that class was invisible
       // to the one check standing between `--without` and a broken project.
-      final found = PackageScaffold.importersOf(
+      final found = packageImportersOf(
         {
           'business/lib/odd.dart': [
             0xFF,
@@ -228,7 +229,7 @@ void main() {
     });
 
     test('non-Dart files are not read for imports', () {
-      final found = PackageScaffold.importersOf(
+      final found = packageImportersOf(
         tree({
           'README.md': 'Uses `package:storage/storage.dart` for persistence.',
         }),
@@ -241,7 +242,7 @@ void main() {
 
   group('addDependency', () {
     test('inserts in sorted position, not at the end', () {
-      final out = PackageScaffold.addDependency(_businessPubspec, 'models');
+      final out = addPathDependency(_businessPubspec, 'models');
 
       expect(out, contains('  models:\n    path: ../models\n'));
       expect(
@@ -257,13 +258,13 @@ void main() {
     });
 
     test('sorts before every existing entry', () {
-      final out = PackageScaffold.addDependency(_businessPubspec, 'aaa');
+      final out = addPathDependency(_businessPubspec, 'aaa');
 
       expect(out.indexOf('aaa:'), lessThan(out.indexOf('async_redux:')));
     });
 
     test('sorts after every existing entry, above dev_dependencies', () {
-      final out = PackageScaffold.addDependency(_businessPubspec, 'zzz');
+      final out = addPathDependency(_businessPubspec, 'zzz');
 
       expect(
         out.indexOf('zzz:'),
@@ -276,7 +277,7 @@ void main() {
     });
 
     test('a pubspec with no dependencies block gets one', () {
-      final out = PackageScaffold.addDependency('name: business\n', 'models');
+      final out = addPathDependency('name: business\n', 'models');
 
       expect(out, contains('dependencies:'));
       expect(out, contains('../models'));
@@ -286,7 +287,7 @@ void main() {
       // `_afterLine` answers `source.length` for the last line of such a file,
       // and a splice there ran the new entry onto the end of the old one.
       const noNewline = 'name: b\n\ndependencies:\n  logging: ^1.3.0';
-      final out = PackageScaffold.addDependency(noNewline, 'zzz');
+      final out = addPathDependency(noNewline, 'zzz');
 
       expect(out, contains('  logging: ^1.3.0\n  zzz:\n'));
       expect(
@@ -305,7 +306,7 @@ void main() {
           '  async_redux: ^28.0.0\n'
           '  # keep this pinned\n'
           '  zzz: ^1.0.0\n';
-      final out = PackageScaffold.addDependency(commented, 'models');
+      final out = addPathDependency(commented, 'models');
 
       expect(out, contains('# keep this pinned\n  zzz: ^1.0.0'));
     });
@@ -316,7 +317,7 @@ void main() {
           'dependencies:\n'
           '  # the whole block is pinned\n'
           '  zzz: ^1.0.0\n';
-      final out = PackageScaffold.addDependency(commented, 'aaa');
+      final out = addPathDependency(commented, 'aaa');
 
       expect(out, contains('# the whole block is pinned\n  zzz: ^1.0.0'));
       expect(out.indexOf('aaa:'), lessThan(out.indexOf('# the whole')));
@@ -326,11 +327,11 @@ void main() {
       // `addToWorkspace` refuses the same class of surprise. Overwriting would
       // take a list of dependencies away and exit 0.
       expect(
-        () => PackageScaffold.addDependency(
+        () => addPathDependency(
           'name: b\ndependencies:\n  - a\n  - b\n',
           'models',
         ),
-        throwsStateError,
+        throwsA(isA<FrxRefusal>()),
       );
     });
 
@@ -343,7 +344,7 @@ void main() {
           '\n'
           'dev_dependencies:\n'
           '  x: ^1.0.0\n';
-      final empty = PackageScaffold.removeDependency(one, 'models');
+      final empty = removePathDependency(one, 'models');
 
       expect(
         empty,
@@ -351,7 +352,7 @@ void main() {
         reason: 'an emptied block used to be re-serialised as a flow map',
       );
       expect(
-        PackageScaffold.addDependency(empty, 'models'),
+        addPathDependency(empty, 'models'),
         one,
         reason: 'and then threw "No element" on the way back',
       );
@@ -370,36 +371,36 @@ void main() {
           '\n'
           'dev_dependencies:\n'
           '  x: ^1.0.0\n';
-      final out = PackageScaffold.removeDependency(two, 'zzz');
+      final out = removePathDependency(two, 'zzz');
 
       expect(out, contains('path: ../models\n\ndev_dependencies:'));
       expect(
-        PackageScaffold.addDependency(out, 'zzz'),
+        addPathDependency(out, 'zzz'),
         two,
         reason: 'inverse in the last position too, not only mid-block',
       );
     });
 
     test('is idempotent — one already declared changes nothing', () {
-      final once = PackageScaffold.addDependency(_businessPubspec, 'models');
-      expect(PackageScaffold.addDependency(once, 'models'), once);
+      final once = addPathDependency(_businessPubspec, 'models');
+      expect(addPathDependency(once, 'models'), once);
     });
 
     test('removeDependency is the inverse', () {
-      final added = PackageScaffold.addDependency(_businessPubspec, 'models');
+      final added = addPathDependency(_businessPubspec, 'models');
       expect(
-        PackageScaffold.removeDependency(added, 'models'),
+        removePathDependency(added, 'models'),
         _businessPubspec,
       );
     });
 
     test('removing one that is not declared changes nothing', () {
       expect(
-        PackageScaffold.removeDependency(_businessPubspec, 'nope'),
+        removePathDependency(_businessPubspec, 'nope'),
         _businessPubspec,
       );
       expect(
-        PackageScaffold.removeDependency('name: business\n', 'models'),
+        removePathDependency('name: business\n', 'models'),
         'name: business\n',
       );
     });

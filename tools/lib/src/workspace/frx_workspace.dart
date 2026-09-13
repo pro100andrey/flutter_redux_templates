@@ -5,11 +5,12 @@ import 'package:path/path.dart' as p;
 import '../ast/source_index.dart';
 import '../model/target_resolver.dart' show TargetResolver;
 import '../redux/app_state_source.dart' show AppStateSource;
+import '../refusal.dart';
 import '../routing/routes_source.dart' show RoutesSource;
 
 /// Walks up from [startDir] (or the current directory) until an ancestor
 /// containing [marker] (a repo-relative path) is found, returning that ancestor
-/// directory. Throws [StateError] with `describe(origin)` when neither the walk
+/// directory. Throws [FrxRefusal] with `describe(origin)` when neither the walk
 /// up nor the search below finds one.
 ///
 /// The single walk-up primitive: [FrxWorkspace], [AppStateSource] and
@@ -20,23 +21,23 @@ import '../routing/routes_source.dart' show RoutesSource;
 /// where you stand, which is true only when the project *is* the repository. A
 /// template unpacked into somebody else's monorepo is not: `bloom/` is a pub
 /// workspace whose own root has no router, and the app sits in
-/// `apps/tm_console`. Every command run from `bloom/` failed with "run this from
-/// inside the monorepo" while the project was one directory down — a correct
-/// message about the wrong assumption.
+/// `apps/tm_console`. Every command run from `bloom/` failed with "run this
+/// from inside the monorepo" while the project was one directory down — a
+/// correct message about the wrong assumption.
 ///
-/// The search below is deliberately narrow. It answers only when **exactly one**
-/// project is under [startDir]; with two, picking one would mean writing into an
-/// app nobody named, so it stays an error and says which ones it found.
+/// The search below is deliberately narrow. It answers only when **exactly
+/// one** project is under [startDir]; with two, picking one would mean writing
+/// into an app nobody named, so it stays an error and says which ones it found.
 Directory walkUpForMarker(
   String? startDir,
   String marker,
   String Function(String origin) describe,
 ) {
   // Absolute *then* normalised, and the order is the whole point: `p.normalize`
-  // leaves a bare `.` as `.`, and `Directory('.').absolute` concatenates without
-  // normalising, so normalising first still produced `<cwd>/.` — which then
-  // travelled into every path the command printed and every `--root` it passed
-  // on. Caught by review after the first fix claimed to have closed it.
+  // leaves a bare `.` as `.`, and `Directory('.').absolute` concatenates
+  // without normalising, so normalising first still produced `<cwd>/.` — which
+  // then travelled into every path the command printed and every `--root` it
+  // passed on. Caught by review after the first fix claimed to have closed it.
   final origin = p.normalize(p.absolute(startDir ?? Directory.current.path));
   var dir = Directory(origin);
   while (true) {
@@ -57,12 +58,12 @@ Directory walkUpForMarker(
   if (below.length > 1) {
     final names = below.map((d) => p.relative(d.path, from: origin)).toList()
       ..sort();
-    throw StateError(
+    throw FrxRefusal(
       '${below.length} frx projects are under "$origin" '
       '(${names.join(', ')}). Pass --root to name the one you mean.',
     );
   }
-  throw StateError(describe(origin));
+  throw FrxRefusal(describe(origin));
 }
 
 /// The downward search, run only where it can pay off and only once per
@@ -99,12 +100,13 @@ List<Directory> _searchBelow(String origin, String marker) {
 /// Keyed by the pair, not by a joined string.
 ///
 /// The joined form needed a separator no path can contain, which is NUL — and a
-/// literal NUL makes the whole `.dart` file binary to every tool that decides by
-/// scanning for one. `grep -I` skips such a file entirely, so this module — the
-/// one that owns the monorepo's layout — returned no hits anywhere in the
+/// literal NUL makes the whole `.dart` file binary to every tool that decides
+/// by scanning for one. `grep -I` skips such a file entirely, so this module —
+/// the one that owns the monorepo's layout — returned no hits anywhere in the
 /// repository for `notSubstateDirs`, `isSubstateDir`, `packageRootOf` or
 /// `marker`. The code was correct and unfindable, which is the worse failure:
-/// nothing reports it, and the next reader concludes the declaration is missing.
+/// nothing reports it, and the next reader concludes the declaration is
+/// missing.
 ///
 /// A record key needs no separator, so there is nothing left to encode.
 final _searched = <(String, String), List<Directory>>{};
@@ -153,7 +155,8 @@ List<Directory> _holdersBelow(Directory from, String marker, [int depth = 0]) {
 }
 
 /// The resolved monorepo: its root plus the well-known package directories the
-/// scaffolders write into. Resolved once (via [locate]) and passed down, so no
+/// scaffolders write into. Resolved once (via [FrxWorkspace.locate]) and
+/// passed down, so no
 /// command re-walks the tree.
 ///
 /// Also the home for the two filesystem facts every command needs — which files
@@ -162,6 +165,17 @@ List<Directory> _holdersBelow(Directory from, String marker, [int depth = 0]) {
 /// each command.
 class FrxWorkspace {
   FrxWorkspace(this.root);
+
+  factory FrxWorkspace.locate({String? startDir}) => FrxWorkspace(
+    walkUpForMarker(
+      startDir,
+      marker,
+      (origin) =>
+          'Could not find the monorepo root (looking for "$marker") walking '
+          'up from "$origin". Run this from inside the monorepo, or pass '
+          '--root.',
+    ),
+  );
 
   final Directory root;
 
@@ -172,16 +186,6 @@ class FrxWorkspace {
   /// `ContractGen` emits it into the extension's generated constants rather
   /// than anyone keeping a fourth declaration in step by hand.
   static const marker = 'app/lib/navigation/app_router.dart';
-
-  static FrxWorkspace locate({String? startDir}) => FrxWorkspace(
-    walkUpForMarker(
-      startDir,
-      marker,
-      (origin) =>
-          'Could not find the monorepo root (looking for "$marker") walking '
-          'up from "$origin". Run this from inside the monorepo, or pass --root.',
-    ),
-  );
 
   Directory _dir(List<String> parts) =>
       Directory(p.joinAll([root.path, ...parts]));
@@ -278,8 +282,8 @@ class FrxWorkspace {
   Directory get modelsLib => _dir(['models', 'lib']);
 
   /// The selector facade beside `app_state.dart`. Named here so a command that
-  /// already has a workspace does not have to locate `AppState` just to find the
-  /// file sitting next to it.
+  /// already has a workspace does not have to locate `AppState` just to find
+  /// the file sitting next to it.
   File get selectorsFile => File(p.join(businessRedux.path, 'selectors.dart'));
 
   /// Whether [path] is build_runner output (freezed / json_serializable /

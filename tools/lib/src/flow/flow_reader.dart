@@ -158,9 +158,9 @@ class FlowReader {
   /// uses to pick one of eight views.
   ///
   /// Both node shapes are collected. `const Foo()` parses as an
-  /// [InstanceCreationExpression]; a bare `Foo()` cannot be told from a function
-  /// call without resolution and arrives as a [MethodInvocation] — the same
-  /// ambiguity the dispatch reader already lives with.
+  /// [InstanceCreationExpression]; a bare `Foo()` cannot be told from a
+  /// function call without resolution and arrives as a [MethodInvocation] — the
+  /// same ambiguity the dispatch reader already lives with.
   ///
   /// Only `app`'s connectors can appear: `ui` does not depend on `app`, so a
   /// slot is filled where the widget tree is assembled and nowhere else.
@@ -193,9 +193,9 @@ class FlowReader {
   /// resolve to.
   ///
   /// The same read [read] performs on a connector, for a source that is not
-  /// one. A service dispatcher dispatches into the store exactly as a view-model
-  /// does, but it has no `_Vm` and no page — so a reader that only walks
-  /// connectors reports its actions as dispatched by nobody.
+  /// one. A service dispatcher dispatches into the store exactly as a
+  /// view-model does, but it has no `_Vm` and no page — so a reader that only
+  /// walks connectors reports its actions as dispatched by nobody.
   ({List<DispatchStep> steps, Map<String, File> actionFiles}) readDispatches(
     File file,
   ) {
@@ -381,7 +381,8 @@ Map<String, AstNode> _localFunctionBodies(CompilationUnit unit) {
 ///     ItemVm(id: task.id.value, onTap: () => dispatch(OpenTaskAction(...)));
 ///
 /// @override
-/// _Vm fromStore() => _Vm(view: ViewVm(tasks: [for (final t in rows) _item(t)]));
+/// _Vm fromStore() =>
+///     _Vm(view: ViewVm(tasks: [for (final t in rows) _item(t)]));
 /// ```
 ///
 /// Reading only the subtree of the `_Vm` argument finds no dispatch here, so
@@ -411,10 +412,10 @@ Map<String, AstNode> _localFunctionBodies(CompilationUnit unit) {
 ///
 /// Following that produced a use case for `caption` dispatching `ResetAction`,
 /// which no run of the program can do. That is worse than the gap this class
-/// was written to close: a missing region is a map that is short, and an invented
-/// one is a map that is wrong, and only the second survives being checked
-/// against the code. So a name is followed only when nothing between it and the
-/// unit root binds it — [_boundNearby].
+/// was written to close: a missing region is a map that is short, and an
+/// invented one is a map that is wrong, and only the second survives being
+/// checked against the code. So a name is followed only when nothing between it
+/// and the unit root binds it — [_boundNearby].
 class _DispatchVisitor extends RecursiveAstVisitor<void> {
   _DispatchVisitor([this._root, this._locals = const {}, Set<String>? visited])
     : _visited = visited ?? <String>{};
@@ -428,10 +429,11 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
   ///
   /// The identity of a dispatch is where it is written, and the accounting in
   /// [FlowReader.read] needs exactly that. Counting [steps] instead compared a
-  /// tally of *attributions* against a tally of *call sites*: one helper reached
-  /// from two `_Vm` fields is two attributions of one site, which made the
-  /// subtraction go negative and swallow a real gap elsewhere in the same file —
-  /// the failure `UntracedDispatch` exists to prevent, reintroduced inside it.
+  /// tally of *attributions* against a tally of *call sites*: one helper
+  /// reached from two `_Vm` fields is two attributions of one site, which made
+  /// the subtraction go negative and swallow a real gap elsewhere in the same
+  /// file — the failure `UntracedDispatch` exists to prevent, reintroduced
+  /// inside it.
   final callSites = <int>{};
 
   /// Read [name]'s body, if it is a local function we have not been through.
@@ -556,8 +558,8 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
   static bool _inParams(FormalParameterList? params, String name) =>
       params?.parameters.any((p) => p.name?.lexeme == name) ?? false;
 
-  /// Any variable a destructuring pattern introduces — `for (final (i, t) in …)`
-  /// binds both `i` and `t`.
+  /// Any variable a destructuring pattern introduces —
+  /// `for (final (i, t) in …)` binds both `i` and `t`.
   static bool _patternBinds(AstNode pattern, String name) {
     var found = false;
     pattern.accept(_PatternVariables((n) => found |= n == name));
@@ -590,11 +592,11 @@ class _DispatchVisitor extends RecursiveAstVisitor<void> {
     // A tear-off — `onTap: _openTask` — is the same hop with the parentheses
     // left off, and loses the dispatch the same way.
     //
-    // Guarded down to identifiers that stand for themselves. The `methodName` of
-    // an invocation is handled above; either side of a `.` belongs to something
-    // else — the right-hand side is a member of another object, and the
-    // left-hand side is that object, so `session.userName` beside a `session()`
-    // method used to be read as a call to it.
+    // Guarded down to identifiers that stand for themselves. The `methodName`
+    // of an invocation is handled above; either side of a `.` belongs to
+    // something else — the right-hand side is a member of another object, and
+    // the left-hand side is that object, so `session.userName` beside a
+    // `session()` method used to be read as a call to it.
     //
     // An argument *label* needs no guard: `onTap:` is a token on the
     // [NamedArgument], not an identifier node, so it never arrives here.
@@ -854,11 +856,12 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   // doc said it touched the session and not the login draft it clears.
   //
   // **Only on `state` itself.** Every other shape here names the receiver, and
-  // this one did not: a reducer's `task.copyWith(title: t, done: true)` was read
-  // as a write of two AppState substates called `title` and `done`. Harmless
-  // while the branch kept one argument and wrong twice over once it kept all of
-  // them — and `visitMethodInvocation` takes the first `copyWith` it sees, so a
-  // local one earlier in the body shadowed the real write entirely.
+  // this one did not: a reducer's `task.copyWith(title: t, done: true)` was
+  // read as a write of two AppState substates called `title` and `done`.
+  // Harmless while the branch kept one argument and wrong twice over once it
+  // kept all of them — and `visitMethodInvocation` takes the first `copyWith`
+  // it sees, so a local one earlier in the body shadowed the real write
+  // entirely.
   if (target is! SimpleIdentifier || target.name != 'state') {
     return const [];
   }

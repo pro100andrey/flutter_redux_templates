@@ -116,9 +116,9 @@ class RenameCommand extends Command<int> with NameArg {
     final routes = resolver.routes;
     final kind = resolution.kind!;
 
-    // Collision guard: the new name must not already exist in that role. Matches
-    // any field (not just `…State` ones) so renaming onto a framework field
-    // like `wait` is refused too.
+    // Collision guard: the new name must not already exist in that role.
+    // Matches any field (not just `…State` ones) so renaming onto a framework
+    // field like `wait` is refused too.
     if (kind == ArtifactKind.substate &&
         appState != null &&
         appState.readSubstates().any(
@@ -152,7 +152,7 @@ class RenameCommand extends Command<int> with NameArg {
     RoutesSource routes,
     String repoRoot,
     ArgResults results,
-  ) async {
+  ) {
     final oldA = PageArtifact(oldN);
     final newA = PageArtifact(newN);
     final moves = <_Move>[
@@ -228,11 +228,12 @@ class RenameCommand extends Command<int> with NameArg {
     }
 
     // Every file inside the folder whose *name* carries the old snake as a
-    // whole segment moves too (models/old_state.dart, actions/add_old_action.dart).
-    // Only the frx-generated basenames are renamed — their classes are in the
-    // identifier sweep below, so file and class stay in step. A hand-written
-    // `log_in_with_email_action.dart` keeps its name (its class
-    // `LogInWithEmailAction` matches no pattern), staying self-consistent.
+    // whole segment moves too (models/old_state.dart,
+    // actions/add_old_action.dart). Only the frx-generated basenames are
+    // renamed — their classes are in the identifier sweep below, so file and
+    // class stay in step. A hand-written `log_in_with_email_action.dart` keeps
+    // its name (its class `LogInWithEmailAction` matches no pattern), staying
+    // self-consistent.
     final renamableBases = oldA.renamableBasenames(newA);
     final moves = <_Move>[];
     for (final f in oldDir.listSync(recursive: true).whereType<File>()) {
@@ -352,8 +353,8 @@ class RenameCommand extends Command<int> with NameArg {
         // What neither the tree nor a textual sweep can do, done by something
         // that knows what the text is *for*. A string literal must survive a
         // rename — a persistence key does — and the persistor's change log is a
-        // string that *names a substate*, so the general rule is right and wrong
-        // at the same time.
+        // string that *names a substate*, so the general rule is right and
+        // wrong at the same time.
         if (afterEdits != null) {
           final fixed = afterEdits(f.path, content);
           if (fixed != content) {
@@ -416,11 +417,12 @@ class RenameCommand extends Command<int> with NameArg {
       console.out.writeln();
 
       if (results['diff'] as bool) {
-        // `Changeset.diff` renders an `EditFile` as `unifiedDiff(before, after)`
-        // — which is what this computed by hand from the same two strings, the
-        // `before` being the very thing the plan already carries. Paths are now
-        // relative to the repo root rather than the working directory, which is
-        // the right anchor for a command that takes `--root`.
+        // `Changeset.diff` renders an `EditFile` as
+        // `unifiedDiff(before, after)` — which is what this computed by hand
+        // from the same two strings, the `before` being the very thing the plan
+        // already carries. Paths are now relative to the repo root rather than
+        // the working directory, which is the right anchor for a command that
+        // takes `--root`.
         console.out
           ..write(plan.diff(from: repoRoot))
           ..writeln();

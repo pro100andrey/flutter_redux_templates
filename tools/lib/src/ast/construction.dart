@@ -13,7 +13,7 @@
 /// `routes_source` accepted the target as the type, so it could — and read
 /// `AutoRoute.guarded(...)` as an `AutoRoute`, which is what its caller needed.
 /// Both behaviours are correct for their caller and neither is correct alone,
-/// so both are available here: [typeName] and [fullName].
+/// so both are available here: `typeName` and `fullName`.
 library;
 
 import 'package:analyzer/dart/ast/ast.dart';

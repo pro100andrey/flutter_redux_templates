@@ -165,7 +165,8 @@ bool _watches(_Watch watch, String? within) {
 /// this comparison arrive by different routes: a repo the developer reached
 /// through a symlink, against a working directory read out of `lsof` or
 /// `/proc`, which is always the real one. On macOS that alone is enough to make
-/// every temp directory disagree with itself — `/var/…` against `/private/var/…`.
+/// every temp directory disagree with itself — `/var/…` against
+/// `/private/var/…`.
 String _realPath(String path) {
   try {
     return Directory(path).resolveSymbolicLinksSync();
@@ -191,8 +192,8 @@ typedef _Watch = ({int pid, bool orphaned, String? cwd});
 /// Every running `build_runner watch`, with the orphan question answered.
 ///
 /// The pattern wants `watch` as the token after the build_runner one, so a
-/// command line that merely contains both words — `tail -f build_runner-watch.log`
-/// — is not mistaken for a watch.
+/// command line that merely contains both words —
+/// `tail -f build_runner-watch.log` — is not mistaken for a watch.
 ///
 /// Scanned on every call rather than memoized: `doctor --fix` runs build_runner
 /// between its two audits, which asks any running watch to exit, so a cached
@@ -285,7 +286,8 @@ Map<int, String> _cwds(Iterable<int> pids) {
   return out;
 }
 
-/// A process's parent and session, keyed by pid. Absent when `ps` did not see it.
+/// A process's parent and session, keyed by pid. Absent when `ps` did not see
+/// it.
 typedef _Proc = ({int ppid, String session});
 
 Map<int, _Proc> _describe(Iterable<int> pids) {
@@ -317,32 +319,33 @@ Map<int, _Proc> _describe(Iterable<int> pids) {
 /// Whether a watch has outlived the process that launched it.
 ///
 /// **Not `ppid <= 1`.** That assumed an orphan is reparented to init, which is
-/// false wherever a **subreaper** sits between the process and init — the normal
-/// arrangement under `systemd --user`, where an orphan is reparented to the user
-/// manager, whose pid is not 1. There the old check swapped both answers: a dead
-/// watch read as live, so frx skipped a build nobody was going to run and left
-/// stale generated code behind a message saying the build was handled, and
-/// `doctor` stopped reporting the orphan it exists to surface.
+/// false wherever a **subreaper** sits between the process and init — the
+/// normal arrangement under `systemd --user`, where an orphan is reparented to
+/// the user manager, whose pid is not 1. There the old check swapped both
+/// answers: a dead watch read as live, so frx skipped a build nobody was going
+/// to run and left stale generated code behind a message saying the build was
+/// handled, and `doctor` stopped reporting the orphan it exists to surface.
 ///
-/// The question that survives a subreaper is **whether the parent is still in the
-/// watch's session**. A shell (or an IDE's spawned process) and everything it
-/// starts share a session, so a live watch's parent is in the watch's session by
-/// construction; a reaper — init, `systemd --user`, `tini` — is its own session
-/// leader, so a reparented orphan's parent is not. What it was reparented *to* is
-/// an implementation detail of the init system, and this asks nothing about it.
+/// The question that survives a subreaper is **whether the parent is still in
+/// the watch's session**. A shell (or an IDE's spawned process) and everything
+/// it starts share a session, so a live watch's parent is in the watch's
+/// session by construction; a reaper — init, `systemd --user`, `tini` — is its
+/// own session leader, so a reparented orphan's parent is not. What it was
+/// reparented *to* is an implementation detail of the init system, and this
+/// asks nothing about it.
 ///
 /// Two fallbacks, both toward "live": a parent of pid 1 or less is an orphan
-/// outright, and a session `ps` would not report leaves the watch counted as live
-/// — standing down for a watch that turns out to be dead costs a stale generated
-/// file, while building over a live one kills the developer's watch.
+/// outright, and a session `ps` would not report leaves the watch counted as
+/// live — standing down for a watch that turns out to be dead costs a stale
+/// generated file, while building over a live one kills the developer's watch.
 ///
 /// **On macOS the session comparison never fires, and the `ppid` fallback is
 /// what answers.** Apple's `ps` declares `sess` as a kernel pointer
 /// (`KPTR`/`%lx` in `adv_cmds/ps/keyword.c`), which an unprivileged process is
 /// shown as `0` — so every process reads the same value and the comparison is
 /// always false. That is not a bug here: macOS has no subreapers, so a real
-/// orphan is reparented to `launchd` at pid 1 and the fallback catches it. It is
-/// recorded because the paragraph above describes Linux, and a reader would
+/// orphan is reparented to `launchd` at pid 1 and the fallback catches it. It
+/// is recorded because the paragraph above describes Linux, and a reader would
 /// otherwise believe the session test is doing the work everywhere.
 ///
 /// The known way to be wrong is a watch deliberately put in its own session

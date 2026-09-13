@@ -10,10 +10,11 @@ String renderSequence(PageFlow flow) {
   final b = StringBuffer();
   final ids = _ParticipantIds(flow);
 
-  b.writeln('sequenceDiagram');
-  b.writeln('    autonumber');
-  b.writeln('    actor User');
-  b.writeln('    participant UI as ${_esc(flow.pageClass)}');
+  b
+    ..writeln('sequenceDiagram')
+    ..writeln('    autonumber')
+    ..writeln('    actor User')
+    ..writeln('    participant UI as ${_esc(flow.pageClass)}');
   // One lane per connector that actually holds a view-model. A page connected
   // in one place has exactly the one it always had; a page composed of regions
   // gets a lane each, which is the difference between "this screen dispatches
@@ -33,9 +34,10 @@ String renderSequence(PageFlow flow) {
 
   for (final useCase in flow.useCases) {
     final from = ids.laneOf(useCase);
-    b.writeln();
-    b.writeln('    User->>UI: ${_esc(useCase.qualifiedLabel)}');
-    b.writeln('    UI->>$from: ${_esc(useCase.name)}()');
+    b
+      ..writeln()
+      ..writeln('    User->>UI: ${_esc(useCase.qualifiedLabel)}')
+      ..writeln('    UI->>$from: ${_esc(useCase.name)}()');
     _writeSteps(b, useCase.steps, flow, ids, from: from, indent: '    ');
   }
 
@@ -45,9 +47,9 @@ String renderSequence(PageFlow flow) {
   // nothing to compare it against. `UI` is the note's anchor because it is the
   // one participant every diagram has.
   //
-  // "Not drawn" and not "not traced": the note states a fact about this picture,
-  // which is all it can know. Some of what it counts is a callback the reader
-  // could not follow, and some is a dispatch that was never a callback —
+  // "Not drawn" and not "not traced": the note states a fact about this
+  // picture, which is all it can know. Some of what it counts is a callback the
+  // reader could not follow, and some is a dispatch that was never a callback —
   // `onInit: (store) => store.dispatch(…)` fires on open and belongs to no
   // interaction. Both are missing from the diagram, which is what the reader
   // needs told; neither is evidence that tracing failed.
@@ -252,8 +254,7 @@ String renderRouteMap(RouteMap map) {
   final childrenOf = {
     for (final entry in childIndex.entries)
       entry.key: [
-        for (final page in entry.value)
-          ?byPage[page],
+        for (final page in entry.value) ?byPage[page],
       ],
   };
   final tops = map.pages.where((n) => !childOf.containsKey(n.page)).toList();
@@ -264,11 +265,12 @@ String renderRouteMap(RouteMap map) {
       b.writeln('$indent${_flowNode(n)}');
       return;
     }
-    b.writeln(
-      '${indent}subgraph frxTabs_${_flowId(n.page)}'
-      '["${_escFlow(n.pageClass)} · tabs"]',
-    );
-    b.writeln('$indent    ${_flowNode(n)}');
+    b
+      ..writeln(
+        '${indent}subgraph frxTabs_${_flowId(n.page)}'
+        '["${_escFlow(n.pageClass)} · tabs"]',
+      )
+      ..writeln('$indent    ${_flowNode(n)}');
     for (final kid in kids) {
       b.writeln('$indent    ${_flowNode(kid)}');
     }

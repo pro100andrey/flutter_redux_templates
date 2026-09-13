@@ -2,8 +2,8 @@
 ///
 /// The remedy used to be spelled three times in three unlike shapes — as three
 /// nullable fields on the finding, as a `where` filter picking the fixable ones
-/// out again, and as a nested ternary in the JSON encoder. Adding a check with a
-/// new remedy meant three co-ordinated edits, and nothing made them agree.
+/// out again, and as a nested ternary in the JSON encoder. Adding a check with
+/// a new remedy meant three co-ordinated edits, and nothing made them agree.
 ///
 /// Here it is one value. [Fix.id] is the only place a remedy's name is written,
 /// and those names are a contract: the editor reads them to offer a quick-fix.

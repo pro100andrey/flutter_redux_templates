@@ -20,6 +20,13 @@
 // column's own margin instead. They still get a say in the *order*, or a node
 // whose only relation is one of them would read as unconnected and sink to the
 // bottom, stretching its margin arc down the whole column.
+//
+// The actor column may be **nested**: a page holds the connectors it builds, and
+// a connector the ones it builds. Nesting is a constraint on the order, not a
+// separate layout — a built row follows its builder, and a builder is sorted by
+// the barycenter of everything under it, so a screen and its regions move as one
+// block. Handed as a child → builder map so a flat column is the same call with
+// nothing nested, which is every call the picture used to make.
 
 /** An edge between two drawn nodes, by id. Direction does not affect crossings. */
 export interface LayoutEdge {
@@ -27,11 +34,24 @@ export interface LayoutEdge {
   to: string;
 }
 
-/** The two column orders, and how many crossings they leave. */
+/**
+ * The two column orders, and how many crossings they leave.
+ *
+ * `actors` is flat even when the column is nested: the rows top to bottom, each
+ * builder immediately followed by what it builds. That is the order the crossing
+ * count needs, and the one thing a nested drawing has to agree with it about;
+ * re-nesting it is one pass with the same map that flattened it.
+ */
 export interface Ordering {
   actors: string[];
   state: string[];
   crossings: number;
+}
+
+/** A row and, beneath it, the rows it builds. */
+interface Tree {
+  id: string;
+  built: Tree[];
 }
 
 /** How many passes of one sweep to try. Well past the point it settles at this size. */
@@ -92,15 +112,22 @@ export function countCrossings(
  * A node with no edges has no barycenter. It keeps its incoming relative order,
  * at the end of its column: floating it into the middle would push connected
  * rows apart for nothing.
+ *
+ * `builtBy` nests the actor column: each entry is a row and the row it sits
+ * under. A row whose builder is not in the column, or whose builders form a
+ * cycle, is a root. Built rows are only ever moved among their siblings; a
+ * builder is placed by the barycenter of its whole subtree.
  */
 export function orderColumns(
   actors: readonly string[],
   state: readonly string[],
   edges: readonly LayoutEdge[],
+  builtBy: ReadonlyMap<string, string> = new Map(),
 ): Ordering {
   const { across, along } = adjacency(actors, state, edges);
+  const forest = forestOf(actors, builtBy);
 
-  let bestActors = [...actors];
+  let bestActors = rowsOf(forest);
   let bestState = [...state];
   let best = countCrossings(bestActors, bestState, edges);
 
@@ -110,12 +137,13 @@ export function orderColumns(
   // was opened.
   const random = seededRandom();
   for (let restart = 0; restart < RESTARTS; restart++) {
-    let currentActors =
-      restart === 0 ? [...actors] : shuffled([...actors], random);
+    let currentForest = restart === 0 ? forest : shuffledForest(forest, random);
+    let currentActors = rowsOf(currentForest);
     let currentState = restart === 0 ? [...state] : shuffled([...state], random);
 
     for (let pass = 0; pass < PASSES; pass++) {
-      currentActors = sortByBarycenter(currentActors, currentState, across, along);
+      currentForest = sortForest(currentForest, currentState, across, along);
+      currentActors = rowsOf(currentForest);
       currentState = sortByBarycenter(currentState, currentActors, across, along);
       const crossings = countCrossings(currentActors, currentState, edges);
       // `<=` within a sweep, `<` across restarts. A swept order that ties is
@@ -159,12 +187,134 @@ function seededRandom(): () => number {
 }
 
 /** `items`, shuffled in place and returned (Fisher-Yates). */
-function shuffled(items: string[], random: () => number): string[] {
+function shuffled<T>(items: T[], random: () => number): T[] {
   for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
     [items[i], items[j]] = [items[j], items[i]];
   }
   return items;
+}
+
+/** The forest with every sibling list shuffled, at every depth. A new tree. */
+function shuffledForest(forest: readonly Tree[], random: () => number): Tree[] {
+  return shuffled(
+    forest.map((tree) => ({ id: tree.id, built: shuffledForest(tree.built, random) })),
+    random,
+  );
+}
+
+/**
+ * The nesting `builtBy` actually yields over `actors`: each row that sits under
+ * another, mapped to that row.
+ *
+ * Less than `builtBy` says. A builder outside the column is no builder, a row
+ * cannot sit under itself, and a cycle has no top — two connectors that build
+ * each other — so one of them has to be it: the first row met (in column order)
+ * whose chain of builders comes back to it is cut loose, which is deterministic
+ * and no worse than any other cut.
+ *
+ * Exported because the picture has to make the same cut: a `builds` relation the
+ * nesting shows is not drawn as a line, and one the cut left out *is* — so the
+ * question "does the nesting show this" has to have one answer, and this is it.
+ */
+export function nesting(
+  actors: readonly string[],
+  builtBy: ReadonlyMap<string, string>,
+): Map<string, string> {
+  const present = new Set(actors);
+  const under = new Map<string, string>();
+  for (const id of actors) {
+    const builder = builtBy.get(id);
+    if (builder !== undefined && present.has(builder) && builder !== id) {
+      under.set(id, builder);
+    }
+  }
+  for (const id of actors) {
+    let at = under.get(id);
+    while (at !== undefined && at !== id) at = under.get(at);
+    if (at === id) under.delete(id);
+  }
+  return under;
+}
+
+/**
+ * `actors` as a forest: roots in the order given, each row's built rows under it
+ * in the order given. See [nesting] for which rows are roots.
+ */
+function forestOf(actors: readonly string[], builtBy: ReadonlyMap<string, string>): Tree[] {
+  const under = nesting(actors, builtBy);
+  const trees = new Map(actors.map((id) => [id, { id, built: [] as Tree[] }]));
+  const roots: Tree[] = [];
+  for (const id of actors) {
+    const builder = under.get(id);
+    const tree = trees.get(id)!;
+    if (builder === undefined) roots.push(tree);
+    else trees.get(builder)!.built.push(tree);
+  }
+  return roots;
+}
+
+/** The forest's rows top to bottom: each builder, then what it builds. */
+function rowsOf(forest: readonly Tree[]): string[] {
+  const rows: string[] = [];
+  const walk = (tree: Tree) => {
+    rows.push(tree.id);
+    tree.built.forEach(walk);
+  };
+  forest.forEach(walk);
+  return rows;
+}
+
+/** Every id in the tree, the root included. */
+function idsOf(tree: Tree): string[] {
+  return [tree.id, ...tree.built.flatMap(idsOf)];
+}
+
+/**
+ * The forest, siblings at every depth ordered by barycenter.
+ *
+ * A tree's key is the mean facing position over the across-neighbours of its
+ * *whole* subtree — a page that reads nothing itself sits where the regions it
+ * builds read. Same fallback as the flat sort: a tree with no across-neighbour
+ * borrows the mean key of the rows it relates to along the column, and one with
+ * neither sorts last among its siblings.
+ */
+function sortForest(
+  forest: readonly Tree[],
+  against: readonly string[],
+  across: Map<string, string[]>,
+  along: Map<string, string[]>,
+): Tree[] {
+  const facing = indexOf(against);
+  const neighbours = (tree: Tree, of: Map<string, string[]>) =>
+    idsOf(tree).flatMap((id) => of.get(id) ?? []);
+
+  const key = new Map<string, number>();
+  for (const tree of forest) {
+    const barycentre = mean(neighbours(tree, across), facing);
+    if (barycentre !== null) key.set(tree.id, barycentre);
+  }
+  // The borrowed key comes off rows, and rows inside a sibling tree are that
+  // sibling's business: a row linked along the column to one is keyed by the
+  // sibling that holds it.
+  const holder = new Map<string, string>();
+  for (const tree of forest) for (const id of idsOf(tree)) holder.set(id, tree.id);
+  for (const tree of forest) {
+    if (key.has(tree.id)) continue;
+    const held = neighbours(tree, along)
+      .map((id) => holder.get(id))
+      .filter((id): id is string => id !== undefined && id !== tree.id);
+    const borrowed = mean(held, key);
+    if (borrowed !== null) key.set(tree.id, borrowed);
+  }
+
+  return [...forest]
+    .sort(
+      (a, b) =>
+        (key.get(a.id) ?? Number.POSITIVE_INFINITY) -
+        (key.get(b.id) ?? Number.POSITIVE_INFINITY),
+    )
+    .map((tree) => ({ id: tree.id, built: sortForest(tree.built, against, across, along) }));
 }
 
 /**
@@ -272,81 +422,4 @@ function spanOf(
   if (backward === undefined) return null;
   const source = right.get(edge.from);
   return source === undefined ? null : [backward, source];
-}
-
-/** Where one end of an edge attaches: which of its node's edges it is, and of how many. */
-export interface Anchor {
-  slot: number;
-  of: number;
-}
-
-/** Both ends of one edge. */
-export interface EdgeAnchors {
-  from: Anchor;
-  to: Anchor;
-}
-
-/**
- * A slot for each end of each edge, so two relations leaving one node do not
- * leave from the same point.
- *
- * Every line used to start at a fixed offset from its node's top, which made two
- * relations out of one row a single stroke until they had drifted far enough
- * apart to tell — and made two relations *between the same pair* one line drawn
- * twice, indistinguishable anywhere.
- *
- * Ordered by the row the other end lands on, so a node's fan does not cross
- * itself: the edge going furthest up attaches highest. Ties — two relations
- * between the same pair — keep the order they arrived in, so each still gets its
- * own slot.
- *
- * Pure, and returns slots rather than pixels: how tall a row is, and therefore how
- * far apart the slots sit, is the drawing's business and only the DOM knows it.
- *
- * One pool per node, not one per side of it. An edge across the middle and one
- * into the margin leave on opposite sides and could share a slot without
- * colliding; giving them separate ones costs nothing and keeps them from starting
- * at the same height, which reads better where both meet the box.
- */
-export function anchorSlots(
-  edges: readonly LayoutEdge[],
-  rowOf: (id: string) => number,
-): EdgeAnchors[] {
-  /** Each node's edge indices, ordered by where the other end lands. */
-  const ends = new Map<string, number[]>();
-  const attach = (node: string, index: number) => {
-    const of = ends.get(node);
-    if (of) of.push(index);
-    else ends.set(node, [index]);
-  };
-  edges.forEach((edge, index) => {
-    attach(edge.from, index);
-    attach(edge.to, index);
-  });
-
-  const anchors: EdgeAnchors[] = edges.map(() => ({
-    from: { slot: 0, of: 1 },
-    to: { slot: 0, of: 1 },
-  }));
-  for (const [node, indices] of ends) {
-    const other = (index: number) => {
-      const edge = edges[index];
-      return rowOf(edge.from === node ? edge.to : edge.from);
-    };
-    // A stable sort by the far row, so two relations between the same pair keep
-    // their order and still take a slot each. The rows are compared rather than
-    // subtracted: two ends both off the picture are both `Infinity`, and
-    // `Infinity - Infinity` is `NaN`, which a comparator must never be handed.
-    const ordered = indices
-      .map((index, arrival) => ({ index, arrival, row: other(index) }))
-      .sort((a, b) =>
-        a.row === b.row ? a.arrival - b.arrival : a.row < b.row ? -1 : 1,
-      );
-
-    ordered.forEach(({ index }, slot) => {
-      const end = edges[index].from === node ? 'from' : 'to';
-      anchors[index][end] = { slot, of: ordered.length };
-    });
-  }
-  return anchors;
 }

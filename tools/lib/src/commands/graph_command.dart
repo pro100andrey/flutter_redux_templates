@@ -7,6 +7,7 @@ import '../graph/graph_model.dart';
 import '../graph/graph_reader.dart';
 import '../model/naming_convention.dart';
 import '../model/target_resolver.dart';
+import '../refusal.dart';
 import '../util/casing.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
@@ -36,7 +37,8 @@ class GraphCommand extends Command<int> {
         'focus',
         help:
             'Only the subgraph around one artifact. Takes a node id '
-            '(page:logIn), a symbol (LogInRoute, SetEmailAction) or a bare name '
+            '(page:logIn), a symbol (LogInRoute, SetEmailAction) or a bare '
+            'name '
             '(log_in).',
       )
       ..addOption(
@@ -113,7 +115,7 @@ class GraphCommand extends Command<int> {
     final FrxWorkspace workspace;
     try {
       workspace = FrxWorkspace.locate(startDir: results['root'] as String?);
-    } on StateError catch (e) {
+    } on FrxRefusal catch (e) {
       console.err.writeln('frx: ${e.message}');
       return 70;
     }
@@ -121,7 +123,7 @@ class GraphCommand extends Command<int> {
     final AppGraph whole;
     try {
       whole = GraphReader(workspace).read();
-    } on StateError catch (e) {
+    } on FrxRefusal catch (e) {
       console.err.writeln('frx: ${e.message}');
       return 70;
     }
@@ -148,9 +150,9 @@ class GraphCommand extends Command<int> {
   /// The node id [token] names, or the reason it names none.
   ///
   /// Three spellings, most specific first: a node id, then whatever the
-  /// identifier resolver makes of a substate/page symbol, then a bare node name.
-  /// The resolver is the one `frx which` and the editor's F2 already use — a
-  /// second implementation of "what does `LogInRoute` mean" is how the
+  /// identifier resolver makes of a substate/page symbol, then a bare node
+  /// name. The resolver is the one `frx which` and the editor's F2 already use
+  /// — a second implementation of "what does `LogInRoute` mean" is how the
   /// conventions fork.
   ({String? id, String? error}) _resolveFocus(
     String token,
@@ -201,26 +203,27 @@ class GraphCommand extends Command<int> {
       error:
           'nothing in the graph is called "$token".\n'
           'Takes a node id (page:logIn, substate:session, '
-          'action:logIn.SetEmailAction), a symbol (LogInRoute, LogInState) or a '
+          'action:logIn.SetEmailAction), a symbol (LogInRoute, LogInState) or '
+          'a '
           'bare name (log_in). Run `frx graph` to list them.',
     );
   }
 
   void _report(AppGraph graph, FrxWorkspace workspace) {
     final focus = graph.focus;
+    final depth = focus?.depth == null ? 'unbounded' : 'depth ${focus!.depth}';
     console.out
       ..writeln(
         focus == null
             ? 'frx graph  (${workspace.root.path})'
             : 'frx graph  ${focus.node}  ${focus.direction.name}, '
-                  '${focus.depth == null ? 'unbounded' : 'depth ${focus.depth}'}'
-                  '  (${workspace.root.path})',
+                  '$depth  (${workspace.root.path})',
       )
       ..writeln();
 
-    // Named, not counted. "3 substates, 7 reads" answers no question a reader of
-    // this command has — least of all "what breaks if I touch this", where the
-    // whole answer is *which* ones.
+    // Named, not counted. "3 substates, 7 reads" answers no question a reader
+    // of this command has — least of all "what breaks if I touch this", where
+    // the whole answer is *which* ones.
     _listNodes(graph);
     _listEdges(graph);
 

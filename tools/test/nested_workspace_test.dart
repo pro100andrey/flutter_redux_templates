@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:tools/src/refusal.dart';
 import 'package:tools/src/workspace/frx_workspace.dart';
 
 /// Finding the project when it is not the repository.
@@ -44,8 +45,9 @@ void main() {
 
   test('walking up still wins from inside the project', () {
     project('.');
-    Directory(p.join(tmp.path, 'business/lib/redux'))
-      .createSync(recursive: true);
+    Directory(
+      p.join(tmp.path, 'business/lib/redux'),
+    ).createSync(recursive: true);
     expect(locate('business/lib/redux').path, tmp.path);
   });
 
@@ -62,7 +64,7 @@ void main() {
     expect(
       () => locate('.'),
       throwsA(
-        isA<StateError>().having(
+        isA<FrxRefusal>().having(
           (e) => e.message,
           'message',
           allOf(contains('apps/one'), contains('apps/two'), contains('--root')),
@@ -93,7 +95,7 @@ void main() {
     expect(
       () => locate('empty'),
       throwsA(
-        isA<StateError>().having(
+        isA<FrxRefusal>().having(
           (e) => e.message,
           'message',
           contains('nothing at'),
@@ -107,7 +109,7 @@ void main() {
     // cannot hold a project of ours. Finding one there would also be wrong.
     repo();
     project('build/generated/app');
-    expect(() => locate('.'), throwsA(isA<StateError>()));
+    expect(() => locate('.'), throwsA(isA<FrxRefusal>()));
   });
 
   test('a directory that is not a repo is not searched at all', () {
@@ -117,8 +119,9 @@ void main() {
     // only have been unpacked somewhere that looks like a checkout, so that is
     // the test — and it is two `existsSync` calls, not a walk.
     project('apps/tm_console');
-    // No pubspec.yaml and no .git at the origin: nothing here says "repository".
-    expect(() => locate('.'), throwsA(isA<StateError>()));
+    // No pubspec.yaml and no .git at the origin: nothing here says
+    // "repository".
+    expect(() => locate('.'), throwsA(isA<FrxRefusal>()));
   });
 
   test('a pubspec at the origin is enough to look', () {
@@ -139,6 +142,6 @@ void main() {
     // than the case it serves, so this is a known edge, not a mystery.
     repo();
     project('a/b/c/d');
-    expect(() => locate('.'), throwsA(isA<StateError>()));
+    expect(() => locate('.'), throwsA(isA<FrxRefusal>()));
   });
 }

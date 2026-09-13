@@ -7,20 +7,19 @@ import 'package:tools/src/util/casing.dart';
 /// the shapes the AST sources parse (`app_state.dart`, `selectors.dart`,
 /// `app_router.dart`) so tests exercise the same code paths as the live repo.
 ///
-/// Call [create] in `setUp` and [dispose] in `tearDown`. [root] is the repo
+/// Call [Fixture.create] in `setUp` and [dispose] in `tearDown`. [root] is
+/// the repo
 /// root to hand commands via `--root`.
 class Fixture {
   Fixture._(this.root);
 
-  final Directory root;
-
   /// Creates the fixture tree under a fresh temp dir.
-  static Fixture create() {
+  factory Fixture.create() {
     final root = Directory.systemTemp.createTempSync('frx_fixture_');
-    final f = Fixture._(root);
-    f._write();
-    return f;
+    return Fixture._(root).._write();
   }
+
+  final Directory root;
 
   void dispose() {
     if (root.existsSync()) {

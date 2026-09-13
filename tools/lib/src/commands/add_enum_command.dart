@@ -45,7 +45,7 @@ class AddEnumCommand extends WritingCommand {
       usageException(e.message);
     }
 
-    final file = ArtifactFiles.model(repo, name);
+    final file = modelFile(repo, name);
 
     return WritePlan(
       changes: Changeset([

@@ -25,7 +25,8 @@ void main() {
       final r = await runInProcess(fx, ['update-skills', '--no-format']);
       expect(r.exitCode, 0, reason: r.stderr);
 
-      final generated = SkillGen.generate();
+      final gen = SkillGen();
+      final generated = gen.generate();
       expect(generated, isNotEmpty);
       for (final path in generated.keys) {
         expect(
@@ -37,7 +38,7 @@ void main() {
 
       final owned = SkillGen.ownedIn(skills());
       expect(owned.version, SkillGen.version);
-      expect(owned.directories, SkillGen.directories());
+      expect(owned.directories, gen.directories());
     },
   );
 
@@ -99,14 +100,12 @@ void main() {
       // `wiring-artifacts` and `data-driven-widgets` were swept by nothing:
       // the prefix prune knew `frx-` and `asyncredux-`, and by then the tree
       // had four kinds in it.
+      final gen = SkillGen();
       expect(
-        SkillGen.directories(),
+        gen.directories(),
         containsAll(['wiring-artifacts', 'asyncredux-in-this-template']),
       );
-      expect(
-        SkillGen.manifest().split('\n'),
-        containsAll(SkillGen.directories()),
-      );
+      expect(gen.manifest().split('\n'), containsAll(gen.directories()));
     });
   });
 

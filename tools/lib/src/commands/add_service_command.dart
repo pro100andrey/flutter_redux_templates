@@ -27,7 +27,7 @@ class AddServiceCommand extends WritingCommand {
     // See [ArtifactName]: `Sync` and `SyncService` are one artifact.
     final name = ArtifactName.serviceStem(requireName());
 
-    final files = ArtifactFiles.serviceFiles(repo, name);
+    final files = serviceFiles(repo, name);
 
     return WritePlan(
       changes: Changeset([

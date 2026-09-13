@@ -496,8 +496,8 @@ $reader'''),
     test('a view-model field is still not the facade', () {
       // The widening is by type, so the receiver that shares a substate's
       // spelling and holds something else is refused exactly as before. This is
-      // the whole reason it is not "any receiver": `state.session.token` reads a
-      // substate field, and counting it would hide every dead selector behind
+      // the whole reason it is not "any receiver": `state.session.token` reads
+      // a substate field, and counting it would hide every dead selector behind
       // the substate it reads.
       expect(
         inFile('''
@@ -632,7 +632,8 @@ class LogInPage extends StatelessWidget {
       final g = _read();
       // `isAvailable => token != null` touches no state itself, but `token`
       // beside it does. Left unresolved it would be a false blind spot — and a
-      // list that cries wolf is the one thing that makes the real gaps invisible.
+      // list that cries wolf is the one thing that makes the real gaps
+      // invisible.
       expect(
         _edges(
           g,
@@ -896,8 +897,8 @@ class LogInPage extends StatelessWidget {
     test('a getter reading its own sibling reads it', () {
       // `bool get isAvailable => token != null;` inside `SelectSession`. Bare,
       // because a sibling on the same type needs no facade hop in front of it —
-      // and so not a call shape the facade-keyed index can match. Counting it is
-      // what stops `token` reading as touched by nobody.
+      // and so not a call shape the facade-keyed index can match. Counting it
+      // is what stops `token` reading as touched by nobody.
       expect(
         _edges(
           _read(),
@@ -1106,9 +1107,9 @@ class LogInPage extends StatelessWidget {
 
   group('a composite declared on a substate selector', () {
     // The reader used to match a composite only as `on Select` or `on Selector`
-    // exactly, so `extension … on SelectLogIn` was invisible: no node, and — the
-    // part that costs working code — its reads did not count, so a selector only
-    // it read was reported as read by nobody.
+    // exactly, so `extension … on SelectLogIn` was invisible: no node, and —
+    // the part that costs working code — its reads did not count, so a selector
+    // only it read was reported as read by nobody.
     AppGraph read() {
       final root = Directory.systemTemp.createTempSync('frx_graph_ext_');
       addTearDown(() => root.deleteSync(recursive: true));
@@ -1274,10 +1275,11 @@ class _Reader with Selectors {
 
   group('a selector declared outside the facade', () {
     // The graph read declarations from `selectors.dart` and nothing else, while
-    // the placement rules sweep all three lib trees for them — so a hand-written
-    // selector elsewhere was reported by `doctor` and absent here. Absent is the
-    // direction that costs working code: what it reads counts as read by nobody,
-    // and the dead-selector list is the one place frx says "you can delete this".
+    // the placement rules sweep all three lib trees for them — so a
+    // hand-written selector elsewhere was reported by `doctor` and absent here.
+    // Absent is the direction that costs working code: what it reads counts as
+    // read by nobody, and the dead-selector list is the one place frx says "you
+    // can delete this".
     AppGraph read({required bool stray}) {
       final root = Directory.systemTemp.createTempSync('frx_graph_stray_');
       addTearDown(() => root.deleteSync(recursive: true));
@@ -1418,12 +1420,13 @@ extension type SelectStray(AppState _state) implements Selector {
 
   group('a selector body is code, not text', () {
     // Three regexes over `body.toSource()` derived what a getter touched, and
-    // text cannot tell a string literal from code. Reproduced with the product's
-    // own commands: `frx add-selector session label -t String -e "'token'"` on a
-    // fresh project made the graph report `label` — whose whole body is the
-    // *string* `'token'` — as reading the session slice, because the bare-name
-    // scrape matched inside the quotes and the sibling fold handed it the
-    // neighbouring getter's reads.
+    // text cannot tell a string literal from code. Reproduced with the
+    // product's own commands:
+    // `frx add-selector session label -t String -e "'token'"` on a fresh
+    // project made the graph report `label` — whose whole body is the *string*
+    // `'token'` — as reading the session slice, because the bare-name scrape
+    // matched inside the quotes and the sibling fold handed it the neighbouring
+    // getter's reads.
     AppGraph read() {
       final root = Directory.systemTemp.createTempSync('frx_graph_text_');
       addTearDown(() => root.deleteSync(recursive: true));

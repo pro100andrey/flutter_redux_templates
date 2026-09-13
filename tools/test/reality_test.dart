@@ -20,9 +20,9 @@ import 'support/in_process.dart';
 /// substate upstream does not break it — only an architectural change does, and
 /// then failing is the right answer.
 ///
-/// Skipped when `../app` is absent (a standalone `dart install --source path
-/// tools` checkout), because a test that cannot see the repo has learned
-/// nothing.
+/// Skipped when `../app` is absent (a standalone
+/// `dart install --source path tools` checkout), because a test that cannot see
+/// the repo has learned nothing.
 void main() {
   final root = _repoRoot();
   if (root == null) {
