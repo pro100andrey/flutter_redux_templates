@@ -1,20 +1,15 @@
 import 'dart:io';
 
-import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
 import '../ast/rename_edits.dart';
 import '../engine/build_step.dart';
-import '../engine/changeset.dart';
-import '../engine/write_path.dart';
-import '../engine/write_report.dart';
 import '../model/page_artifact.dart';
 import '../model/substate_artifact.dart';
 import '../model/target_resolver.dart';
 import '../redux/app_state_source.dart';
-import '../redux/ast_edit.dart';
 import '../redux/store_source.dart';
 import '../routing/routes_source.dart';
 import '../util/casing.dart';
@@ -22,9 +17,8 @@ import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'frx_command.dart';
 import 'options.dart';
-
-/// A planned file move.
-typedef _Move = ({String from, String to});
+import 'rename/rename_execution.dart';
+import 'rename/rename_plan.dart';
 
 /// Renames a substate or page — files, classes, and every wiring reference.
 ///
@@ -34,6 +28,9 @@ typedef _Move = ({String from, String to});
 /// plus the snake path tokens in imports/parts. Distinctive identifiers make
 /// this safe in practice; previews by default, applies with `--force`, and
 /// `dart analyze` after is the definitive check.
+///
+/// The two kinds decide a [RenamePlan] each; carrying one out — the preview,
+/// the pre-flight, the apply, the codegen — is `rename/rename_execution.dart`.
 class RenameCommand extends Command<int> with NameArg {
   RenameCommand() {
     argParser
@@ -119,23 +116,23 @@ class RenameCommand extends Command<int> with NameArg {
     // Collision guard: the new name must not already exist in that role.
     // Matches any field (not just `…State` ones) so renaming onto a framework
     // field like `wait` is refused too.
-    if (kind == ArtifactKind.substate &&
-        appState != null &&
-        appState.readSubstates().any(
-          (s) => s.field == SubstateArtifact(newName).field,
-        )) {
-      console.err.writeln('AppState already has a field "${newName.camel}".');
-      return 70;
+    if (kind == ArtifactKind.substate && appState != null) {
+      final newField = SubstateArtifact(newName).field;
+      if (appState.readSubstates().any((s) => s.field == newField)) {
+        console.err.writeln(
+          'AppState already has a field "${newName.camel}".',
+        );
+        return 70;
+      }
     }
-    if (kind == ArtifactKind.page &&
-        routes != null &&
-        routes.readRoutes().any(
-          (r) => r.routeType == PageArtifact(newName).routeType,
-        )) {
-      console.err.writeln(
-        'AppRouter already registers ${newName.pascal}Route.',
-      );
-      return 70;
+    if (kind == ArtifactKind.page && routes != null) {
+      final newRoute = PageArtifact(newName).routeType;
+      if (routes.readRoutes().any((r) => r.routeType == newRoute)) {
+        console.err.writeln(
+          'AppRouter already registers ${newName.pascal}Route.',
+        );
+        return 70;
+      }
     }
 
     final repoRoot = (routes?.repoRoot ?? appState!.repoRoot).path;
@@ -155,7 +152,7 @@ class RenameCommand extends Command<int> with NameArg {
   ) {
     final oldA = PageArtifact(oldN);
     final newA = PageArtifact(newN);
-    final moves = <_Move>[
+    final moves = <Move>[
       (
         from: oldA.pageFile(routes.pagesDir).path,
         to: newA.pageFile(routes.pagesDir).path,
@@ -186,22 +183,21 @@ class RenameCommand extends Command<int> with NameArg {
       },
     );
 
-    return _execute(
+    return executeRename(
+      RenamePlan(
+        what: 'page "${oldN.pascal}" → "${newN.pascal}"',
+        repoRoot: repoRoot,
+        moves: moves,
+        rename: rename,
+        // The old ui page is deleted (moved) — the same reason `frx remove`
+        // cleans first.
+        build: BuildStep.cleanBuild(
+          routes.appPackageRoot.path,
+          nextHint: 'regenerate the router (rename the route class)',
+        ),
+      ),
       results,
-      what: 'page "${oldN.pascal}" → "${newN.pascal}"',
-      repoRoot: repoRoot,
-      moves: moves,
-      rename: rename,
-      // The old ui page is deleted (moved); an incremental app build can't
-      // drop a removed input of another package — clean first (same reason as
-      // `frx remove`).
-      buildPackageRoot: routes.appPackageRoot.path,
-      buildCommands: const [
-        ['run', 'build_runner', 'clean'],
-        ['run', 'build_runner', 'build'],
-      ],
-      staleGenerated: const [],
-      nextHint: 'regenerate the router (rename the route class)',
+      command: name,
     );
   }
 
@@ -234,12 +230,16 @@ class RenameCommand extends Command<int> with NameArg {
     // class stay in step. A hand-written `log_in_with_email_action.dart` keeps
     // its name (its class `LogInWithEmailAction` matches no pattern), staying
     // self-consistent.
+    //
+    // Generated files stay behind (deleted as stale below) — build_runner
+    // regenerates them under the new name. One listing sorts the folder into
+    // the two.
     final renamableBases = oldA.renamableBasenames(newA);
-    final moves = <_Move>[];
+    final moves = <Move>[];
+    final staleGenerated = <String>[];
     for (final f in oldDir.listSync(recursive: true).whereType<File>()) {
-      // Generated files stay behind (deleted as stale below) — build_runner
-      // regenerates them under the new name.
       if (FrxWorkspace.isGenerated(f.path)) {
+        staleGenerated.add(f.path);
         continue;
       }
       final rel = p.relative(f.path, from: oldDir.path);
@@ -280,230 +280,29 @@ class RenameCommand extends Command<int> with NameArg {
       },
     );
 
-    return _execute(
-      results,
-      what: 'substate "${oldN.pascal}" → "${newN.pascal}"',
-      repoRoot: repoRoot,
-      moves: moves,
-      rename: rename,
-      emptiedDirs: [oldDir.path],
-      buildPackageRoot: FrxWorkspace.packageRootOf(appState.file.path),
-      buildCommands: const [
-        ['run', 'build_runner', 'build'],
-      ],
-      // Generated files left in the old folder (freezed parts, …) would
-      // linger beside nothing — drop them; build_runner remakes the new ones.
-      staleGenerated: [
-        for (final f in oldDir.listSync(recursive: true).whereType<File>())
-          if (FrxWorkspace.isGenerated(f.path)) f.path,
-      ],
-      // The one string neither the token walk nor a path rule can reach: the
-      // change log's label names the substate the line beside it tests.
-      afterEdits: (path, content) => StoreSource.owns(path, root: repoRoot)
-          ? StoreSource.relabel(content, was: oldA.field, field: newA.field)
-          : content,
-      nextHint: 'regenerate the freezed part for the renamed state',
-    );
-  }
-
-  // --- shared execution ------------------------------------------------------
-
-  /// Previews (or with `--apply` applies) [moves] plus [rename] applied to
-  /// every non-generated `.dart` under the `business`/`app`/`ui` lib trees.
-  Future<int> _execute(
-    ArgResults results, {
-    required String what,
-    required String repoRoot,
-    required List<_Move> moves,
-    required RenameEdits rename,
-    required String buildPackageRoot,
-    required List<List<String>> buildCommands,
-    required List<String> staleGenerated,
-    required String nextHint,
-    List<String> emptiedDirs = const [],
-    String Function(String path, String content)? afterEdits,
-  }) async {
-    final goingThrough = applying(results);
-    final asJson = machineMode(results);
-
-    if (!asJson) {
-      console.out
-        ..writeln('Rename $what')
-        ..writeln();
-    }
-
-    // Which files change, and how many edits in each. Off the parse tree —
-    // see [RenameEdits] for what that replaced and why.
-    final edits = <String, ({String content, int count})>{};
-    for (final dir in ['business', 'app', 'ui']) {
-      final lib = Directory(p.join(repoRoot, dir, 'lib'));
-      if (!lib.existsSync()) {
-        continue;
-      }
-      for (final f in lib.listSync(recursive: true).whereType<File>()) {
-        if (!f.path.endsWith('.dart') || FrxWorkspace.isGenerated(f.path)) {
-          continue;
-        }
-        final original = f.readAsStringSync();
-        final planned = rename.of(
-          parseString(content: original, throwIfDiagnostics: false).unit,
-        );
-        var content = applyEdits(original, planned);
-        var count = planned.length;
-        // What neither the tree nor a textual sweep can do, done by something
-        // that knows what the text is *for*. A string literal must survive a
-        // rename — a persistence key does — and the persistor's change log is a
-        // string that *names a substate*, so the general rule is right and
-        // wrong at the same time.
-        if (afterEdits != null) {
-          final fixed = afterEdits(f.path, content);
-          if (fixed != content) {
-            content = fixed;
-            count++;
-          }
-        }
-        if (content != original) {
-          edits[f.path] = (content: content, count: count);
-        }
-      }
-    }
-
-    // Content edits are declared before the moves so they land while the paths
-    // are still the old ones; [apply] preserves that order (and runs the
-    // deletes first, which is harmless here — a stale generated file is never
-    // also an edit target).
-    //
-    // Built here rather than after the preview gate, because the machine format
-    // is one shape in two states and the planned state needs the same value the
-    // applied one does.
-    final plan = Changeset([
-      for (final e in edits.entries)
-        EditFile(
-          e.key,
-          before: File(e.key).readAsStringSync(),
-          after: e.value.content,
+    return executeRename(
+      RenamePlan(
+        what: 'substate "${oldN.pascal}" → "${newN.pascal}"',
+        repoRoot: repoRoot,
+        moves: moves,
+        rename: rename,
+        emptiedDirs: [oldDir.path],
+        build: BuildStep.build(
+          FrxWorkspace.packageRootOf(appState.file.path),
+          nextHint: 'regenerate the freezed part for the renamed state',
         ),
-      for (final m in moves) MoveFile(from: m.from, path: m.to),
-      // Only the ones that are really there: a plan that lists a delete which
-      // cannot happen describes something other than what it will do.
-      for (final g in staleGenerated.where((g) => File(g).existsSync()))
-        DeleteFile(g),
-    ]);
-    final report = asJson
-        ? WriteReport.of(plan, command: name, relativeTo: repoRoot)
-        : null;
-    final step = BuildStep(
-      packageRoot: buildPackageRoot,
-      commands: buildCommands,
-      nextHint: nextHint,
+        // Generated files left in the old folder (freezed parts, …) would
+        // linger beside nothing — drop them; build_runner remakes the new
+        // ones.
+        staleGenerated: staleGenerated,
+        // The one string neither the token walk nor a path rule can reach: the
+        // change log's label names the substate the line beside it tests.
+        afterEdits: (path, content) => StoreSource.owns(path, root: repoRoot)
+            ? StoreSource.relabel(content, was: oldA.field, field: newA.field)
+            : content,
+      ),
+      results,
+      command: name,
     );
-
-    if (!asJson) {
-      console.out.writeln('Files:');
-      for (final m in moves) {
-        console.out.writeln(
-          '  move  ${p.relative(m.from)} → ${p.relative(m.to)}',
-        );
-      }
-      for (final g in staleGenerated.where((g) => File(g).existsSync())) {
-        console.out.writeln('  delete  ${p.relative(g)} (stale generated)');
-      }
-      console.out
-        ..writeln()
-        ..writeln('References (${edits.length} file(s)):');
-      for (final e in edits.entries) {
-        console.out.writeln('  ~ ${p.relative(e.key)}  (${e.value.count})');
-      }
-      console.out.writeln();
-
-      if (results['diff'] as bool) {
-        // `Changeset.diff` renders an `EditFile` as
-        // `unifiedDiff(before, after)` — which is what this computed by hand
-        // from the same two strings, the `before` being the very thing the plan
-        // already carries. Paths are now relative to the repo root rather than
-        // the working directory, which is the right anchor for a command that
-        // takes `--root`.
-        console.out
-          ..write(plan.diff(from: repoRoot))
-          ..writeln();
-      }
-    }
-
-    if (!goingThrough) {
-      console.out.writeln(
-        report?.render(applied: false, build: plannedBuild(step)) ??
-            kPreviewNotice,
-      );
-      return 0;
-    }
-
-    // Pre-flight before touching anything: every source must exist and no
-    // destination may — renameSync would otherwise silently overwrite an
-    // unwired file at the target path, or throw mid-apply after the reference
-    // edits were already written.
-    for (final m in moves) {
-      if (!File(m.from).existsSync()) {
-        console.err.writeln(
-          '✗ ${p.relative(m.from)} does not exist — aborting.',
-        );
-        return 70;
-      }
-      if (File(m.to).existsSync()) {
-        console.err.writeln(
-          '✗ ${p.relative(m.to)} already exists — aborting (move it away or '
-          'remove it first).',
-        );
-        return 70;
-      }
-    }
-
-    await apply(
-      plan,
-      format: results['format'] as bool,
-      repoRoot: Directory(repoRoot),
-    );
-
-    // Pruning an emptied directory stays here: whether a folder left behind by
-    // a move is *meaningfully* empty is rename's question, not one a generic
-    // applier can answer.
-    for (final d in emptiedDirs) {
-      final dir = Directory(d);
-      if (dir.existsSync() &&
-          dir.listSync(recursive: true).whereType<File>().isEmpty) {
-        dir.deleteSync(recursive: true);
-      }
-    }
-
-    // A renamed import token can fall out of alphabetical order — re-sort the
-    // directives in every package the sweep touched (scoped to that one lint).
-    final touchedPackages = {
-      for (final f in [...edits.keys, ...moves.map((m) => m.to)])
-        p.join(repoRoot, p.split(p.relative(f, from: repoRoot)).first),
-    };
-    for (final pkg in touchedPackages) {
-      await Process.run('dart', [
-        'fix',
-        '--apply',
-        '--code=directives_ordering',
-      ], workingDirectory: pkg);
-    }
-
-    if (!asJson) {
-      console.out.writeln(
-        '✓ Renamed. Run `dart analyze` to confirm nothing dangles.',
-      );
-    }
-
-    final built = await runBuild(
-      step,
-      enabled: results['build-runner'] as bool,
-      report: !asJson,
-    );
-    if (report != null) {
-      console.out.writeln(
-        report.render(applied: true, build: appliedBuild(step, built)),
-      );
-    }
-    return built.code;
   }
 }

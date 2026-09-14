@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:args/args.dart';
-import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
 import '../skills/skill_gen.dart';
@@ -49,16 +46,15 @@ class UpdateSkillsCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    final skillsDir = Directory(p.join(repo.root.path, '.claude', 'skills'));
-    final owned = SkillGen.ownedIn(skillsDir);
+    final owned = SkillGen.ownedIn(repo.claudeSkills);
     // One `SkillGen`, so the tree is rendered once: the plan wants its
     // content and the header wants its count, and they are the same render.
     final gen = SkillGen();
-    final changes = Changeset(gen.changesIn(repo.root));
-    final skills = changes.changes
-        .where((c) => c.path.endsWith('SKILL.md'))
-        .length;
-    final removed = changes.changes.whereType<DeleteDirectory>().length;
+    final changes = Changeset(gen.changesIn(repo));
+    // `Changeset.changes` hands out a copy; one is enough for two counts.
+    final planned = changes.changes;
+    final skills = planned.where((c) => c.path.endsWith('SKILL.md')).length;
+    final removed = planned.whereType<DeleteDirectory>().length;
 
     return WritePlan(
       changes: changes,

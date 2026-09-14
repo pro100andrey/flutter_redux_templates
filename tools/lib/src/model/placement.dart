@@ -26,8 +26,6 @@
 /// about what a type *is* stays with the analyzer.
 library;
 
-import 'dart:io';
-
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
@@ -111,8 +109,7 @@ List<PlacementFinding> placementFindings(
 
   String rel(String path) => p.relative(path, from: repo.root.path);
 
-  for (final pkg in const ['business', 'app', 'ui']) {
-    final lib = Directory(p.join(repo.root.path, pkg, 'lib'));
+  for (final lib in [repo.businessLib, repo.appLib, repo.uiLib]) {
     // Generated output is not anybody's placement decision, and the index
     // leaves it out of every listing.
     for (final entity in sourceIndex.filesUnder(lib)) {

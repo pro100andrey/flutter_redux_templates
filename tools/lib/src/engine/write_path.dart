@@ -157,12 +157,13 @@ Future<int> runChangeset(
     // The planned state carries the build step too, so the two states really
     // are one shape. Its outcome fields are facts, not predictions: nothing ran
     // and nothing was handed over, because nothing was applied.
+    final formattable = plan.formattable;
     console.out.writeln(
       report?.render(
             applied: false,
-            build: build == null || plan.formattable.isEmpty
+            build: build == null || formattable.isEmpty
                 ? null
-                : plannedBuild(build(plan.formattable)),
+                : plannedBuild(build(formattable)),
           ) ??
           previewNotice,
     );

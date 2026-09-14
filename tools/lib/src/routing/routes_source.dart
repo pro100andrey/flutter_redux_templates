@@ -1,108 +1,22 @@
 import 'dart:io';
 
-import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
-import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
 
 import '../ast/construction.dart';
-import '../ast/declarations.dart';
-import '../ast/source_index.dart';
+import '../ast/directives.dart';
+import '../ast/file_source.dart';
+import '../ast/function_bodies.dart';
 import '../redux/app_state_source.dart' show AppStateSource;
 import '../redux/ast_edit.dart';
 import '../refusal.dart';
 import '../workspace/frx_workspace.dart';
+import 'route_entry.dart';
+import 'route_results.dart';
+import 'router_ast.dart';
 
-/// One route registered in `AppRouter.routes`.
-class RouteEntry {
-  const RouteEntry({
-    required this.routeType,
-    required this.path,
-    this._fullPath,
-    this.initial = false,
-    this.parent,
-  });
-
-  /// The generated route class referenced as `<Type>.page`, e.g. `HomeRoute`.
-  final String routeType;
-
-  /// The path exactly as the `AutoRoute` spells it — `/home`, or the relative
-  /// `profile` of a tab child (null if the `AutoRoute` omits `path:`).
-  ///
-  /// The source fact. To show a user where a route lives, use [fullPath]: a
-  /// child's own path is not an address anyone can navigate to.
-  final String? path;
-
-  final String? _fullPath;
-
-  /// The path the router actually serves, with a tab child's path joined onto
-  /// its shell's — `/account/profile`, not `profile`.
-  ///
-  /// auto_route treats a child path as relative unless it starts with `/`, so
-  /// printing [path] for a nested route states an address that does not exist.
-  String? get fullPath => _fullPath ?? path;
-
-  /// Whether the `AutoRoute` carries `initial: true` — the app's entry screen.
-  final bool initial;
-
-  /// The shell route this one is nested under (`children:` of a tab shell), or
-  /// null for a top-level route.
-  final String? parent;
-}
-
-/// The outcome of wiring a page into `AppRouter`.
-class RouteWireResult implements EditOutcome {
-  const RouteWireResult({
-    required this.source,
-    required this.changes,
-    required this.alreadyWired,
-    this.warnings = const [],
-  });
-
-  /// The full, edited `app_router.dart` source (unchanged if [alreadyWired]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when the same route was already registered — nothing was changed.
-  final bool alreadyWired;
-
-  @override
-  bool get unchanged => alreadyWired;
-
-  /// Non-fatal problems the caller should surface (e.g. `--public` requested
-  /// but the guard's `_authArea` set could not be located).
-  final List<String> warnings;
-}
-
-/// The outcome of unwiring a page from `AppRouter`.
-class RouteUnwireResult with Unwiring {
-  const RouteUnwireResult({
-    required this.source,
-    required this.changes,
-    required this.found,
-    this.warnings = const [],
-  });
-
-  /// The full, edited `app_router.dart` source (unchanged when not [found]).
-  @override
-  final String source;
-
-  /// Human-readable descriptions of the edits made.
-  @override
-  final List<String> changes;
-
-  /// True when a route of the given type was registered and was removed.
-  @override
-  final bool found;
-
-  /// Non-fatal problems the caller should surface (e.g. a removed tab shell
-  /// whose child pages were left in place).
-  final List<String> warnings;
-}
+export 'route_entry.dart';
+export 'route_results.dart';
 
 /// Reads and edits `app/lib/navigation/app_router.dart` via the analyzer AST.
 ///
@@ -111,8 +25,8 @@ class RouteUnwireResult with Unwiring {
 /// generating a page, `frx add-page` inserts them at precise AST offsets. Only
 /// parses — no package config needed — and leans on `dart format` to normalize
 /// whitespace afterwards.
-class RoutesSource {
-  RoutesSource(this.file);
+class RoutesSource extends FileSource {
+  RoutesSource(super.file);
 
   /// The `app_router.dart` of an already-resolved workspace.
   ///
@@ -124,18 +38,8 @@ class RoutesSource {
 
   /// Finds `app_router.dart` by walking up from [startDir] (or the current
   /// directory) until `app/lib/navigation/app_router.dart` is found.
-  factory RoutesSource.locate({String? startDir}) {
-    final root = walkUpForMarker(
-      startDir,
-      _relativePath,
-      (origin) =>
-          'Could not find "$_relativePath" walking up from "$origin". '
-          'Run this from inside the monorepo, or pass --root.',
-    );
-    return RoutesSource(File(p.join(root.path, _relativePath)));
-  }
-
-  final File file;
+  factory RoutesSource.locate({String? startDir}) =>
+      RoutesSource(locateFile(_relativePath, startDir: startDir));
 
   /// Path of `app_router.dart` relative to the repo root.
   static const _relativePath = 'app/lib/navigation/app_router.dart';
@@ -155,95 +59,22 @@ class RoutesSource {
   Directory get pagesDir =>
       Directory(p.join(repoRoot.path, 'ui', 'lib', 'pages'));
 
-  /// The routes currently registered in `AppRouter.routes`, in source order.
-  ///
-  /// Nested `children:` (a tab shell's pages) are included, each carrying the
-  /// shell's route type as [RouteEntry.parent] — a tab page is as real a route
-  /// as a top-level one, so every consumer (doctor's connector check, the
-  /// navigation map) sees it.
-  List<RouteEntry> readRoutes() {
-    final entries = <RouteEntry>[];
-    _collectRoutes(_routesList(_parse()), null, null, entries);
-    return entries;
-  }
-
-  void _collectRoutes(
-    ListLiteral list,
-    String? parent,
-    String? parentPath,
-    List<RouteEntry> into,
-  ) {
-    for (final element in list.elements) {
-      final args = _autoRouteArgs(element);
-      if (args == null) {
-        continue;
-      }
-      final page = _namedArg(args, 'page')?.toSource();
-      final path = _namedArg(args, 'path');
-      final initial = _namedArg(args, 'initial');
-      final routeType = page != null
-          ? page.replaceAll('.page', '')
-          : '<unknown>';
-      final own = path is SimpleStringLiteral ? path.value : path?.toSource();
-      final full = _joinPath(parentPath, own, nested: parent != null);
-      into.add(
-        RouteEntry(
-          routeType: routeType,
-          path: own,
-          fullPath: full,
-          initial: initial is BooleanLiteral && initial.value,
-          parent: parent,
-        ),
-      );
-      final children = _namedArg(args, 'children');
-      if (children is ListLiteral) {
-        _collectRoutes(children, routeType, full, into);
-      }
-    }
-  }
-
-  /// Joins a child's path onto its shell's, the way auto_route resolves it: a
-  /// path starting with `/` is absolute and ignores the parent, anything else
-  /// hangs off it. An empty child path *is* the parent's — the tab that shows
-  /// when you land on the shell.
-  static String? _joinPath(
-    String? parentPath,
-    String? own, {
-    required bool nested,
-  }) {
-    if (own == null) {
-      return parentPath;
-    }
-    if (own.startsWith('/') || !nested) {
-      return own;
-    }
-    // Nested under a shell that declares no `path:`: auto_route derives one
-    // from its page name, which frx cannot know. Printing the child's own
-    // relative path would be the same untruth composing exists to remove.
-    if (parentPath == null) {
-      return own.isEmpty ? null : '…/$own';
-    }
-    if (own.isEmpty) {
-      return parentPath;
-    }
-    final base = parentPath.endsWith('/')
-        ? parentPath.substring(0, parentPath.length - 1)
-        : parentPath;
-    return '$base/$own';
-  }
+  /// The routes currently registered in `AppRouter.routes`, in source order,
+  /// nested `children:` included — see [routeEntriesOf].
+  List<RouteEntry> readRoutes() => routeEntriesOf(_routesList(unit));
 
   /// The route types the guard lets through while logged out — the
   /// `<Route>.name` members of `_AuthGuard._authArea`, with the `.name`
   /// dropped. Empty when there is no guard (or its set can't be read).
   Set<String> readAuthArea() {
-    final set = _authAreaSet(_parse());
+    final set = authAreaSetOf(unit);
     if (set == null) {
       return const {};
     }
     return {
       for (final e in set.elements)
-        if (e.toSource().endsWith('.name'))
-          e.toSource().substring(0, e.toSource().length - '.name'.length),
+        if (e.toSource() case final member when member.endsWith('.name'))
+          member.substring(0, member.length - '.name'.length),
     };
   }
 
@@ -259,23 +90,11 @@ class RoutesSource {
     required bool public,
     bool importMaterial = false,
   }) {
-    final content = sourceIndex.sourceOf(file);
-    final unit = _parse(content);
+    final (source: content, :unit) = snapshot;
     final list = _routesList(unit);
-    final pageExpr = '$routeType.page';
 
-    // Exact match on the `page:` argument — a substring `contains` would treat
-    // `ProfileRoute` as already-wired when `UserProfileRoute` is registered.
-    final already = list.elements.any((e) {
-      final args = _autoRouteArgs(e);
-      return args != null && _namedArg(args, 'page')?.toSource() == pageExpr;
-    });
-    if (already) {
-      return RouteWireResult(
-        source: content,
-        changes: const [],
-        alreadyWired: true,
-      );
+    if (registeredRoute(list, routeType) != null) {
+      return RouteWireResult.wired(content);
     }
 
     final edits = <Edit>[];
@@ -283,24 +102,21 @@ class RoutesSource {
     final warnings = <String>[];
 
     // 1) connector import, sorted among the relative imports.
-    final imports = unit.directives.whereType<ImportDirective>().toList();
-    if (!imports.any((d) => d.uri.stringValue == connectorImport)) {
+    final imports = importsOf(unit);
+    if (importNamed(imports, connectorImport) == null) {
       edits.add(importInsertion(imports, connectorImport));
       changes.add("import '$connectorImport';");
     }
 
     // A route with path params generates an args class referencing `Key`; the
     // generated `.gr.dart` is a `part`, so the library must import Flutter.
-    if (importMaterial) {
-      const material = 'package:flutter/material.dart';
-      if (!imports.any((d) => d.uri.stringValue == material)) {
-        edits.add(importInsertion(imports, material));
-        changes.add("import '$material';");
-      }
+    if (importMaterial && importNamed(imports, _material) == null) {
+      edits.add(importInsertion(imports, _material));
+      changes.add("import '$_material';");
     }
 
     // 2) AutoRoute entry.
-    final entry = "AutoRoute(page: $pageExpr, path: '$path')";
+    final entry = "AutoRoute(page: $routeType.page, path: '$path')";
     edits.add(
       insertIntoList(
         elements: list.elements,
@@ -312,16 +128,14 @@ class RoutesSource {
 
     // 3) auth-area membership, when the page is reachable while logged out.
     if (public) {
-      final authArea = _authAreaSet(unit);
+      final authArea = authAreaSetOf(unit);
       if (authArea == null) {
         warnings.add(
           "--public: could not find the guard's _authArea set — the route was "
           'NOT added to it. Add "$routeType.name" manually if the page should '
           'be reachable while logged out.',
         );
-      } else if (!authArea.elements.any(
-        (e) => e.toSource() == '$routeType.name',
-      )) {
+      } else if (authAreaMember(authArea, routeType) == null) {
         edits.add(
           insertIntoList(
             elements: authArea.elements,
@@ -347,59 +161,44 @@ class RoutesSource {
   /// children are `AutoRoute(page: <Tab>.page, path: '<tab>')`
   /// entry. Idempotent when the shell route is already registered.
   ///
-  /// Imports are applied one at a time (re-parsing between) so several relative
-  /// imports each land in their own sorted position instead of colliding.
+  /// The imports go in through [addImports] — one re-parse each, so several
+  /// relative imports each land in their own sorted position instead of
+  /// colliding — and after the entry, whose offset an import above it would
+  /// move.
   RouteWireResult wireTabsRoute({
     required String shellRoute,
     required List<String> connectorImports,
     required String path,
     required List<({String route, String path})> tabs,
   }) {
-    var source = sourceIndex.sourceOf(file);
-    final shellExpr = '$shellRoute.page';
+    final (source: content, :unit) = snapshot;
+    final list = _routesList(unit);
 
-    final already = _routesList(_parse(source)).elements.any((e) {
-      final args = _autoRouteArgs(e);
-      return args != null && _namedArg(args, 'page')?.toSource() == shellExpr;
-    });
-    if (already) {
-      return RouteWireResult(
-        source: source,
-        changes: const [],
-        alreadyWired: true,
-      );
-    }
-
-    final changes = <String>[];
-
-    for (final imp in connectorImports) {
-      final imports = _parse(
-        source,
-      ).directives.whereType<ImportDirective>().toList();
-      if (!imports.any((d) => d.uri.stringValue == imp)) {
-        source = applyEdits(source, [importInsertion(imports, imp)]);
-        changes.add("import '$imp';");
-      }
+    if (registeredRoute(list, shellRoute) != null) {
+      return RouteWireResult.wired(content);
     }
 
     final children = tabs
         .map((t) => "AutoRoute(page: ${t.route}.page, path: '${t.path}')")
         .join(', ');
     final entry =
-        "AutoRoute(page: $shellExpr, path: '$path', children: [$children])";
-    final list = _routesList(_parse(source));
-    source = applyEdits(source, [
+        "AutoRoute(page: $shellRoute.page, path: '$path', "
+        'children: [$children])';
+    final routed = applyEdits(content, [
       insertIntoList(
         elements: list.elements,
         closer: list.rightBracket,
         element: entry,
       ),
     ]);
-    changes.add('routes: $shellRoute with ${tabs.length} tab(s)');
+    final added = addImports(routed, connectorImports);
 
     return RouteWireResult(
-      source: source,
-      changes: changes,
+      source: added.source,
+      changes: [
+        ...added.changes,
+        'routes: $shellRoute with ${tabs.length} tab(s)',
+      ],
       alreadyWired: false,
     );
   }
@@ -414,29 +213,20 @@ class RoutesSource {
     required String routeType,
     required String connectorImport,
   }) {
-    final content = sourceIndex.sourceOf(file);
-    final unit = _parse(content);
+    final (source: content, :unit) = snapshot;
     final list = _routesList(unit);
-    final pageExpr = '$routeType.page';
 
-    final entry = list.elements.where((e) {
-      final args = _autoRouteArgs(e);
-      return args != null && _namedArg(args, 'page')?.toSource() == pageExpr;
-    }).firstOrNull;
-    if (entry == null) {
-      return RouteUnwireResult(
-        source: content,
-        changes: const [],
-        found: false,
-      );
+    final registered = registeredRoute(list, routeType);
+    if (registered == null) {
+      return RouteUnwireResult.absent(content);
     }
+    final entry = registered.element;
 
     final edits = <Edit>[removeListItem(content, entry)];
     final changes = <String>['route $routeType'];
     final warnings = <String>[];
 
-    final entryArgs = _autoRouteArgs(entry);
-    if (entryArgs != null && _namedArg(entryArgs, 'children') != null) {
+    if (namedArgumentIn(registered.args, 'children') != null) {
       warnings.add(
         '$routeType has nested children (a tab shell) — its child tab pages '
         'and '
@@ -445,113 +235,59 @@ class RoutesSource {
     }
 
     // The connector import, matched exactly against the path add-page used.
-    final imp = unit.directives
-        .whereType<ImportDirective>()
-        .where((d) => d.uri.stringValue == connectorImport)
-        .firstOrNull;
+    final imports = importsOf(unit);
+    final imp = importNamed(imports, connectorImport);
     if (imp != null) {
       edits.add(removeDirective(content, imp));
       changes.add("import '$connectorImport'");
     }
 
     // Auth-area membership, if the page was reachable while logged out.
-    final authArea = _authAreaSet(unit);
+    final authArea = authAreaSetOf(unit);
     if (authArea != null) {
-      final member = authArea.elements
-          .where((e) => e.toSource() == '$routeType.name')
-          .firstOrNull;
+      final member = authAreaMember(authArea, routeType);
       if (member != null) {
         edits.add(removeListItem(content, member));
         changes.add('_authArea: $routeType.name');
       }
     }
 
-    var source = applyEdits(content, edits);
-
     // Prune the Flutter import once the last param route is gone. `add-page`
     // adds it only for a route with path params, so the generated `.gr.dart`
     // args class (which references `Key`) compiles; `app_router.dart` itself
     // uses no material symbols. Left dangling it would be an unused-import
-    // lint, so drop it when no remaining route path carries a `:` segment.
-    // Re-parsed (not offset-spliced) so this stays independent of the edits
-    // above.
-    const material = 'package:flutter/material.dart';
-    final after = _parse(source);
-    final materialImport = after.directives
-        .whereType<ImportDirective>()
-        .where((d) => d.uri.stringValue == material)
-        .firstOrNull;
-    if (materialImport != null && !_anyParamPath(_routesList(after))) {
-      source = applyEdits(source, [removeDirective(source, materialImport)]);
-      changes.add("import '$material'");
+    // lint, so drop it when no route path *other than the one leaving* carries
+    // a `:` segment — judged on the same tree as the edits above, with the
+    // removed entry (and, for a shell, its children) left out.
+    final materialImport = importNamed(imports, _material);
+    if (materialImport != null &&
+        !identical(materialImport, imp) &&
+        !anyParamPath(list.elements.where((e) => !identical(e, entry)))) {
+      edits.add(removeDirective(content, materialImport));
+      changes.add("import '$_material'");
     }
 
     return RouteUnwireResult(
-      source: source,
+      source: applyEdits(content, edits),
       changes: changes,
       found: true,
       warnings: warnings,
     );
   }
 
-  /// Whether any `AutoRoute` in [list] (or its nested `children`) has a `path`
-  /// with a `:` param segment — the sole reason `app_router.dart` imports
-  /// Flutter, so it gates pruning that import on removal.
-  bool _anyParamPath(ListLiteral list) {
-    for (final element in list.elements) {
-      final args = _autoRouteArgs(element);
-      if (args == null) {
-        continue;
-      }
-      final path = _namedArg(args, 'path');
-      if (path is SimpleStringLiteral && path.value.contains(':')) {
-        return true;
-      }
-      final children = _namedArg(args, 'children');
-      if (children is ListLiteral && _anyParamPath(children)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // --- AST helpers ----------------------------------------------------------
-
-  /// The tree for [file], or for [content] when the caller is mid-edit and
-  /// holding text that is not on disk yet.
-  CompilationUnit _parse([String? content]) => content == null
-      ? sourceIndex.unitFor(file)
-      : parseString(content: content, throwIfDiagnostics: false).unit;
-
-  ClassDeclaration _class(CompilationUnit unit, String name) {
-    final cls = classNamed(unit, name);
-    if (cls == null) {
-      throw FrxRefusal('class $name not found in "${file.path}".');
-    }
-    return cls;
-  }
-
-  Iterable<ClassMember> _members(ClassDeclaration cls) {
-    final body = cls.body;
-    return body is BlockClassBody ? body.members : const <ClassMember>[];
-  }
+  static const _material = 'package:flutter/material.dart';
 
   /// The `[...]` literal returned by `AppRouter`'s `routes` getter.
   ListLiteral _routesList(CompilationUnit unit) {
-    final router = _class(unit, 'AppRouter');
-    final getter = _members(router)
+    final router = classIn(unit, 'AppRouter');
+    final getter = router.body.members
         .whereType<MethodDeclaration>()
         .where((m) => m.isGetter && m.name.lexeme == 'routes')
         .firstOrNull;
     if (getter == null) {
       throw FrxRefusal('AppRouter.routes getter not found in "${file.path}".');
     }
-    final body = getter.body;
-    final expr = body is ExpressionFunctionBody
-        ? body.expression
-        : body is BlockFunctionBody
-        ? _returnedExpression(body)
-        : null;
+    final expr = resultOf(getter.body);
     if (expr is! ListLiteral) {
       throw const FrxRefusal(
         'AppRouter.routes does not return a list literal — cannot wire '
@@ -559,80 +295,5 @@ class RoutesSource {
       );
     }
     return expr;
-  }
-
-  Expression? _returnedExpression(BlockFunctionBody body) {
-    final finder = _ReturnFinder();
-    body.accept(finder);
-    return finder.expression;
-  }
-
-  /// The guard's `static const _authArea = {…}` set, or null if absent.
-  SetOrMapLiteral? _authAreaSet(CompilationUnit unit) {
-    final guard = classNamed(unit, '_AuthGuard');
-    if (guard == null) {
-      return null;
-    }
-    for (final member in _members(guard).whereType<FieldDeclaration>()) {
-      for (final v in member.fields.variables) {
-        if (v.name.lexeme == '_authArea' && v.initializer is SetOrMapLiteral) {
-          return v.initializer! as SetOrMapLiteral;
-        }
-      }
-    }
-    return null;
-  }
-
-  /// The auto_route classes that register a page — the ones carrying a `page:`
-  /// argument that names a generated route type.
-  ///
-  /// auto_route spells a transition as a *subclass*, not as an argument:
-  /// `CustomRoute` is how a route stops painting a ground of its own
-  /// (`opaque: false`, for a sheet over the screen behind it), and
-  /// `MaterialRoute` / `CupertinoRoute` / `AdaptiveRoute` pick a platform
-  /// transition. All five register a screen exactly as `AutoRoute` does, so
-  /// matching the base class by name hid one from every reader here at once:
-  /// `list-routes` omitted it, doctor called its connector unregistered, and
-  /// `flow` deleted its generated document as a page that had gone.
-  ///
-  /// Two subclasses are deliberately absent. `RedirectRoute` takes no `page:`
-  /// (it supplies `PageInfo.redirect` itself) and `NamedRouteDef` takes a
-  /// `name:` and a builder. Admitting either would enter a route whose type
-  /// reads `<unknown>`, and would let [unwirePage] and [_anyParamPath] treat a
-  /// redirect as a screen.
-  static const _pageRouteTypes = {
-    'AutoRoute',
-    'MaterialRoute',
-    'CupertinoRoute',
-    'AdaptiveRoute',
-    'CustomRoute',
-  };
-
-  /// The argument list of a page-registering list element — `AutoRoute(...)`,
-  /// `AutoRoute.guarded(...)`, `CustomRoute<void>(...)` — or null when the
-  /// element registers no page. [_pageRouteTypes] says which types count.
-  ///
-  /// Every written form goes through [Construction] — see there for why the
-  /// node type alone never answers this, and why the `<void>` of a
-  /// `CustomRoute<void>` is already off the name by the time it arrives here.
-  ArgumentList? _autoRouteArgs(CollectionElement element) {
-    final made = Construction.of(element);
-    return made != null && _pageRouteTypes.contains(made.typeName)
-        ? made.arguments
-        : null;
-  }
-
-  Expression? _namedArg(ArgumentList args, String name) =>
-      namedArgumentIn(args, name);
-}
-
-/// Finds the first returned expression in a block body.
-class _ReturnFinder extends RecursiveAstVisitor<void> {
-  Expression? expression;
-
-  @override
-  void visitReturnStatement(ReturnStatement node) {
-    expression ??= node.expression;
-    super.visitReturnStatement(node);
   }
 }

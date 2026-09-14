@@ -4,7 +4,6 @@ import '../engine/changeset.dart';
 import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
 import '../scaffold/package_scaffold.dart';
-import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
 
@@ -57,26 +56,13 @@ class AddModelCommand extends WritingCommand {
     final name = requireName();
 
     // `models` is optional, so this is a target-existence check like the one
-    // `add-action` runs on a substate — not a package to conjure. Writing the
-    // file into a directory that is not a package produced a model that
-    // compiled into nothing and a workspace that still did not resolve it.
-    if (!PackageKind.models.existsIn(repo)) {
-      refuse(
-        'There is no "models" package in this workspace. '
-        'Create it with `frx add-package models`, then run this again.',
-      );
-    }
+    // `add-action` runs on a substate — not a package to conjure.
+    requirePackage(PackageKind.models, repo);
     final caseArgs = results['case'] as List<String>;
     if (caseArgs.length == 1) {
       usageException('A union needs at least two --case values.');
     }
-
-    final List<Casing> cases;
-    try {
-      cases = caseArgs.map(Casing.parse).toList();
-    } on FormatException catch (e) {
-      usageException(e.message);
-    }
+    final cases = requireCasings(caseArgs);
 
     final file = modelFile(repo, name);
     final serializable = results['serializable'] as bool;

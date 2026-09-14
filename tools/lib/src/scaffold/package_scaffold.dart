@@ -1,228 +1,24 @@
+/// Everything that makes `<kind>/` a resolved workspace member — and unmakes
+/// it.
+///
+/// The catalogue of kinds is [PackageKind]; the pubspec splices are
+/// `pubspec_edit.dart`. Both are re-exported here, because a caller that
+/// creates a package needs the kind to name it and a test that checks the
+/// splices reaches them through the command that applies them.
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:yaml/yaml.dart';
-import 'package:yaml_edit/yaml_edit.dart';
 
 import '../engine/changeset.dart';
-import '../refusal.dart';
 import '../workspace/frx_workspace.dart';
+import 'package_kind.dart';
+import 'pubspec_edit.dart';
 
-/// Directories the analyzer should not walk in any package: the build output
-/// and the per-platform folders Flutter generates.
-///
-/// Every kind carries these on top of whatever generated-file globs it needs of
-/// its own, so they live here rather than being spelled out three times — the
-/// catalogue is checked against the real template file by file, and a list
-/// repeated per kind is a list that drifts one kind at a time.
-///
-/// Appended last, because the check compares the excludes in order: the
-/// template writes a package's own globs first and these after them.
-const _platformExcludes = [
-  'build/**',
-  'android/**',
-  'ios/**',
-  'web/**',
-  'windows/**',
-  'macos/**',
-  'linux/**',
-];
-
-/// A workspace member this CLI knows how to createPackage.
-///
-/// A fixed catalogue rather than an arbitrary `--name`: a package is its
-/// pubspec, its builders and its lint baseline, and none of those can be
-/// guessed from a name. These four are the ones the template ships, so their
-/// contents are transcribed from the real thing rather than invented — the same
-/// rule the artifact templates follow.
-enum PackageKind {
-  /// Shared data shapes — freezed models and JSON converters. `add-model`
-  /// writes here.
-  models(
-    'models',
-    'Shared freezed models and converters',
-    dependents: {'business', 'http_client'},
-    dependencies: {
-      'fast_immutable_collections': '^11.2.0',
-      'freezed_annotation': '^3.1.0',
-      'intl': '^0.20.2',
-      'json_annotation': '^4.12.0',
-    },
-    devDependencies: {
-      'build_runner': '^2.15.1',
-      'freezed': '^3.2.5',
-      'json_serializable': '^6.14.0',
-      'pro_lints': '^6.1.0',
-      'test': '^1.25.0',
-    },
-    build: _freezedBuild,
-    lintExcludes: [
-      '**/*.g.dart',
-      '**/*.freezed.dart',
-      // Its sources sit in folders (`converters/`), and the single-star globs
-      // do not reach a generated file one level down.
-      '**/**/*.g.dart',
-      '**/**/*.freezed.dart',
-      ..._platformExcludes,
-    ],
-  ),
-
-  /// The HTTP layer — Dio, Retrofit clients and interceptors. `add-retrofit`
-  /// writes here.
-  httpClient(
-    'http_client',
-    'Dio + Retrofit API clients and interceptors',
-    dependents: {'business'},
-    dependencies: {
-      'dio': '^5.10.0',
-      'fast_immutable_collections': '^11.2.0',
-      'freezed_annotation': '^3.1.0',
-      'json_annotation': '^4.12.0',
-      'logging': '^1.3.0',
-      'retrofit': '^4.9.2',
-    },
-    devDependencies: {
-      'build_runner': '^2.15.1',
-      'freezed': '^3.2.5',
-      'json_serializable': '^6.14.0',
-      'pro_lints': '^6.1.0',
-      'retrofit_generator': '^10.2.7',
-      'test': '^1.25.0',
-    },
-    build: _retrofitBuild,
-    lintExcludes: [
-      '**/*.g.dart',
-      '**/*.chopper.dart',
-      '**/*.freezed.dart',
-      ..._platformExcludes,
-    ],
-  ),
-
-  /// Key-value persistence behind `BaseKeyValueStorage`. `business` holds the
-  /// interface; the sembast adapter and the in-memory one live here.
-  storage(
-    'storage',
-    'Key-value persistence behind BaseKeyValueStorage',
-    dependents: {'business'},
-    dependencies: {
-      'crypto': '^3.0.7',
-      'encrypt': '^5.0.3',
-      'path': '^1.9.1',
-      'path_provider': '^2.1.6',
-      'sembast': '^3.8.9',
-      'sembast_web': '^2.4.5',
-    },
-    devDependencies: {'pro_lints': '^6.1.0'},
-  );
-
-  const PackageKind(
-    this.dir,
-    this.summary, {
-    required this.dependents,
-    required this.dependencies,
-    required this.devDependencies,
-    this.build,
-    this.lintExcludes = const [
-      '**/*.g.dart',
-      '**/*.freezed.dart',
-      ..._platformExcludes,
-    ],
-  });
-
-  /// The directory, which is also the pub package name and the workspace entry.
-  final String dir;
-
-  /// One line for `--help` and for the refusal that names this kind.
-  final String summary;
-
-  /// The workspace members whose pubspec declares a path dependency on this
-  /// package — transcribed from the template, like [dependencies].
-  ///
-  /// **What `createPackage` declares, in both directions**: adding
-  /// `http_client` puts the entry in `business`, and puts `models` inside
-  /// `http_client`, because this package sits on both ends of that relation.
-  ///
-  /// It is not what an *omission* reads — that derives the same fact from the
-  /// tree it is about to change, so a workspace this catalogue never heard of
-  /// is still left resolvable. A test asserts the two agree for the template;
-  /// that is what keeps this current when a pubspec gains a line.
-  final Set<String> dependents;
-
-  final Map<String, String> dependencies;
-  final Map<String, String> devDependencies;
-
-  /// `build.yaml`, for the packages that run a builder. Null writes no file —
-  /// `storage` has no codegen.
-  final String? build;
-
-  final List<String> lintExcludes;
-
-  static PackageKind? byName(String name) {
-    for (final kind in values) {
-      if (kind.dir == name) {
-        return kind;
-      }
-    }
-    return null;
-  }
-
-  /// Is this package already a resolved member of [repo]?
-  ///
-  /// Keyed on the pubspec, not on the directory: `add-model` in a workspace
-  /// without `models` used to createPackage `models/lib/user.dart` and stop,
-  /// leaving a directory that is not a package and a file that compiles into
-  /// nothing. Existence of the folder is exactly the thing that was not enough.
-  bool existsIn(FrxWorkspace repo) =>
-      File(p.join(repo.root.path, dir, 'pubspec.yaml')).existsSync();
-}
-
-const _freezedBuild = r'''
-global_options:
-  freezed:
-    runs_before:
-      - json_serializable
-
-targets:
-  $default:
-    builders:
-      json_serializable:
-        options:
-          include_if_null: false
-      freezed:
-        options:
-          map: false
-          when:
-            when: false
-            maybe_when: false
-            when_or_null: false
-''';
-
-const _retrofitBuild = r'''
-global_options:
-  freezed:
-    runs_before:
-      - json_serializable
-  json_serializable:
-    runs_before:
-      - retrofit_generator
-
-targets:
-  $default:
-    builders:
-      json_serializable:
-        options:
-          include_if_null: false
-      freezed:
-        options:
-          map: false
-          when:
-            when: false
-            maybe_when: false
-            when_or_null: false
-''';
-
-/// Everything that makes `<kind>/` a resolved workspace member.
+export 'package_kind.dart';
+export 'pubspec_edit.dart';
 
 /// The changes that createPackage [kind] in [repo], or none when it is already
 /// there.
@@ -242,11 +38,11 @@ List<Change> createPackage(FrxWorkspace repo, PackageKind kind) {
   final rootBefore = File(root).readAsStringSync();
 
   return [
-    WriteFile(p.join(dir, 'pubspec.yaml'), _pubspec(kind, repo)),
-    WriteFile(p.join(dir, 'analysis_options.yaml'), _lints(kind)),
+    WriteFile(p.join(dir, 'pubspec.yaml'), kind.pubspec(repo)),
+    WriteFile(p.join(dir, 'analysis_options.yaml'), kind.analysisOptions),
     if (kind.build case final build?)
       WriteFile(p.join(dir, 'build.yaml'), build),
-    WriteFile(p.join(dir, '.gitignore'), _gitignore),
+    WriteFile(p.join(dir, '.gitignore'), PackageKind.gitignore),
     // `.gitkeep` and not a starter source file: what goes in `lib/` is the
     // next command's business, and a placeholder Dart file would be one more
     // thing to delete.
@@ -305,27 +101,17 @@ List<Change> omitPackage(String root, PackageKind kind) {
 /// first direction is what left a re-added `http_client` unable to import the
 /// models `add-retrofit` writes against — and `models` had to be re-added
 /// first for it to happen, which is why the round trip did not catch it.
-List<Change> _declarations(FrxWorkspace repo, PackageKind kind) {
-  final edits = <Change>[];
-  for (final dependent in kind.dependents) {
-    // Skips a dependent that is not there: `models` is declared by
-    // `http_client`, which is itself optional, so "who depends on this" and
-    // "who is present" are two questions and only the first is a fixed fact.
-    final file = File(p.join(repo.root.path, dependent, 'pubspec.yaml'));
-    if (!file.existsSync()) {
-      continue;
-    }
-
-    final before = file.readAsStringSync();
-    final after = addPathDependency(before, kind.dir);
-    if (after == before) {
-      continue;
-    }
-
-    edits.add(EditFile(file.path, before: before, after: after));
-  }
-  return edits;
-}
+///
+/// Skips a dependent that is not there: `models` is declared by
+/// `http_client`, which is itself optional, so "who depends on this" and
+/// "who is present" are two questions and only the first is a fixed fact.
+List<Change> _declarations(FrxWorkspace repo, PackageKind kind) => [
+  for (final dependent in kind.dependents)
+    ?_pubspecEdit(
+      File(p.join(repo.root.path, dependent, 'pubspec.yaml')),
+      (source) => addPathDependency(source, kind.dir),
+    ),
+];
 
 /// Every pubspec under [root] that declares [kind], with the declaration
 /// gone.
@@ -337,73 +123,27 @@ List<Change> _declarations(FrxWorkspace repo, PackageKind kind) {
 /// and the project cannot be opened. Deriving it means the guard holds for a
 /// workspace whose members this catalogue never heard of; that the two agree
 /// for the template is a test rather than an assumption.
-List<Change> _withdrawals(String root, PackageKind kind) {
-  final edits = <Change>[];
-  for (final entity in Directory(root).listSync()) {
-    if (entity is! Directory || p.basename(entity.path) == kind.dir) {
-      continue;
-    }
+List<Change> _withdrawals(String root, PackageKind kind) => [
+  for (final entity in Directory(root).listSync())
+    if (entity is Directory && p.basename(entity.path) != kind.dir)
+      ?_pubspecEdit(
+        File(p.join(entity.path, 'pubspec.yaml')),
+        (source) => removePathDependency(source, kind.dir),
+      ),
+];
 
-    final file = File(p.join(entity.path, 'pubspec.yaml'));
-    if (!file.existsSync()) {
-      continue;
-    }
-
-    final before = file.readAsStringSync();
-    final after = removePathDependency(before, kind.dir);
-    if (after == before) {
-      continue;
-    }
-
-    edits.add(EditFile(file.path, before: before, after: after));
+/// The edit [change] makes to the pubspec at [file], or null when there is
+/// no such file or the change comes back a no-op — the two "nothing to do"
+/// cases a declaration and a withdrawal share.
+EditFile? _pubspecEdit(File file, String Function(String source) change) {
+  if (!file.existsSync()) {
+    return null;
   }
-  return edits;
-}
-
-/// [source] with [name] added to the root pubspec's `workspace:` list.
-///
-/// A surgical splice through `yaml_edit`, not a parse-and-re-serialise: the
-/// root pubspec carries a paragraph of prose about Pub workspaces that a
-/// round-trip would reflow or drop. Returns [source] unchanged when the entry
-/// is already there, so the caller's idempotency needs no second rule.
-String addToWorkspaceList(String source, String name) {
-  final editor = YamlEditor(source);
-  final members = editor.parseAt([
-    'workspace',
-  ], orElse: () => wrapAsYamlNode(null)).value;
-
-  if (members is! List) {
-    throw const FrxRefusal(
-      'The root pubspec has no `workspace:` list — this does not look like '
-      'the monorepo (looked in the pubspec beside the frx marker).',
-    );
-  }
-  if (members.contains(name)) {
-    return source;
-  }
-
-  editor.appendToList(['workspace'], name);
-  return editor.toString();
-}
-
-/// [source] with [name] removed from the `workspace:` list, for the symmetry
-/// `remove` will want. Unchanged when it is not a member.
-String removeFromWorkspaceList(String source, String name) {
-  final editor = YamlEditor(source);
-  final members = editor.parseAt([
-    'workspace',
-  ], orElse: () => wrapAsYamlNode(null)).value;
-  if (members is! List) {
-    return source;
-  }
-
-  final at = members.indexOf(name);
-  if (at < 0) {
-    return source;
-  }
-
-  editor.remove(['workspace', at]);
-  return editor.toString();
+  final before = file.readAsStringSync();
+  final after = change(before);
+  return after == before
+      ? null
+      : EditFile(file.path, before: before, after: after);
 }
 
 /// For each package in [omitted], the Dart files in [files] — an archive or a
@@ -435,22 +175,23 @@ Map<PackageKind, List<String>> packageImportersOf(
     return const {};
   }
 
+  // The needles once, not once per file: the archive is the whole template.
+  final insideOmitted = [for (final kind in omitted) '${kind.dir}/'];
+  final imports = {for (final kind in omitted) kind: 'package:${kind.dir}/'};
+
   final found = {for (final kind in omitted) kind: <String>[]};
-  for (final entry in files.entries) {
-    if (!entry.key.endsWith('.dart')) {
-      continue;
-    }
-    if (omitted.any((kind) => isUnderPackageDir(kind.dir, entry.key))) {
+  for (final MapEntry(key: path, value: bytes) in files.entries) {
+    if (!path.endsWith('.dart') || insideOmitted.any(path.startsWith)) {
       continue;
     }
 
     // Malformed input is replaced rather than thrown on: a file that does not
     // decode is not one an import can be read out of, and the audit is what
     // reports it.
-    final source = utf8.decode(entry.value, allowMalformed: true);
-    for (final kind in omitted) {
-      if (source.contains('package:${kind.dir}/')) {
-        found[kind]!.add(entry.key);
+    final source = utf8.decode(bytes, allowMalformed: true);
+    for (final MapEntry(key: kind, value: import) in imports.entries) {
+      if (source.contains(import)) {
+        found[kind]!.add(path);
       }
     }
   }
@@ -464,234 +205,3 @@ Map<PackageKind, List<String>> packageImportersOf(
 /// Whether the relative [path] sits under the package directory [dir].
 /// Archive paths are `/`-separated whatever the host is.
 bool isUnderPackageDir(String dir, String path) => path.startsWith('$dir/');
-
-/// [source] with a path dependency on [name] under `dependencies:`.
-/// Unchanged when it is already declared.
-///
-/// **Inserted in sorted position, not appended**, which is why this is not
-/// `editor.update(['dependencies', name], …)`: that appends, `pro_lints`
-/// turns on `sort_pub_dependencies`, and a project would open with an
-/// analyzer warning in the file this command had just edited.
-///
-/// So the position is read off the YAML — the keys and their spans — and the
-/// two lines are spliced into the text. A parse-and-re-serialise would place
-/// them correctly and reflow everything else, and a pubspec is not ours to
-/// reformat; it is the reason [addToWorkspaceList] is a splice too.
-String addPathDependency(String source, String name) {
-  final editor = YamlEditor(source);
-  final deps = editor.parseAt([
-    'dependencies',
-  ], orElse: () => wrapAsYamlNode(null));
-
-  if (deps is YamlMap && deps.isNotEmpty) {
-    if (deps.containsKey(name)) {
-      return source;
-    }
-    return _splice(source, _placeFor(source, deps, name), _entry(name));
-  }
-  if (deps is YamlMap || deps.value == null) {
-    // An empty block, a `dependencies:` with nothing under it, or no key at
-    // all — nothing to sort against, so `yaml_edit` writes the whole block.
-    editor.update(
-      ['dependencies'],
-      {
-        name: {'path': '../$name'},
-      },
-    );
-    return editor.toString();
-  }
-  // Anything else is a shape this does not understand, and overwriting it would
-  // take a list of dependencies away without saying so. [addToWorkspaceList]
-  // refuses the same class of surprise rather than guessing.
-  throw FrxRefusal(
-    'The `dependencies:` of this pubspec is not a map of package names, so '
-    '"$name" cannot be added to it without discarding what is there.',
-  );
-}
-
-/// [source] with the dependency on [name] gone. Unchanged when it declares
-/// none — the idempotency the callers would otherwise each need a rule for.
-///
-/// A splice, and for a sharper reason than [addPathDependency]'s:
-/// `editor.remove` takes the blank line after the block with it when the entry
-/// removed is the last one, so it was not the inverse of an insert in that one
-/// position. Cutting exactly the lines the entry spans is inverse by
-/// construction.
-String removePathDependency(String source, String name) {
-  final deps = YamlEditor(
-    source,
-  ).parseAt(['dependencies'], orElse: () => wrapAsYamlNode(null));
-  if (deps is! YamlMap) {
-    return source;
-  }
-
-  for (final entry in deps.nodes.entries) {
-    if ((entry.key as YamlScalar).value != name) {
-      continue;
-    }
-    final from = _startOfLine(
-      source,
-      (entry.key as YamlScalar).span.start.offset,
-    );
-    final to = _afterLine(source, entry.value.span.end.offset);
-    return source.substring(0, from) + source.substring(to);
-  }
-  return source;
-}
-
-/// The two lines a path dependency on [name] is written as.
-String _entry(String name) => '  $name:\n    path: ../$name\n';
-
-/// Where in [source] an entry named [name] belongs, given the existing
-/// (non-empty) [deps].
-///
-/// **After the last entry that sorts before it**, rather than before the
-/// first that sorts after. The two differ by exactly one thing: a comment
-/// sits above the key it annotates, so inserting *before* a key inserts
-/// between that key and its comment — silently re-parenting prose onto the
-/// new entry, in a splice whose whole purpose is to leave prose alone.
-int _placeFor(String source, YamlMap deps, String name) {
-  YamlNode? previous;
-  for (final entry in deps.nodes.entries) {
-    if (((entry.key as YamlScalar).value as String).compareTo(name) > 0) {
-      break;
-    }
-    previous = entry.value;
-  }
-  if (previous != null) {
-    return _afterLine(source, previous.span.end.offset);
-  }
-
-  // It sorts before everything: the top of the block, above the first entry
-  // *and* above the comment lines that belong to it.
-  var at = _startOfLine(source, deps.span.start.offset);
-  while (at > 0) {
-    final previousStart = at == 1 ? 0 : _startOfLine(source, at - 2);
-    final line = source.substring(previousStart, at - 1).trim();
-    if (line.isNotEmpty && !line.startsWith('#')) {
-      break;
-    }
-    at = previousStart;
-  }
-  return at;
-}
-
-/// [source] with [entry] inserted at [at].
-///
-/// A source that does not end in a newline is given one first: [_afterLine]
-/// answers `source.length` for the last line of such a file, and splicing
-/// there would run the new entry onto the end of the last one.
-String _splice(String source, int at, String entry) =>
-    at == source.length && !source.endsWith('\n')
-    ? '$source\n$entry'
-    : source.substring(0, at) + entry + source.substring(at);
-
-/// The offset of the first character on the line holding [offset].
-int _startOfLine(String source, int offset) {
-  final newline = source.lastIndexOf('\n', offset);
-  return newline < 0 ? 0 : newline + 1;
-}
-
-/// The offset just past the end of the line holding [offset], newline
-/// included — where a following line can be spliced in.
-///
-/// Trailing whitespace is walked back over first, because a block node's span
-/// may end past its last character: taken literally, the next newline would
-/// then be the one *after* the line meant, and the splice would land a line
-/// too low.
-int _afterLine(String source, int offset) {
-  var at = offset;
-  while (at > 0 && _isSpace(source.codeUnitAt(at - 1))) {
-    at--;
-  }
-  final newline = source.indexOf('\n', at);
-  return newline < 0 ? source.length : newline + 1;
-}
-
-bool _isSpace(int codeUnit) =>
-    codeUnit == 0x20 ||
-    codeUnit == 0x09 ||
-    codeUnit == 0x0A ||
-    codeUnit == 0x0D;
-
-/// The optional packages [kind] itself depends on — [PackageKind.dependents]
-/// read from the other end.
-Iterable<PackageKind> _dependsOnOptional(PackageKind kind) =>
-    PackageKind.values.where((other) => other.dependents.contains(kind.dir));
-
-String _pubspec(PackageKind kind, FrxWorkspace repo) {
-  // Version constraints and path dependencies in one sorted block, because
-  // `sort_pub_dependencies` does not care which sort of entry it is looking
-  // at. A path dependency on a package that is not in this workspace is left
-  // out: it would resolve to a directory that is not there.
-  final entries = <String, String>{
-    for (final dep in kind.dependencies.entries) dep.key: ' ${dep.value}',
-    for (final other in _dependsOnOptional(kind))
-      if (other.existsIn(repo)) other.dir: '\n    path: ../${other.dir}',
-  };
-  final names = entries.keys.toList()..sort();
-
-  final buffer = StringBuffer()
-    ..writeln('name: ${kind.dir}')
-    ..writeln('description: The ${kind.dir} package.')
-    ..writeln('publish_to: none')
-    ..writeln('version: 1.0.0')
-    ..writeln()
-    ..writeln('environment:')
-    ..writeln('  sdk: ^3.12.0')
-    ..writeln()
-    // The line that makes it a member rather than a package that happens to
-    // sit in the tree. Without it `pub get` from the root ignores this
-    // directory and the workspace entry points at nothing.
-    ..writeln('resolution: workspace')
-    ..writeln()
-    ..writeln('dependencies:');
-  for (final dep in names) {
-    buffer.writeln('  $dep:${entries[dep]}');
-  }
-  buffer
-    ..writeln()
-    ..writeln('dev_dependencies:');
-  kind.devDependencies.forEach((k, v) => buffer.writeln('  $k: $v'));
-  return buffer.toString();
-}
-
-String _lints(PackageKind kind) {
-  final buffer = StringBuffer()
-    ..writeln('include: package:pro_lints/recommended.yaml')
-    ..writeln()
-    ..writeln('analyzer:')
-    ..writeln('  exclude:');
-  for (final glob in kind.lintExcludes) {
-    buffer.writeln('    - "$glob"');
-  }
-  return buffer.toString();
-}
-
-const _gitignore = '''
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# Flutter/Dart/Pub related
-# Libraries should not include pubspec.lock, per https://dart.dev/guides/libraries/private-files#pubspeclock.
-/pubspec.lock
-**/doc/api/
-.dart_tool/
-.packages
-build/
-''';

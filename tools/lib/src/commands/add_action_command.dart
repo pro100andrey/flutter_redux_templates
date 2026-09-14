@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
@@ -97,7 +95,8 @@ class AddActionCommand extends WritingCommand {
       usageException(e.message);
     }
 
-    final stateDir = Directory(p.join(repo.businessRedux.path, state.snake));
+    final artifact = SubstateArtifact(state);
+    final stateDir = artifact.dir(repo.businessRedux);
     if (!stateDir.existsSync()) {
       refuse(
         'Substate "${state.snake}" not found under '
@@ -122,7 +121,7 @@ class AddActionCommand extends WritingCommand {
       );
     }
 
-    final file = p.join(stateDir.path, 'actions', '${name.snake}_action.dart');
+    final file = artifact.actionFile(repo.businessRedux, name.snake).path;
 
     // Most mixins make before()/reduce() effectively async — a sync action
     // carrying one must not be dispatched via dispatchSync.

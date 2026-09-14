@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+
+import '../util/ancestors.dart';
 import '../util/console.dart';
 
 /// Project defaults read from a `.frxrc` JSON file at (or above) the working
@@ -71,19 +73,14 @@ class FrxConfig {
   bool get isEmpty =>
       buildRunner == null && format == null && substateKind == null;
 
+  static const _fileName = '.frxrc';
+
   static File? _find(String? startDir) {
-    var dir = Directory(startDir ?? Directory.current.path).absolute;
-    while (true) {
-      final f = File(p.join(dir.path, '.frxrc'));
-      if (f.existsSync()) {
-        return f;
-      }
-      final parent = dir.parent;
-      if (parent.path == dir.path) {
-        return null;
-      }
-      dir = parent;
-    }
+    final holder = nearestAncestorWith(
+      Directory(startDir ?? Directory.current.path).absolute,
+      _fileName,
+    );
+    return holder == null ? null : File(p.join(holder.path, _fileName));
   }
 
   /// Returns [args] with this config's defaults injected for the command

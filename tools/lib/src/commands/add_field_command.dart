@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
@@ -14,6 +12,7 @@ import '../scaffold/artifact_templates.dart';
 import '../scaffold/type_imports.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
+import 'substate_target.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
 
@@ -110,29 +109,23 @@ class AddFieldCommand extends WritingCommand {
       );
     }
 
-    // Before anything reads the file. The `--force` check below parses it, and
-    // it used to run first: `add-field <typo> x:int? --force` died with an
-    // unhandled PathNotFoundException and a stack trace, where the same typo
-    // without `--force` got the refusal two lines down. A guard that only holds
-    // for some flag combinations is not a guard.
+    // Before anything reads the file — see [SubstateTarget.requireStateFile]
+    // for the stack trace that taught it.
     final artifact = SubstateArtifact(substate);
-    final stateFile = artifact.stateFile(repo.businessRedux);
-    if (!stateFile.existsSync()) {
-      refuse(
-        'Substate "${substate.snake}" has no ${p.relative(stateFile.path)} — '
-        'is the name right? (see `frx list-substates`).',
-      );
-    }
+    final stateFile = requireStateFile(repo, artifact);
+    final source = StateSource(stateFile);
+    final retype = results['force'] as bool;
 
     // Retyping rebuilds the declaration from what this invocation was given, so
     // an `@Default(...)` the old one carried and this one does not is dropped —
     // silently changing `AppState.initial()` for every reader. Nullable types
     // do not require `--default`, which is exactly where it would slip through,
     // so the ask is made explicit rather than inferred.
-    if ((results['force'] as bool) && defaultExpr == null) {
-      final existing = StateSource(
-        stateFile,
-      ).defaultOf(className: artifact.stateType, name: field.camel);
+    if (retype && defaultExpr == null) {
+      final existing = source.defaultOf(
+        className: artifact.stateType,
+        name: field.camel,
+      );
       if (existing != null) {
         usageException(
           'Field "${field.camel}" currently defaults to `$existing`, and '
@@ -145,7 +138,7 @@ class AddFieldCommand extends WritingCommand {
     // The field's type and its `@Default(...)` both land in the state file, so
     // both are asked — `tags:IList<String>?` needs the package for the type,
     // `--default 'IListConst([])'` for the expression.
-    final result = StateSource(stateFile).addField(
+    final result = source.addField(
       className: artifact.stateType,
       name: field.camel,
       type: type,
@@ -154,16 +147,18 @@ class AddFieldCommand extends WritingCommand {
         ...TypeImports.forAll([type, defaultExpr]),
         ...ProjectTypeImports.forAll(repo, [type, defaultExpr]),
       ],
-      retype: results['force'] as bool,
+      retype: retype,
     );
 
+    // The type alone, for the two libraries the default never reaches: the
+    // getter in the facade and the setter's constructor. One lookup, because
+    // it is the same question asked of the same `models/lib`.
+    final typeImportsFromProject = ProjectTypeImports.forAll(repo, [type]);
+
     final withAction = results['action'] as bool;
-    final actionFile = File(
-      p.join(
-        stateFile.parent.parent.path,
-        'actions',
-        'set_${field.snake}_action.dart',
-      ),
+    final actionFile = artifact.actionFile(
+      repo.businessRedux,
+      'set_${field.snake}',
     );
 
     // A field with no selector is a field a connector cannot read without
@@ -187,9 +182,9 @@ class AddFieldCommand extends WritingCommand {
             // the default is never written into selectors.dart.
             imports: [
               ...TypeImports.forType(type),
-              ...ProjectTypeImports.forAll(repo, [type]),
+              ...typeImportsFromProject,
             ],
-            retype: results['force'] as bool,
+            retype: retype,
           )
         : null;
 
@@ -201,7 +196,7 @@ class AddFieldCommand extends WritingCommand {
             substate,
             field,
             type,
-            extraImports: ProjectTypeImports.forAll(repo, [type]),
+            extraImports: typeImportsFromProject,
           )
         : null;
 
@@ -232,7 +227,7 @@ class AddFieldCommand extends WritingCommand {
         )
         ..addIf(selector?.edit),
       header: 'Add field "${field.camel}" ($type) to ${artifact.stateType}',
-      // Not [WiringReport.narrate]: the two blocks are not adjacent, because
+      // Not [WiringList.narrate]: the two blocks are not adjacent, because
       // two notes about what was *not* written can land between them.
       narrate: () {
         state.narrate();

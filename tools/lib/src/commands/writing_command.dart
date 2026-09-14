@@ -26,6 +26,7 @@ import '../engine/build_step.dart';
 import '../engine/changeset.dart';
 import '../engine/write_path.dart';
 import '../refusal.dart';
+import '../scaffold/package_scaffold.dart';
 import '../workspace/frx_workspace.dart';
 import 'frx_command.dart';
 import 'options.dart';
@@ -202,6 +203,23 @@ abstract class WritingCommand extends Command<int> with NameArg {
   /// return 70 themselves, three of them catching this exception purely to
   /// reprint it with a prefix the central handler does not use.
   Never refuse(String message) => throw FrxRefusal(message);
+
+  /// Refuses unless the optional package [kind] is a member of [repo].
+  ///
+  /// A target-existence check like the one `add-action` runs on a substate —
+  /// not a package to conjure. Writing the file into a directory that is not a
+  /// package produced a model that compiled into nothing and a workspace that
+  /// still did not resolve it. `add-model` and `add-retrofit` each spelled the
+  /// refusal out, and the sentence names the command that puts the package
+  /// back, so the two had to agree on it.
+  void requirePackage(PackageKind kind, FrxWorkspace repo) {
+    if (!kind.existsIn(repo)) {
+      refuse(
+        'There is no "${kind.dir}" package in this workspace. '
+        'Create it with `frx add-package ${kind.dir}`, then run this again.',
+      );
+    }
+  }
 
   @override
   Future<int> run() async {

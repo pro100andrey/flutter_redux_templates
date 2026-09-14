@@ -11,7 +11,9 @@ import '../refusal.dart';
 import '../util/casing.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
+import 'graph_report.dart';
 import 'options.dart';
+import 'reading.dart';
 
 /// Emits the whole app as one graph.
 ///
@@ -116,16 +118,14 @@ class GraphCommand extends Command<int> {
     try {
       workspace = FrxWorkspace.locate(startDir: results['root'] as String?);
     } on FrxRefusal catch (e) {
-      console.err.writeln('frx: ${e.message}');
-      return 70;
+      return refused(e);
     }
 
     final AppGraph whole;
     try {
       whole = GraphReader(workspace).read();
     } on FrxRefusal catch (e) {
-      console.err.writeln('frx: ${e.message}');
-      return 70;
+      return refused(e);
     }
 
     var graph = whole;
@@ -143,7 +143,7 @@ class GraphCommand extends Command<int> {
       return 0;
     }
 
-    _report(graph, workspace);
+    GraphReport(graph, workspace).print();
     return 0;
   }
 
@@ -207,124 +207,5 @@ class GraphCommand extends Command<int> {
           'a '
           'bare name (log_in). Run `frx graph` to list them.',
     );
-  }
-
-  void _report(AppGraph graph, FrxWorkspace workspace) {
-    final focus = graph.focus;
-    final depth = focus?.depth == null ? 'unbounded' : 'depth ${focus!.depth}';
-    console.out
-      ..writeln(
-        focus == null
-            ? 'frx graph  (${workspace.root.path})'
-            : 'frx graph  ${focus.node}  ${focus.direction.name}, '
-                  '$depth  (${workspace.root.path})',
-      )
-      ..writeln();
-
-    // Named, not counted. "3 substates, 7 reads" answers no question a reader
-    // of this command has — least of all "what breaks if I touch this", where
-    // the whole answer is *which* ones.
-    _listNodes(graph);
-    _listEdges(graph);
-
-    // Stated whenever a bound was applied, because an impact answer is read as
-    // exhaustive: a truncated dependency list looks exactly like a short one.
-    if (focus != null && focus.truncated) {
-      console.out
-        ..writeln()
-        ..writeln(
-          '⚠ stopped at depth ${focus.depth} — there is more beyond it. '
-          'Re-run with --depth all.',
-        );
-    }
-
-    // The blind spots come last so they are what stays on screen.
-    if (graph.unresolved.isNotEmpty) {
-      console.out
-        ..writeln()
-        ..writeln('⚠ ${graph.unresolved.length} unresolved');
-      for (final u in graph.unresolved) {
-        final where = [
-          u.kind,
-          if (u.expr != null) u.expr!,
-          if (u.at != null) _short(u.at!, workspace),
-        ].join('  ');
-        console.out
-          ..writeln('  $where')
-          ..writeln('      ${u.why}');
-      }
-    }
-
-    final orphans = graph.orphans;
-    if (orphans.isNotEmpty) {
-      console.out
-        ..writeln()
-        ..writeln('⚠ ${orphans.length} artifact(s) nothing reaches');
-      for (final o in orphans) {
-        console.out.writeln('  ${o.node.id.padRight(46)}  ${o.why}');
-      }
-    }
-
-    if (graph.unresolved.isEmpty && orphans.isEmpty) {
-      console.out
-        ..writeln()
-        ..writeln('✓ every reference resolved, every action reachable.');
-    }
-  }
-
-  /// The nodes, grouped by kind and named. An unresolved node is marked, so a
-  /// placeholder standing in for something frx could not find is not read as an
-  /// artifact that exists.
-  void _listNodes(AppGraph graph) {
-    console.out.writeln('NODES (${graph.nodes.length})');
-    for (final kind in NodeKind.values) {
-      final of = [
-        for (final n in graph.nodes)
-          if (n.kind == kind) n,
-      ]..sort((a, b) => a.id.compareTo(b.id));
-      if (of.isEmpty) {
-        continue;
-      }
-      console.out.writeln('  ${kind.name} (${of.length})');
-      for (final n in of) {
-        console.out.writeln(
-          '    ${n.name}${n.resolved ? '' : '  (unresolved)'}'
-          '${n.substate == null ? '' : '  ← ${n.substate}'}',
-        );
-      }
-    }
-  }
-
-  /// The edges, grouped by kind, each as `from → to` with what triggers it.
-  void _listEdges(AppGraph graph) {
-    console.out
-      ..writeln()
-      ..writeln('EDGES (${graph.edges.length})');
-    for (final kind in EdgeKind.values) {
-      final of = [
-        for (final e in graph.edges)
-          if (e.kind == kind) e,
-      ]..sort((a, b) => '${a.from}${a.to}'.compareTo('${b.from}${b.to}'));
-      if (of.isEmpty) {
-        continue;
-      }
-      console.out.writeln('  ${kind.name} (${of.length})');
-      for (final e in of) {
-        final detail = [
-          if (e.via != null) 'via ${e.via}',
-          if (e.condition != null) 'if ${e.condition}',
-          if (e.inferred) 'inferred',
-        ].join(', ');
-        console.out.writeln(
-          '    ${e.from} → ${e.to}${detail.isEmpty ? '' : '  ($detail)'}',
-        );
-      }
-    }
-  }
-
-  /// Trims an absolute path down to repo-relative; leaves node ids alone.
-  String _short(String at, FrxWorkspace workspace) {
-    final root = '${workspace.root.path}/';
-    return at.startsWith(root) ? at.substring(root.length) : at;
   }
 }

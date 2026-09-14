@@ -1,4 +1,5 @@
 import '../util/casing.dart';
+import 'artifact_templates.dart';
 
 /// A typed route parameter, e.g. `(name: 'id', type: 'int')` → `/…/:id`.
 typedef PageParam = ({String name, String type});
@@ -74,27 +75,7 @@ class ${_pascal}PageConnector extends StatelessWidget {
 
 $_fields
 
-  @override
-  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
-    debug: this,
-    vm: () => _Factory(this),
-    builder: (context, vm) => $pageCall,
-  );
-}
-
-/// Factory that creates a view-model for the StoreConnector.
-class _Factory extends VmFactory<AppState, ${_pascal}PageConnector, _Vm>
-    with Selectors {
-  _Factory(super._connector);
-
-  @override
-  _Vm fromStore() => _Vm();
-}
-
-/// The view-model holds the part of the Store state the dumb-widget needs.
-class _Vm extends Vm {
-  _Vm() : super(equals: const []);
-}
-''';
+${ArtifactTemplates.storeConnectorBuild(pageCall)}}
+${ArtifactTemplates.viewModelSeam('${_pascal}PageConnector')}''';
   }
 }

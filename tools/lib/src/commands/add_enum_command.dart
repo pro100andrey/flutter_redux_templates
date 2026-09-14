@@ -3,7 +3,6 @@ import 'package:args/args.dart';
 import '../engine/changeset.dart';
 import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
-import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
 
@@ -38,12 +37,7 @@ class AddEnumCommand extends WritingCommand {
       usageException('Provide at least one --value.');
     }
 
-    final List<Casing> values;
-    try {
-      values = valueArgs.map(Casing.parse).toList();
-    } on FormatException catch (e) {
-      usageException(e.message);
-    }
+    final values = requireCasings(valueArgs);
 
     final file = modelFile(repo, name);
 

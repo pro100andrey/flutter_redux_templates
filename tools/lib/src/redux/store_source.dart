@@ -5,7 +5,7 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
 
-import '../ast/source_index.dart';
+import '../ast/file_source.dart';
 import '../workspace/frx_workspace.dart';
 import 'ast_edit.dart';
 
@@ -60,8 +60,8 @@ class ChangedEntry {
 /// **Opt-in, like the docs export.** A project that deleted the block, or never
 /// had it, gets no findings and no edits: [changed] returns null and every edit
 /// is a no-op.
-class StoreSource {
-  StoreSource(this.file);
+class StoreSource extends FileSource {
+  StoreSource(super.file);
 
   /// The `store.dart` of an already-resolved workspace.
   ///
@@ -70,8 +70,6 @@ class StoreSource {
   /// was pointed at.
   factory StoreSource.of(FrxWorkspace repo) =>
       StoreSource(File(p.join(repo.root.path, _relativePath)));
-
-  final File file;
 
   /// Path of `store.dart` relative to the repo root.
   static const _relativePath = 'business/lib/redux/store.dart';
@@ -83,8 +81,6 @@ class StoreSource {
   /// constant would put "where the store lives" in two places.
   static bool owns(String path, {required String root}) =>
       p.equals(path, p.join(root, _relativePath));
-
-  bool get exists => file.existsSync();
 
   /// The block, or null when this project has none frx can act on.
   ///
@@ -112,8 +108,25 @@ class StoreSource {
   /// The state in which frx does nothing and says why, rather than guessing.
   bool get ambiguous => _blocks().length > 1;
 
-  List<ListLiteral> _blocks() =>
-      exists ? _blocksIn(sourceIndex.unitFor(file)) : const [];
+  List<ListLiteral> _blocks() => exists ? _blocksOf(unit) : const [];
+
+  /// [_blocksIn], remembered per tree.
+  ///
+  /// The audit asks [ambiguous] and then [changed] of one reader, and a
+  /// command asks [changed] and then edits; each is a walk of the whole file
+  /// for a list that has not moved. Keyed on the tree's identity, which is
+  /// what the index hands back unchanged for as long as the file is — a
+  /// rewritten file is a new tree and a new walk.
+  List<ListLiteral> _blocksOf(CompilationUnit unit) {
+    if (!identical(unit, _walked)) {
+      _walked = unit;
+      _walkedBlocks = _blocksIn(unit);
+    }
+    return _walkedBlocks;
+  }
+
+  CompilationUnit? _walked;
+  var _walkedBlocks = const <ListLiteral>[];
 
   /// Adds an entry for [field], after the last one.
   ///
@@ -186,11 +199,8 @@ class StoreSource {
     }
     return applyEdits(content, [
       for (final e in stale)
-        Edit.replace(
-          _labelOf(e.node)!.offset,
-          _labelOf(e.node)!.end,
-          "'$field'",
-        ),
+        if (_labelOf(e.node) case final label?)
+          Edit.replace(label.offset, label.end, "'$field'"),
     ]);
   }
 
@@ -210,8 +220,8 @@ class StoreSource {
     if (!exists) {
       return const Edited.nothing('');
     }
-    final source = sourceIndex.sourceOf(file);
-    final blocks = _blocksIn(sourceIndex.unitToEdit(file));
+    final (:source, :unit) = snapshotToEdit;
+    final blocks = _blocksOf(unit);
     if (blocks.length != 1) {
       return Edited.nothing(source);
     }

@@ -62,7 +62,7 @@ class SelectorDecl {
   /// named.
   final String owner;
 
-  /// The declaration's members, empty when it has no block body.
+  /// The declaration's members, empty when it has none.
   final List<ClassMember> members;
 
   /// Whether these getters land on the facade's own spine rather than on a
@@ -128,7 +128,7 @@ abstract final class SelectorShape {
       return SelectorDecl(
         name: name,
         owner: name,
-        members: _membersOf(node.body),
+        members: node.body.members,
         declaresOwner: true,
       );
     }
@@ -144,7 +144,7 @@ abstract final class SelectorShape {
       return SelectorDecl(
         name: node.name?.lexeme,
         owner: owner,
-        members: _membersOf(node.body),
+        members: node.body.members,
         declaresOwner: false,
       );
     }
@@ -192,7 +192,4 @@ abstract final class SelectorShape {
   /// subtype of something with no other purpose.
   static String declare({required String type, required String body}) =>
       'extension type $type(AppState _state) {\n$body}\n';
-
-  static List<ClassMember> _membersOf(AstNode? body) =>
-      body is BlockClassBody ? body.members : const <ClassMember>[];
 }

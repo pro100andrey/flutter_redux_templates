@@ -7,7 +7,7 @@ import '../util/casing.dart';
 /// these is a sign the package is missing a primitive.
 enum WidgetKind {
   /// Takes a `FieldVm<T>`; wraps `InputFormField`.
-  field,
+  field(suffix: _formField, alsoStrips: _field, homeDir: 'inputs'),
 
   /// Takes a `ChoiceVm<T>`; wraps `ChoiceFormField`.
   ///
@@ -23,26 +23,36 @@ enum WidgetKind {
   /// which is a bigger decision than the collision costs: two widgets that both
   /// wrap a form field, under one name, is a naming problem the author is
   /// better placed to resolve than the scaffolder.
-  choice,
+  choice(suffix: _formField, alsoStrips: _field, homeDir: 'inputs'),
 
   /// A labelled action; wraps `Button`.
-  action,
+  action(suffix: ['button'], homeDir: 'buttons'),
 
   /// Draws a render model. The model is pure data and the tap handler is a
   /// widget parameter — see the generated doc comment.
-  view,
+  view(suffix: []),
 
   /// Wraps other widgets; takes a `child`.
-  container;
+  container(suffix: [], homeDir: 'containers');
+
+  const WidgetKind({required this.suffix, this.alsoStrips, this.homeDir});
+
+  static const _formField = ['form', 'field'];
+  static const _field = ['field'];
+
+  /// The words this kind appends to a name to make its class —
+  /// `['form', 'field']` → `PinFormField` — and, read backwards, the ones it
+  /// strips from a name that already carries them. Empty for the kinds that
+  /// add none.
+  final List<String> suffix;
+
+  /// A shorter spelling of [suffix] that is stripped too — `field`, the way
+  /// the name is usually typed — but never appended.
+  final List<String>? alsoStrips;
 
   /// The folder this kind usually lives in, offered first by completion.
   /// `view` has none: a card, a tile, a row and a header are all views.
-  String? get homeDir => switch (this) {
-    field || choice => 'inputs',
-    action => 'buttons',
-    container => 'containers',
-    view => null,
-  };
+  final String? homeDir;
 }
 
 /// The one file a widget is made of.
@@ -87,7 +97,7 @@ class WidgetScaffold {
   /// The suffix rule itself, over a name already reduced to its stem. One
   /// statement, so the two entry points differ only in whether they strip.
   static String _classOf(Casing stem, WidgetKind kind) =>
-      '${stem.pascal}${_suffixFor(kind).pascalOrEmpty}';
+      '${stem.pascal}${Casing(kind.suffix).pascal}';
 
   /// The basename `add-widget <typed> --kind <kind>` writes, and the one
   /// `remove` has to look for.
@@ -268,36 +278,20 @@ class $className extends StatelessWidget {
 
   // --- naming ---------------------------------------------------------------
 
-  static _Suffix _suffixFor(WidgetKind kind) => switch (kind) {
-    WidgetKind.field || WidgetKind.choice => const _Suffix(['form', 'field']),
-    WidgetKind.action => const _Suffix(['button']),
-    WidgetKind.view || WidgetKind.container => const _Suffix([]),
-  };
-
   /// Drops a suffix the kind is about to add back, so `pin_form_field` and
   /// `pin` both yield `PinFormField`. Also drops the shorter `field`, the way
-  /// the name is usually typed.
+  /// the name is usually typed. Only when something is left: a name that *is*
+  /// the suffix keeps it, since stripping would leave nothing to name the
+  /// class after.
   static Casing _stripSuffix(Casing name, WidgetKind kind) {
-    var words = name.words;
-    for (final candidate in _strippable(kind)) {
+    final words = name.words;
+    for (final candidate in [kind.suffix, ?kind.alsoStrips]) {
       if (_endsWith(words, candidate) && words.length > candidate.length) {
-        words = words.sublist(0, words.length - candidate.length);
-        break;
+        return Casing(words.sublist(0, words.length - candidate.length));
       }
     }
-    return Casing(words);
+    return name;
   }
-
-  static List<List<String>> _strippable(WidgetKind kind) => switch (kind) {
-    WidgetKind.field || WidgetKind.choice => const [
-      ['form', 'field'],
-      ['field'],
-    ],
-    WidgetKind.action => const [
-      ['button'],
-    ],
-    WidgetKind.view || WidgetKind.container => const [],
-  };
 
   static bool _endsWith(List<String> words, List<String> suffix) {
     if (suffix.isEmpty || words.length < suffix.length) {
@@ -313,14 +307,4 @@ class $className extends StatelessWidget {
   }
 
   static String _snakeOf(String pascal) => Casing.parse(pascal).snake;
-}
-
-/// A class-name suffix as words, e.g. `['form', 'field']` → `FormField`.
-class _Suffix {
-  const _Suffix(this.words);
-
-  final List<String> words;
-
-  String get pascalOrEmpty =>
-      words.isEmpty ? '' : Casing(words.toList()).pascal;
 }

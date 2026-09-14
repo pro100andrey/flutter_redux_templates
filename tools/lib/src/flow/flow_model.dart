@@ -13,14 +13,15 @@ enum DispatchKind {
   dispatchAndWait,
   dispatchAll;
 
-  static DispatchKind? parse(String name) {
-    for (final k in values) {
-      if (k.name == name) {
-        return k;
-      }
-    }
-    return null;
-  }
+  /// The kind called [name], or null for a method that is not a dispatch.
+  ///
+  /// Asked of every method invocation the dispatch visitor meets, so it is a
+  /// lookup rather than a scan of [values].
+  static DispatchKind? parse(String name) => _byName[name];
+
+  static final Map<String, DispatchKind> _byName = {
+    for (final k in values) k.name: k,
+  };
 
   /// Whether the caller waits for a result (and can branch on the status).
   bool get isRoundTrip => this == DispatchKind.dispatchAndWait;

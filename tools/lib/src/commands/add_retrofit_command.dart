@@ -30,12 +30,7 @@ class AddRetrofitCommand extends WritingCommand {
     // See `add-model`, including why the name is read first.
     final name = requireName();
 
-    if (!PackageKind.httpClient.existsIn(repo)) {
-      refuse(
-        'There is no "http_client" package in this workspace. '
-        'Create it with `frx add-package http_client`, then run this again.',
-      );
-    }
+    requirePackage(PackageKind.httpClient, repo);
 
     final file = retrofitFile(repo, name);
 

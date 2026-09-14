@@ -3,19 +3,22 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../ast/source_index.dart';
+import '../config/frx_config.dart';
 import '../model/target_resolver.dart' show TargetResolver;
 import '../redux/app_state_source.dart' show AppStateSource;
 import '../refusal.dart';
 import '../routing/routes_source.dart' show RoutesSource;
+import '../util/ancestors.dart';
 
 /// Walks up from [startDir] (or the current directory) until an ancestor
 /// containing [marker] (a repo-relative path) is found, returning that ancestor
 /// directory. Throws [FrxRefusal] with `describe(origin)` when neither the walk
 /// up nor the search below finds one.
 ///
-/// The single walk-up primitive: [FrxWorkspace], [AppStateSource] and
+/// The single root-finding primitive: [FrxWorkspace], [AppStateSource] and
 /// [RoutesSource] all resolve their roots through it, each supplying its own
-/// marker and not-found message, so the loop body lives in exactly one place.
+/// marker and not-found message. The climb itself is [nearestAncestorWith],
+/// shared with the walks that want no search below.
 ///
 /// **Up first, then down.** Walking up alone assumes the project is at or above
 /// where you stand, which is true only when the project *is* the repository. A
@@ -39,16 +42,8 @@ Directory walkUpForMarker(
   // then travelled into every path the command printed and every `--root` it
   // passed on. Caught by review after the first fix claimed to have closed it.
   final origin = p.normalize(p.absolute(startDir ?? Directory.current.path));
-  var dir = Directory(origin);
-  while (true) {
-    if (File(p.join(dir.path, marker)).existsSync()) {
-      return dir;
-    }
-    final parent = dir.parent;
-    if (parent.path == dir.path) {
-      break;
-    }
-    dir = parent;
+  if (nearestAncestorWith(Directory(origin), marker) case final above?) {
+    return above;
   }
 
   final below = _searchBelow(origin, marker);
@@ -179,6 +174,14 @@ class FrxWorkspace {
 
   final Directory root;
 
+  /// The project's `.frxrc`, read from [root] the first time a check asks and
+  /// held for the rest of the run.
+  ///
+  /// What the audit reads its silenced rules from. The runner applies the same
+  /// file's flag defaults before a command starts, but it looks from the
+  /// invocation directory, before any root is known — so it loads its own.
+  late final config = FrxConfig.load(startDir: root.path);
+
   /// The marker that identifies the repo root — the same file [RoutesSource]
   /// keys on, so both agree on where the monorepo begins.
   ///
@@ -190,7 +193,35 @@ class FrxWorkspace {
   Directory _dir(List<String> parts) =>
       Directory(p.joinAll([root.path, ...parts]));
 
-  Directory get uiWidgets => _dir(['ui', 'lib', 'widgets']);
+  /// `<package>/lib` under [root].
+  Directory libOf(String package) => _dir([package, 'lib']);
+
+  /// The packages whose `lib/` holds a project's own source.
+  ///
+  /// Hoisted the moment a second check needed it, and widened at the same
+  /// time: `storage` and `localization` ship in the template and were missing,
+  /// so "every source file" meant five packages of seven.
+  static const sourcePackages = [
+    'business',
+    'http_client',
+    'ui',
+    'app',
+    'models',
+    'storage',
+    'localization',
+  ];
+
+  /// Each of [sourcePackages]' `lib/` that is there, with the package it
+  /// belongs to — the tree a sweep over "every source file" walks.
+  Iterable<({String package, Directory lib})> sourceLibs() sync* {
+    for (final package in sourcePackages) {
+      final lib = libOf(package);
+      if (lib.existsSync()) {
+        yield (package: package, lib: lib);
+      }
+    }
+  }
+
   Directory get uiThemeExtensions => _dir(['ui', 'lib', 'theme', 'extensions']);
   Directory get uiPages => _dir(['ui', 'lib', 'pages']);
   Directory get uiLib => _dir(['ui', 'lib']);
@@ -286,6 +317,10 @@ class FrxWorkspace {
   /// the file sitting next to it.
   File get selectorsFile => File(p.join(businessRedux.path, 'selectors.dart'));
 
+  /// The agent skills `update-skills` writes and `doctor` audits. Named once so
+  /// the writer, the audit and the repair agree on where the tree lives.
+  Directory get claudeSkills => _dir(['.claude', 'skills']);
+
   /// Whether [path] is build_runner output (freezed / json_serializable /
   /// theme_extensions / auto_route). The one place the generated-file suffixes
   /// are listed — sweeps, deletions and part-checks all defer to it.
@@ -299,16 +334,7 @@ class FrxWorkspace {
   /// `pubspec.yaml` — the package root where build_runner must run. Falls back
   /// to the file's own directory if none is found.
   static String packageRootOf(String filePath) {
-    var dir = File(filePath).parent;
-    while (true) {
-      if (File(p.join(dir.path, 'pubspec.yaml')).existsSync()) {
-        return dir.path;
-      }
-      final parent = dir.parent;
-      if (parent.path == dir.path) {
-        return File(filePath).parent.path;
-      }
-      dir = parent;
-    }
+    final own = File(filePath).parent;
+    return (nearestAncestorWith(own, 'pubspec.yaml') ?? own).path;
   }
 }

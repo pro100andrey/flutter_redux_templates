@@ -17,6 +17,7 @@ import 'commands/add_tabs_command.dart';
 import 'commands/add_theme_extension_command.dart';
 import 'commands/add_widget_command.dart';
 import 'commands/batch_command.dart';
+import 'commands/complete_command.dart';
 import 'commands/completions_command.dart';
 import 'commands/create_command.dart';
 import 'commands/doctor_command.dart';
@@ -98,6 +99,15 @@ class FrxRunner extends CommandRunner<int> {
     return super.runCommand(topLevelResults);
   }
 
+  /// Every command a user can type, once each and in registration order.
+  ///
+  /// [commands] is keyed by alias as well as by name, so its values repeat a
+  /// command once per alias, and it lists `__complete`, which is the shell's
+  /// rather than the user's. The skills and the completer both want the same
+  /// answer, and each had spelled the walk.
+  Iterable<Command<int>> get visibleCommands =>
+      {...commands.values}.where((c) => !c.hidden);
+
   /// You used it wrong: bad flags, an unknown kind, an ambiguous name.
   ///
   /// sysexits.h's `EX_USAGE`. Named because the editor reads it back —
@@ -150,7 +160,8 @@ class FrxRunner extends CommandRunner<int> {
     if (cmdName.isEmpty) {
       return args;
     }
-    final command = _resolveCommand(cmdName);
+    // Keyed by alias as well as by name: `addCommand` registers every one.
+    final command = commands[cmdName];
     if (command == null) {
       return args;
     }
@@ -161,20 +172,6 @@ class FrxRunner extends CommandRunner<int> {
       command.name,
       command.argParser.options.keys.toSet(),
     );
-  }
-
-  /// The command registered under [name] or one of its aliases.
-  Command<int>? _resolveCommand(String name) {
-    final direct = commands[name];
-    if (direct != null) {
-      return direct;
-    }
-    for (final c in commands.values) {
-      if (c.aliases.contains(name)) {
-        return c;
-      }
-    }
-    return null;
   }
 
   /// The `--root <dir>` / `--root=<dir>` value in [args], if any — so `.frxrc`

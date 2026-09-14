@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/declarations.dart';
 import '../util/casing.dart';
 import 'artifact_name.dart';
 
@@ -57,7 +58,7 @@ class PageArtifact {
   /// syntactic tests for one question is the failure this repository has
   /// already paid for.
   static bool carriesRoutePage(CompilationUnit unit) =>
-      unit.declarations.whereType<ClassDeclaration>().any(isRoutePage);
+      classesIn(unit).any(isRoutePage);
 
   /// Whether [decl] is an `@RoutePage()` class.
   static bool isRoutePage(ClassDeclaration decl) =>
@@ -84,9 +85,12 @@ class PageArtifact {
   /// The `@RoutePage()` connector class in `app`, e.g. `LogInPageConnector`.
   String get connectorClass => '${name.pascal}PageConnector';
 
+  /// The connector's basename — what the router imports and what sits in the
+  /// connectors folder, spelled once so the two cannot disagree.
+  String get _connectorBasename => '${name.snake}_page_connector.dart';
+
   /// The connector import as written in `app_router.dart`.
-  String get connectorImport =>
-      '../connectors/${name.snake}_page_connector.dart';
+  String get connectorImport => '../connectors/$_connectorBasename';
 
   /// The default route path, `/dash-separated-words` (no params).
   String get defaultPath => '/${name.words.join('-')}';
@@ -97,5 +101,5 @@ class PageArtifact {
 
   /// The connector file, absolute, under [connectorsDir].
   File connectorFile(Directory connectorsDir) =>
-      File(p.join(connectorsDir.path, '${name.snake}_page_connector.dart'));
+      File(p.join(connectorsDir.path, _connectorBasename));
 }

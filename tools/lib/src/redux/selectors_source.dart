@@ -3,12 +3,16 @@ import 'dart:io';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/declarations.dart';
+import '../ast/directives.dart';
+import '../ast/file_source.dart';
 import '../ast/import_supply.dart';
-import '../ast/source_index.dart';
 import '../model/selector_shape.dart';
 import '../refusal.dart';
 import '../scaffold/type_imports.dart';
+import '../util/identifier_text.dart';
 import 'ast_edit.dart';
+import 'selector_accessors.dart';
 
 /// The outcome of adding a getter to a `Select<Pascal>` extension type.
 class SelectorsAddResult implements EditOutcome {
@@ -51,16 +55,12 @@ class SelectorsAddResult implements EditOutcome {
 /// list and that nothing called. That type is gone from what `create` writes;
 /// [wire] still extends one when it finds it, because a project made before the
 /// collapse may read `state.select.<field>` in code frx did not write.
-class SelectorsSource {
-  SelectorsSource(this.file);
+class SelectorsSource extends FileSource {
+  SelectorsSource(super.file);
 
   /// The `selectors.dart` sitting next to [appState] in the redux directory.
   factory SelectorsSource.beside(File appState) =>
       SelectorsSource(File(p.join(appState.parent.path, 'selectors.dart')));
-
-  final File file;
-
-  bool get exists => file.existsSync();
 
   /// Wires a `Select<pascal>` selector type (given as [block], with its needed
   /// [imports]) into the facade for the substate field [field].
@@ -76,11 +76,10 @@ class SelectorsSource {
     required List<String> imports,
     bool force = false,
   }) {
-    final content = sourceIndex.sourceOf(file);
+    final (source: content, :unit) = snapshot;
     final type = SelectorShape.typeFor(pascal);
-    final unit = sourceIndex.unitFor(file);
 
-    final existing = _extensionType(unit, type);
+    final existing = extensionTypeNamed(unit, type);
     if (existing != null && !force) {
       return Edited.nothing(content);
     }
@@ -99,8 +98,8 @@ class SelectorsSource {
     // meeting a compile error in code the tool had just claimed to wire.
     //
     // Nothing new grows one; `create` no longer writes it.
-    final select = _extensionType(unit, SelectorShape.facadeType);
-    final selectors = _mixin(unit, SelectorShape.mixinType);
+    final select = extensionTypeNamed(unit, SelectorShape.facadeType);
+    final selectors = mixinNamed(unit, SelectorShape.mixinType);
     if (selectors == null) {
       throw FrxRefusal(
         'selectors.dart is missing the `${SelectorShape.mixinType}` mixin — '
@@ -145,185 +144,6 @@ class SelectorsSource {
     );
   }
 
-  /// Edits that carry a retyped getter's type into the methods derived from it.
-  ///
-  /// `add-substate -k table` writes two members out of one fact:
-  ///
-  /// ```dart
-  /// IMap<int, Object> get table => _state.tasks.table;
-  /// Object byId(int id) => table[id]!;
-  /// ```
-  ///
-  /// Retyping `table` to `IMap<int, Task>` left `byId` returning `Object`. It
-  /// compiles — everything is an `Object` — so nothing failed; every caller
-  /// simply had to cast, and the facade said the element type was unknown when
-  /// the field above it said otherwise. `--force` promises "its selector getter
-  /// to match", and a method that is that getter's own accessor is inside the
-  /// promise however the sentence was worded.
-  ///
-  /// **Derived from the body, not from the name.** A method qualifies when it
-  /// indexes the getter — `<getter>[…]` — which is the shape the scaffolder
-  /// writes and the only one whose element type is knowable without resolution.
-  /// A `byId` that reads something else is somebody's own, and is left alone.
-  List<Edit> _accessorEdits(
-    ExtensionTypeDeclaration ext,
-    String getterName, {
-    required String from,
-    required String to,
-  }) {
-    final before = _typeArgsOf(from);
-    final after = _typeArgsOf(to);
-    // Both sides have to be the same shape of generic for a positional
-    // correspondence between their arguments to mean anything.
-    if (before == null || after == null || before.length != after.length) {
-      return const [];
-    }
-
-    // A map, and only a map: the correspondence below is positional by *role*,
-    // which is a fact about `IMap<K, V>` and not about generics in general.
-    if (before.length != 2) {
-      return const [];
-    }
-    final (oldKey, oldValue) = (before[0], before[1]);
-    final (newKey, newValue) = (after[0], after[1]);
-
-    final body = ext.body;
-    final members = body is BlockClassBody
-        ? body.members
-        : const <ClassMember>[];
-
-    final edits = <Edit>[];
-    for (final member in members.whereType<MethodDeclaration>()) {
-      if (member.isGetter || member.isSetter) {
-        continue;
-      }
-      if (!_indexes(member.body.toSource(), getterName)) {
-        continue;
-      }
-
-      // By role, never by value. Looking the old type up in the argument list
-      // maps both of them to the first match when a map's key and value types
-      // are the same: `IMap<int, int>` retyped to `IMap<String, Task>` turned
-      // `int byId(int id)` into `String byId(String id)` over a `Task`-valued
-      // map. The return type is the value; what indexes it is the key.
-      void carry(TypeAnnotation? annotation, String from, String to) {
-        if (annotation == null || from == to) {
-          return;
-        }
-        if (annotation.toSource() != from) {
-          return;
-        }
-        edits.add(Edit.replace(annotation.offset, annotation.end, to));
-      }
-
-      carry(member.returnType, oldValue, newValue);
-      final params = member.parameters?.parameters ?? const <FormalParameter>[];
-      // Optional and named parameters are `RegularFormalParameter` here too —
-      // this analyzer carries the default on a `defaultClause` rather than in
-      // a wrapper node — so `byId({required int id})` is reached like any
-      // other, and is not left half-migrated with its key type behind.
-      for (final parameter in params.whereType<RegularFormalParameter>()) {
-        carry(parameter.type, oldKey, newKey);
-      }
-
-      // The doc line names the type too — `/// Returns [Object] value by id`.
-      final doc = member.documentationComment;
-      if (doc == null) {
-        continue;
-      }
-      for (final token in doc.tokens) {
-        for (final (from, to) in [(oldValue, newValue), (oldKey, newKey)]) {
-          if (from == to) {
-            continue;
-          }
-          final at = token.lexeme.indexOf('[$from]');
-          if (at < 0) {
-            continue;
-          }
-          edits.add(
-            Edit.replace(
-              token.offset + at + 1,
-              token.offset + at + 1 + from.length,
-              to,
-            ),
-          );
-        }
-      }
-    }
-    return edits;
-  }
-
-  /// Whether [source] indexes [getter] *itself* — a bare `getter[…]`, not
-  /// `subgetter[…]` and not `something.getter[…]`.
-  ///
-  /// The substring test this replaces matched any name *ending* in the
-  /// getter's, so a hand-written `_state.tasks.subtable[id]` counted as an
-  /// accessor of `table` and was retyped over a collection that never changed.
-  ///
-  /// **A leading `.` disqualifies it too**, and that is not the same rule as
-  /// the one above. `Object? labelFor(int id) => _state.labels.table[id];`
-  /// written inside `SelectTasks` indexes *another slice's* identically-named
-  /// collection; it survives `SelectTasks.table` and must not be judged by it.
-  /// The cost of getting this wrong is asymmetric: in [_accessorEdits] a false
-  /// positive rewrites a type annotation, in [removeSelector] it deletes a
-  /// hand-written method and reports it as intended.
-  static bool _indexes(String source, String getter) {
-    for (
-      var at = source.indexOf('$getter[');
-      at >= 0;
-      at = source.indexOf('$getter[', at + 1)
-    ) {
-      if (at == 0) {
-        return true;
-      }
-      final before = source.codeUnitAt(at - 1);
-      final isIdentifierChar =
-          (before >= 0x30 && before <= 0x39) ||
-          (before >= 0x41 && before <= 0x5A) ||
-          (before >= 0x61 && before <= 0x7A) ||
-          before == 0x5F || // _
-          before == 0x24 || // $
-          before == 0x2E; // . — a member of something else, not this getter
-      if (!isIdentifierChar) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// `IMap<int, Task>` → `['int', 'Task']`; null when [type] is not generic.
-  ///
-  /// Split on depth, not on every comma: `IMap<int, IList<Task>>` has two
-  /// arguments and three commas' worth of nesting between them.
-  static List<String>? _typeArgsOf(String type) {
-    final open = type.indexOf('<');
-    if (open < 0 || !type.trimRight().endsWith('>')) {
-      return null;
-    }
-
-    final inner = type.substring(open + 1, type.lastIndexOf('>'));
-    final args = <String>[];
-    final buffer = StringBuffer();
-    var depth = 0;
-    for (final rune in inner.runes) {
-      final ch = String.fromCharCode(rune);
-      if (ch == '<') {
-        depth++;
-      }
-      if (ch == '>') {
-        depth--;
-      }
-      if (ch == ',' && depth == 0) {
-        args.add(buffer.toString().trim());
-        buffer.clear();
-        continue;
-      }
-      buffer.write(ch);
-    }
-    args.add(buffer.toString().trim());
-    return args;
-  }
-
   /// Adds a `<returnType> get <getterName> => <expr>;` getter to the
   /// `Select<Pascal>` extension type (before its closing `}`) — a computed
   /// selector on an existing substate. Idempotent when a getter of that name is
@@ -342,9 +162,8 @@ class SelectorsSource {
     List<String> imports = const [],
     bool retype = false,
   }) {
-    final content = sourceIndex.sourceOf(file);
-    final unit = sourceIndex.unitFor(file);
-    final ext = _extensionType(unit, selectorType);
+    final (source: content, :unit) = snapshot;
+    final ext = extensionTypeNamed(unit, selectorType);
     if (ext == null) {
       throw FrxRefusal(
         '$selectorType not found in ${file.path} — is the substate wired? '
@@ -377,22 +196,10 @@ class SelectorsSource {
       // opposite of the signature above it, which is worse than saying nothing.
       final doc = existing.documentationComment;
       if (doc != null) {
-        for (final token in doc.tokens) {
-          final at = token.lexeme.indexOf(declared);
-          if (at < 0) {
-            continue;
-          }
-          edits.add(
-            Edit.replace(
-              token.offset + at,
-              token.offset + at + declared.length,
-              returnType,
-            ),
-          );
-        }
+        edits.addAll(docRetypeEdits(doc, from: declared, to: returnType));
       }
       edits.addAll(
-        _accessorEdits(ext, getterName, from: declared, to: returnType),
+        accessorRetypeEdits(ext, getterName, from: declared, to: returnType),
       );
       final added = addImports(applyEdits(content, edits), imports);
       return SelectorsAddResult(
@@ -466,11 +273,10 @@ class SelectorsSource {
     required String getterName,
     Map<String, ImportProbe> prune = const {},
   }) {
-    final content = sourceIndex.sourceOf(file);
     // Strict, like every other splice: see [StateSource.removeField].
-    final unit = sourceIndex.unitToEdit(file);
+    final (source: content, :unit) = snapshotToEdit;
 
-    final ext = _extensionType(unit, selectorType);
+    final ext = extensionTypeNamed(unit, selectorType);
     if (ext == null) {
       return Unwired.absent(content);
     }
@@ -493,16 +299,10 @@ class SelectorsSource {
     // The accessors derived from it go too:
     // `Object byId(int id) => table[id]!;` does not compile once `table` is
     // gone, and a facade left like that is the half-job this command exists to
-    // avoid. Same rule [_accessorEdits] retypes by — a method qualifies by
-    // *indexing* the getter, so a `byId` that reads something else is
+    // avoid. Same rule [accessorRetypeEdits] retypes by — a method qualifies
+    // by *indexing* the getter, so a `byId` that reads something else is
     // somebody's own and stays.
-    for (final member in _members(ext.body).whereType<MethodDeclaration>()) {
-      if (member.isGetter || member.isSetter) {
-        continue;
-      }
-      if (!_indexes(member.body.toSource(), getterName)) {
-        continue;
-      }
+    for (final member in derivedAccessorsOf(ext, getterName)) {
       edits.add(removeDeclaration(content, member));
       changes.add('$selectorType.${member.name.lexeme}()');
       removed.addAll(namesIn(member));
@@ -530,11 +330,10 @@ class SelectorsSource {
     required String pascal,
     required String snake,
   }) {
-    final content = sourceIndex.sourceOf(file);
+    final (source: content, :unit) = snapshot;
     final type = SelectorShape.typeFor(pascal);
-    final unit = sourceIndex.unitFor(file);
 
-    final existing = _extensionType(unit, type);
+    final existing = extensionTypeNamed(unit, type);
     if (existing == null) {
       return Unwired.absent(content);
     }
@@ -547,8 +346,8 @@ class SelectorsSource {
     // The mixin is where one is written now; the `Select` extension type is
     // checked as well because a project scaffolded before the spine collapsed
     // still has one, and unwiring has to leave that project compiling too.
-    final select = _extensionType(unit, SelectorShape.facadeType);
-    final selectors = _mixin(unit, SelectorShape.mixinType);
+    final select = extensionTypeNamed(unit, SelectorShape.facadeType);
+    final selectors = mixinNamed(unit, SelectorShape.mixinType);
     for (final getter in [
       if (select != null) ..._getters(select.body, field),
       if (selectors != null) ..._getters(selectors.body, field),
@@ -563,7 +362,7 @@ class SelectorsSource {
     // a shared directory (`models`, `actions`) would otherwise prune every
     // other substate's `foo/models/…` import. Unique to the substate, so
     // unconditional.
-    for (final imp in unit.directives.whereType<ImportDirective>()) {
+    for (final imp in importsOf(unit)) {
       final uri = imp.uri.stringValue ?? '';
       if (uri.startsWith('$snake/')) {
         edits.add(removeDirective(content, imp));
@@ -593,32 +392,6 @@ class SelectorsSource {
     );
   }
 
-  Iterable<MethodDeclaration> _getters(ClassBody body, String name) =>
-      _members(body).whereType<MethodDeclaration>().where(
-        (m) => m.isGetter && m.name.lexeme == name,
-      );
-
-  List<ClassMember> _members(ClassBody body) =>
-      body is BlockClassBody ? body.members : const <ClassMember>[];
-
-  /// The members of `selectorType` that still read `getterName` and are not
-  /// the
-  /// derived accessors [removeSelector] takes with it.
-  ///
-  /// The facade is the one file of this architecture the guard *allows* a hand
-  /// edit to, precisely because a selector whose body needs statements is
-  /// written by hand — so a sibling reading the getter is normal, and it is not
-  /// frx's to delete. This repository's own template ships one:
-  ///
-  /// ```dart
-  /// String? get token => _state.session.token;
-  /// bool get isAvailable => token != null;
-  /// ```
-  ///
-  /// Removing `token` and reporting success left `isAvailable` reading a
-  /// declaration that was gone, and `SelectComposites.canEnterApp` sits on top
-  /// of it — so the `business` package stopped compiling, including the
-  /// `build_runner` step the plan's own closing line prescribes.
   /// Getters that share a body with another getter on the same facade, grouped
   /// by that body: `{'SelectInvite': [['isWaiting', 'isFinding']]}`.
   ///
@@ -636,17 +409,13 @@ class SelectorsSource {
   /// not a judgement call.
   Map<String, List<List<String>>> duplicateGetters() {
     final out = <String, List<List<String>>>{};
-    for (final ext
-        in sourceIndex
-            .unitFor(file)
-            .declarations
-            .whereType<ExtensionTypeDeclaration>()) {
+    for (final ext in unit.declarations.whereType<ExtensionTypeDeclaration>()) {
       final byBody = <String, List<String>>{};
-      for (final m in _members(ext.body).whereType<MethodDeclaration>()) {
+      for (final m in ext.body.members.whereType<MethodDeclaration>()) {
         if (!m.isGetter) {
           continue;
         }
-        final body = m.body.toSource().replaceAll(RegExp(r'\s+'), ' ').trim();
+        final body = m.body.toSource().replaceAll(_whitespace, ' ').trim();
         if (body.isEmpty) {
           continue;
         }
@@ -663,28 +432,48 @@ class SelectorsSource {
     return out;
   }
 
+  static final _whitespace = RegExp(r'\s+');
+
+  /// The members of [selectorType] that still read [getterName] and are not
+  /// the derived accessors [removeSelector] takes with it.
+  ///
+  /// The facade is the one file of this architecture the guard *allows* a hand
+  /// edit to, precisely because a selector whose body needs statements is
+  /// written by hand — so a sibling reading the getter is normal, and it is not
+  /// frx's to delete. This repository's own template ships one:
+  ///
+  /// ```dart
+  /// String? get token => _state.session.token;
+  /// bool get isAvailable => token != null;
+  /// ```
+  ///
+  /// Removing `token` and reporting success left `isAvailable` reading a
+  /// declaration that was gone, and `SelectComposites.canEnterApp` sits on top
+  /// of it — so the `business` package stopped compiling, including the
+  /// `build_runner` step the plan's own closing line prescribes.
   List<String> readersOf({
     required String selectorType,
     required String getterName,
   }) {
-    final unit = sourceIndex.unitFor(file);
-    final ext = _extensionType(unit, selectorType);
+    final ext = extensionTypeNamed(unit, selectorType);
     if (ext == null) {
       return const [];
     }
 
     final names = <String>[];
-    for (final member in _members(ext.body).whereType<MethodDeclaration>()) {
+    for (final member in ext.body.members.whereType<MethodDeclaration>()) {
       if (member.isGetter && member.name.lexeme == getterName) {
         continue;
       }
       final body = member.body.toSource();
       // The accessors written from the getter go with it; every other reader
-      // is somebody's own and is reported instead.
-      if (_indexes(body, getterName)) {
+      // is somebody's own and is reported instead. `token != null` reads the
+      // getter; `_state.session.token` names the state's field, which survives
+      // the getter's removal.
+      if (indexesGetter(body, getterName)) {
         continue;
       }
-      if (!_reads(body, getterName)) {
+      if (!mentionsIdentifier(body, getterName)) {
         continue;
       }
       names.add(
@@ -694,35 +483,9 @@ class SelectorsSource {
     return names;
   }
 
-  /// Whether [source] reads [name] as a bare identifier — `token != null`, and
-  /// not `_state.session.token`, which names the state's field rather than this
-  /// getter and survives the getter's removal.
-  static bool _reads(String source, String name) {
-    for (final match in RegExp(
-      '\\b${RegExp.escape(name)}\\b',
-    ).allMatches(source)) {
-      if (match.start == 0 || source[match.start - 1] != '.') {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  ExtensionTypeDeclaration? _extensionType(CompilationUnit unit, String name) {
-    for (final d in unit.declarations) {
-      if (d is ExtensionTypeDeclaration && d.namePart.typeName.lexeme == name) {
-        return d;
-      }
-    }
-    return null;
-  }
-
-  MixinDeclaration? _mixin(CompilationUnit unit, String name) {
-    for (final d in unit.declarations) {
-      if (d is MixinDeclaration && d.name.lexeme == name) {
-        return d;
-      }
-    }
-    return null;
-  }
+  /// The getters called [name] among [body]'s members.
+  Iterable<MethodDeclaration> _getters(ClassBody body, String name) => body
+      .members
+      .whereType<MethodDeclaration>()
+      .where((m) => m.isGetter && m.name.lexeme == name);
 }

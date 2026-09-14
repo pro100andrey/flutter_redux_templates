@@ -139,10 +139,15 @@ class CreateCommand extends Command<int> {
         onWarning: warnings.add,
       );
 
-      final reached = packageImportersOf(
-        const ArchiveReader().read(bytes).files,
-        without,
-      );
+      // Only when something is left out: the question has a known answer
+      // otherwise, and asking it means unpacking the archive a second time in
+      // memory just to hand over its files.
+      final reached = without.isEmpty
+          ? const <PackageKind, List<String>>{}
+          : packageImportersOf(
+              const ArchiveReader().read(bytes).files,
+              without,
+            );
       if (reached.isNotEmpty) {
         _refuse(reached, target: target, asJson: asJson);
         return 70;

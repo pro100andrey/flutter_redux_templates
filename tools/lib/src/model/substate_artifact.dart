@@ -68,23 +68,44 @@ class SubstateArtifact {
   /// The substate folder name under `business/lib/redux`.
   String get folder => name.snake;
 
+  /// The state-model basename, `<snake>_state.dart`.
+  String get _stateBasename => '${name.snake}_state.dart';
+
   /// The state-model import path, relative to the redux directory
   /// (`<snake>/models/<snake>_state.dart`) — how `AppState` imports it.
-  String get stateImportPath => '$folder/models/${name.snake}_state.dart';
+  String get stateImportPath => '$folder/models/$_stateBasename';
 
   /// The substate folder, absolute, under [reduxDir].
   Directory dir(Directory reduxDir) => Directory(p.join(reduxDir.path, folder));
 
   /// The state-model file, absolute, under [reduxDir].
   File stateFile(Directory reduxDir) =>
-      File(p.join(reduxDir.path, folder, 'models', '${name.snake}_state.dart'));
+      File(p.join(reduxDir.path, folder, 'models', _stateBasename));
+
+  /// The substate's `actions/` folder, absolute, under [reduxDir].
+  Directory actionsDir(Directory reduxDir) => actionsDirIn(reduxDir, folder);
+
+  /// The action file [stem] names in [actionsDir] — `<stem>_action.dart`, the
+  /// spelling `add-action` writes and `remove` looks for.
+  File actionFile(Directory reduxDir, String stem) =>
+      actionFileIn(reduxDir, folder, stem);
+
+  /// [actionsDir] for a substate known only by its [folder] — a name read off
+  /// the disk, which is not put through [Casing] because the folder is what it
+  /// is, spelled however it is.
+  static Directory actionsDirIn(Directory reduxDir, String folder) =>
+      Directory(p.join(reduxDir.path, folder, 'actions'));
+
+  /// [actionFile] for a substate known only by its [folder].
+  static File actionFileIn(Directory reduxDir, String folder, String stem) =>
+      File(p.join(reduxDir.path, folder, 'actions', '${stem}_action.dart'));
 
   /// The frx-generated action file basenames this substate can carry, mapped to
   /// their equivalents under [to] — used by `rename` to move `<old>_state.dart`
   /// → `<new>_state.dart` etc. while leaving hand-written files untouched
   /// (their classes match no rename pattern, so file and class stay in step).
   Map<String, String> renamableBasenames(SubstateArtifact to) => {
-    '${name.snake}_state.dart': '${to.name.snake}_state.dart',
+    _stateBasename: to._stateBasename,
     '${name.snake}_action.dart': '${to.name.snake}_action.dart',
     'add_${name.snake}_action.dart': 'add_${to.name.snake}_action.dart',
     'retrieve_${name.snake}_action.dart':

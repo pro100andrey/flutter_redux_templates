@@ -12,6 +12,7 @@ import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'frx_command.dart';
 import 'options.dart';
+import 'reading.dart';
 
 /// Diagrams what the app actually does, read from the AST.
 ///
@@ -91,8 +92,7 @@ class FlowCommand extends Command<int> with NameArg {
     try {
       workspace = FrxWorkspace.locate(startDir: argResults?['root'] as String?);
     } on FrxRefusal catch (e) {
-      console.err.writeln('frx: ${e.message}');
-      return 70;
+      return refused(e);
     }
 
     if (md) {
@@ -177,8 +177,7 @@ class FlowCommand extends Command<int> with NameArg {
     try {
       map = RouteMapReader(workspace).read();
     } on FrxRefusal catch (e) {
-      console.err.writeln('frx: ${e.message}');
-      return 70;
+      return refused(e);
     }
 
     if (json) {
@@ -206,8 +205,7 @@ class FlowCommand extends Command<int> with NameArg {
     try {
       map = RouteMapReader(workspace).read();
     } on FrxRefusal catch (e) {
-      console.err.writeln('frx: ${e.message}');
-      return 70;
+      return refused(e);
     }
 
     // `--check` reports against what is on disk; without the directory there is

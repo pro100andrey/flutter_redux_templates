@@ -7,6 +7,7 @@ import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'artifact_files.dart';
 import 'artifact_name.dart';
+import 'substate_artifact.dart';
 import 'target_resolver.dart' show TargetResolver;
 
 /// The artifacts `remove` can delete that are *file sets* rather than wiring.
@@ -67,7 +68,6 @@ class RemovableArtifact {
     required this.files,
     String? className,
     this.directories = const [],
-    this.missing = const [],
     this.dangles,
   }) : className = className ?? name.pascal;
 
@@ -92,11 +92,6 @@ class RemovableArtifact {
 
   /// Directories deleted whole — a service's folder.
   final List<String> directories;
-
-  /// Paths the convention predicts but the disk does not have. Narrated rather
-  /// than treated as an error: an artifact missing one of its files is still
-  /// worth removing, and saying so is more useful than refusing.
-  final List<String> missing;
 
   /// What is left dangling, in the closing note. `remove` deletes an artifact;
   /// it does not chase the code that referenced it — the same stance the
@@ -138,15 +133,15 @@ class RemovableResolver {
     // `ArchiveTask` and `ArchiveTaskAction` name the same file — see
     // [ArtifactName], which `add-action` now reads too, so the two directions
     // are the same statement rather than two that happen to agree.
-    final snake = '${ArtifactName.actionStem(name).snake}_action';
+    final stem = ArtifactName.actionStem(name).snake;
+    final snake = '${stem}_action';
 
-    final hits = <String>[];
+    // Substate folder → the action file it holds, for the folders that do.
+    final hits = <String, String>{};
     for (final dir in state != null ? [state] : repo.substateDirs()) {
-      final f = File(
-        p.join(repo.businessRedux.path, dir, 'actions', '$snake.dart'),
-      );
-      if (f.existsSync()) {
-        hits.add(dir);
+      final file = SubstateArtifact.actionFileIn(repo.businessRedux, dir, stem);
+      if (file.existsSync()) {
+        hits[dir] = file.path;
       }
     }
 
@@ -156,22 +151,17 @@ class RemovableResolver {
     if (hits.length > 1) {
       blocked =
           '"${name.pascal}" names an action under ${hits.length} substates '
-          '(${hits.join(', ')}). Disambiguate with --state <substate>.';
+          '(${hits.keys.join(', ')}). Disambiguate with --state <substate>.';
       return null;
     }
 
-    final owner = hits.single;
-    final file = p.join(
-      repo.businessRedux.path,
-      owner,
-      'actions',
-      '$snake.dart',
-    );
+    final className = _pascalOf(snake);
+    final MapEntry(key: owner, value: file) = hits.entries.single;
     return RemovableArtifact(
       kind: RemovableKind.action,
       name: name,
-      className: _pascalOf(snake),
-      header: 'Remove action "${_pascalOf(snake)}"  (substate: $owner)',
+      className: className,
+      header: 'Remove action "$className"  (substate: $owner)',
       files: [file],
       dangles:
           'anything that dispatched it no longer compiles — run `frx doctor` / '
@@ -251,10 +241,10 @@ class RemovableResolver {
       // the view's own class and the stem of `PinFormField`, so no spelling
       // isolates the view. Saying so is the honest answer — the way out is to
       // rename one of them or delete the file.
-      final named = hits.map((h) {
-        final cls = _pascalOf(h.file.substring(0, h.file.length - 5));
-        return '$cls (ui/lib/${h.dir}/${h.file})';
-      }).toList()..sort();
+      final named = [
+        for (final h in hits)
+          '${_classOfFile(h.file)} (ui/lib/${h.dir}/${h.file})',
+      ]..sort();
       blocked =
           '"${name.pascal}" names ${hits.length} widgets — '
           '${named.join(', ')}. '
@@ -268,7 +258,7 @@ class RemovableResolver {
     final widget = p.join(repo.uiLib.path, hit.dir, hit.file);
     // The class, read back off the file that was found — so the report names
     // what is being deleted rather than what was typed.
-    final className = _pascalOf(hit.file.substring(0, hit.file.length - 5));
+    final className = _classOfFile(hit.file);
 
     return RemovableArtifact(
       kind: RemovableKind.widget,
@@ -284,7 +274,7 @@ class RemovableResolver {
 
   RemovableArtifact? _connector(Casing name) {
     final snake = '${ArtifactName.connectorStem(name).snake}_connector';
-    final file = File(p.join(repo.appConnectors.path, '$snake.dart'));
+    final file = File(connectorFile(repo, name));
     if (!file.existsSync()) {
       return null;
     }
@@ -356,4 +346,9 @@ class RemovableResolver {
   }
 
   static String _pascalOf(String snake) => Casing.parse(snake).pascal;
+
+  /// The class a `<snake>.dart` basename holds, by the convention that names
+  /// a file after its class.
+  static String _classOfFile(String basename) =>
+      _pascalOf(basename.substring(0, basename.length - '.dart'.length));
 }

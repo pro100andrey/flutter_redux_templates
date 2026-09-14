@@ -1,21 +1,26 @@
 import 'dart:io';
 
 import 'package:analyzer/dart/ast/ast.dart';
-import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
 
 import '../ast/declarations.dart';
 import '../ast/source_index.dart';
+import '../flow/connector_visitor.dart';
 import '../flow/flow_model.dart';
 import '../flow/flow_reader.dart';
 import '../flow/route_map.dart';
 import '../model/placement.dart';
-import '../model/selector_shape.dart';
 import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
-import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
+import 'action_index.dart';
+import 'graph_builder.dart';
 import 'graph_model.dart';
+import 'persistor_reader.dart';
+import 'selector_reader.dart';
+import 'selector_uses.dart';
+
+export 'selector_uses.dart' show facadesIn, selectorUsesIn;
 
 /// Joins every reader frx already has into one [AppGraph].
 ///
@@ -38,28 +43,52 @@ class GraphReader {
 
   final FrxWorkspace workspace;
 
-  AppGraph read() => inSourceIndex(_read);
+  AppGraph read() => inSourceIndex(() => _GraphRead(workspace).run());
+}
 
-  AppGraph _read() {
-    final nodes = <String, GraphNode>{};
-    final edges = <String, GraphEdge>{};
-    final unresolved = <Unresolved>[];
+/// One read: the passes, in the order that lets each attribute an edge more
+/// precisely than the one after it, over the state they share.
+class _GraphRead {
+  _GraphRead(this.workspace);
 
-    void addNode(GraphNode n) => nodes.putIfAbsent(n.id, () => n);
-    void addEdge(GraphEdge e) => edges.putIfAbsent(e.key, () => e);
+  final FrxWorkspace workspace;
+  final graph = GraphBuilder();
 
-    /// Canonical file path → the node that owns it, for the files that read
-    /// selectors: a connector, an action, a service dispatcher. Collected as
-    /// each section runs so the selector pass can say *who* reads what, rather
-    /// than re-deriving the same file-to-artifact map a third time.
-    final owners = <String, String>{};
+  late final flowReader = FlowReader(workspace);
+  late final appState = AppStateSource.of(workspace);
+  late final actions = ActionIndex.read(workspace, flowReader);
 
-    final flowReader = FlowReader(workspace);
+  /// Every Dart file of the app's own packages, by canonical path, in listing
+  /// order — each read once however many passes ask.
+  late final Map<String, _Consumer> consumers = {
+    for (final dir in [
+      workspace.appLib,
+      workspace.businessLib,
+      workspace.uiLib,
+    ])
+      for (final file in sourceIndex.filesUnder(dir))
+        p.canonicalize(file.path): _Consumer(file, flowReader),
+  };
 
-    // ---- substates ----------------------------------------------------
-    final appState = AppStateSource.of(workspace);
+  AppGraph run() {
+    _addSubstates();
+    _addActions();
+    _addCascades();
+    _addPages();
+    _addServices();
+    _addPersistor();
+    _addStrayDispatches();
+    _addSelectors();
+    _addComposition();
+    _addMisplacedSelectors();
+    _addUnparsed();
+    return graph.build();
+  }
+
+  // ---- substates ----------------------------------------------------
+  void _addSubstates() {
     for (final s in appState.readSubstates()) {
-      addNode(
+      graph.addNode(
         GraphNode(
           id: 'substate:${s.field}',
           kind: NodeKind.substate,
@@ -75,23 +104,22 @@ class GraphReader {
         ),
       );
     }
+  }
 
-    // ---- actions ------------------------------------------------------
-    // Read from disk rather than from the page flows: an action no page reaches
-    // still exists, and leaving it out would hide exactly the dead code the
-    // orphan list is meant to surface.
-    final actions = _actionsOnDisk(flowReader);
-    for (final a in actions.values) {
-      addNode(_actionNode(a));
-      owners[a.file] = a.id;
+  // ---- actions ------------------------------------------------------
+  void _addActions() {
+    for (final a in actions.all) {
+      graph
+        ..addNode(a.node)
+        ..own(a.file, a.id);
       // One edge per substate touched, off the structured writes. This used to
       // split the display string back apart on the `', '` the renderer joined
       // it with.
       for (final w in a.info.writes) {
-        if (!nodes.containsKey('substate:${w.substate}')) {
+        if (!graph.hasSubstate(w.substate)) {
           continue;
         }
-        addEdge(
+        graph.addEdge(
           GraphEdge(
             from: a.id,
             to: 'substate:${w.substate}',
@@ -101,32 +129,34 @@ class GraphReader {
         );
       }
     }
+  }
 
-    /// Resolves a dispatched class name to a node id, adding a placeholder node
-    /// plus an [Unresolved] note when it cannot be pinned to a file.
-    ///
-    /// [owner] is the node whose reading hit the gap — what makes the note
-    /// attributable to a subgraph rather than only to the whole project.
-    String dispatchTarget(
-      String className,
-      File? file,
-      String at, {
-      required String owner,
-    }) {
-      final resolved = file == null ? null : actions[p.canonicalize(file.path)];
-      if (resolved != null) {
-        return resolved.id;
-      }
-      final id = 'action:$className';
-      addNode(
+  /// Resolves a dispatched class name to a node id, adding a placeholder node
+  /// plus an [Unresolved] note when it cannot be pinned to a file.
+  ///
+  /// [owner] is the node whose reading hit the gap — what makes the note
+  /// attributable to a subgraph rather than only to the whole project.
+  String _dispatchTarget(
+    String className,
+    File? file,
+    String at, {
+    required String owner,
+  }) {
+    final resolved = file == null ? null : actions.at(file);
+    if (resolved != null) {
+      return resolved.id;
+    }
+    final id = 'action:$className';
+    graph
+      ..addNode(
         GraphNode(
           id: id,
           kind: NodeKind.action,
           name: className,
           resolved: false,
         ),
-      );
-      unresolved.add(
+      )
+      ..unresolved.add(
         Unresolved(
           kind: 'dispatch-target',
           owner: owner,
@@ -145,19 +175,20 @@ class GraphReader {
                     'factory, an alias, or an action outside business/lib/redux',
         ),
       );
-      return id;
-    }
+    return id;
+  }
 
-    // ---- cascades: an action dispatching another ----------------------
-    for (final a in actions.values) {
+  // ---- cascades: an action dispatching another ----------------------
+  void _addCascades() {
+    for (final a in actions.all) {
       for (final step in a.info.dispatches) {
         if (step.isNavigation) {
           continue;
         }
-        addEdge(
+        graph.addEdge(
           GraphEdge(
             from: a.id,
-            to: dispatchTarget(
+            to: _dispatchTarget(
               step.target,
               a.imports[step.target],
               a.file,
@@ -169,11 +200,13 @@ class GraphReader {
         );
       }
     }
+  }
 
-    // ---- pages, navigation, and what a screen dispatches ---------------
+  // ---- pages, navigation, and what a screen dispatches ---------------
+  void _addPages() {
     final map = RouteMapReader(workspace).read();
     for (final page in map.pages) {
-      addNode(
+      graph.addNode(
         GraphNode(
           id: 'page:${page.page}',
           kind: NodeKind.page,
@@ -189,11 +222,11 @@ class GraphReader {
           },
         ),
       );
-      if (page.connectorFile != null) {
-        owners[page.connectorFile!] = 'page:${page.page}';
-      }
-      if (page.connectorFile == null) {
-        unresolved.add(
+      final connectorFile = page.connectorFile;
+      if (connectorFile != null) {
+        graph.own(connectorFile, 'page:${page.page}');
+      } else {
+        graph.unresolved.add(
           Unresolved(
             kind: 'route-connector',
             owner: 'page:${page.page}',
@@ -208,7 +241,7 @@ class GraphReader {
 
     for (final e in map.edges) {
       if (e.to == null) {
-        unresolved.add(
+        graph.unresolved.add(
           Unresolved(
             kind: 'pop-destination',
             owner: 'page:${e.from}',
@@ -222,7 +255,7 @@ class GraphReader {
         );
         continue;
       }
-      addEdge(
+      graph.addEdge(
         GraphEdge(
           from: 'page:${e.from}',
           to: 'page:${e.to}',
@@ -236,20 +269,21 @@ class GraphReader {
 
     for (final entry in map.flows.entries) {
       final flow = entry.value;
+      final id = 'page:${entry.key}';
       for (final useCase in flow.useCases) {
         for (final step in useCase.steps) {
           if (step.isNavigation) {
             continue;
           }
-          final info = flow.actions[step.target];
-          addEdge(
+          final file = flow.actions[step.target]?.file;
+          graph.addEdge(
             GraphEdge(
-              from: 'page:${entry.key}',
-              to: dispatchTarget(
+              from: id,
+              to: _dispatchTarget(
                 step.target,
-                info?.file == null ? null : File(info!.file!),
-                flow.connectorFile ?? 'page:${entry.key}',
-                owner: 'page:${entry.key}',
+                file == null ? null : File(file),
+                flow.connectorFile ?? id,
+                owner: id,
               ),
               kind: EdgeKind.dispatches,
               via: useCase.label,
@@ -259,29 +293,36 @@ class GraphReader {
         }
       }
     }
+  }
 
-    // ---- services ------------------------------------------------------
+  // ---- services ------------------------------------------------------
+  void _addServices() {
     for (final file in sourceIndex.filesUnder(workspace.businessServices)) {
-      final read = flowReader.readDispatches(file);
+      final consumer = _consumerAt(file);
+      final read = consumer.dispatches;
       if (read.steps.isEmpty) {
         continue;
       }
-      final name =
-          firstClassNameIn(sourceIndex.unitFor(file)) ??
-          Casing.parse(p.basenameWithoutExtension(file.path)).pascal;
+      final name = artifactNameIn(consumer.unit, file);
       final id = 'service:$name';
-      addNode(
-        GraphNode(id: id, kind: NodeKind.service, name: name, file: file.path),
-      );
-      owners[file.path] = id;
+      graph
+        ..addNode(
+          GraphNode(
+            id: id,
+            kind: NodeKind.service,
+            name: name,
+            file: file.path,
+          ),
+        )
+        ..own(file.path, id);
       for (final step in read.steps) {
         if (step.isNavigation) {
           continue;
         }
-        addEdge(
+        graph.addEdge(
           GraphEdge(
             from: id,
-            to: dispatchTarget(
+            to: _dispatchTarget(
               step.target,
               read.actionFiles[step.target],
               file.path,
@@ -293,86 +334,88 @@ class GraphReader {
         );
       }
     }
+  }
 
-    // ---- the persistor ---------------------------------------------------
-    // Searched by superclass rather than by a fixed path, so renaming the file
-    // does not quietly drop it — the whole reason it is here is that its writes
-    // were invisible. The string check keeps that generality cheap: every other
-    // file under business/lib is rejected without being parsed.
+  // ---- the persistor ---------------------------------------------------
+  // Searched by superclass rather than by a fixed path, so renaming the file
+  // does not quietly drop it — the whole reason it is here is that its writes
+  // were invisible. The string check keeps that generality cheap: every other
+  // file under business/lib is rejected without being parsed.
+  void _addPersistor() {
     for (final file in sourceIndex.filesUnder(workspace.businessLib)) {
       final unit = sourceIndex.unitIf(file, (s) => s.contains('Persistor'));
       if (unit == null) {
         continue;
       }
-      final v = _PersistorVisitor();
-      unit.accept(v);
-      final name = v.className;
-      if (name == null) {
+      final persistor = persistorIn(unit);
+      if (persistor == null) {
         continue;
       }
-      final id = 'persistor:$name';
-      addNode(
+      final id = 'persistor:${persistor.className}';
+      graph.addNode(
         GraphNode(
           id: id,
           kind: NodeKind.persistor,
-          name: name,
+          name: persistor.className,
           file: file.path,
         ),
       );
       for (final (fields, kind) in [
-        (v.restores, EdgeKind.restores),
-        (v.reads, EdgeKind.reads),
+        (persistor.restores, EdgeKind.restores),
+        (persistor.reads, EdgeKind.reads),
       ]) {
         for (final field in fields) {
-          if (!nodes.containsKey('substate:$field')) {
+          if (!graph.hasSubstate(field)) {
             continue;
           }
-          addEdge(GraphEdge(from: id, to: 'substate:$field', kind: kind));
+          graph.addEdge(GraphEdge(from: id, to: 'substate:$field', kind: kind));
         }
       }
     }
+  }
 
-    // ---- dispatches from everywhere else ---------------------------------
-    // **The same sweep the selector pass below makes, for the other half of the
-    // question it answers.** That pass reads every Dart file of the app's own
-    // packages and says why: "a read is a read whether or not frx models the
-    // reader, and scanning only modelled files would report the selectors that
-    // only an unrouted connector uses as dead — the one mistake here that costs
-    // working code." Every word of it is true of a dispatch, and this half did
-    // not do it.
-    //
-    // What it did instead was take dispatches from the page walk, which turns a
-    // dispatch into an edge only where it is written as a named argument of the
-    // `_Vm(...)` construction. Three ordinary shapes fall outside that and were
-    // dropped:
-    //
-    //   * `onInit: (store) => store.dispatch(LoadX())` on the `StoreConnector`,
-    //     which belongs to no interaction and so to no view-model field;
-    //   * a callback built in `builder:` rather than in `_Vm(...)`;
-    //   * every connector no route registers — the walk starts at `@RoutePage`
-    //     connectors, so a tree rooted in `MaterialApp.builder` is never
-    //     entered. `NodeKind.consumer` was invented for exactly that file and
-    //     applied only to its selector reads.
-    //
-    // The reader already knew: each one lands in `PageFlow.untraced`, which
-    // `flow --md` prints as "these files dispatch anyway — so this page has
-    // interactions that are not drawn". The graph never read it, so the orphan
-    // list — the one place frx says "you can delete this" — named actions that
-    // a connector three lines away dispatches. Measured on a real project: four
-    // of eleven reported orphan actions.
-    //
-    // Additive, and deliberately after everything that attributes an edge more
-    // precisely: a flow edge carries the interaction it belongs to
-    // (`via onSubmit`), and this pass must not shadow one with a bare
-    // duplicate. So it fills gaps only — a pair already linked is left as the
-    // richer edge.
+  // ---- dispatches from everywhere else ---------------------------------
+  // **The same sweep the selector pass below makes, for the other half of the
+  // question it answers.** That pass reads every Dart file of the app's own
+  // packages and says why: "a read is a read whether or not frx models the
+  // reader, and scanning only modelled files would report the selectors that
+  // only an unrouted connector uses as dead — the one mistake here that costs
+  // working code." Every word of it is true of a dispatch, and this half did
+  // not do it.
+  //
+  // What it did instead was take dispatches from the page walk, which turns a
+  // dispatch into an edge only where it is written as a named argument of the
+  // `_Vm(...)` construction. Three ordinary shapes fall outside that and were
+  // dropped:
+  //
+  //   * `onInit: (store) => store.dispatch(LoadX())` on the `StoreConnector`,
+  //     which belongs to no interaction and so to no view-model field;
+  //   * a callback built in `builder:` rather than in `_Vm(...)`;
+  //   * every connector no route registers — the walk starts at `@RoutePage`
+  //     connectors, so a tree rooted in `MaterialApp.builder` is never
+  //     entered. `NodeKind.consumer` was invented for exactly that file and
+  //     applied only to its selector reads.
+  //
+  // The reader already knew: each one lands in `PageFlow.untraced`, which
+  // `flow --md` prints as "these files dispatch anyway — so this page has
+  // interactions that are not drawn". The graph never read it, so the orphan
+  // list — the one place frx says "you can delete this" — named actions that
+  // a connector three lines away dispatches. Measured on a real project: four
+  // of eleven reported orphan actions.
+  //
+  // Additive, and deliberately after everything that attributes an edge more
+  // precisely: a flow edge carries the interaction it belongs to
+  // (`via onSubmit`), and this pass must not shadow one with a bare
+  // duplicate. So it fills gaps only — a pair already linked is left as the
+  // richer edge.
+  void _addStrayDispatches() {
     final linked = {
-      for (final e in edges.values)
+      for (final e in graph.edges)
         if (e.kind == EdgeKind.dispatches) '${e.from}|${e.to}',
     };
     //
     // **Resolve-or-skip, unlike every other pass here.** The others call
-    // [dispatchTarget], which invents a placeholder node and an `unresolved`
+    // [_dispatchTarget], which invents a placeholder node and an `unresolved`
     // note for a name it cannot pin to a file. Doing that from a sweep of every
     // file was measured and rejected: `unresolved` went from 6 entries to 22 on
     // the project this was written against — the same unresolvable factory
@@ -383,8 +426,8 @@ class GraphReader {
     // routed walk's job and it already does it. This pass exists to stop an
     // action frx *does* model from being called unreachable, so an edge it
     // cannot draw to a known action is an edge it has no business inventing.
-    for (final consumer in _consumerFiles()) {
-      final read = flowReader.readDispatches(consumer);
+    for (final consumer in consumers.values) {
+      final read = consumer.dispatches;
       if (read.steps.isEmpty) {
         continue;
       }
@@ -395,7 +438,7 @@ class GraphReader {
           continue;
         }
         final file = read.actionFiles[step.target];
-        final known = file == null ? null : actions[p.canonicalize(file.path)];
+        final known = file == null ? null : actions.at(file);
         if (known != null) {
           targets.add(known.id);
         }
@@ -404,247 +447,23 @@ class GraphReader {
         continue;
       }
 
-      final path = p.canonicalize(consumer.path);
-      var from = owners[consumer.path] ?? owners[path];
-      if (from == null) {
-        // A dispatcher with no node of its own — see [NodeKind.consumer].
-        final name =
-            firstClassNameIn(sourceIndex.unitFor(consumer)) ??
-            Casing.parse(p.basenameWithoutExtension(consumer.path)).pascal;
-        from = 'consumer:$name';
-        addNode(
-          GraphNode(
-            id: from,
-            kind: NodeKind.consumer,
-            name: name,
-            file: consumer.path,
-          ),
-        );
-      }
-
+      final from = graph.nodeFor(consumer.file, consumer.unit);
       for (final to in targets) {
         if (!linked.add('$from|$to')) {
           continue;
         }
-        addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.dispatches));
+        graph.addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.dispatches));
       }
     }
-
-    // ---- selectors -------------------------------------------------------
-    _readSelectors(
-      appState,
-      addNode: addNode,
-      addEdge: addEdge,
-      unresolved: unresolved,
-      actions: actions,
-      hasSubstate: (f) => nodes.containsKey('substate:$f'),
-      owners: owners,
-    );
-
-    // ---- how the screens are composed ------------------------------------
-    // Which connector builds which, so "nothing builds this one" becomes
-    // sayable. Without it the graph had no notion of a widget connector
-    // existing at all: on a real project six of eleven reported orphan actions
-    // were dispatched only from a `SettingsConnector` that no file constructs,
-    // so the verdict was right and the reason — the whole connector is dead,
-    // not the six actions one at a time — was missing.
-    //
-    // The composition itself is not new; `FlowReader` walks it to find a page's
-    // regions. It was private to that walk, which starts at `@RoutePage`
-    // connectors, so nothing outside the routed tree was ever composed.
-    //
-    // Runs after everything that makes a node, and matches on the class name
-    // rather than on a resolved import: a builder is any file at all, and the
-    // one that constructs the app's root widget is not itself a connector.
-    final connectorNodes = <String, String>{
-      for (final n in nodes.values)
-        if (n.kind == NodeKind.consumer) n.name: n.id,
-    };
-    for (final consumer in _consumerFiles()) {
-      final built = flowReader.connectorNamesIn(consumer);
-      if (built.isEmpty) {
-        continue;
-      }
-
-      final path = p.canonicalize(consumer.path);
-      // Only to nodes that already exist: constructing something frx does not
-      // model is not evidence of anything.
-      final targets = {
-        for (final name in built)
-          if (connectorNodes[name] != null) connectorNodes[name]!,
-      };
-      if (targets.isEmpty) {
-        continue;
-      }
-
-      var from = owners[consumer.path] ?? owners[path];
-      if (from == null) {
-        // A builder with no artifact of its own — the `run_env.dart` that wraps
-        // the root widget. It gets a node so the construction can be recorded;
-        // the dead-connector rule looks only at names ending in `Connector`, so
-        // giving one to a plain file cannot put it on that list.
-        final name =
-            firstClassNameIn(sourceIndex.unitFor(consumer)) ??
-            Casing.parse(p.basenameWithoutExtension(consumer.path)).pascal;
-        from = 'consumer:$name';
-        if (!nodes.containsKey(from)) {
-          addNode(
-            GraphNode(
-              id: from,
-              kind: NodeKind.consumer,
-              name: name,
-              file: consumer.path,
-            ),
-          );
-        }
-      }
-      for (final to in targets) {
-        if (to == from) {
-          continue;
-        }
-        addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.builds));
-      }
-    }
-
-    // ---- selectors declared outside the facade ---------------------------
-    // The graph reads selector *declarations* from `selectors.dart` and nothing
-    // else, while the placement rules sweep all three lib trees for them. So a
-    // hand-written selector outside the facade was reported by the audit and
-    // absent here: no node, no edges, and the selectors it reads counted as
-    // read by nobody — which is a false "nothing reads this" in the
-    // dead-selector analysis, the one place frx says "you can delete this".
-    //
-    // An unresolved entry rather than a node, because both halves matter. The
-    // false reading goes away, since the selector is no longer absent. And the
-    // misplacement is not dressed up as ordinary wiring: an unresolved entry is
-    // a blind spot being declared, not a link being drawn.
-    //
-    // Asked of the module the audit asks, so the two cannot disagree about what
-    // a selector is or where it may live — but *not* honouring `.frxrc`: a
-    // project silencing the placement rule has said the file may stay there,
-    // not that frx can now follow it.
-    for (final finding in placementFindings(
-      workspace,
-      silenced: const {
-        PlacementRule.actionOutsideActionsDir,
-        PlacementRule.connectorOutsideConnectors,
-      },
-    )) {
-      final rel = p.relative(finding.file, from: workspace.root.path);
-      unresolved.add(
-        Unresolved(
-          kind: 'misplaced-selector',
-          owner: 'file:$rel',
-          at: finding.file,
-          why:
-              '$rel declares a selector outside the facade. frx reads selector '
-              'declarations from selectors.dart only, so what this one reads '
-              'and '
-              'who reads it are both unknown here — move it to the facade and '
-              'the graph can follow it.',
-        ),
-      );
-    }
-
-    // ---- what the analyzer had to guess at -------------------------------
-    // Last, so it covers every file the passes above reached. The reader tier
-    // is tolerant of unparseable source on purpose — one broken file must not
-    // take a whole read down — and the tolerance was silent, which is worse
-    // than the crash it replaced: a node built from a recovered tree answers
-    // confidently, and nothing said which answers came from a file that does
-    // not compile.
-    //
-    // Owned by the file rather than by a node: the gap is not in one edge, it
-    // is in everything read from there. A focused view drops it, which is the
-    // right trade — attributing it to whichever node happened to be nearby
-    // would say the gap is somewhere it is not.
-    for (final file in sourceIndex.recovered) {
-      final rel = p.relative(file.path, from: workspace.root.path);
-      unresolved.add(
-        Unresolved(
-          kind: 'unparsed-file',
-          why:
-              '$rel does not parse. What frx says about it was read off the '
-              'tree the analyzer recovered, so nodes and edges from this file '
-              'may be missing or invented — fix the syntax error and re-read.',
-          owner: 'file:$rel',
-          at: file.path,
-        ),
-      );
-    }
-
-    return AppGraph(
-      nodes: nodes.values.toList(),
-      edges: edges.values.toList(),
-      unresolved: unresolved,
-    );
   }
 
-  /// Every action under `business/lib/redux/*/actions/`, by canonical path.
-  Map<String, _Action> _actionsOnDisk(FlowReader reader) {
-    final out = <String, _Action>{};
-    if (!workspace.businessRedux.existsSync()) {
-      return out;
-    }
-    // `substateDirsIn`, which is where the rule lives. This used to walk the
-    // directory itself and skip `isSubstateDir` entirely, so an `actions/`
-    // under `redux/services/` would have been read as a substate's; the first
-    // fix applied the rule but spelled it here, which is the same duplication
-    // one level down.
-    for (final dir in workspace.substateDirsIn()) {
-      final actionsDir = Directory(p.join(dir.path, 'actions'));
-      if (!actionsDir.existsSync()) {
-        continue;
-      }
-      final substate = Casing.parse(p.basename(dir.path)).camel;
-      for (final file in sourceIndex.filesUnder(actionsDir)) {
-        final read = reader.readActionWithImports(file);
-        // A file here need not hold an action. The template's own idiom is a
-        // `mixin … on Action` with the shared `reduce()`, and a mixin is never
-        // dispatched — so a node for it could only ever be reported as reached
-        // by nobody.
-        if (!read.info.declaresClass) {
-          continue;
-        }
-        out[p.canonicalize(file.path)] = _Action(
-          id: 'action:$substate.${read.info.className}',
-          substate: substate,
-          file: file.path,
-          info: read.info,
-          imports: read.actionFiles,
-        );
-      }
-    }
-    return out;
-  }
-
-  GraphNode _actionNode(_Action a) => GraphNode(
-    id: a.id,
-    kind: NodeKind.action,
-    name: a.info.className,
-    substate: a.substate,
-    file: a.file,
-    fields: {
-      if (a.info.mixins.isNotEmpty) 'mixins': a.info.mixins,
-      'isAsync': a.info.isAsync,
-      if (a.info.throwsUserException) 'throwsUserException': true,
-    },
-  );
-
+  // ---- selectors -------------------------------------------------------
   /// The `Select<Pascal>` extension types in `selectors.dart`.
   ///
   /// Selectors are what makes deleting an action break something far away:
   /// `isWaitingForType<ForgotPasswordAction>()` names the class with no import
   /// of its own to follow, so nothing else in the graph records the reference.
-  void _readSelectors(
-    AppStateSource appState, {
-    required void Function(GraphNode) addNode,
-    required void Function(GraphEdge) addEdge,
-    required List<Unresolved> unresolved,
-    required Map<String, _Action> actions,
-    required bool Function(String) hasSubstate,
-    required Map<String, String> owners,
-  }) {
+  void _addSelectors() {
     // `FrxWorkspace.selectorsFile`, whose doc says it exists so a command
     // holding a workspace need not locate `AppState` to find the file beside
     // it. This located `AppState` to find it anyway — a third spelling of one
@@ -654,13 +473,16 @@ class GraphReader {
       return;
     }
 
-    final byClass = <String, List<_Action>>{};
-    for (final a in actions.values) {
-      byClass.putIfAbsent(a.info.className, () => []).add(a);
-    }
-
     final parsed = sourceIndex.unitFor(file);
-    final selectors = _SelectorVisitor.read(parsed);
+    final selectors = readSelectorGetters(parsed);
+
+    /// Which substate [s] *belongs to* — from the facade type, and only when
+    /// `AppState` composes one by that name — not which ones it reads: a
+    /// composite selector reads several.
+    String? substateOf(SelectorGetter s) {
+      final owner = SubstateArtifact.substateOfSelectorType(s.ownerType);
+      return owner != null && graph.hasSubstate(owner) ? owner : null;
+    }
 
     // How each selector is *called*, which is not how it is declared: one
     // hanging off a substate is reached as `<field>.<getter>`, a composite on
@@ -668,10 +490,10 @@ class GraphReader {
     // resolve a selector declared after it.
     final selectorIds = <String, String>{};
     for (final s in selectors) {
-      final owner = SubstateArtifact.substateOfSelectorType(s.ownerType);
-      final site = owner != null && hasSubstate(owner)
-          ? '$owner.${s.getter}'
-          : s.getter;
+      final site = switch (substateOf(s)) {
+        final owner? => '$owner.${s.getter}',
+        null => s.getter,
+      };
       selectorIds[site] = s.id;
     }
 
@@ -684,20 +506,25 @@ class GraphReader {
       (siblingIds[s.ownerType] ??= {})[s.getter] = s.id;
     }
 
+    // The call sites a body on [ownerType] can name: the facade's plus its own
+    // siblings. Merged once per type rather than once per getter.
+    final bodyIndex = <String, Map<String, String>>{};
+    Map<String, String> bodyIndexFor(String ownerType) => bodyIndex.putIfAbsent(
+      ownerType,
+      () => {...selectorIds, ...?siblingIds[ownerType]},
+    );
+
     for (final s in selectors) {
       final id = s.id;
-      final owner = SubstateArtifact.substateOfSelectorType(s.ownerType);
       // Every selector in the app shares this one file, so the offset is what
       // makes the node point at the getter rather than at the facade.
       final at = parsed.lineInfo.getLocation(s.offset);
-      addNode(
+      graph.addNode(
         GraphNode(
           id: id,
           kind: NodeKind.selector,
           name: '${s.type}.${s.getter}',
-          // Which substate it *belongs to* (from the facade type), not which
-          // ones it reads — a composite selector reads several.
-          substate: owner != null && hasSubstate(owner) ? owner : null,
+          substate: substateOf(s),
           file: file.path,
           line: at.lineNumber,
           column: at.columnNumber,
@@ -705,10 +532,10 @@ class GraphReader {
       );
 
       for (final field in s.readsFields) {
-        if (!hasSubstate(field)) {
+        if (!graph.hasSubstate(field)) {
           continue;
         }
-        addEdge(
+        graph.addEdge(
           GraphEdge(
             from: id,
             to: 'substate:$field',
@@ -723,18 +550,17 @@ class GraphReader {
       final body = s.body;
       final uses = body == null
           ? <String>{}
-          : (selectorUsesIn(body, {...selectorIds, ...?siblingIds[s.ownerType]})
-              ..remove(id));
+          : (selectorUsesIn(body, bodyIndexFor(s.ownerType))..remove(id));
       for (final target in uses) {
-        addEdge(
+        graph.addEdge(
           GraphEdge(from: id, to: target, kind: EdgeKind.uses, via: s.getter),
         );
       }
 
       for (final className in s.waitsForActions) {
-        final candidates = byClass[className] ?? const <_Action>[];
+        final candidates = actions.named(className);
         if (candidates.length == 1) {
-          addEdge(
+          graph.addEdge(
             GraphEdge(
               from: id,
               to: candidates.single.id,
@@ -752,13 +578,10 @@ class GraphReader {
         // barrier's whole question — waits for all of them at once. Read before
         // this existed, it was an action class by that name, found none, and
         // reported the barrier as following something frx could not.
-        final byMixin = [
-          for (final a in actions.values)
-            if (a.info.mixins.contains(className)) a,
-        ];
+        final byMixin = actions.withMixin(className);
         if (candidates.isEmpty && byMixin.isNotEmpty) {
           for (final a in byMixin) {
-            addEdge(
+            graph.addEdge(
               GraphEdge(
                 from: id,
                 to: a.id,
@@ -770,7 +593,7 @@ class GraphReader {
           continue;
         }
 
-        unresolved.add(
+        graph.unresolved.add(
           Unresolved(
             kind: 'selector-action',
             owner: id,
@@ -789,7 +612,7 @@ class GraphReader {
       // follow in no way at all belongs here — a list that cries wolf gets
       // ignored, and the real gaps go with it.
       if (s.readsFields.isEmpty && s.waitsForActions.isEmpty && uses.isEmpty) {
-        unresolved.add(
+        graph.unresolved.add(
           Unresolved(
             kind: 'selector-body',
             owner: id,
@@ -815,672 +638,166 @@ class GraphReader {
     // scanning only modelled files would report the selectors that only an
     // unrouted connector uses as dead — the one mistake here that costs
     // working code.
-    for (final consumer in _consumerFiles()) {
-      final path = p.canonicalize(consumer.path);
-      if (path == p.canonicalize(file.path)) {
+    final facade = p.canonicalize(file.path);
+    for (final consumer in consumers.values) {
+      if (consumer.path == facade) {
         continue; // the facade itself
       }
-      final unit = sourceIndex.unitFor(consumer);
+      final unit = consumer.unit;
       final used = selectorUsesIn(unit, selectorIds, facades: facadesIn(unit));
       if (used.isEmpty) {
         continue;
       }
-      final from = owners[consumer.path] ?? owners[path];
-      if (from == null) {
-        // A reader with no node of its own — see [NodeKind.consumer].
-        final name =
-            firstClassNameIn(unit) ??
-            Casing.parse(p.basenameWithoutExtension(consumer.path)).pascal;
-        addNode(
-          GraphNode(
-            id: 'consumer:$name',
-            kind: NodeKind.consumer,
-            name: name,
-            file: consumer.path,
-          ),
-        );
-        for (final target in used) {
-          addEdge(
-            GraphEdge(from: 'consumer:$name', to: target, kind: EdgeKind.uses),
-          );
-        }
-        continue;
-      }
+      final from = graph.nodeFor(consumer.file, unit);
       for (final target in used) {
-        addEdge(GraphEdge(from: from, to: target, kind: EdgeKind.uses));
+        graph.addEdge(GraphEdge(from: from, to: target, kind: EdgeKind.uses));
       }
     }
   }
 
-  /// Every Dart file of the app's own packages that could read a selector.
-  Iterable<File> _consumerFiles() sync* {
-    for (final dir in [
-      Directory(p.join(workspace.root.path, 'app', 'lib')),
-      workspace.businessLib,
-      workspace.uiLib,
-    ]) {
-      yield* sourceIndex.filesUnder(dir);
-    }
-  }
-}
+  // ---- how the screens are composed ------------------------------------
+  // Which connector builds which, so "nothing builds this one" becomes
+  // sayable. Without it the graph had no notion of a widget connector
+  // existing at all: on a real project six of eleven reported orphan actions
+  // were dispatched only from a `SettingsConnector` that no file constructs,
+  // so the verdict was right and the reason — the whole connector is dead,
+  // not the six actions one at a time — was missing.
+  //
+  // The composition itself is not new; `FlowReader` walks it to find a page's
+  // regions. It was private to that walk, which starts at `@RoutePage`
+  // connectors, so nothing outside the routed tree was ever composed.
+  //
+  // Runs after everything that makes a node, and matches on the class name
+  // rather than on a resolved import: a builder is any file at all, and the
+  // one that constructs the app's root widget is not itself a connector.
+  void _addComposition() {
+    final connectorNodes = <String, String>{
+      for (final n in graph.nodes)
+        if (n.kind == NodeKind.consumer) n.name: n.id,
+    };
+    for (final consumer in consumers.values) {
+      final built = consumer.builds;
+      if (built.isEmpty) {
+        continue;
+      }
 
-/// An action plus the identity the graph knows it by.
-class _Action {
-  const _Action({
-    required this.id,
-    required this.substate,
-    required this.file,
-    required this.info,
-    required this.imports,
-  });
+      // Only to nodes that already exist: constructing something frx does not
+      // model is not evidence of anything.
+      final targets = {
+        for (final name in built) ?connectorNodes[name],
+      };
+      if (targets.isEmpty) {
+        continue;
+      }
 
-  final String id;
-  final String substate;
-  final String file;
-  final ActionInfo info;
-
-  /// The action files this action's own imports resolve to — carried from the
-  /// same parse that produced [info], so following a cascade costs nothing.
-  final Map<String, File> imports;
-}
-
-/// Reads the `Persistor` subclass: which substates it puts back on boot, and
-/// which it reads back out to save.
-///
-/// It changes state without dispatching anything, so every other reader here is
-/// blind to it. In this template it is the only thing besides `SetTokenAction`
-/// that can put a token in `session` — leaving it out made "who can change
-/// `session.token`" answer confidently and incompletely.
-class _PersistorVisitor extends RecursiveAstVisitor<void> {
-  String? className;
-
-  /// Substates rebuilt in `readState()`.
-  final restores = <String>{};
-
-  /// Substates read in `persistDifference()`.
-  final reads = <String>{};
-
-  @override
-  void visitClassDeclaration(ClassDeclaration node) {
-    final supertypes = [
-      ?node.extendsClause?.superclass.toSource(),
-      ...?node.implementsClause?.interfaces.map((i) => i.toSource()),
-    ];
-    if (!supertypes.any((t) => t.startsWith('Persistor'))) {
-      return;
-    }
-    className = node.namePart.typeName.lexeme;
-    super.visitClassDeclaration(node);
-  }
-
-  @override
-  void visitMethodDeclaration(MethodDeclaration node) {
-    if (className == null) {
-      return;
-    }
-    switch (node.name.lexeme) {
-      case 'readState':
-        // `AppState.initial().copyWith(theme: …, session: …)` — every named
-        // argument is a substate being restored, not just the first.
-        final v = _CopyWithArgs();
-        node.body.accept(v);
-        restores.addAll(v.fields);
-      case 'persistDifference':
-        // `newState.session`, `lastPersistedState?.theme` — the parameter names
-        // come from the signature rather than being assumed, since they are the
-        // author's to choose.
-        final params =
-            node.parameters?.parameters
-                .map((p) => p.name?.lexeme)
-                .nonNulls
-                .toSet() ??
-            const <String>{};
-        if (params.isEmpty) {
-          return;
+      // A builder with no artifact of its own — the `run_env.dart` that wraps
+      // the root widget. It gets a node so the construction can be recorded;
+      // the dead-connector rule looks only at names ending in `Connector`, so
+      // giving one to a plain file cannot put it on that list.
+      final from = graph.nodeFor(consumer.file, consumer.unit);
+      for (final to in targets) {
+        if (to == from) {
+          continue;
         }
-        // Off the tree, not off the text, for the reason [_BodyReader] gives:
-        // a parameter named in a string literal is not a read of it.
-        node.body.accept(_ParamFieldReads(params, reads));
+        graph.addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.builds));
+      }
     }
   }
+
+  // ---- selectors declared outside the facade ---------------------------
+  // The graph reads selector *declarations* from `selectors.dart` and nothing
+  // else, while the placement rules sweep all three lib trees for them. So a
+  // hand-written selector outside the facade was reported by the audit and
+  // absent here: no node, no edges, and the selectors it reads counted as
+  // read by nobody — which is a false "nothing reads this" in the
+  // dead-selector analysis, the one place frx says "you can delete this".
+  //
+  // An unresolved entry rather than a node, because both halves matter. The
+  // false reading goes away, since the selector is no longer absent. And the
+  // misplacement is not dressed up as ordinary wiring: an unresolved entry is
+  // a blind spot being declared, not a link being drawn.
+  //
+  // Asked of the module the audit asks, so the two cannot disagree about what
+  // a selector is or where it may live — but *not* honouring `.frxrc`: a
+  // project silencing the placement rule has said the file may stay there,
+  // not that frx can now follow it.
+  void _addMisplacedSelectors() {
+    for (final finding in placementFindings(
+      workspace,
+      silenced: const {
+        PlacementRule.actionOutsideActionsDir,
+        PlacementRule.connectorOutsideConnectors,
+      },
+    )) {
+      final rel = p.relative(finding.file, from: workspace.root.path);
+      graph.unresolved.add(
+        Unresolved(
+          kind: 'misplaced-selector',
+          owner: 'file:$rel',
+          at: finding.file,
+          why:
+              '$rel declares a selector outside the facade. frx reads selector '
+              'declarations from selectors.dart only, so what this one reads '
+              'and '
+              'who reads it are both unknown here — move it to the facade and '
+              'the graph can follow it.',
+        ),
+      );
+    }
+  }
+
+  // ---- what the analyzer had to guess at -------------------------------
+  // Last, so it covers every file the passes above reached. The reader tier
+  // is tolerant of unparseable source on purpose — one broken file must not
+  // take a whole read down — and the tolerance was silent, which is worse
+  // than the crash it replaced: a node built from a recovered tree answers
+  // confidently, and nothing said which answers came from a file that does
+  // not compile.
+  //
+  // Owned by the file rather than by a node: the gap is not in one edge, it
+  // is in everything read from there. A focused view drops it, which is the
+  // right trade — attributing it to whichever node happened to be nearby
+  // would say the gap is somewhere it is not.
+  void _addUnparsed() {
+    for (final file in sourceIndex.recovered) {
+      final rel = p.relative(file.path, from: workspace.root.path);
+      graph.unresolved.add(
+        Unresolved(
+          kind: 'unparsed-file',
+          why:
+              '$rel does not parse. What frx says about it was read off the '
+              'tree the analyzer recovered, so nodes and edges from this file '
+              'may be missing or invented — fix the syntax error and re-read.',
+          owner: 'file:$rel',
+          at: file.path,
+        ),
+      );
+    }
+  }
+
+  /// The consumer entry for [file], so a file listed from a subdirectory of
+  /// the app's packages shares the sweep's reading of it rather than being
+  /// read again on its own.
+  _Consumer _consumerAt(File file) =>
+      consumers[p.canonicalize(file.path)] ?? _Consumer(file, flowReader);
 }
 
-/// Fields read off one of [_params] — `newState.session`,
-/// `lastPersistedState?.theme`.
+/// One Dart file of the app's own packages, and what the passes ask of it.
 ///
-/// Both spellings, because `?.` is a [PropertyAccess] while `.` on a plain name
-/// is a [PrefixedIdentifier], and the persistor uses each.
-class _ParamFieldReads extends RecursiveAstVisitor<void> {
-  _ParamFieldReads(this._params, this._into);
+/// Three passes sweep the same files — for what they dispatch, for the
+/// selectors they read, for the connectors they construct. Each fact is read
+/// on first use and kept, so the passes share one reading of the file rather
+/// than fetching its tree once per question.
+class _Consumer {
+  _Consumer(this.file, this._reader);
 
-  final Set<String> _params;
-  final Set<String> _into;
+  final File file;
+  final FlowReader _reader;
 
-  /// Lower-case initial only, as the pattern this replaced required: a field is
-  /// not a nested type name.
-  void _add(String name) {
-    if (name.isNotEmpty && name[0] == name[0].toLowerCase()) {
-      _into.add(name);
-    }
-  }
-
-  @override
-  void visitPrefixedIdentifier(PrefixedIdentifier node) {
-    if (_params.contains(node.prefix.name)) {
-      _add(node.identifier.name);
-    }
-    super.visitPrefixedIdentifier(node);
-  }
-
-  @override
-  void visitPropertyAccess(PropertyAccess node) {
-    final target = node.target;
-    if (target is SimpleIdentifier && _params.contains(target.name)) {
-      _add(node.propertyName.name);
-    }
-    super.visitPropertyAccess(node);
-  }
-}
-
-/// Every named argument of every `copyWith(...)` in the visited subtree.
-class _CopyWithArgs extends RecursiveAstVisitor<void> {
-  final fields = <String>{};
-
-  @override
-  void visitMethodInvocation(MethodInvocation node) {
-    if (node.methodName.name == 'copyWith') {
-      for (final a in node.argumentList.arguments.whereType<NamedArgument>()) {
-        fields.add(a.name.lexeme);
-      }
-    }
-    super.visitMethodInvocation(node);
-  }
-}
-
-/// One getter on a `Select<Pascal>` extension type.
-class _Selector {
-  _Selector(this.type, this.ownerType, this.getter, this.offset);
-
-  /// The type that *declares* the getter — the node's identity.
-  final String type;
-
-  /// The type the getter is *called* on, which is not always [type]: an
-  /// `extension X on SelectLogIn` contributes to `SelectLogIn`, so its getters
-  /// are reached as `select.logIn.<getter>` however `X` is named.
-  final String ownerType;
-
-  final String getter;
-
-  /// The node id this getter is filed under — the declaring type, not the type
-  /// it is called on, so two extensions on one selector stay distinct.
-  String get id => 'selector:$type.$getter';
-
-  /// Character offset of the getter's name, for the node's line/column.
-  final int offset;
-  final readsFields = <String>{};
-  final waitsForActions = <String>{};
-
-  /// Bare identifiers in the body, some of which name a getter alongside it.
-  final siblings = <String>{};
-
-  /// The getter's body, scanned for the selectors it calls once every selector
-  /// is known (a composite can name one declared below it). Held as AST: a
-  /// selector quoted in a string is not a read of it.
-  FunctionBody? body;
-}
-
-/// A dotted chain — `context.session.token`, `_state.logIn.email`.
-///
-/// The selector ids [node] calls, given an index of call site → node id.
-///
-/// Walks the AST rather than scanning source text. Text scanning counted a
-/// selector named in a comment or quoted in a string as a read, which made
-/// "something reads this" untrustworthy in exactly the direction that hides
-/// dead code — and the files are parsed here anyway.
-///
-/// Two call shapes, because a selector is reached two ways:
-/// `<substate>.<getter>` for the ones hanging off a substate, and a bare
-/// `<getter>` for a composite declared on `Select` itself.
-///
-/// Still deliberately generous about the bare shape: a composite's name can
-/// collide with a local of the same name, which files a selector as used when
-/// it is not. That direction costs a missed cleanup; the other one — reporting
-/// a live selector as dead — invites someone to delete working code.
-///
-/// [facades] are the names in the enclosing file that hold the facade itself —
-/// see [facadesIn]. A read through one of those has a segment in front of it
-/// that is neither a substate nor a view-model, and without them it is refused.
-Set<String> selectorUsesIn(
-  AstNode node,
-  Map<String, String> index, {
-  Set<String> facades = const {},
-}) {
-  final visitor = _SelectorUseVisitor(index, facades);
-  node.accept(visitor);
-  return visitor.used;
-}
-
-/// The names in [unit] that hold a selector facade — a variable, a field, a
-/// parameter, and the facade types themselves.
-///
-/// **Why the chain rule cannot do without this.** `chats.unreadTotal` is a
-/// selector read because the receiver heads the chain, which is how a class
-/// mixing in `Selectors` reaches one. Put the facade in a variable first —
-///
-///     final selectors = _Reader(state);
-///     final unread = selectors.chats.unreadTotal;
-///
-/// — and the same read has a segment in front of it, which
-/// [_SelectorUseVisitor] accepted only when it was the literal `select` of the
-/// spine that no longer exists. `app_tray.dart` reads `SelectChats.unreadTotal`
-/// exactly that way and nothing else in the application does, so the selector
-/// was reported as read by nobody: a live selector on the dead list, which is
-/// the one direction that invites deleting working code.
-///
-/// Bound by *type*, never by name. A receiver is a facade because what it holds
-/// mixes in `Selectors` — which is also why `vm.logIn.email` and
-/// `_state.logIn.email` stay refused, and why widening the rule to "any
-/// receiver" was not the fix: a substate's field and its selector are spelled
-/// the same, so `state.session.token` would have counted as a read of
-/// `SelectSession.token` and hidden every genuinely dead selector behind the
-/// substate it reads.
-///
-/// Syntactic, like the rest of the graph: a name is bound to a facade when it
-/// is *declared* as one or *constructed* from one in this unit. A facade
-/// arriving from another file with no type annotation is not seen, and that
-/// costs a missed cleanup rather than a wrong deletion.
-Set<String> facadesIn(CompilationUnit unit) {
-  final types = {SelectorShape.mixinType, SelectorShape.facadeType};
-
-  final declared = _FacadeTypeVisitor();
-  unit.accept(declared);
-  // `class A with Selectors {}` is a facade, and so is `class B extends A {}`.
-  // Repeated until nothing new goes in — on any real unit that is one pass and
-  // the check that stops it, and it is bounded by the class count either way.
-  for (var changed = true; changed;) {
-    changed = false;
-    for (final entry in declared.supertypes.entries) {
-      if (types.contains(entry.key)) {
-        continue;
-      }
-      if (entry.value.any(types.contains)) {
-        types.add(entry.key);
-        changed = true;
-      }
-    }
-  }
-
-  final names = _FacadeNameVisitor(types);
-  unit.accept(names);
-  // The types as well: `_Reader(state).chats.unreadTotal` names no variable at
-  // all, and the head of that chain is the type.
-  return {...types, ...names.names};
-}
-
-/// Every class in a unit and what it is built from, so [facadesIn] can ask
-/// which of them reach `Selectors`.
-class _FacadeTypeVisitor extends RecursiveAstVisitor<void> {
-  final supertypes = <String, List<String>>{};
-
-  @override
-  void visitClassDeclaration(ClassDeclaration node) {
-    supertypes[node.namePart.typeName.lexeme] = [
-      ?node.extendsClause?.superclass.name.lexeme,
-      ...?node.withClause?.mixinTypes.map((t) => t.name.lexeme),
-      ...?node.implementsClause?.interfaces.map((t) => t.name.lexeme),
-    ];
-    super.visitClassDeclaration(node);
-  }
-
-  @override
-  void visitMixinDeclaration(MixinDeclaration node) {
-    supertypes[node.name.lexeme] = [
-      ...?node.onClause?.superclassConstraints.map((t) => t.name.lexeme),
-      ...?node.implementsClause?.interfaces.map((t) => t.name.lexeme),
-    ];
-    super.visitMixinDeclaration(node);
-  }
-}
-
-/// The names bound to one of [types] — declared as one, or assigned one.
-class _FacadeNameVisitor extends RecursiveAstVisitor<void> {
-  _FacadeNameVisitor(this.types);
-
-  final Set<String> types;
-  final names = <String>{};
-
-  @override
-  void visitVariableDeclarationList(VariableDeclarationList node) {
-    final annotated = _named(node.type);
-    for (final v in node.variables) {
-      if (annotated || _constructs(v.initializer)) {
-        names.add(v.name.lexeme);
-      }
-    }
-    super.visitVariableDeclarationList(node);
-  }
-
-  @override
-  void visitRegularFormalParameter(RegularFormalParameter node) {
-    final name = node.name?.lexeme;
-    if (name != null && _named(node.type)) {
-      names.add(name);
-    }
-    super.visitRegularFormalParameter(node);
-  }
-
-  bool _named(TypeAnnotation? type) =>
-      type is NamedType && types.contains(type.name.lexeme);
-
-  /// Whether [expression] builds a facade. An unresolved parse cannot tell a
-  /// constructor from a function call, so `_Reader(state)` arrives as a method
-  /// invocation; the name being a facade type is what settles it.
-  bool _constructs(Expression? expression) => switch (expression) {
-    MethodInvocation(target: null) => types.contains(
-      expression.methodName.name,
-    ),
-    InstanceCreationExpression() => types.contains(
-      expression.constructorName.type.name.lexeme,
-    ),
-    _ => false,
-  };
-}
-
-/// Finds selector reads by shape, so a mention in a comment or a string cannot
-/// be one.
-class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
-  _SelectorUseVisitor(this.index, this.facades);
-
-  final Map<String, String> index;
-
-  /// What may stand in front of a substate hop — see [facadesIn]. `select` is
-  /// in every set of them: a project scaffolded before the spine collapsed
-  /// still reaches the facade through it, and it never named anything else.
-  final Set<String> facades;
-
-  final used = <String>{};
-
-  bool _isFacade(String name) => name == 'select' || facades.contains(name);
-
-  @override
-  void visitPrefixedIdentifier(PrefixedIdentifier node) {
-    _chain(node);
-    super.visitPrefixedIdentifier(node);
-  }
-
-  @override
-  void visitPropertyAccess(PropertyAccess node) {
-    _chain(node);
-    super.visitPropertyAccess(node);
-  }
-
-  @override
-  void visitSimpleIdentifier(SimpleIdentifier node) {
-    // A composite reached by its bare name — `if (canEnterApp)`. Skipped when
-    // it is a segment of a chain, which `_chain` has already judged as a whole.
-    final parent = node.parent;
-    if (parent is PrefixedIdentifier || parent is PropertyAccess) {
-      return;
-    }
-    final id = index[node.name];
-    if (id != null) {
-      used.add(id);
-    }
-  }
-
-  /// Judges a dotted access by where the receiver sits in its chain.
-  ///
-  /// `logIn.email` is a selector: the receiver heads the chain, which is how a
-  /// class mixing in `Selectors` reaches one. `state.select.logIn.email` is the
-  /// same selector through the facade. `vm.logIn.email` and
-  /// `_state.logIn.email` are not — a view-model field and the substate behind
-  /// the selector. Text scanning could not tell the three apart without listing
-  /// the receivers to refuse; the position in the chain says it outright.
-  void _chain(Expression node) {
-    // Only the outermost node of a chain: an inner one is judged with it.
-    final parent = node.parent;
-    if ((parent is PropertyAccess && parent.target == node) ||
-        (parent is PrefixedIdentifier && parent.prefix == node)) {
-      return;
-    }
-    final parts = _segments(node);
-    if (parts == null) {
-      return;
-    }
-    for (var i = 0; i + 1 < parts.length; i++) {
-      // The receiver either heads the chain, or the facade is in front of it —
-      // `…select.logIn.email`, `selectors.logIn.email`.
-      if (i > 0 && !_isFacade(parts[i - 1])) {
-        continue;
-      }
-      final id = index['${parts[i]}.${parts[i + 1]}'];
-      if (id != null) {
-        used.add(id);
-      }
-    }
-    // `state.select.canEnterApp` — a composite behind the facade.
-    for (var i = 1; i < parts.length; i++) {
-      if (!_isFacade(parts[i - 1])) {
-        continue;
-      }
-      final id = index[parts[i]];
-      if (id != null) {
-        used.add(id);
-      }
-    }
-  }
-
-  /// The chain as plain names, or null when it is rooted in something that is
-  /// not one — `items[0].logIn.email`, `of(context).logIn.email`. Those are
-  /// reads frx cannot attribute, and guessing at them is what the graph's
-  /// blind-spot discipline exists to avoid.
-  List<String>? _segments(Expression node) => switch (node) {
-    // `this` is transparent: inside a class mixing in `Selectors`,
-    // `this.logIn.email` is the same read as the bare `logIn.email`, and
-    // refusing it would report a live selector as dead.
-    ThisExpression() => const [],
-    SimpleIdentifier() => [node.name],
-    PrefixedIdentifier() => [node.prefix.name, node.identifier.name],
-    // `_Reader(state).chats.unreadTotal` — the facade built where it is read,
-    // which the tray does twice. Only a facade type roots a chain this way;
-    // `of(context).logIn.email` stays unreadable, since what `of` returns is
-    // exactly what an unresolved parse cannot say.
-    MethodInvocation(target: null) =>
-      facades.contains(node.methodName.name) ? [node.methodName.name] : null,
-    InstanceCreationExpression() =>
-      facades.contains(node.constructorName.type.name.lexeme)
-          ? [node.constructorName.type.name.lexeme]
-          : null,
-    // A cascade section (`thing..field = 1`) is a PropertyAccess with no
-    // target. Falling back to the node itself recurses on it forever; there is
-    // no receiver to name, so the chain is simply unreadable.
-    PropertyAccess(target: final target?) => switch (_segments(target)) {
-      final head? => [...head, node.propertyName.name],
-      _ => null,
-    },
-    _ => null,
-  };
-}
-
-/// Adds [from] to [into], reporting whether anything was new — `Set.addAll`
-/// returns void, and the fixpoint loop needs to know when to stop.
-bool _merge(Set<String> into, Set<String> from) {
-  final before = into.length;
-  into.addAll(from);
-  return into.length != before;
-}
-
-/// Collects the `Select*` extension types and what each getter touches.
-class _SelectorVisitor extends RecursiveAstVisitor<void> {
-  final selectors = <_Selector>[];
-
-  /// Every selector declared in [unit], with each one's sibling reads folded
-  /// in.
-  ///
-  /// The single entry point, because the fold has to happen after the whole
-  /// file is visited — an extension can be declared above the type it extends —
-  /// and a caller that has to remember a second call would eventually not.
-  static List<_Selector> read(CompilationUnit unit) {
-    final v = _SelectorVisitor();
-    unit.accept(v);
-    // Grouped by owning type rather than by declaration: an
-    // `extension X on SelectLogIn` contributes getters *to* `SelectLogIn`, so
-    // its siblings are that type's getters and not its own.
-    final byOwner = <String, Map<String, _Selector>>{};
-    for (final s in v.selectors) {
-      (byOwner[s.ownerType] ??= {})[s.getter] = s;
-    }
-    byOwner.values.forEach(v._inheritFromSiblings);
-    return v.selectors;
-  }
-
-  @override
-  void visitExtensionTypeDeclaration(ExtensionTypeDeclaration node) {
-    _collect(node);
-    super.visitExtensionTypeDeclaration(node);
-  }
-
-  /// A composite selector — `extension SelectComposites on Selectors` — reads
-  /// other selectors instead of the state.
-  ///
-  /// Keyed on what it extends, not on what it is called: the name is free, and
-  /// missing these would report every selector a composite reads as read by
-  /// nobody. It is an `extension`, not an `extension type`, so the visit above
-  /// never sees it.
-  @override
-  void visitExtensionDeclaration(ExtensionDeclaration node) {
-    _collect(node);
-    super.visitExtensionDeclaration(node);
-  }
-
-  /// Records the getters [node] declares, if it declares a selector at all.
-  ///
-  /// The spine's *own* body is skipped — `SelectLogIn get logIn => …` on
-  /// `Select` is a hop onto a selector, not one. An `extension … on Select` is
-  /// kept: those getters are composites, reached by a bare name. An unnamed
-  /// extension is dropped here rather than in [SelectorShape], because the
-  /// placement rules can report one without naming it but a graph node cannot
-  /// exist without an id.
-  void _collect(AstNode node) {
-    final decl = SelectorShape.of(node);
-    if (decl == null || (decl.declaresOwner && decl.onFacadeSpine)) {
-      return;
-    }
-    final type = decl.name;
-    if (type == null) {
-      return;
-    }
-    for (final m in decl.members.whereType<MethodDeclaration>()) {
-      if (!m.isGetter) {
-        continue;
-      }
-      final s = _Selector(type, decl.owner, m.name.lexeme, m.name.offset);
-      m.body.accept(_BodyReader(s));
-      s.body = m.body;
-      selectors.add(s);
-    }
-  }
-
-  /// Folds a sibling getter's reads into the one that calls it.
-  ///
-  /// `bool get isAvailable => token != null;` reads no state of its own, but
-  /// `token` next to it does — so it reads that substate just the same. Without
-  /// this it lands in `unresolved` as an unreadable composite, which is worse
-  /// than a missing edge: a blind-spot list that cries wolf gets ignored, and
-  /// then the real gaps go with it.
-  void _inheritFromSiblings(Map<String, _Selector> group) {
-    // Bounded by the group size: each pass can only propagate one hop, and a
-    // reference cycle simply stops adding anything.
-    for (var pass = 0; pass < group.length; pass++) {
-      var changed = false;
-      for (final s in group.values) {
-        for (final name in s.siblings) {
-          final other = group[name];
-          if (other == null || identical(other, s)) {
-            continue;
-          }
-          changed |= _merge(s.readsFields, other.readsFields);
-          changed |= _merge(s.waitsForActions, other.waitsForActions);
-        }
-      }
-      if (!changed) {
-        break;
-      }
-    }
-  }
-}
-
-/// What one getter's body touches, read off the tree rather than off its text.
-///
-/// Three regexes over `m.body.toSource()` stood here, and text cannot tell a
-/// string literal from code. Reproduced with the product's own commands on a
-/// fresh project — `frx add-selector session label -t String -e "'token'"` —
-/// after which `SelectSession.label`, whose whole body is the *string*
-/// `'token'`, was reported as reading the session slice: the bare-identifier
-/// scrape matched `token` inside the quotes and the sibling fold handed it the
-/// neighbouring `token` getter's reads. In the same output the reason another
-/// selector was dead changed with it, and where such a phantom reader is itself
-/// read, a dead selector is reported alive.
-///
-/// [_Selector.body] already stated the rule — "a selector quoted in a string is
-/// not a read of it" — for the half of this file that was already a visitor
-/// ([selectorUsesIn]). This is the other half saying the same thing.
-class _BodyReader extends RecursiveAstVisitor<void> {
-  _BodyReader(this._into);
-
-  final _Selector _into;
-
-  /// The two spellings of the state receiver. `_state` is the field of an
-  /// `extension type Select…`; `state` is the getter on the `Selectors` mixin,
-  /// which is what a composite in `extension SelectComposites on Selectors`
-  /// has to use — it has no `_state` to reach. The old pattern knew only the
-  /// first, so every composite reading state directly was a blind spot.
-  static const _stateReceivers = {'_state', 'state'};
-
-  @override
-  void visitSimpleIdentifier(SimpleIdentifier node) {
-    final parent = node.parent;
-
-    // The right half of `a.b` — a name reached through something, not one
-    // standing on its own. This is what the old "not preceded by a dot"
-    // lookbehind expressed.
-    if (parent is PrefixedIdentifier && parent.identifier == node) {
-      if (_stateReceivers.contains(parent.prefix.name)) {
-        _into.readsFields.add(node.name);
-      }
-      return;
-    }
-    if (parent is PropertyAccess && parent.propertyName == node) {
-      return;
-    }
-    if (parent is MethodInvocation && parent.methodName == node) {
-      _waitedOn(parent);
-      return;
-    }
-    if (_stateReceivers.contains(node.name)) {
-      return;
-    }
-
-    // Lower-case initial only, which is what keeps a type name out of the
-    // sibling set — the same filter the old pattern's `[a-z]` applied.
-    final name = node.name;
-    if (name.isNotEmpty && name[0] == name[0].toLowerCase()) {
-      _into.siblings.add(name);
-    }
-  }
-
-  /// The action type in `…isWaitingForType<LogInWithEmailAction>()`.
-  void _waitedOn(MethodInvocation node) {
-    if (node.methodName.name != 'isWaitingForType') {
-      return;
-    }
-    for (final arg
-        in node.typeArguments?.arguments ?? const <TypeAnnotation>[]) {
-      if (arg is NamedType) {
-        _into.waitsForActions.add(arg.name.lexeme);
-      }
-    }
-  }
+  late final String path = p.canonicalize(file.path);
+  late final CompilationUnit unit = sourceIndex.unitFor(file);
+  late final DispatchRead dispatches = _reader.dispatchesIn(unit, file.parent);
+  late final Set<String> builds = connectorNamesIn(unit);
 }
 
 /// Whether the file at [path] declares a class called [className].

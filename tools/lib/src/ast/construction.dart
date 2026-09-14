@@ -18,6 +18,7 @@ library;
 
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
 
 /// A construction expression, however the parser classified it.
 class Construction {
@@ -157,14 +158,68 @@ class Construction {
     ),
     _ => null,
   };
+
+  /// The first construction under [root], in source order, that [where]
+  /// accepts — or null when none does.
+  ///
+  /// Both node types are visited, for the reason the library doc gives: a
+  /// visitor keyed on [InstanceCreationExpression] alone finds `const
+  /// AppState(…)` and walks straight past the `AppState(…)` a project writes
+  /// without the keyword, and one keyed on the first construction of *any*
+  /// name picks an inner `const Foo()` and splices into the wrong object.
+  static Construction? firstIn(
+    AstNode root,
+    bool Function(Construction made) where,
+  ) {
+    final finder = _ConstructionFinder(where);
+    root.accept(finder);
+    return finder.found;
+  }
+}
+
+class _ConstructionFinder extends RecursiveAstVisitor<void> {
+  _ConstructionFinder(this.where);
+
+  final bool Function(Construction made) where;
+  Construction? found;
+
+  @override
+  void visitInstanceCreationExpression(InstanceCreationExpression node) {
+    _consider(node);
+    super.visitInstanceCreationExpression(node);
+  }
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    _consider(node);
+    super.visitMethodInvocation(node);
+  }
+
+  void _consider(Expression node) {
+    if (found != null) {
+      return;
+    }
+    final made = Construction.of(node);
+    if (made != null && where(made)) {
+      found = made;
+    }
+  }
 }
 
 /// The `name:` argument's expression in [args], or null when it is not passed.
+Expression? namedArgumentIn(ArgumentList args, String name) =>
+    namedArgumentOf(args, name)?.argumentExpression;
+
+/// The `name:` argument itself — label, colon and value — or null when it is
+/// not passed. What a splice takes hold of, where a reader wants the value.
 ///
 /// `NamedArgument`, not `NamedExpression` — analyzer 14 renamed it, and the
 /// old name still exists for something else.
-Expression? namedArgumentIn(ArgumentList args, String name) => args.arguments
-    .whereType<NamedArgument>()
-    .where((e) => e.name.lexeme == name)
-    .map((e) => e.argumentExpression)
-    .firstOrNull;
+NamedArgument? namedArgumentOf(ArgumentList args, String name) {
+  for (final e in args.arguments.whereType<NamedArgument>()) {
+    if (e.name.lexeme == name) {
+      return e;
+    }
+  }
+  return null;
+}

@@ -36,16 +36,17 @@
 /// narrow takes one out from under live code, which is a build.
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
-import 'package:yaml/yaml.dart';
 
 import '../redux/ast_edit.dart';
+import 'directives.dart';
+import 'library_resolver.dart';
+import 'source_index.dart';
 
 /// Removes the imports of [source] that nothing in it needs any more.
 ///
@@ -71,7 +72,7 @@ import '../redux/ast_edit.dart';
   }
 
   final unit = parseString(content: source, throwIfDiagnostics: false).unit;
-  final imports = unit.directives.whereType<ImportDirective>().toList();
+  final imports = importsOf(unit);
   if (imports.isEmpty) {
     return (source: source, changes: const []);
   }
@@ -92,6 +93,9 @@ import '../redux/ast_edit.dart';
 
   final supply = _Supply(p.dirname(p.absolute(file.path)));
   final supplied = <ImportDirective, Set<String>>{};
+  // The imports that supply each name — the other side of the same table,
+  // which is what "does anything staying still supply this" is asked of.
+  final suppliers = <String, List<ImportDirective>>{};
   for (final imp in imports) {
     final uri = imp.uri.stringValue;
     if (uri == null) {
@@ -104,7 +108,11 @@ import '../redux/ast_edit.dart';
     if (names == null) {
       continue; // unknown — see the library doc
     }
-    supplied[imp] = _filter(names, imp.combinators);
+    final kept = _filter(names, imp.combinators);
+    supplied[imp] = kept;
+    for (final name in kept) {
+      suppliers.putIfAbsent(name, () => []).add(imp);
+    }
   }
 
   final edits = <Edit>[];
@@ -120,11 +128,8 @@ import '../redux/ast_edit.dart';
 
     final held = names.where(body.contains);
     final covered = held.every(
-      (name) => supplied.entries.any(
-        (other) =>
-            other.key != imp &&
-            !gone.contains(other.key) &&
-            other.value.contains(name),
+      (name) => suppliers[name]!.any(
+        (other) => other != imp && !gone.contains(other),
       ),
     );
     if (!covered) {
@@ -211,75 +216,28 @@ Set<String> _filter(Set<String> names, List<Combinator> combinators) {
 
 /// The names each import URI supplies, resolved once per pass.
 class _Supply {
-  _Supply(this.dir);
+  _Supply(this.dir) : _resolver = LibraryResolver(dir);
 
   /// The directory of the file whose imports are being judged.
   final String dir;
 
+  final LibraryResolver _resolver;
   final _byUri = <String, Set<String>?>{};
   final _done = <String, Set<String>>{};
-  Map<String, String>? _packages;
-  var _readPackages = false;
-  Map<String, String>? _embedded;
-  var _readSdk = false;
 
   /// The names [uri] supplies, or null when they cannot be enumerated.
   Set<String>? of(String uri) =>
-      _byUri.putIfAbsent(uri, () => _names(_resolve(uri, dir), {}));
-
-  /// The file [uri] names, read from [from].
-  File? _resolve(String uri, String from) {
-    if (uri.startsWith('dart:')) {
-      return _sdk(uri);
-    }
-    if (uri.startsWith('package:')) {
-      final rest = uri.substring('package:'.length);
-      final slash = rest.indexOf('/');
-      if (slash <= 0) {
-        return null;
-      }
-      final lib = _packageLib(rest.substring(0, slash));
-      return lib == null ? null : File(p.join(lib, rest.substring(slash + 1)));
-    }
-    if (uri.contains(':')) {
-      return null; // some other scheme
-    }
-    return File(p.normalize(p.join(from, uri)));
-  }
-
-  /// The source of a `dart:` library.
-  ///
-  /// Reached because packages re-export them — `serverpod_auth_core_client`
-  /// hands on `dart:collection`, `flutter/painting.dart` hands on `dart:ui` —
-  /// and a re-export that could not be read made the whole answer unknown.
-  /// Which meant the pass could prune a relative import and never a package
-  /// one, since every package worth importing reaches the SDK somewhere.
-  ///
-  /// Two files hold the mapping and a project has exactly one of them: a
-  /// Flutter project resolves `dart:ui` and the rest through `sky_engine`'s
-  /// embedder file, a plain Dart one through the SDK's own `libraries.json`.
-  File? _sdk(String uri) {
-    if (!_readSdk) {
-      _readSdk = true;
-      _embedded =
-          _embeddedLibraries(_packageLib('sky_engine')) ?? _sdkLibraries();
-    }
-    final path = _embedded?[uri];
-    return path == null ? null : File(path);
-  }
-
-  /// The `lib/` directory of [package], from the nearest `package_config.json`.
-  String? _packageLib(String package) {
-    if (!_readPackages) {
-      _readPackages = true;
-      _packages = _readPackageConfig(dir);
-    }
-    return _packages?[package];
-  }
+      _byUri.putIfAbsent(uri, () => _names(_resolver.resolve(uri, dir), {}));
 
   /// Every name [file] hands out: its own public declarations, its parts', and
   /// what it exports, as far as that reaches. Null when a link in it cannot be
   /// read.
+  ///
+  /// Parsed here, not through [sourceIndex]: the index keeps every tree it
+  /// parses for the run, and what this walks is the SDK and the pub cache —
+  /// hundreds of libraries nothing else reads, whose trees held for the length
+  /// of a `remove` quadruple its memory. Only the names are worth keeping, and
+  /// [_done] keeps them.
   Set<String>? _names(File? file, Set<String> onStack) {
     if (file == null || !file.existsSync()) {
       return null;
@@ -316,7 +274,7 @@ class _Supply {
         _ => const <String>[],
       };
       for (final uri in uris) {
-        final reached = _names(_resolve(uri, from), onStack);
+        final reached = _names(_resolver.resolve(uri, from), onStack);
         if (reached != null) {
           names.addAll(
             directive is ExportDirective
@@ -371,18 +329,15 @@ Set<String> declaredNamesIn(CompilationUnit unit) {
         }
       case ExtensionDeclaration():
         names.add(d.name?.lexeme);
-        final body = d.body;
-        if (body is BlockClassBody) {
-          for (final member in body.members) {
-            switch (member) {
-              case MethodDeclaration():
-                names.add(member.name.lexeme);
-              case FieldDeclaration():
-                for (final v in member.fields.variables) {
-                  names.add(v.name.lexeme);
-                }
-              case _:
-            }
+        for (final member in d.body.members) {
+          switch (member) {
+            case MethodDeclaration():
+              names.add(member.name.lexeme);
+            case FieldDeclaration():
+              for (final v in member.fields.variables) {
+                names.add(v.name.lexeme);
+              }
+            case _:
           }
         }
       case _:
@@ -403,126 +358,4 @@ class _Public {
       taken.add(name);
     }
   }
-}
-
-/// `dart:x → file`, from a Flutter project's `sky_engine/lib/_embedder.yaml`.
-///
-/// Null when there is no `sky_engine` to read, which is what a plain Dart
-/// project looks like.
-Map<String, String>? _embeddedLibraries(String? skyEngineLib) {
-  if (skyEngineLib == null) {
-    return null;
-  }
-  final file = File(p.join(skyEngineLib, '_embedder.yaml'));
-  if (!file.existsSync()) {
-    return null;
-  }
-  final Object? doc;
-  try {
-    doc = loadYaml(file.readAsStringSync());
-  } on YamlException {
-    return null;
-  }
-  if (doc is! YamlMap) {
-    return null;
-  }
-  final libs = doc['embedded_libs'];
-  if (libs is! YamlMap) {
-    return null;
-  }
-  return {
-    for (final entry in libs.entries)
-      if (entry.key case final String uri)
-        if (entry.value case final String path) uri: p.join(skyEngineLib, path),
-  };
-}
-
-/// `dart:x → file`, from the running SDK's `lib/libraries.json`.
-Map<String, String>? _sdkLibraries() {
-  final lib = p.join(p.dirname(p.dirname(Platform.resolvedExecutable)), 'lib');
-  final file = File(p.join(lib, 'libraries.json'));
-  if (!file.existsSync()) {
-    return null;
-  }
-  final Object? doc;
-  try {
-    doc = jsonDecode(file.readAsStringSync());
-  } on FormatException {
-    return null;
-  }
-  if (doc is! Map) {
-    return null;
-  }
-  // The VM's list, since that is the platform frx and its project are built
-  // for. The others describe the same libraries for a different compiler.
-  final platform = doc['vm'];
-  if (platform is! Map || platform['libraries'] is! Map) {
-    return null;
-  }
-  return {
-    for (final entry
-        in (platform['libraries']! as Map<String, Object?>).entries)
-      if (entry.key case final String name)
-        if (entry.value case final Map<String, Object?> spec)
-          if (spec['uri'] case final String uri)
-            'dart:$name': p.normalize(p.join(lib, uri)),
-  };
-}
-
-/// `package name → lib directory`, from the nearest `package_config.json` above
-/// [dir].
-///
-/// Walked up rather than joined onto a known root because both layouts have to
-/// answer: a pub workspace writes one config at the workspace root, a
-/// standalone package writes its own.
-Map<String, String>? _readPackageConfig(String dir) {
-  for (var at = Directory(dir); at.parent.path != at.path; at = at.parent) {
-    final config = File(p.join(at.path, '.dart_tool', 'package_config.json'));
-    if (!config.existsSync()) {
-      continue;
-    }
-    final Object? doc;
-    try {
-      doc = jsonDecode(config.readAsStringSync());
-    } on FormatException {
-      return null;
-    }
-    if (doc is! Map || doc['packages'] is! List) {
-      return null;
-    }
-    final base = p.join(at.path, '.dart_tool');
-    final packages = <String, String>{};
-    for (final entry in doc['packages'] as List) {
-      if (entry is! Map) {
-        continue;
-      }
-      final name = entry['name'];
-      final root = entry['rootUri'];
-      if (name is! String || root is! String) {
-        continue;
-      }
-      final rootPath = _fromUri(root, base);
-      if (rootPath == null) {
-        continue;
-      }
-      final lib = entry['packageUri'];
-      packages[name] = p.normalize(
-        p.join(rootPath, lib is String ? lib : 'lib'),
-      );
-    }
-    return packages;
-  }
-  return null;
-}
-
-/// A `package_config.json` root, which is a URI and may be relative to the
-/// `.dart_tool` directory holding it.
-String? _fromUri(String uri, String base) {
-  if (uri.startsWith('file://')) {
-    return p.fromUri(Uri.parse(uri));
-  }
-  if (uri.contains(':')) {
-    return null;
-  }
-  return p.normalize(p.join(base, p.fromUri(uri)));
 }

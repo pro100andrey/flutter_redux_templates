@@ -181,18 +181,15 @@ class _ParticipantIds {
           usesRouter = true;
           continue;
         }
-        if (!flow.actions.containsKey(step.target)) {
+        final action = flow.actions[step.target];
+        if (action == null) {
           continue;
         }
         actions.putIfAbsent(step.target, () => 'A${++n}');
-        final action = flow.actions[step.target];
         // `writes.isNotEmpty`, not `writesLabel != null`: the label is a
         // rendering of the writes, and joining every one of them into a string
         // to compare it against null is the shape this was all changed to stop.
-        if (action?.writes.isNotEmpty ?? false) {
-          usesState = true;
-        }
-        if (action?.dispatches.isNotEmpty ?? false) {
+        if (action.writes.isNotEmpty || action.dispatches.isNotEmpty) {
           usesState = true;
         }
       }
@@ -246,10 +243,7 @@ String renderRouteMap(RouteMap map) {
   // by name, and the reader had both halves. Read once — the getter is O(n),
   // and asking it per page was the O(n^2) this used to do.
   final childIndex = map.children;
-  final childOf = {
-    for (final entry in childIndex.entries)
-      for (final page in entry.value) page: entry.key,
-  };
+  final nested = {for (final kids in childIndex.values) ...kids};
   final byPage = {for (final n in map.pages) n.page: n};
   final childrenOf = {
     for (final entry in childIndex.entries)
@@ -257,7 +251,6 @@ String renderRouteMap(RouteMap map) {
         for (final page in entry.value) ?byPage[page],
       ],
   };
-  final tops = map.pages.where((n) => !childOf.containsKey(n.page)).toList();
 
   void writeGroup(PageNode n, String indent) {
     final kids = childrenOf[n.page];
@@ -278,9 +271,15 @@ String renderRouteMap(RouteMap map) {
   }
 
   // Public screens grouped, so the auth boundary is a visible region rather
-  // than a property you have to look up per node.
-  final public = tops.where((n) => n.public).toList();
-  final rest = tops.where((n) => !n.public).toList();
+  // than a property you have to look up per node. Only the top-level screens
+  // are placed; a nested one is drawn inside its shell's group.
+  final public = <PageNode>[];
+  final rest = <PageNode>[];
+  for (final n in map.pages) {
+    if (!nested.contains(n.page)) {
+      (n.public ? public : rest).add(n);
+    }
+  }
   if (public.isNotEmpty && rest.isNotEmpty) {
     b.writeln('    subgraph frxPublic["reachable logged out"]');
     for (final n in public) {
@@ -384,4 +383,6 @@ String _flowId(String page) => _flowKeywords.contains(page) ? '${page}_' : page;
 /// condition like `a || b` would otherwise close the label mid-word.
 String _escFlow(String s) => _esc(
   s.replaceAll('||', ' or ').replaceAll('|', '/').replaceAll('"', "'"),
-).replaceAll(RegExp(r'\s+'), ' ');
+).replaceAll(_whitespace, ' ');
+
+final _whitespace = RegExp(r'\s+');

@@ -2,6 +2,16 @@ import 'package:args/command_runner.dart';
 
 import '../util/casing.dart';
 
+/// The kind an `add-<kind>` command creates — `add-substate` → `substate` —
+/// or null when [command] is not one.
+///
+/// The one naming rule the CLI keeps: a command that scaffolds an artifact is
+/// `add-` and the artifact. `batch` admits a command by it, and the editor's
+/// contract keys a command's `--kind` values by it, so it is stated here rather
+/// than tested in both.
+String? createdKindOf(String command) =>
+    command.startsWith('add-') ? command.substring('add-'.length) : null;
+
 /// Shared parsing for a command's positional arguments.
 ///
 /// A command declares what it takes and asks for it parsed; the arity check,
@@ -59,6 +69,19 @@ mixin NameArg on Command<int> {
   /// other than `<name>` says so in [positionals] rather than here — `flow`
   /// takes a `<page>` — so the messages and the usage line have one source.
   Casing requireName() => requireCasing(0);
+
+  /// Every value of a repeatable option, parsed to a [Casing].
+  ///
+  /// `add-enum -v`, `add-model -c` and `add-tabs -t` each take a list of names
+  /// and each had the same four-line `try` around `Casing.parse`. The message
+  /// is the parser's own, as it was at all three.
+  List<Casing> requireCasings(List<String> raw) {
+    try {
+      return raw.map(Casing.parse).toList();
+    } on FormatException catch (e) {
+      usageException(e.message);
+    }
+  }
 
   /// The positional argument at [at], split on its single `:` into a name and
   /// the text after it — `total:int`, `id:String?`.

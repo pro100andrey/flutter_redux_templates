@@ -10,11 +10,11 @@ import 'artifact_name.dart';
 ///
 /// The kinds with a wiring story of their own already have a home for this:
 /// `SubstateArtifact` and `PageArtifact` answer every question about a substate
-/// or a page, paths included, because so many commands ask. The four here have
-/// no wiring — `add-modelFile`, `add-enum`, `add-service` and
-/// `add-retrofitFile` write files and register nothing — so each one derived
-/// its own path inline, and `RemovableResolver` derived the same path backwards
-/// to delete it.
+/// or a page, paths included, because so many commands ask. The kinds here have
+/// no wiring — `add-model`, `add-enum`, `add-service`, `add-retrofit`,
+/// `add-connector` and `add-theme-extension` write files and register nothing
+/// — so each one derived its own path inline, and `RemovableResolver` derived
+/// the same path backwards to delete it.
 ///
 /// **That the two agreed was a property of two expressions, not of one.** The
 /// round-trip test held them together, which is the right guard and the wrong
@@ -88,3 +88,16 @@ Directory serviceDir(FrxWorkspace repo, Casing name) => Directory(
 /// disagreement waiting for a second reader.
 String retrofitFile(FrxWorkspace repo, Casing name) =>
     p.join(repo.httpApi.path, '${name.snake}.dart');
+
+/// `app/lib/connectors/<stem>_connector.dart`.
+///
+/// The stem, as [serviceDir] takes it: `Toolbar` and `ToolbarConnector` are
+/// one artifact, and `remove --kind connector` finds either.
+String connectorFile(FrxWorkspace repo, Casing name) => p.join(
+  repo.appConnectors.path,
+  '${ArtifactName.connectorStem(name).snake}_connector.dart',
+);
+
+/// `ui/lib/theme/extensions/<snake>.dart`. No removal reads it either.
+String themeExtensionFile(FrxWorkspace repo, Casing name) =>
+    p.join(repo.uiThemeExtensions.path, '${name.snake}.dart');

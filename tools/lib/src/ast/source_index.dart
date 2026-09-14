@@ -99,7 +99,28 @@ class SourceIndex {
   /// the runner renders as `✗ <message>` and exits 70 by, because "the file you
   /// asked me to edit does not compile" is the user's problem to fix, not a
   /// crash.
-  CompilationUnit unitToEdit(File file) {
+  CompilationUnit unitToEdit(File file) => _entryToEdit(file).unit!;
+
+  /// The text and tree of [file], from one read.
+  ///
+  /// What a splice needs as a pair: its offsets are read off the `unit` and
+  /// land in the `source`, and that only holds when both came from the same
+  /// bytes. [sourceOf] followed by [unitFor] is two reads, and a
+  /// save from an editor between them hands back a tree for text the caller
+  /// does not hold — an edit spliced at the wrong offsets, silently.
+  Snapshot snapshotOf(File file) {
+    final entry = _entry(file, parse: true);
+    return (source: entry.source, unit: entry.unit!);
+  }
+
+  /// [snapshotOf], refused when the file does not parse cleanly — the
+  /// strictness of [unitToEdit] for the same reason.
+  Snapshot snapshotToEdit(File file) {
+    final entry = _entryToEdit(file);
+    return (source: entry.source, unit: entry.unit!);
+  }
+
+  _Entry _entryToEdit(File file) {
     final entry = _entry(file, parse: true);
     if (entry.hasErrors) {
       throw FrxRefusal(
@@ -108,7 +129,7 @@ class SourceIndex {
         'source does not describe the file — fix the syntax error first.',
       );
     }
-    return entry.unit!;
+    return entry;
   }
 
   /// The tree for [file], or null when [wanted] rejects its text.
@@ -234,6 +255,9 @@ class SourceIndex {
     );
   }
 }
+
+/// A file's text and the tree parsed from exactly that text.
+typedef Snapshot = ({String source, CompilationUnit unit});
 
 const _zoneKey = #frxSourceIndex;
 

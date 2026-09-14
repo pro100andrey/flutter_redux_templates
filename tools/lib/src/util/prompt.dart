@@ -18,6 +18,11 @@ String _readLine() {
   return line.trim();
 }
 
+/// The `(reason — hint)` line a re-ask prints, with the hint only when there is
+/// one.
+String _reAsk(String reason, String? hint) =>
+    '  ($reason${hint != null ? ' — $hint' : ''})';
+
 /// Asks a free-form question. Empty input returns [def] when given; when
 /// [required] and no default, re-asks. [pattern] re-asks until matched.
 String ask(
@@ -38,11 +43,11 @@ String ask(
       if (!required) {
         return '';
       }
-      console.out.writeln('  (required${hint != null ? ' — $hint' : ''})');
+      console.out.writeln(_reAsk('required', hint));
       continue;
     }
     if (pattern != null && !pattern.hasMatch(input)) {
-      console.out.writeln('  (invalid${hint != null ? ' — $hint' : ''})');
+      console.out.writeln(_reAsk('invalid', hint));
       continue;
     }
     return input;
@@ -103,8 +108,6 @@ List<String> askList(String question, {int min = 0, String? hint}) {
     if (items.length >= min) {
       return items;
     }
-    console.out.writeln(
-      '  (need at least $min${hint != null ? ' — $hint' : ''})',
-    );
+    console.out.writeln(_reAsk('need at least $min', hint));
   }
 }

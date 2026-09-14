@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 import '../model/page_artifact.dart';
 import '../routing/routes_source.dart';
 import '../util/console.dart';
+import 'inventory.dart';
 import 'options.dart';
 
 /// Lists the routes registered in `AppRouter.routes`, read via AST.
@@ -58,27 +59,12 @@ class ListRoutesCommand extends Command<int> {
       return 0;
     }
 
-    console.out.writeln('AppRouter routes  (${source.file.path})');
-    console.out.writeln();
-
-    if (routes.isEmpty) {
-      console.out.writeln('  (none found)');
-      return 0;
-    }
-
-    final typeWidth = routes
-        .map((r) => r.routeType.length)
-        .fold(5, (a, b) => a > b ? a : b);
-
-    console.out.writeln('  ${'ROUTE'.padRight(typeWidth)}  PATH');
-    console.out.writeln('  ${'-' * typeWidth}  ${'-' * 20}');
-    for (final r in routes) {
-      console.out.writeln(
-        '  ${r.routeType.padRight(typeWidth)}  ${r.fullPath ?? ''}',
-      );
-    }
-    console.out.writeln();
-    console.out.writeln('${routes.length} route(s).');
+    printInventory(
+      title: 'AppRouter routes  (${source.file.path})',
+      columns: ('ROUTE', 'PATH'),
+      rows: [for (final r in routes) (r.routeType, r.fullPath ?? '')],
+      unit: 'route',
+    );
     return 0;
   }
 }

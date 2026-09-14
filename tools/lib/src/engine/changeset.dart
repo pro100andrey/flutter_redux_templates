@@ -133,22 +133,16 @@ class Changeset {
   /// plan printed before applying tells the truth about what it is about to
   /// replace.
   String describe({String? from}) {
-    String rel(String path) =>
-        from == null ? p.relative(path) : p.relative(path, from: from);
     final out = StringBuffer();
     for (final c in _changes) {
-      // `<verb>  <path>`, two spaces, unaligned — the shape the scaffolders
-      // have always printed. Aligning the column would be tidier and would
-      // change every existing plan.
-      out.writeln(switch (c) {
-        WriteFile() =>
-          '  ${File(c.path).existsSync() ? 'overwrite' : 'create'}  '
-              '${rel(c.path)}',
-        EditFile() => '  edit  ${rel(c.path)}',
-        DeleteFile() => '  delete  ${rel(c.path)}',
-        DeleteDirectory() => '  delete  ${rel(c.path)}${p.separator}',
-        MoveFile() => '  move  ${rel(c.from)} → ${rel(c.path)}',
-      });
+      out.writeln(
+        planLine(
+          operationOf(c),
+          c.path,
+          from: from,
+          movedFrom: c is MoveFile ? c.from : null,
+        ),
+      );
     }
     return out.toString();
   }
@@ -159,22 +153,9 @@ class Changeset {
   /// [EditFile] against the `before` it carries. Deletes and moves contribute
   /// nothing — there is no textual change to show.
   String diff({String? from}) {
-    String rel(String path) =>
-        from == null ? p.relative(path) : p.relative(path, from: from);
     final out = StringBuffer();
     for (final c in _changes) {
-      switch (c) {
-        case WriteFile():
-          final file = File(c.path);
-          final before = file.existsSync() ? file.readAsStringSync() : '';
-          out.write(unifiedDiff(before, c.content, path: rel(c.path)));
-        case EditFile():
-          out.write(unifiedDiff(c.before, c.after, path: rel(c.path)));
-        case DeleteFile():
-        case DeleteDirectory():
-        case MoveFile():
-          break;
-      }
+      out.write(diffOf(c, from: from));
     }
     return out.toString();
   }
@@ -186,6 +167,60 @@ class Changeset {
     for (final c in _changes)
       if (c is WriteFile && File(c.path).existsSync()) c.path,
   ];
+}
+
+/// The operation [c] amounts to, by the name the machine write format emits.
+///
+/// The one place a verb is decided, so a plan, a `--json` result and a batch's
+/// combined report cannot disagree about what happened. `create` vs
+/// `overwrite` is read off the disk at call time — see [Changeset.describe].
+String operationOf(Change c) => switch (c) {
+  WriteFile() => File(c.path).existsSync() ? 'overwrite' : 'create',
+  EditFile() => 'edit',
+  DeleteFile() => 'delete',
+  DeleteDirectory() => 'delete-directory',
+  MoveFile() => 'move',
+};
+
+/// One line of a plan: `  <verb>  <path>`, two spaces, unaligned — the shape
+/// the scaffolders have always printed. Aligning the column would be tidier
+/// and would change every existing plan.
+///
+/// [op] is an [operationOf] verb; a `move` names its source too, and a
+/// `delete-directory` prints as a delete with a trailing separator. Paths are
+/// relative to [from].
+String planLine(String op, String path, {String? from, String? movedFrom}) {
+  final where = p.relative(path, from: from);
+  return switch (op) {
+    'move' => '  move  ${p.relative(movedFrom!, from: from)} → $where',
+    'delete-directory' => '  delete  $where${p.separator}',
+    _ => '  $op  $where',
+  };
+}
+
+/// The unified diff of [c], paths relative to [from] — empty for a delete or a
+/// move, which have no text to show.
+///
+/// A [WriteFile] diffs against what is on disk (empty for a new file), an
+/// [EditFile] against the `before` it carries.
+String diffOf(Change c, {String? from}) => switch (c) {
+  WriteFile() => unifiedDiff(
+    _onDisk(c.path),
+    c.content,
+    path: p.relative(c.path, from: from),
+  ),
+  EditFile() => unifiedDiff(
+    c.before,
+    c.after,
+    path: p.relative(c.path, from: from),
+  ),
+  DeleteFile() || DeleteDirectory() || MoveFile() => '',
+};
+
+/// What [path] holds now, or nothing for a file that is not there yet.
+String _onDisk(String path) {
+  final file = File(path);
+  return file.existsSync() ? file.readAsStringSync() : '';
 }
 
 /// The outcome of [apply], so a caller can report without re-deriving it.
@@ -333,10 +368,11 @@ class WriteTransaction {
   /// batch the failure of the fifth changeset has to take the first four with
   /// it.
   void stage(Changeset plan) {
+    final changes = plan.changes;
     // Deletes first: `add-substate --force` clears a folder it is about to
     // repopulate, so writing before deleting would throw the new files away.
     // Atomicity makes that order recoverable; it does not reorder it.
-    for (final c in plan.changes) {
+    for (final c in changes) {
       switch (c) {
         case DeleteFile():
           final file = File(c.path);
@@ -359,7 +395,7 @@ class WriteTransaction {
       }
     }
 
-    for (final c in plan.changes) {
+    for (final c in changes) {
       switch (c) {
         case WriteFile():
           final file = File(c.path);

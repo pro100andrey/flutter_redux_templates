@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../audit/finding.dart';
 import '../command_runner.dart';
+import '../commands/frx_command.dart';
 import '../model/page_artifact.dart';
 import '../scaffold/package_scaffold.dart';
 import '../util/casing.dart';
@@ -51,93 +52,96 @@ class ContractGen {
       // `add-substate` → `substate`; `remove` and `rename` keep their own name,
       // since their kinds are artifact kinds rather than a flavour of one
       // thing.
-      final key = command.name.startsWith('add-')
-          ? command.name.substring('add-'.length)
-          : command.name;
+      final key = createdKindOf(command.name) ?? command.name;
       out[key] = allowed.toList();
     }
     return out;
   }
 
-  static String _contract() {
-    final b = StringBuffer()
-      ..writeln('// AUTO-GENERATED — DO NOT EDIT.')
-      ..writeln('// Produced by `cd tools && make contract`.')
-      ..writeln('//')
-      ..writeln(
-        '// The CLI is the author of everything here: the `--kind` sets',
-      )
-      ..writeln("// come off each command's own ArgParser, the marker off")
-      ..writeln(
-        '// FrxWorkspace, the fix ids off the sealed Fix hierarchy. Edit',
-      )
-      ..writeln(
-        '// the Dart and re-run; contract_freshness_test.dart fails on a',
-      )
-      ..writeln('// stale copy, so `make check` and CI catch it.')
-      ..writeln()
-      ..writeln('/**')
-      ..writeln(' * The file `frx` keys on to decide where a project begins.')
-      ..writeln(' *')
-      ..writeln(' * Slash-separated, as the CLI states it. Join it with the')
-      ..writeln(' * platform separator before touching the filesystem.')
-      ..writeln(' */')
-      ..writeln("export const MARKER_PATH = '${FrxWorkspace.marker}';")
-      ..writeln()
-      ..writeln(
-        '/** Every `--kind` the CLI accepts, by the artifact it makes. */',
-      )
-      ..writeln('export const KINDS = {');
-    for (final entry in kinds().entries) {
-      final values = entry.value.map((v) => "'$v'").join(', ');
-      // The key is quoted because it comes from a command name: the first
-      // hyphenated one to gain a `--kind` would emit `theme-extension: [...]`,
-      // which is not a legal object key. `contract_freshness_test` compares
-      // the generated string against itself, so it would pass while `tsc`
-      // failed on a file this wrote.
-      b.writeln("  '${entry.key}': [$values],");
-    }
-    b
-      ..writeln('} as const;')
-      ..writeln()
-      ..writeln('/** The values one `--kind` accepts, as a union. */')
-      ..writeln(
-        'export type Kind<K extends keyof typeof KINDS> = '
-        '(typeof KINDS)[K][number];',
-      )
-      ..writeln()
-      ..writeln('/**')
-      ..writeln(' * The remedies `frx doctor --fix` can apply.')
-      ..writeln(' *')
-      ..writeln(' * The wire values the editor keys its quick-fixes on —')
-      ..writeln(' * additive only, since an older extension has to keep')
-      ..writeln(' * working against a newer CLI.')
-      ..writeln(' */')
-      ..writeln('export const FIX_IDS = [${_fixIds()}] as const;')
-      ..writeln()
-      ..writeln('export type FixId = (typeof FIX_IDS)[number];')
-      ..writeln()
-      ..writeln('/**')
-      ..writeln(' * What a non-zero `frx` exit means.')
-      ..writeln(' *')
-      ..writeln(' * The editor keys on both: `scaffold.ts` offers an overwrite')
-      ..writeln(
-        ' * on FAILURE, `artifact.ts` raises a disambiguation picker on',
-      )
-      ..writeln(' * USAGE. sysexits.h values, as a shell expects.')
-      ..writeln(' */')
-      ..writeln('export const EXIT = {')
-      ..writeln('  usage: ${FrxRunner.exitUsage},')
-      ..writeln('  failure: ${FrxRunner.exitFailure},')
-      ..writeln('} as const;')
-      ..writeln()
-      ..write(_packages())
-      ..writeln()
-      ..write(_layout())
-      ..writeln()
-      ..write(_namingCases());
-    return b.toString();
+  /// One section per constant, a blank line between them. Each section is
+  /// written as the TypeScript it emits, with only the values interpolated.
+  static String _contract() => [
+    _banner,
+    _marker(),
+    _kinds(),
+    _fixes(),
+    _exit(),
+    _packages(),
+    _layout(),
+    _namingCases(),
+  ].join('\n');
+
+  static const _banner = '''
+// AUTO-GENERATED — DO NOT EDIT.
+// Produced by `cd tools && make contract`.
+//
+// The CLI is the author of everything here: the `--kind` sets
+// come off each command's own ArgParser, the marker off
+// FrxWorkspace, the fix ids off the sealed Fix hierarchy. Edit
+// the Dart and re-run; contract_freshness_test.dart fails on a
+// stale copy, so `make check` and CI catch it.
+''';
+
+  static String _marker() =>
+      '''
+/**
+ * The file `frx` keys on to decide where a project begins.
+ *
+ * Slash-separated, as the CLI states it. Join it with the
+ * platform separator before touching the filesystem.
+ */
+export const MARKER_PATH = '${FrxWorkspace.marker}';
+''';
+
+  static String _kinds() {
+    // The key is quoted because it comes from a command name: the first
+    // hyphenated one to gain a `--kind` would emit `theme-extension: [...]`,
+    // which is not a legal object key. `contract_freshness_test` compares
+    // the generated string against itself, so it would pass while `tsc`
+    // failed on a file this wrote.
+    final rows = [
+      for (final entry in kinds().entries)
+        "  '${entry.key}': [${_quoted(entry.value)}],",
+    ].join('\n');
+    return '''
+/** Every `--kind` the CLI accepts, by the artifact it makes. */
+export const KINDS = {
+$rows
+} as const;
+
+/** The values one `--kind` accepts, as a union. */
+export type Kind<K extends keyof typeof KINDS> = (typeof KINDS)[K][number];
+''';
   }
+
+  static String _fixes() =>
+      '''
+/**
+ * The remedies `frx doctor --fix` can apply.
+ *
+ * The wire values the editor keys its quick-fixes on —
+ * additive only, since an older extension has to keep
+ * working against a newer CLI.
+ */
+export const FIX_IDS = [${_quoted(_fixIds())}] as const;
+
+export type FixId = (typeof FIX_IDS)[number];
+''';
+
+  static String _exit() =>
+      '''
+/**
+ * What a non-zero `frx` exit means.
+ *
+ * The editor keys on both: `scaffold.ts` offers an overwrite
+ * on FAILURE, `artifact.ts` raises a disambiguation picker on
+ * USAGE. sysexits.h values, as a shell expects.
+ */
+export const EXIT = {
+  usage: ${FrxRunner.exitUsage},
+  failure: ${FrxRunner.exitFailure},
+} as const;
+''';
 
   /// The optional workspace members `add-package` knows how to create.
   ///
@@ -147,25 +151,24 @@ class ContractGen {
   /// True of the parser and beside the point: the catalogue is an enum, and an
   /// enum is data whether or not a flag happens to expose it.
   static String _packages() {
-    final b = StringBuffer()
-      ..writeln('/**')
-      ..writeln(' * The optional workspace members `add-package` creates.')
-      ..writeln(' *')
-      ..writeln(' * `dir` is the argument the command takes and the folder it')
-      ..writeln(" * writes; `summary` is the CLI's own one-liner for it.")
-      ..writeln(' */')
-      ..writeln('export const PACKAGES = [');
-    for (final kind in PackageKind.values) {
-      b.writeln(
+    final rows = [
+      for (final kind in PackageKind.values)
         "  { dir: '${kind.dir}', summary: '${_escape(kind.summary)}' },",
-      );
-    }
-    b
-      ..writeln('] as const;')
-      ..writeln()
-      ..writeln("/** One optional package's directory, as a union. */")
-      ..writeln("export type PackageDir = (typeof PACKAGES)[number]['dir'];");
-    return b.toString();
+    ].join('\n');
+    return '''
+/**
+ * The optional workspace members `add-package` creates.
+ *
+ * `dir` is the argument the command takes and the folder it
+ * writes; `summary` is the CLI's own one-liner for it.
+ */
+export const PACKAGES = [
+$rows
+] as const;
+
+/** One optional package's directory, as a union. */
+export type PackageDir = (typeof PACKAGES)[number]['dir'];
+''';
   }
 
   /// Where the conventional files live, for the providers that key on a path.
@@ -186,33 +189,33 @@ class ContractGen {
 
     // The suffixes, asked of the artifact that states them rather than typed
     // out: `PageArtifact` names the classes, and the files are those in snake.
+    const stem = 'SampleName';
     final page = PageArtifact(Casing.parse('sample_name'));
-    String suffix(String className, String stem) =>
+    String suffix(String className) =>
         '_${Casing.parse(className.substring(stem.length)).snake}.dart';
 
-    final b = StringBuffer()
-      ..writeln('/**')
-      ..writeln(' * Where the conventional files live, slash-separated and')
-      ..writeln(' * relative to the repo root.')
-      ..writeln(' *')
-      ..writeln(' * Join with the platform separator before touching disk.')
-      ..writeln(' * `ui` is the root a `package:ui/` import resolves under.')
-      ..writeln(' */')
-      ..writeln('export const LAYOUT = {')
-      ..writeln("  ui: '${rel(repo.uiLib)}',")
-      ..writeln("  pages: '${rel(repo.uiPages)}',")
-      ..writeln("  connectors: '${rel(repo.appConnectors)}',")
-      ..writeln("  redux: '${rel(repo.businessRedux)}',")
-      ..writeln("  pageSuffix: '${suffix(page.pageClass, 'SampleName')}',")
-      ..writeln(
-        "  connectorSuffix: '${suffix(page.connectorClass, 'SampleName')}',",
-      )
-      // What `add-connector` writes for a widget's connector, as opposed to the
-      // page connector above — the two are told apart by this suffix alone.
-      ..writeln("  widgetConnectorSuffix: '_connector.dart',")
-      ..writeln("  stateSuffix: '_state.dart',")
-      ..writeln('} as const;');
-    return b.toString();
+    // `widgetConnectorSuffix` is what `add-connector` writes for a widget's
+    // connector, as opposed to the page connector above — the two are told
+    // apart by this suffix alone.
+    return '''
+/**
+ * Where the conventional files live, slash-separated and
+ * relative to the repo root.
+ *
+ * Join with the platform separator before touching disk.
+ * `ui` is the root a `package:ui/` import resolves under.
+ */
+export const LAYOUT = {
+  ui: '${rel(repo.uiLib)}',
+  pages: '${rel(repo.uiPages)}',
+  connectors: '${rel(repo.appConnectors)}',
+  redux: '${rel(repo.businessRedux)}',
+  pageSuffix: '${suffix(page.pageClass)}',
+  connectorSuffix: '${suffix(page.connectorClass)}',
+  widgetConnectorSuffix: '_connector.dart',
+  stateSuffix: '_state.dart',
+} as const;
+''';
   }
 
   /// Worked examples of the CLI's casing, for the extension's own tests.
@@ -239,26 +242,31 @@ class ContractGen {
       'my__profile',
       'log_in_with_email',
     ];
-    final b = StringBuffer()
-      ..writeln('/**')
-      ..writeln(" * What the CLI's `Casing` answers, for `naming.test.ts`.")
-      ..writeln(' *')
-      ..writeln(' * `naming.ts` re-implements the conversion because an')
-      ..writeln(' * algorithm is not emittable as data. This is how the two')
-      ..writeln(' * are held together: snake_case in, since that is what the')
-      ..writeln(' * editor is ever handed.')
-      ..writeln(' */')
-      ..writeln('export const NAMING_CASES = [');
-    for (final input in corpus) {
-      final c = Casing.parse(input);
-      b.writeln(
-        "  { input: '$input', camel: '${c.camel}', pascal: '${c.pascal}', "
-        "snake: '${c.snake}' },",
-      );
-    }
-    b.writeln('] as const;');
-    return b.toString();
+    final rows = corpus.map(_namingCase).join('\n');
+    return '''
+/**
+ * What the CLI's `Casing` answers, for `naming.test.ts`.
+ *
+ * `naming.ts` re-implements the conversion because an
+ * algorithm is not emittable as data. This is how the two
+ * are held together: snake_case in, since that is what the
+ * editor is ever handed.
+ */
+export const NAMING_CASES = [
+$rows
+] as const;
+''';
   }
+
+  static String _namingCase(String input) {
+    final c = Casing.parse(input);
+    return "  { input: '$input', camel: '${c.camel}', pascal: '${c.pascal}', "
+        "snake: '${c.snake}' },";
+  }
+
+  /// A TypeScript string-literal list: `'a', 'b'`.
+  static String _quoted(Iterable<String> values) =>
+      values.map((v) => "'$v'").join(', ');
 
   static String _escape(String s) =>
       s.replaceAll(r'\', r'\\').replaceAll("'", r"\'");
@@ -270,12 +278,12 @@ class ContractGen {
   /// it did. What makes it exhaustive is [_idOf]: a fourth subclass makes that
   /// switch non-exhaustive and the generator stops compiling until the id is
   /// listed.
-  static String _fixIds() => const <Fix>[
+  static Iterable<String> _fixIds() => const <Fix>[
     BuildRunnerFix(''),
     OrphanFix(''),
     FlowDocsFix(),
     SkillsFix(),
-  ].map((f) => "'${_idOf(f)}'").join(', ');
+  ].map(_idOf);
 
   /// The compile-time guard the list needs.
   ///

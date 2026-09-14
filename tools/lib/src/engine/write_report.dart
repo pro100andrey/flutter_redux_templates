@@ -19,12 +19,8 @@
 library;
 
 import 'dart:convert';
-import 'dart:io';
-
-import 'package:path/path.dart' as p;
 
 import 'changeset.dart';
-import 'diff.dart';
 
 /// What a `build_runner` step did, for the result of the command that triggered
 /// it.
@@ -73,14 +69,9 @@ class WriteReport {
     Changeset plan, {
     required String command,
     String? relativeTo,
-  }) {
-    String rel(String path) => relativeTo == null
-        ? p.relative(path)
-        : p.relative(path, from: relativeTo);
-    return WriteReport._(command, [
-      for (final c in plan.changes) _describe(c, rel),
-    ]);
-  }
+  }) => WriteReport._(command, [
+    for (final c in plan.changes) _describe(c, relativeTo),
+  ]);
 
   /// Merges [parts] into one result, in written order — what a batch emits.
   ///
@@ -103,20 +94,20 @@ class WriteReport {
   /// in this report's own JSON, and it printed absolute paths where the rest of
   /// the CLI prints relative ones.
   ///
-  /// The verbs come from [_describe], which is the one place that decides them
-  /// — so a batch and the commands inside it cannot disagree about what
+  /// The verbs come from [operationOf], which is the one place that decides
+  /// them — so a batch and the commands inside it cannot disagree about what
   /// happened.
   String human({String? from}) {
-    String rel(String path) =>
-        from == null ? p.relative(path) : p.relative(path, from: from);
     final out = StringBuffer();
     for (final c in _changes) {
-      final path = rel(c['path']! as String);
-      out.writeln(switch (c['op']) {
-        'move' => '  move  ${rel(c['from']! as String)} → $path',
-        'delete-directory' => '  delete  $path${p.separator}',
-        final op => '  $op  $path',
-      });
+      out.writeln(
+        planLine(
+          c['op']! as String,
+          c['path']! as String,
+          from: from,
+          movedFrom: c['from'] as String?,
+        ),
+      );
     }
     return out.toString();
   }
@@ -152,26 +143,10 @@ class WriteReport {
   /// operation and the path already say the whole of what happens, and
   /// rendering a removal as an all-minus diff is the whole-file payload under
   /// another name.
-  static Map<String, Object?> _describe(
-    Change c,
-    String Function(String) rel,
-  ) => switch (c) {
-    WriteFile() => {
-      'op': File(c.path).existsSync() ? 'overwrite' : 'create',
-      'path': c.path,
-      'diff': unifiedDiff(
-        File(c.path).existsSync() ? File(c.path).readAsStringSync() : '',
-        c.content,
-        path: rel(c.path),
-      ),
-    },
-    EditFile() => {
-      'op': 'edit',
-      'path': c.path,
-      'diff': unifiedDiff(c.before, c.after, path: rel(c.path)),
-    },
-    DeleteFile() => {'op': 'delete', 'path': c.path},
-    DeleteDirectory() => {'op': 'delete-directory', 'path': c.path},
-    MoveFile() => {'op': 'move', 'path': c.path, 'from': c.from},
+  static Map<String, Object?> _describe(Change c, String? relativeTo) => {
+    'op': operationOf(c),
+    'path': c.path,
+    if (c case MoveFile(:final from)) 'from': from,
+    if (c case WriteFile() || EditFile()) 'diff': diffOf(c, from: relativeTo),
   };
 }

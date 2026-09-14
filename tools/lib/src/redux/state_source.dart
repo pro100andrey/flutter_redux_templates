@@ -1,20 +1,18 @@
-import 'dart:io';
-
 import 'package:analyzer/dart/ast/ast.dart';
 
 import '../ast/declarations.dart';
-import '../ast/source_index.dart';
+import '../ast/file_source.dart';
+import '../ast/source_index.dart' show SourceIndex;
 import '../refusal.dart';
+import '../util/identifier_text.dart';
 import 'app_state_source.dart' show AppStateSource;
 import 'ast_edit.dart';
 
 /// Reads and edits a substate's `@freezed` state model — inserting a new field
 /// into its redirecting factory constructor, the same AST-splice approach
 /// [AppStateSource] uses for `AppState`.
-class StateSource {
-  StateSource(this.file);
-
-  final File file;
+class StateSource extends FileSource {
+  StateSource(super.file);
 
   /// Adds a `<type> <name>` field to the factory of class [className]
   /// (`<Pascal>State`). [defaultExpr] wraps it in `@Default(...)`; [imports]
@@ -40,14 +38,10 @@ class StateSource {
     List<String> imports = const [],
     bool retype = false,
   }) {
-    final content = sourceIndex.sourceOf(file);
-    final unit = sourceIndex.unitFor(file);
-    final cls = _stateClass(unit, className);
-    final factory = _redirectingFactory(cls, className);
+    final (source: content, :unit) = snapshot;
+    final params = _factoryParameters(unit, className);
 
-    final existing = factory.parameters.parameters
-        .where((p) => p.name?.lexeme == name)
-        .firstOrNull;
+    final existing = parameterNamed(params, name);
     if (existing != null) {
       final wanted = _declaration(type, name, defaultExpr);
       if (!retype || existing.toSource() == wanted) {
@@ -63,7 +57,6 @@ class StateSource {
       );
     }
 
-    final params = factory.parameters;
     final decl = _declaration(type, name, defaultExpr);
     final delimiter = params.rightDelimiter;
     final edits = <Edit>[
@@ -104,19 +97,13 @@ class StateSource {
     required String name,
     Map<String, ImportProbe> prune = const {},
   }) {
-    final content = sourceIndex.sourceOf(file);
-    // [SourceIndex.unitToEdit], not `unitFor`: every edit below is a character
-    // offset read off this tree, and offsets from a tree the analyzer recovered
-    // out of broken source do not describe the file they land in.
-    final unit = sourceIndex.unitToEdit(file);
-    final params = _redirectingFactory(
-      _stateClass(unit, className),
-      className,
-    ).parameters;
+    // [SourceIndex.snapshotToEdit], not `snapshot`: every edit below is a
+    // character offset read off this tree, and offsets from a tree the analyzer
+    // recovered out of broken source do not describe the file they land in.
+    final (source: content, :unit) = snapshotToEdit;
+    final params = _factoryParameters(unit, className);
 
-    final param = params.parameters
-        .where((p) => p.name?.lexeme == name)
-        .firstOrNull;
+    final param = parameterNamed(params, name);
     if (param == null) {
       return Unwired.absent(content);
     }
@@ -160,11 +147,7 @@ class StateSource {
   /// only formatted when `--format` is on.
   static Edit _removeGroup(String source, FormalParameterList params) {
     var start = params.leftDelimiter!.offset;
-    var before = start;
-    while (before > 0 &&
-        (source[before - 1] == ' ' || source[before - 1] == '\t')) {
-      before--;
-    }
+    final before = indentationStart(source, start);
     if (before > 0 && source[before - 1] == ',') {
       start = before - 1;
     }
@@ -181,19 +164,17 @@ class StateSource {
   /// rather than deleted — the factory is frx's to write, a member somebody
   /// added is not.
   List<String> readersOf({required String className, required String field}) {
-    final unit = sourceIndex.unitFor(file);
     final cls = classNamed(unit, className);
-    final body = cls?.body;
-    if (body is! BlockClassBody) {
+    if (cls == null) {
       return const [];
     }
 
     final names = <String>[];
-    for (final member in body.members) {
+    for (final member in cls.body.members) {
       if (member is ConstructorDeclaration) {
         continue;
       }
-      if (!_mentions(member.toSource(), field)) {
+      if (!mentionsIdentifier(member.toSource(), field)) {
         continue;
       }
       names.add(switch (member) {
@@ -203,20 +184,6 @@ class StateSource {
       });
     }
     return names;
-  }
-
-  /// Whether [source] names [identifier] as a word of its own — not as the tail
-  /// of `other.$identifier` and not inside a longer name.
-  static bool _mentions(String source, String identifier) {
-    for (final match in RegExp(
-      '\\b${RegExp.escape(identifier)}\\b',
-    ).allMatches(source)) {
-      final at = match.start;
-      if (at == 0 || source[at - 1] != '.') {
-        return true;
-      }
-    }
-    return false;
   }
 
   /// The source of field [name]'s declaration — `@Default(0) int count` — or
@@ -231,17 +198,8 @@ class StateSource {
   /// this returns is *text*, and no offset of it reaches a splice. The strict
   /// parse is [removeField]'s, where the offsets are taken — and it is also
   /// what lets `remove` search a project holding one unparseable slice.
-  String? declarationOf({required String className, required String name}) {
-    final unit = sourceIndex.unitFor(file);
-    final factory = _redirectingFactory(
-      _stateClass(unit, className),
-      className,
-    );
-    return factory.parameters.parameters
-        .where((p) => p.name?.lexeme == name)
-        .firstOrNull
-        ?.toSource();
-  }
+  String? declarationOf({required String className, required String name}) =>
+      parameterNamed(_factoryParameters(unit, className), name)?.toSource();
 
   /// The `@Default(...)` expression on field [name], or null when it has none.
   ///
@@ -250,14 +208,7 @@ class StateSource {
   /// dropped, and dropping it changes what `AppState.initial()` produces for
   /// every reader. Better to refuse and name it than to write it away.
   String? defaultOf({required String className, required String name}) {
-    final unit = sourceIndex.unitFor(file);
-    final factory = _redirectingFactory(
-      _stateClass(unit, className),
-      className,
-    );
-    final param = factory.parameters.parameters
-        .where((p) => p.name?.lexeme == name)
-        .firstOrNull;
+    final param = parameterNamed(_factoryParameters(unit, className), name);
     if (param == null) {
       return null;
     }
@@ -280,38 +231,19 @@ class StateSource {
       ? '@Default($defaultExpr) $type $name'
       : '$type $name';
 
-  ClassDeclaration _stateClass(CompilationUnit unit, String className) {
-    final cls = classNamed(unit, className);
-    if (cls == null) {
-      throw FrxRefusal('class $className not found in "${file.path}".');
-    }
-    return cls;
-  }
-
-  /// The `const factory <Name>({...}) = _<Name>;` redirecting constructor.
-  ConstructorDeclaration _redirectingFactory(
-    ClassDeclaration cls,
+  /// The parameter list of [className]'s
+  /// `const factory <Name>({...}) = _<Name>;` redirecting constructor.
+  FormalParameterList _factoryParameters(
+    CompilationUnit unit,
     String className,
   ) {
-    final body = cls.body;
-    final members = body is BlockClassBody
-        ? body.members
-        : const <ClassMember>[];
-    final ctor = members
-        .whereType<ConstructorDeclaration>()
-        .where(
-          (c) =>
-              c.factoryKeyword != null &&
-              c.name == null &&
-              c.redirectedConstructor != null,
-        )
-        .firstOrNull;
+    final ctor = redirectingFactoryOf(classIn(unit, className));
     if (ctor == null) {
       throw FrxRefusal(
         '$className has no redirecting factory constructor in "${file.path}" '
         '— is it a `@freezed` state class?',
       );
     }
-    return ctor;
+    return ctor.parameters;
   }
 }

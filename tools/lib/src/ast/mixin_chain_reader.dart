@@ -21,6 +21,7 @@ import 'dart:io';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 
+import 'declarations.dart';
 import 'source_index.dart';
 
 /// A class, the mixins it applies, and the hooks it overrides itself.
@@ -118,18 +119,8 @@ List<MixinApplication> mixinApplicationsIn(File file) => [
 /// action with no return value to thread, which is what makes a missing
 /// `super` invisible rather than a type error.
 List<HookOverride> hookOverridesOf(File file, String name) {
-  for (final d in sourceIndex.unitFor(file).declarations) {
-    if (d is! MixinDeclaration) {
-      continue;
-    }
-    // `name`/`body.members`, not the `namePart` spelling `declarations.dart`
-    // uses for a class: analyzer 14 gives a mixin a plain name token.
-    if (d.name.lexeme != name) {
-      continue;
-    }
-    return _hookOverridesIn(d.body.members);
-  }
-  return const [];
+  final mixin = mixinNamed(sourceIndex.unitFor(file), name);
+  return mixin == null ? const [] : _hookOverridesIn(mixin.body.members);
 }
 
 /// The `before()`/`after()` declarations among [members], with whether each

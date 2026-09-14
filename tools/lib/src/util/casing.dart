@@ -13,19 +13,15 @@ class Casing {
     final spaced = input
         // split camelCase / PascalCase boundaries: "userProfile" -> "user
         // Profile"
-        .replaceAllMapped(
-          RegExp('([a-z0-9])([A-Z])'),
-          (m) => '${m[1]} ${m[2]}',
-        )
+        .replaceAllMapped(_caseBoundary, (m) => '${m[1]} ${m[2]}')
         // collapse separators to spaces
-        .replaceAll(RegExp(r'[_\-\s]+'), ' ')
+        .replaceAll(_separators, ' ')
         .trim();
 
-    final words = spaced
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .map((w) => w.toLowerCase())
-        .toList();
+    final words = [
+      for (final w in spaced.split(' '))
+        if (w.isNotEmpty) w.toLowerCase(),
+    ];
 
     if (words.isEmpty) {
       throw const FormatException('name must contain at least one letter');
@@ -41,6 +37,12 @@ class Casing {
   /// seam — so no scaffolder (page templates, connector, actions) can emit a
   /// class name or string literal with an injectable character.
   static final _validName = RegExp(r'^[A-Za-z][A-Za-z0-9 _-]*$');
+
+  /// Where one word ends and the next begins inside `camelCase`.
+  static final _caseBoundary = RegExp('([a-z0-9])([A-Z])');
+
+  /// A run of anything that separates words: `_`, `-`, whitespace.
+  static final _separators = RegExp(r'[_\-\s]+');
 
   /// `user_profile`
   String get snake => words.join('_');

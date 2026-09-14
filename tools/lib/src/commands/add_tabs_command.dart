@@ -6,7 +6,6 @@ import '../model/page_artifact.dart';
 import '../routing/routes_source.dart';
 import '../scaffold/page_scaffold.dart';
 import '../scaffold/tabs_scaffold.dart';
-import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
@@ -50,12 +49,7 @@ class AddTabsCommand extends WritingCommand {
       usageException('Provide at least two --tab options.');
     }
 
-    final List<Casing> tabs;
-    try {
-      tabs = tabArgs.map(Casing.parse).toList();
-    } on FormatException catch (e) {
-      usageException(e.message);
-    }
+    final tabs = requireCasings(tabArgs);
 
     final source = RoutesSource.of(repo);
 
@@ -63,14 +57,16 @@ class AddTabsCommand extends WritingCommand {
     final name = shell.name;
     final shellRoute = shell.routeType;
     final shellPath = shell.defaultPath;
+    // The artifact's name, not the argument, for everything below: a tab named
+    // `BasketPage` was scaffolded as `class BasketPagePage` into
+    // `basket_page.dart`, with a connector importing a `basket_page_page.dart`
+    // nobody wrote — and `tab.words` gave it the path `basket-page` under a
+    // route named `BasketRoute`.
+    final tabArtifacts = [for (final tab in tabs) PageArtifact(tab)];
 
     // Files: a page + @RoutePage() connector per tab, plus the shell connector.
     final files = <String, String>{};
-    for (final tab in tabs) {
-      final a = PageArtifact(tab);
-      // The artifact's name, not the argument: a tab named `BasketPage` was
-      // scaffolded as `class BasketPagePage` into `basket_page.dart`, with a
-      // connector importing a `basket_page_page.dart` nobody wrote.
+    for (final a in tabArtifacts) {
       final scaffold = PageScaffold(a.name);
       files[a.pageFile(source.pagesDir).path] = scaffold.page();
       files[a.connectorFile(source.connectorsDir).path] = scaffold.connector();
@@ -84,18 +80,12 @@ class AddTabsCommand extends WritingCommand {
       shellRoute: shellRoute,
       connectorImports: [
         shell.connectorImport,
-        for (final tab in tabs) PageArtifact(tab).connectorImport,
+        for (final a in tabArtifacts) a.connectorImport,
       ],
       path: shellPath,
       tabs: [
-        for (final tab in tabs)
-          // The path from the artifact too — `tab.words` is the argument, so a
-          // `BasketPage` tab produced the path `basket-page` under a route
-          // named `BasketRoute`.
-          (
-            route: PageArtifact(tab).routeType,
-            path: PageArtifact(tab).name.words.join('-'),
-          ),
+        for (final a in tabArtifacts)
+          (route: a.routeType, path: a.name.words.join('-')),
       ],
     );
 

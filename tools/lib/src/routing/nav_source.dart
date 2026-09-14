@@ -2,9 +2,10 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
-import 'package:analyzer/dart/ast/visitor.dart';
 
 import '../ast/construction.dart';
+import '../ast/declarations.dart';
+import '../ast/function_bodies.dart';
 import '../ast/source_index.dart';
 import '../redux/ast_edit.dart';
 import '../refusal.dart';
@@ -36,35 +37,21 @@ class NavSource {
     if (!connector.existsSync()) {
       return const [];
     }
-    final unit = sourceIndex.unitFor(connector);
-    for (final d in unit.declarations.whereType<ClassDeclaration>()) {
-      final name = d.namePart.typeName.lexeme;
-      if (!name.endsWith('Connector')) {
+    for (final d in classesIn(sourceIndex.unitFor(connector))) {
+      if (!d.namePart.typeName.lexeme.endsWith('Connector')) {
         continue;
       }
-      final body = d.body;
-      if (body is! BlockClassBody) {
-        continue;
-      }
-
       // Only what the constructor binds as `this.<name>`, in the order it
       // takes them. Every field would sweep up anything the connector holds
       // for itself — a controller, a cached value — and hand it to a route
       // constructor that does not accept it.
-      final bound = <String>[
-        for (final c in body.members.whereType<ConstructorDeclaration>())
-          for (final param in c.parameters.parameters)
-            if (param is FieldFormalParameter) param.name.lexeme,
-      ];
-      final types = {
-        for (final f in body.members.whereType<FieldDeclaration>())
-          if (f.fields.type != null && !f.isStatic)
-            for (final v in f.fields.variables)
-              v.name.lexeme: f.fields.type!.toSource(),
-      };
+      final types = fieldTypesOf(d);
       return [
-        for (final n in bound)
-          if (types[n] case final type?) NavParam(n, type),
+        for (final c in d.body.members.whereType<ConstructorDeclaration>())
+          for (final param in c.parameters.parameters)
+            if (param is FieldFormalParameter)
+              if (types[param.name.lexeme] case final type?)
+                NavParam(param.name.lexeme, type),
       ];
     }
     return const [];
@@ -86,40 +73,31 @@ class NavSource {
     required List<NavParam> params,
     required String pageClass,
   }) {
-    // The imports go in first, one re-parse each: `importInsertion` places an
-    // import among the ones it can see, and two computed against the same parse
-    // both aim at the spot the other is about to take.
-    var content = original;
-    final changes = <String>[];
-    for (final uri in [
+    // The imports go in first, one re-parse each — see [addImports] for why
+    // two computed against the same parse both aim at the spot the other is
+    // about to take. Every structural offset below is then read off the text
+    // they are already in.
+    final added = addImports(original, const [
       '../navigation/app_router.dart',
       '../navigation/go_action.dart',
-    ]) {
-      final dirs = parseString(
-        content: content,
-        throwIfDiagnostics: false,
-      ).unit.directives.whereType<ImportDirective>().toList();
-      if (dirs.any((d) => d.uri.stringValue == uri)) {
-        continue;
-      }
-      content = applyEdits(content, [importInsertion(dirs, uri)]);
-      changes.add("import '$uri';");
-    }
+    ]);
+    final content = added.source;
+    final changes = [...added.changes];
 
     final unit = parseString(content: content, throwIfDiagnostics: false).unit;
-    final vm = _class(unit, '_Vm');
-    final factory = _class(unit, '_Factory');
+    final vm = classNamed(unit, '_Vm');
+    final factory = classNamed(unit, '_Factory');
     if (vm == null || factory == null) {
       throw const FrxRefusal(
         'the connector has no `_Vm`/`_Factory` pair — it was not written by '
         'frx, so where the callback goes is a guess',
       );
     }
-    if (_hasField(vm, callback)) {
+    if (declaresField(vm, callback)) {
       return Edited.nothing(original);
     }
 
-    final signature = 'void Function(${params.map((p) => p.type).join(', ')})';
+    final signature = _signature(params);
     final edits = <Edit>[];
 
     // `_Vm({required this.onTapItem, …})` plus the field it initialises.
@@ -158,10 +136,13 @@ class NavSource {
 
     // `builder: (context, vm) => CatalogPage(onTapItem: vm.onTapItem)`. The
     // page gains an argument, so a `const` construction cannot stay const.
-    final page = _builderPage(unit, pageClass);
+    final page = Construction.firstIn(
+      unit,
+      (made) => made.fullName == pageClass,
+    );
     if (page != null) {
       final keyword = page.constKeyword;
-      if (keyword != null && keyword.lexeme == 'const') {
+      if (keyword != null) {
         edits.add(Edit.replace(keyword.offset, page.nameOffset, ''));
       }
       edits.add(
@@ -187,11 +168,11 @@ class NavSource {
     required List<NavParam> params,
   }) {
     final unit = parseString(content: content, throwIfDiagnostics: false).unit;
-    final cls = _class(unit, pageClass);
+    final cls = classNamed(unit, pageClass);
     if (cls == null) {
       throw FrxRefusal('no `class $pageClass` in the page file');
     }
-    if (_hasField(cls, callback)) {
+    if (declaresField(cls, callback)) {
       return Edited.nothing(content);
     }
     final ctor = _constructor(cls);
@@ -199,10 +180,11 @@ class NavSource {
       throw FrxRefusal('`$pageClass` has no constructor');
     }
 
-    final signature = 'void Function(${params.map((p) => p.type).join(', ')})';
+    final signature = _signature(params);
     // Before `super.key`, which convention keeps last.
-    final named = _namedParams(ctor).toList();
-    final superKey = named.where((p) => p.name?.lexeme == 'key').firstOrNull;
+    final superKey = _namedParams(
+      ctor,
+    ).where((p) => p.name?.lexeme == 'key').firstOrNull;
     return Edited(
       source: applyEdits(content, [
         if (superKey != null)
@@ -215,29 +197,15 @@ class NavSource {
     );
   }
 
-  ClassDeclaration? _class(CompilationUnit unit, String name) {
-    for (final d in unit.declarations.whereType<ClassDeclaration>()) {
-      if (d.namePart.typeName.lexeme == name) {
-        return d;
-      }
-    }
-    return null;
-  }
+  /// The callback's type — `void Function(int, String)` for two parameters.
+  static String _signature(List<NavParam> params) =>
+      'void Function(${params.map((p) => p.type).join(', ')})';
 
-  List<ClassMember> _members(ClassDeclaration c) {
-    final body = c.body;
-    return body is BlockClassBody ? body.members : const [];
-  }
-
-  bool _hasField(ClassDeclaration c, String name) => _members(c)
-      .whereType<FieldDeclaration>()
-      .any((f) => f.fields.variables.any((v) => v.name.lexeme == name));
-
-  ConstructorDeclaration? _constructor(ClassDeclaration c) =>
-      _members(c).whereType<ConstructorDeclaration>().firstOrNull;
+  static ConstructorDeclaration? _constructor(ClassDeclaration c) =>
+      c.body.members.whereType<ConstructorDeclaration>().firstOrNull;
 
   /// The named parameters of [ctor] — the `{…}` group a callback joins.
-  Iterable<FormalParameter> _namedParams(ConstructorDeclaration ctor) =>
+  static Iterable<FormalParameter> _namedParams(ConstructorDeclaration ctor) =>
       ctor.parameters.parameters.where((p) => p.isNamed);
 
   /// Splices a named parameter into [ctor], opening a `{…}` group when the
@@ -247,9 +215,12 @@ class NavSource {
   /// straight makes the parameter *positional* — `_Vm(required this.onTap)`,
   /// which does not parse. Every generated `_Vm` starts out that way, so this
   /// is the common case rather than the corner one.
-  Edit _namedParamInsertion(ConstructorDeclaration ctor, String element) {
+  static Edit _namedParamInsertion(
+    ConstructorDeclaration ctor,
+    String element,
+  ) {
     final params = ctor.parameters;
-    final named = params.parameters.where((p) => p.isNamed).toList();
+    final named = _namedParams(ctor).toList();
     if (named.isNotEmpty) {
       return insertIntoList(
         elements: named,
@@ -268,75 +239,23 @@ class NavSource {
         'does not allow alongside named ones — add `$element` by hand',
       );
     }
-    final positional = params.parameters.toList();
+    final positional = params.parameters;
     return positional.isEmpty
         ? Edit.insert(params.rightParenthesis.offset, '{$element}')
         : Edit.insert(positional.last.end, ', {$element}');
   }
 
   /// The `_Vm(...)` that `fromStore` returns.
-  Construction? _vmCreation(ClassDeclaration factory) {
-    for (final m in _members(factory).whereType<MethodDeclaration>()) {
+  static Construction? _vmCreation(ClassDeclaration factory) {
+    for (final m in factory.body.members.whereType<MethodDeclaration>()) {
       if (m.name.lexeme != 'fromStore') {
         continue;
       }
-      final body = m.body;
-      final expr = body is ExpressionFunctionBody
-          ? body.expression
-          : _returned(body);
-      final made = Construction.of(expr);
+      final made = Construction.of(resultOf(m.body));
       if (made != null && made.fullName == '_Vm') {
         return made;
       }
     }
     return null;
-  }
-
-  Expression? _returned(FunctionBody body) {
-    final finder = _ReturnFinder();
-    body.accept(finder);
-    return finder.expression;
-  }
-
-  /// The page construction inside `builder: (context, vm) => <Page>(…)`.
-  Construction? _builderPage(CompilationUnit unit, String pageClass) {
-    final finder = _PageCreationFinder(pageClass);
-    unit.accept(finder);
-    return finder.found;
-  }
-}
-
-class _ReturnFinder extends GeneralizingAstVisitor<void> {
-  Expression? expression;
-
-  @override
-  void visitReturnStatement(ReturnStatement node) {
-    expression ??= node.expression;
-  }
-}
-
-class _PageCreationFinder extends GeneralizingAstVisitor<void> {
-  _PageCreationFinder(this.pageClass);
-
-  final String pageClass;
-  Construction? found;
-
-  @override
-  void visitInstanceCreationExpression(InstanceCreationExpression node) {
-    _consider(node);
-    super.visitInstanceCreationExpression(node);
-  }
-
-  @override
-  void visitMethodInvocation(MethodInvocation node) {
-    _consider(node);
-    super.visitMethodInvocation(node);
-  }
-
-  void _consider(Expression e) {
-    final made = Construction.of(e);
-    if (made != null && made.fullName == pageClass) {
-      found ??= made;
-    }
   }
 }
