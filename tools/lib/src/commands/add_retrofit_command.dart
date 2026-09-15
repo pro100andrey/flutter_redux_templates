@@ -1,11 +1,11 @@
 import 'package:args/args.dart';
 
 import '../engine/changeset.dart';
+import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
 import '../scaffold/package_scaffold.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
-import '../model/artifact_files.dart';
 
 /// Scaffolds a Retrofit `@RestApi()` client in `http_client/lib/api/`.
 class AddRetrofitCommand extends WritingCommand {
@@ -30,14 +30,9 @@ class AddRetrofitCommand extends WritingCommand {
     // See `add-model`, including why the name is read first.
     final name = requireName();
 
-    if (!PackageKind.httpClient.existsIn(repo)) {
-      refuse(
-        'There is no "http_client" package in this workspace. '
-        'Create it with `frx add-package http_client`, then run this again.',
-      );
-    }
+    requirePackage(PackageKind.httpClient, repo);
 
-    final file = ArtifactFiles.retrofit(repo, name);
+    final file = retrofitFile(repo, name);
 
     return WritePlan(
       changes: Changeset([WriteFile(file, ArtifactTemplates.retrofit(name))]),

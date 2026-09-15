@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/ast/source_index.dart';
 
@@ -42,7 +43,7 @@ class BrokenAction extends Action {
           fx.file('business/lib/redux/log_in/actions/broken_action.dart'),
         );
       });
-      expect(index.recovered.map((f) => f.path.split('/').last), [
+      expect(index.recovered.map((f) => p.basename(f.path)), [
         'broken_action.dart',
       ]);
     });
@@ -64,7 +65,7 @@ class BrokenAction extends Action {
   test('the graph declares it rather than modelling it silently', () async {
     breakAnAction();
     final r = await runInProcess(fx, ['graph', '--json']);
-    expect(r.exitCode, 0, reason: r.stderr.toString());
+    expect(r.exitCode, 0, reason: r.stderr);
     final gaps = ((jsonDecode(r.stdout) as Map)['unresolved'] as List)
         .cast<Map<String, Object?>>()
         .where((u) => u['kind'] == 'unparsed-file');

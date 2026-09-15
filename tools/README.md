@@ -80,6 +80,7 @@ Every command has a short alias (in parentheses).
 | --- | --- | --- |
 | **Start a project** | | |
 | `create` | | This monorepo under a new name — packages, wiring and every platform identifier |
+| `add-package` | `apkg` | Put an optional workspace member back — `models`, `http_client`, `storage` — spliced into the root `workspace:` and into whoever depends on it |
 | **Create & wire** | | |
 | `add-substate` | `as` | AsyncRedux substate (value / search / table) + `AppState` & selectors wiring |
 | `add-page` | `ap` | Page + `@RoutePage()` connector + `AutoRoute` in `AppRouter` |
@@ -112,6 +113,7 @@ Every command has a short alias (in parentheses).
 | **Workflow** | | |
 | `watch` | `wa` | `build_runner watch` from anywhere (workspace or `--package`) |
 | `upgrade` | `up` | Replace this binary with the newest release (`--check` asks without installing; needs `tar`) |
+| `update-skills` | `us` | Rewrite `.claude/skills/` from this frx's own commands — what `doctor --fix` runs for a stale tree |
 | `completions` | | Shell completion script for bash / zsh / fish |
 
 ---
@@ -766,7 +768,7 @@ frx which SelectForgotPassword    # → substate  forgot_password (from the Sele
 
 frx doctor                        # audit: wiring drift, orphans, missing generated parts
 frx doctor --fix                  # auto-repair: run codegen, remove orphan substates
-frx doctor --json                 # {findings:[{severity,message,file,fix}]}
+frx doctor --json                 # {findings:[{severity,message,file,fix,rule,line?,column?}]}
 ```
 
 `which` maps a generated class / route / field / folder back to its artifact
@@ -1092,7 +1094,14 @@ question answerable:
 ```bash
 frx graph                         # the ⚠ section lists them with the reason
 frx graph --json                  # orphans:[{node, why}]
+frx graph --fail-on-orphans       # exit 1 when the list is not empty — a CI gate
 ```
+
+The gate is `graph`'s and not `doctor`'s on purpose. The list is advice, not
+drift: `add-action -k waiting` writes an `isWaiting` getter nothing reads yet,
+and a check that fired on frx's own output would be noise. This repository's CI
+runs the gate on the template, which had shipped seven dead selectors with
+doctor green.
 
 Reachability, not incoming count. A selector read only by another selector that
 nothing reads is dead just the same — counting callers would report the whole
@@ -1187,6 +1196,10 @@ answers swapped — a dead watch read as live and the orphan stopped being
 reported.
 
 ### Shell completions
+
+The one-line installer wires these in for you — a `# frx completions` line in
+the profile it also put `PATH` into (zsh, bash), or `~/.config/fish/completions/frx.fish`
+(fish); `--no-modify-path` leaves both alone. By hand:
 
 ```bash
 # bash — add to ~/.bashrc:

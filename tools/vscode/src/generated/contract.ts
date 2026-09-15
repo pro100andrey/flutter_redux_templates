@@ -71,13 +71,16 @@ export type PackageDir = (typeof PACKAGES)[number]['dir'];
  * relative to the repo root.
  *
  * Join with the platform separator before touching disk.
+ * `ui` is the root a `package:ui/` import resolves under.
  */
 export const LAYOUT = {
+  ui: 'ui/lib',
   pages: 'ui/lib/pages',
   connectors: 'app/lib/connectors',
   redux: 'business/lib/redux',
   pageSuffix: '_page.dart',
   connectorSuffix: '_page_connector.dart',
+  widgetConnectorSuffix: '_connector.dart',
   stateSuffix: '_state.dart',
 } as const;
 

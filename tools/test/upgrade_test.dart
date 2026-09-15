@@ -335,23 +335,34 @@ void main() {
     expect(sdk.readAsStringSync(), 'the dart sdk');
   });
 
-  test('the running binary keeps working while it is replaced', () async {
-    // Renamed over, not written through: a process mid-read of its own image
-    // must not see it change under it. The old inode is kept open here to make
-    // that concrete.
-    latest('v0.4.0');
-    await publish('0.4.0', Upgrader.platformSlug!, 'new');
-    final exe = installed('old');
-    final open = exe.openSync();
-    addTearDown(open.closeSync);
+  test(
+    'the running binary keeps working while it is replaced',
+    () async {
+      // Renamed over, not written through: a process mid-read of its own image
+      // must not see it change under it. The old inode is kept open here to
+      // make that concrete.
+      latest('v0.4.0');
+      await publish('0.4.0', Upgrader.platformSlug!, 'new');
+      final exe = installed('old');
+      final open = exe.openSync();
+      addTearDown(open.closeSync);
 
-    await upgrader('0.3.0', exe).run();
+      await upgrader('0.3.0', exe).run();
 
-    expect(
-      utf8.decode(open.readSync(3)),
-      'old',
-      reason: 'the handle still points at the image it was opened on',
-    );
-    expect(exe.readAsStringSync(), 'new');
-  });
+      expect(
+        utf8.decode(open.readSync(3)),
+        'old',
+        reason: 'the handle still points at the image it was opened on',
+      );
+      expect(exe.readAsStringSync(), 'new');
+    },
+    // Not there: a Dart handle is a stricter lock than a running image. Windows
+    // lets a loaded executable be renamed, which is what the swap relies on,
+    // and refuses it for a file something holds open the way `openSync` does —
+    // so this way of making the claim concrete fails on the model, not the
+    // swap.
+    skip: Platform.isWindows
+        ? 'an open handle denies the rename a running image allows'
+        : false,
+  );
 }

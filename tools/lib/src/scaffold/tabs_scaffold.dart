@@ -1,7 +1,7 @@
 import '../util/casing.dart';
 
 /// The shell page for a tab flow: a `@RoutePage()` widget hosting auto_route's
-/// [AutoTabsScaffold] with a bottom navigation bar over the tab routes.
+/// `AutoTabsScaffold` with a bottom navigation bar over the tab routes.
 ///
 /// Lives in `app/lib/connectors/<name>_page_connector.dart` — it must be in the
 /// `app` package because it references the generated tab route classes
@@ -17,7 +17,8 @@ class TabsScaffold {
     final items = tabs
         .map(
           (t) =>
-              "BottomNavigationBarItem(icon: Icon(Icons.circle_outlined), label: '${t.pascal}')",
+              'BottomNavigationBarItem(icon: Icon(Icons.circle_outlined), '
+              "label: '${t.pascal}')",
         )
         .join(',\n');
     return '''

@@ -19,13 +19,13 @@ import 'support/fixture.dart';
 /// hides any of those exactly as well.
 ///
 /// What it guards, measured: `frx_workspace.dart` carried one NUL byte, written
-/// as a memo-key separator. Legal Dart, invisible in an editor, survived `dart
-/// format`. But `grep`, `git grep` and ripgrep classify a file holding a NUL as
-/// binary and skip it, so `notSubstateDirs`, `isSubstateDir`, `packageRootOf`
-/// and `_marker` returned no hits anywhere in the repository — the module that
-/// owns the monorepo's layout was absent from every search. `dart analyze` was
-/// clean, 690 tests passed, and the only symptom was an architecture review
-/// undercounting because its own greps came back empty.
+/// as a memo-key separator. Legal Dart, invisible in an editor, survived
+/// `dart format`. But `grep`, `git grep` and ripgrep classify a file holding a
+/// NUL as binary and skip it, so `notSubstateDirs`, `isSubstateDir`,
+/// `packageRootOf` and `_marker` returned no hits anywhere in the repository —
+/// the module that owns the monorepo's layout was absent from every search.
+/// `dart analyze` was clean, 690 tests passed, and the only symptom was an
+/// architecture review undercounting because its own greps came back empty.
 void main() {
   final repoRoot = p.dirname(Directory.current.absolute.path);
 
@@ -60,10 +60,14 @@ void main() {
   test('no tracked source file is invisible to search', () {
     final offenders = <String>[];
     for (final rel in trackedFiles()) {
-      if (!searchable.contains(p.extension(rel))) continue;
+      if (!searchable.contains(p.extension(rel))) {
+        continue;
+      }
       final file = File(p.join(repoRoot, rel));
       // Tracked but absent happens mid-rebase and is not this test's subject.
-      if (!file.existsSync()) continue;
+      if (!file.existsSync()) {
+        continue;
+      }
       final bad = unsearchableIn(file.readAsBytesSync());
       if (bad != null) {
         offenders.add('$rel ${describeUnsearchable(bad.kind, bad.offset)}');

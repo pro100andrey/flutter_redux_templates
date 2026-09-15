@@ -260,3 +260,29 @@ test('pickMixins: a pick survives the pause before the next click', async () => 
   const picked = await ui.pickMixins({} as any, '/r', 'T');
   assert.deepStrictEqual(picked, ['debounce']);
 });
+
+test('resolveOrExplain: comes back null without waiting for the notification to be answered', async () => {
+  reset();
+  // The CI runner: no binary anywhere and no dart to `dart run` with.
+  const originalResolve = (frx as any).resolveFrx;
+  (frx as any).resolveFrx = async () => null;
+  // A notification that offers buttons stays up until someone answers it, and
+  // the promise behind it stays pending for as long as it does. Modelled as
+  // never resolving, which is what a host with nobody at the keyboard is.
+  const originalError = vscode.window.showErrorMessage;
+  vscode.window.showErrorMessage = () => new Promise(() => {});
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    const outcome = await Promise.race([
+      ui.resolveOrExplain({} as any, '/r'),
+      new Promise((resolve) => (timer = setTimeout(() => resolve('still waiting'), 200))),
+    ]);
+    // Every command's promise held open until a click was how the integration
+    // test's `frx.doctor` ran out its 60s on a runner that has neither.
+    assert.strictEqual(outcome, null);
+  } finally {
+    clearTimeout(timer);
+    vscode.window.showErrorMessage = originalError;
+    (frx as any).resolveFrx = originalResolve;
+  }
+});

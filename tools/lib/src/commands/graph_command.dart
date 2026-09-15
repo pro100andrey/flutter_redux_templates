@@ -7,10 +7,13 @@ import '../graph/graph_model.dart';
 import '../graph/graph_reader.dart';
 import '../model/naming_convention.dart';
 import '../model/target_resolver.dart';
+import '../refusal.dart';
 import '../util/casing.dart';
-import '../workspace/frx_workspace.dart';
-import 'options.dart';
 import '../util/console.dart';
+import '../workspace/frx_workspace.dart';
+import 'graph_report.dart';
+import 'options.dart';
+import 'reading.dart';
 
 /// Emits the whole app as one graph.
 ///
@@ -36,7 +39,8 @@ class GraphCommand extends Command<int> {
         'focus',
         help:
             'Only the subgraph around one artifact. Takes a node id '
-            '(page:logIn), a symbol (LogInRoute, SetEmailAction) or a bare name '
+            '(page:logIn), a symbol (LogInRoute, SetEmailAction) or a bare '
+            'name '
             '(log_in).',
       )
       ..addOption(
@@ -59,6 +63,16 @@ class GraphCommand extends Command<int> {
         help:
             'With --focus: how many hops out to follow, or `all` for as far as '
             'the edges go.',
+      )
+      ..addFlag(
+        'fail-on-orphans',
+        negatable: false,
+        help:
+            'Exit 1 when the "nothing reaches" list is not empty — a gate for '
+            'CI. Advice rather than drift, which is why doctor does not report '
+            'it: `add-action -k waiting` writes an isWaiting getter nothing '
+            "reads yet, and a check that fired on frx's own output would be "
+            'noise.',
       )
       ..addOption('root', help: kRootHelp);
   }
@@ -87,6 +101,7 @@ class GraphCommand extends Command<int> {
     if (focusArg == null && results.wasParsed('depth')) {
       usageException('--depth only applies with --focus.');
     }
+
     if (focusArg == null && results.wasParsed('direction')) {
       usageException('--direction only applies with --focus.');
     }
@@ -113,17 +128,15 @@ class GraphCommand extends Command<int> {
     final FrxWorkspace workspace;
     try {
       workspace = FrxWorkspace.locate(startDir: results['root'] as String?);
-    } on StateError catch (e) {
-      console.err.writeln('frx: ${e.message}');
-      return 70;
+    } on FrxRefusal catch (e) {
+      return refused(e);
     }
 
     final AppGraph whole;
     try {
       whole = GraphReader(workspace).read();
-    } on StateError catch (e) {
-      console.err.writeln('frx: ${e.message}');
-      return 70;
+    } on FrxRefusal catch (e) {
+      return refused(e);
     }
 
     var graph = whole;
@@ -138,26 +151,34 @@ class GraphCommand extends Command<int> {
 
     if (results.flag('json')) {
       console.out.writeln(jsonEncode(graph.toJson()));
-      return 0;
+    } else {
+      GraphReport(graph, workspace).print();
     }
 
-    _report(graph, workspace);
+    // The gate reads the graph that was printed, so with `--focus` it answers
+    // for the subgraph on screen — what a reader would check by eye.
+    if (results.flag('fail-on-orphans') && graph.orphans.isNotEmpty) {
+      return 1;
+    }
+
     return 0;
   }
 
   /// The node id [token] names, or the reason it names none.
   ///
   /// Three spellings, most specific first: a node id, then whatever the
-  /// identifier resolver makes of a substate/page symbol, then a bare node name.
-  /// The resolver is the one `frx which` and the editor's F2 already use — a
-  /// second implementation of "what does `LogInRoute` mean" is how the
+  /// identifier resolver makes of a substate/page symbol, then a bare node
+  /// name. The resolver is the one `frx which` and the editor's F2 already use
+  /// — a second implementation of "what does `LogInRoute` mean" is how the
   /// conventions fork.
   ({String? id, String? error}) _resolveFocus(
     String token,
     AppGraph graph,
     ArgResults results,
   ) {
-    if (graph.node(token) != null) return (id: token, error: null);
+    if (graph.node(token) != null) {
+      return (id: token, error: null);
+    }
 
     final resolver = TargetResolver.locate(results['root'] as String?);
     final match = NamingConvention.resolve(
@@ -170,7 +191,9 @@ class GraphCommand extends Command<int> {
       final id = match.kind == ArtifactKind.substate
           ? 'substate:$camel'
           : 'page:$camel';
-      if (graph.node(id) != null) return (id: id, error: null);
+      if (graph.node(id) != null) {
+        return (id: id, error: null);
+      }
     }
 
     // Actions, selectors and services are not the resolver's business — it
@@ -180,7 +203,10 @@ class GraphCommand extends Command<int> {
       for (final n in graph.nodes)
         if (n.name == token) n,
     ];
-    if (byName.length == 1) return (id: byName.single.id, error: null);
+    if (byName.length == 1) {
+      return (id: byName.single.id, error: null);
+    }
+
     if (byName.length > 1) {
       return (
         id: null,
@@ -195,123 +221,9 @@ class GraphCommand extends Command<int> {
       error:
           'nothing in the graph is called "$token".\n'
           'Takes a node id (page:logIn, substate:session, '
-          'action:logIn.SetEmailAction), a symbol (LogInRoute, LogInState) or a '
+          'action:logIn.SetEmailAction), a symbol (LogInRoute, LogInState) or '
+          'a '
           'bare name (log_in). Run `frx graph` to list them.',
     );
-  }
-
-  void _report(AppGraph graph, FrxWorkspace workspace) {
-    final focus = graph.focus;
-    console.out
-      ..writeln(
-        focus == null
-            ? 'frx graph  (${workspace.root.path})'
-            : 'frx graph  ${focus.node}  ${focus.direction.name}, '
-                  '${focus.depth == null ? 'unbounded' : 'depth ${focus.depth}'}'
-                  '  (${workspace.root.path})',
-      )
-      ..writeln();
-
-    // Named, not counted. "3 substates, 7 reads" answers no question a reader of
-    // this command has — least of all "what breaks if I touch this", where the
-    // whole answer is *which* ones.
-    _listNodes(graph);
-    _listEdges(graph);
-
-    // Stated whenever a bound was applied, because an impact answer is read as
-    // exhaustive: a truncated dependency list looks exactly like a short one.
-    if (focus != null && focus.truncated) {
-      console.out
-        ..writeln()
-        ..writeln(
-          '⚠ stopped at depth ${focus.depth} — there is more beyond it. '
-          'Re-run with --depth all.',
-        );
-    }
-
-    // The blind spots come last so they are what stays on screen.
-    if (graph.unresolved.isNotEmpty) {
-      console.out
-        ..writeln()
-        ..writeln('⚠ ${graph.unresolved.length} unresolved');
-      for (final u in graph.unresolved) {
-        final where = [
-          u.kind,
-          if (u.expr != null) u.expr!,
-          if (u.at != null) _short(u.at!, workspace),
-        ].join('  ');
-        console.out
-          ..writeln('  $where')
-          ..writeln('      ${u.why}');
-      }
-    }
-
-    final orphans = graph.orphans;
-    if (orphans.isNotEmpty) {
-      console.out
-        ..writeln()
-        ..writeln('⚠ ${orphans.length} artifact(s) nothing reaches');
-      for (final o in orphans) {
-        console.out.writeln('  ${o.node.id.padRight(46)}  ${o.why}');
-      }
-    }
-
-    if (graph.unresolved.isEmpty && orphans.isEmpty) {
-      console.out
-        ..writeln()
-        ..writeln('✓ every reference resolved, every action reachable.');
-    }
-  }
-
-  /// The nodes, grouped by kind and named. An unresolved node is marked, so a
-  /// placeholder standing in for something frx could not find is not read as an
-  /// artifact that exists.
-  void _listNodes(AppGraph graph) {
-    console.out.writeln('NODES (${graph.nodes.length})');
-    for (final kind in NodeKind.values) {
-      final of = [
-        for (final n in graph.nodes)
-          if (n.kind == kind) n,
-      ]..sort((a, b) => a.id.compareTo(b.id));
-      if (of.isEmpty) continue;
-      console.out.writeln('  ${kind.name} (${of.length})');
-      for (final n in of) {
-        console.out.writeln(
-          '    ${n.name}${n.resolved ? '' : '  (unresolved)'}'
-          '${n.substate == null ? '' : '  ← ${n.substate}'}',
-        );
-      }
-    }
-  }
-
-  /// The edges, grouped by kind, each as `from → to` with what triggers it.
-  void _listEdges(AppGraph graph) {
-    console.out
-      ..writeln()
-      ..writeln('EDGES (${graph.edges.length})');
-    for (final kind in EdgeKind.values) {
-      final of = [
-        for (final e in graph.edges)
-          if (e.kind == kind) e,
-      ]..sort((a, b) => '${a.from}${a.to}'.compareTo('${b.from}${b.to}'));
-      if (of.isEmpty) continue;
-      console.out.writeln('  ${kind.name} (${of.length})');
-      for (final e in of) {
-        final detail = [
-          if (e.via != null) 'via ${e.via}',
-          if (e.condition != null) 'if ${e.condition}',
-          if (e.inferred) 'inferred',
-        ].join(', ');
-        console.out.writeln(
-          '    ${e.from} → ${e.to}${detail.isEmpty ? '' : '  ($detail)'}',
-        );
-      }
-    }
-  }
-
-  /// Trims an absolute path down to repo-relative; leaves node ids alone.
-  String _short(String at, FrxWorkspace workspace) {
-    final root = '${workspace.root.path}/';
-    return at.startsWith(root) ? at.substring(root.length) : at;
   }
 }

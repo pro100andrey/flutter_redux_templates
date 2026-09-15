@@ -68,8 +68,8 @@ class FlowDocs {
     return {
       'README.md': _index(routeMap),
       for (final node in routeMap.pages)
-        if (routeMap.flows[node.page] != null)
-          '${node.page}.md': _page(node, routeMap.flows[node.page]!),
+        if (routeMap.flows[node.page] case final flow?)
+          '${node.page}.md': _page(node, flow),
     };
   }
 
@@ -77,25 +77,10 @@ class FlowDocs {
   /// missing, then stale, then orphaned. Empty when the export is in sync (or
   /// was never created).
   List<DocDrift> check([RouteMap? map]) {
-    if (!enabled) return const [];
-    final expected = render(map);
-    final drift = <DocDrift>[];
-
-    for (final entry in expected.entries) {
-      final file = File(p.join(dir.path, entry.key));
-      if (!file.existsSync()) {
-        drift.add(DocDrift(DocDriftKind.missing, file.path, _rel(file.path)));
-      } else if (file.readAsStringSync() != entry.value) {
-        drift.add(DocDrift(DocDriftKind.stale, file.path, _rel(file.path)));
-      }
+    if (!enabled) {
+      return const [];
     }
-
-    for (final file in _ownedFiles()) {
-      if (expected.containsKey(p.basename(file.path))) continue;
-      drift.add(DocDrift(DocDriftKind.orphan, file.path, _rel(file.path)));
-    }
-
-    return drift;
+    return _drift(render(map));
   }
 
   /// Writes the export, creating `docs/flows/` if needed and deleting the docs
@@ -105,41 +90,66 @@ class FlowDocs {
     final expected = render(map);
     dir.createSync(recursive: true);
 
-    final changed = <DocDrift>[];
+    final changed = _drift(expected);
+    for (final drift in changed) {
+      switch (drift.kind) {
+        case DocDriftKind.missing || DocDriftKind.stale:
+          File(drift.path).writeAsStringSync(expected[p.basename(drift.path)]!);
+        case DocDriftKind.orphan:
+          File(drift.path).deleteSync();
+      }
+    }
+    return changed;
+  }
+
+  /// Every way the directory differs from [expected]: each expected file that
+  /// is absent or differs, in export order, then every stamped file the export
+  /// no longer produces. The one comparison [check] reports and [write] acts
+  /// on.
+  List<DocDrift> _drift(Map<String, String> expected) {
+    final drift = <DocDrift>[];
+
     for (final entry in expected.entries) {
       final file = File(p.join(dir.path, entry.key));
-      final exists = file.existsSync();
-      if (exists && file.readAsStringSync() == entry.value) continue;
-      file.writeAsStringSync(entry.value);
-      changed.add(
-        DocDrift(
-          exists ? DocDriftKind.stale : DocDriftKind.missing,
-          file.path,
-          _rel(file.path),
-        ),
-      );
+      if (!file.existsSync()) {
+        drift.add(_at(DocDriftKind.missing, file));
+      } else if (file.readAsStringSync() != entry.value) {
+        drift.add(_at(DocDriftKind.stale, file));
+      }
     }
 
     for (final file in _ownedFiles()) {
-      if (expected.containsKey(p.basename(file.path))) continue;
-      changed.add(DocDrift(DocDriftKind.orphan, file.path, _rel(file.path)));
-      file.deleteSync();
+      if (expected.containsKey(p.basename(file.path))) {
+        continue;
+      }
+      drift.add(_at(DocDriftKind.orphan, file));
     }
 
-    return changed;
+    return drift;
   }
+
+  DocDrift _at(DocDriftKind kind, File file) =>
+      DocDrift(kind, file.path, _rel(file.path));
 
   /// The `.md` files in `docs/flows/` that frx generated — i.e. that carry
   /// [marker]. Anything else in there belongs to the user.
   Iterable<File> _ownedFiles() sync* {
-    if (!dir.existsSync()) return;
+    if (!dir.existsSync()) {
+      return;
+    }
     for (final entity in dir.listSync()) {
-      if (entity is! File || !entity.path.endsWith('.md')) continue;
-      if (entity.readAsStringSync().contains(marker)) yield entity;
+      if (entity is! File || !entity.path.endsWith('.md')) {
+        continue;
+      }
+
+      if (entity.readAsStringSync().contains(marker)) {
+        yield entity;
+      }
     }
   }
 
-  // --- rendering --------------------------------------------------------------
+  // --- rendering
+  // --------------------------------------------------------------
 
   String _index(RouteMap map) {
     final b = StringBuffer()
@@ -250,7 +260,9 @@ class FlowDocs {
       for (final step in useCase.steps) {
         targets.add('`${step.target}`${step.condition == null ? '' : ' ?'}');
         final w = flow.actions[step.target]?.writesLabel;
-        if (w != null) writes.add('`$w`');
+        if (w != null) {
+          writes.add('`$w`');
+        }
       }
       b.writeln(
         '| `${useCase.qualifiedLabel}` '

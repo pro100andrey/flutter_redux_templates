@@ -3,10 +3,10 @@ import 'package:args/command_runner.dart';
 
 import 'commands/add_action_command.dart';
 import 'commands/add_connector_command.dart';
-import 'commands/add_nav_command.dart';
 import 'commands/add_enum_command.dart';
 import 'commands/add_field_command.dart';
 import 'commands/add_model_command.dart';
+import 'commands/add_nav_command.dart';
 import 'commands/add_package_command.dart';
 import 'commands/add_page_command.dart';
 import 'commands/add_retrofit_command.dart';
@@ -17,6 +17,7 @@ import 'commands/add_tabs_command.dart';
 import 'commands/add_theme_extension_command.dart';
 import 'commands/add_widget_command.dart';
 import 'commands/batch_command.dart';
+import 'commands/complete_command.dart';
 import 'commands/completions_command.dart';
 import 'commands/create_command.dart';
 import 'commands/doctor_command.dart';
@@ -24,8 +25,8 @@ import 'commands/flow_command.dart';
 import 'commands/graph_command.dart';
 import 'commands/list_mixins_command.dart';
 import 'commands/list_routes_command.dart';
-import 'commands/list_widget_dirs_command.dart';
 import 'commands/list_substates_command.dart';
+import 'commands/list_widget_dirs_command.dart';
 import 'commands/new_command.dart';
 import 'commands/remove_command.dart';
 import 'commands/rename_command.dart';
@@ -35,8 +36,9 @@ import 'commands/watch_command.dart';
 import 'commands/which_command.dart';
 import 'config/frx_config.dart';
 import 'engine/changeset.dart';
-import 'version.dart';
+import 'refusal.dart';
 import 'util/console.dart';
+import 'version.dart';
 
 /// Root of the `frx` CLI — the dev toolbox for this Flutter Redux monorepo.
 ///
@@ -97,6 +99,15 @@ class FrxRunner extends CommandRunner<int> {
     return super.runCommand(topLevelResults);
   }
 
+  /// Every command a user can type, once each and in registration order.
+  ///
+  /// [commands] is keyed by alias as well as by name, so its values repeat a
+  /// command once per alias, and it lists `__complete`, which is the shell's
+  /// rather than the user's. The skills and the completer both want the same
+  /// answer, and each had spelled the walk.
+  Iterable<Command<int>> get visibleCommands =>
+      {...commands.values}.where((c) => !c.hidden);
+
   /// You used it wrong: bad flags, an unknown kind, an ambiguous name.
   ///
   /// sysexits.h's `EX_USAGE`. Named because the editor reads it back —
@@ -122,8 +133,8 @@ class FrxRunner extends CommandRunner<int> {
       console.err.writeln();
       console.err.writeln(e.usage);
       return exitUsage;
-    } on StateError catch (e) {
-      // Commands throw StateError for user-facing "can't do this here" cases
+    } on FrxRefusal catch (e) {
+      // Commands throw FrxRefusal for user-facing "can't do this here" cases
       // (project not found, an AppState/selectors shape we can't wire). Surface
       // the message cleanly instead of letting it escape as an unhandled crash.
       console.err.writeln('✗ ${e.message}');
@@ -146,9 +157,14 @@ class FrxRunner extends CommandRunner<int> {
       (a) => !a.startsWith('-'),
       orElse: () => '',
     );
-    if (cmdName.isEmpty) return args;
-    final command = _resolveCommand(cmdName);
-    if (command == null) return args;
+    if (cmdName.isEmpty) {
+      return args;
+    }
+    // Keyed by alias as well as by name: `addCommand` registers every one.
+    final command = commands[cmdName];
+    if (command == null) {
+      return args;
+    }
 
     final config = FrxConfig.load(startDir: _rootArg(args));
     return config.applyTo(
@@ -158,21 +174,13 @@ class FrxRunner extends CommandRunner<int> {
     );
   }
 
-  /// The command registered under [name] or one of its aliases.
-  Command<int>? _resolveCommand(String name) {
-    final direct = commands[name];
-    if (direct != null) return direct;
-    for (final c in commands.values) {
-      if (c.aliases.contains(name)) return c;
-    }
-    return null;
-  }
-
   /// The `--root <dir>` / `--root=<dir>` value in [args], if any — so `.frxrc`
   /// is looked up from the same place the command searches.
   static String? _rootArg(List<String> args) {
     for (var i = 0; i < args.length; i++) {
-      if (args[i] == '--root' && i + 1 < args.length) return args[i + 1];
+      if (args[i] == '--root' && i + 1 < args.length) {
+        return args[i + 1];
+      }
       if (args[i].startsWith('--root=')) {
         return args[i].substring('--root='.length);
       }

@@ -9,7 +9,7 @@
 # Options (after `| sh -s --`, or directly when the file is run):
 #   --version <x.y.z>   a specific release instead of the latest
 #   --dir <path>        install somewhere other than ~/.frx/bin
-#   --no-modify-path    do not touch the shell profile
+#   --no-modify-path    do not touch the shell profile (PATH, and completions)
 #
 # Environment equivalents: FRX_VERSION, FRX_INSTALL_DIR, FRX_NO_MODIFY_PATH=1.
 #
@@ -42,7 +42,7 @@ frx installer — macOS and Linux.
 
   --version <x.y.z>   install a specific release (default: the latest)
   --dir <path>        install location (default: \$HOME/.frx/bin)
-  --no-modify-path    do not add the install directory to the shell profile
+  --no-modify-path    do not touch the shell profile: neither PATH nor completions
 
 Environment: FRX_VERSION, FRX_INSTALL_DIR, FRX_NO_MODIFY_PATH=1
 EOF
@@ -216,6 +216,55 @@ else
     say ''
     say "✓ frx $VERSION installed — open a new terminal, or: $(export_line)"
   fi
+fi
+
+# --- Completions ------------------------------------------------------------
+#
+# `frx completions <shell>` prints the script; this wires it in, because a
+# completion script nobody sources completes nothing. Under the same flag as
+# the PATH edit — both are "touch my shell profile" — and idempotent by its own
+# marker, so re-running the installer to upgrade adds nothing twice, and an
+# install that predates this block gains it on the next run.
+
+# The line a profile runs to load the script, for the shells frx has one for.
+# `eval` rather than `source <(…)`: process substitution is bash and zsh only,
+# and `eval` reads the same in both. Guarded on `command -v` so a profile
+# outlives an uninstall without printing an error at every new shell.
+completion_line() {
+  # shellcheck disable=SC2016  # `$(frx …)` is meant to stay literal: it runs in
+  # the profile, not here.
+  case "$(shell_name)" in
+    zsh)  printf 'command -v frx >/dev/null 2>&1 && eval "$(frx completions zsh)"' ;;
+    bash) printf 'command -v frx >/dev/null 2>&1 && eval "$(frx completions bash)"' ;;
+    *)    printf '' ;;
+  esac
+}
+
+if [ "$MODIFY_PATH" = 1 ]; then
+  case "$(shell_name)" in
+    fish)
+      # fish loads completions from a directory, by name — no profile line.
+      fish_dir="${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions"
+      mkdir -p "$fish_dir"
+      if "$INSTALL_DIR/frx" completions fish > "$fish_dir/frx.fish" 2>/dev/null; then
+        say "  → completions in $fish_dir/frx.fish"
+      fi
+      ;;
+    zsh|bash)
+      profile="$(profile_for_shell)"
+      if [ -f "$profile" ] && grep -q '# frx completions' "$profile" 2>/dev/null; then
+        :
+      else
+        mkdir -p "$(dirname "$profile")"
+        {
+          printf '\n# frx completions\n'
+          completion_line
+          printf '\n'
+        } >> "$profile"
+        say "  → completions in $profile"
+      fi
+      ;;
+  esac
 fi
 
 say ''

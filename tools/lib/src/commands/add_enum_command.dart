@@ -1,11 +1,10 @@
 import 'package:args/args.dart';
 
 import '../engine/changeset.dart';
+import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
-import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
-import '../model/artifact_files.dart';
 
 /// Scaffolds a plain enum in the `models` package.
 class AddEnumCommand extends WritingCommand {
@@ -38,14 +37,9 @@ class AddEnumCommand extends WritingCommand {
       usageException('Provide at least one --value.');
     }
 
-    final List<Casing> values;
-    try {
-      values = valueArgs.map(Casing.parse).toList();
-    } on FormatException catch (e) {
-      usageException(e.message);
-    }
+    final values = requireCasings(valueArgs);
 
-    final file = ArtifactFiles.model(repo, name);
+    final file = modelFile(repo, name);
 
     return WritePlan(
       changes: Changeset([

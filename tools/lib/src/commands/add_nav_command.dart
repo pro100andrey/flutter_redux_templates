@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 
+import '../ast/source_index.dart';
 import '../engine/changeset.dart';
 import '../model/page_artifact.dart';
 import '../routing/nav_source.dart';
@@ -78,7 +79,9 @@ class AddNavCommand extends WritingCommand {
       (fromConnector, '${from.connectorClass} (the page you navigate from)'),
       (toConnector, '${to.connectorClass} (the page you navigate to)'),
     ]) {
-      if (!file.existsSync()) refuse('Not found: $what\n  ${file.path}');
+      if (!file.existsSync()) {
+        refuse('Not found: $what\n  ${file.path}');
+      }
     }
 
     // The destination has to be a registered route: `GoAction.push` takes the
@@ -110,7 +113,7 @@ class AddNavCommand extends WritingCommand {
 
     const nav = NavSource();
     final connectorResult = nav.wireConnector(
-      original: fromConnector.readAsStringSync(),
+      original: sourceIndex.sourceOf(fromConnector),
       callback: callback,
       routeType: to.routeType,
       method: results['kind'] as String,
@@ -120,15 +123,16 @@ class AddNavCommand extends WritingCommand {
     );
     final pageResult = fromPage.existsSync()
         ? nav.wirePage(
-            content: fromPage.readAsStringSync(),
+            content: sourceIndex.sourceOf(fromPage),
             callback: callback,
             pageClass: from.pageClass,
             params: params,
           )
         : null;
 
-    // Said twice, and by two different mechanisms: as the skip block, and as the
-    // closing line the write engine prints whether or not there was narration.
+    // Said twice, and by two different mechanisms: as the skip block, and as
+    // the closing line the write engine prints whether or not there was
+    // narration.
     final nothingToDo =
         '${from.pageClass} already has `$callback` — nothing to do.';
 
@@ -160,7 +164,7 @@ class AddNavCommand extends WritingCommand {
         ..addIf(connector.edit)
         ..addIf(page?.edit),
       header: 'Navigate ${from.pageClass} → ${to.pageClass}  ($signature)',
-      // Not [WiringReport.narrate]: the two blocks run together, with one blank
+      // Not [WiringList.narrate]: the two blocks run together, with one blank
       // line closing the pair rather than one after each.
       narrate: () {
         connector.narrate();

@@ -2,7 +2,11 @@ import 'package:test/test.dart';
 
 import 'support/fixture.dart';
 
-/// `frx add-selector` adds a getter to a substate's Select<Pascal> block.
+/// The one package whose import line is longer than a source line:
+/// its name is both the package and the file.
+const _fic = 'fast_immutable_collections';
+
+/// `frx add-selector` adds a getter to a substate's `Select<Pascal>` block.
 void main() {
   late Fixture fx;
 
@@ -14,10 +18,11 @@ void main() {
   test(
     'adds a getter reading the state field of the same name by default',
     () async {
-      // `value`, not `email`: the fixture's facade already carries a hand-written
-      // `get email`, so asking for that one takes the already-present branch and
-      // the command writes nothing — this assertion used to pass against text
-      // the fixture shipped rather than anything the command did.
+      // `value`, not `email`: the fixture's facade already carries a
+      // hand-written `get email`, so asking for that one takes the
+      // already-present branch and the command writes nothing — this assertion
+      // used to pass against text the fixture shipped rather than anything the
+      // command did.
       final res = await runFrx(fx, [
         'add-selector',
         'log_in',
@@ -55,8 +60,7 @@ void main() {
     expect(
       selectors(),
       contains(
-        "import 'package:fast_immutable_collections/"
-        "fast_immutable_collections.dart';",
+        "import 'package:$_fic/$_fic.dart';",
       ),
     );
   });

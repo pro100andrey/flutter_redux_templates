@@ -6,9 +6,11 @@ import 'package:test/test.dart';
 import 'package:tools/src/ast/source_index.dart';
 import 'package:tools/src/audit/checks.dart';
 import 'package:tools/src/audit/finding.dart';
+import 'package:tools/src/version.dart';
 import 'package:tools/src/workspace/frx_workspace.dart';
 
 import 'support/fixture.dart';
+import 'support/in_process.dart';
 
 /// `frx doctor --json` tags each finding with the remedy `--fix` would apply,
 /// so the editor can offer a quick-fix.
@@ -58,6 +60,107 @@ void main() {
       orElse: () => {},
     );
     expect(routeFinding['fix'], isNull);
+  });
+
+  group('a finding about a declaration says where', () {
+    // Every finding used to reach the editor on line 1: the file was all it
+    // carried, and the Problems panel put the squiggle at the top of a
+    // four-hundred-line router. The trees the checks read had the offsets.
+    test('a route with no connector is anchored on its AutoRoute', () async {
+      fx.file('app/lib/connectors/home_page_connector.dart').deleteSync();
+      final fs = await findings();
+      final f = fs.firstWhere(
+        (f) => '${f['message']}'.contains('HomeRoute'),
+        orElse: () => {},
+      );
+      expect(
+        '${f['file']}',
+        endsWith('app_router.dart'),
+        reason: fs.toString(),
+      );
+      final source = fx.read('app/lib/navigation/app_router.dart');
+      final lines = source.split('\n');
+      expect(f['line'], isA<int>());
+      expect(
+        lines[(f['line'] as int) - 1],
+        contains('HomeRoute.page'),
+        reason: 'the line named is the registration, not the file top',
+      );
+      expect(f['column'], greaterThanOrEqualTo(1));
+    });
+
+    test('a finding about a whole file carries no line', () async {
+      // The freezed part is missing: there is no line in the state file that
+      // the finding is about, and a made-up `1` would read as one.
+      final fs = await findings();
+      final f = fs.firstWhere(
+        (f) => f['fix'] == 'build_runner',
+        orElse: () => {},
+      );
+      expect(f, isNotEmpty, reason: fs.toString());
+      expect(f.containsKey('line'), isFalse);
+      expect(f.containsKey('column'), isFalse);
+    });
+
+    test('the human report appends path:line for an anchored one', () async {
+      fx.file('app/lib/connectors/home_page_connector.dart').deleteSync();
+      final res = await runFrx(fx, ['doctor']);
+      final router = p.join('app', 'lib', 'navigation', 'app_router.dart');
+      expect(
+        res.stdout,
+        matches(RegExp('HomeRoute.*\\(${RegExp.escape(router)}:\\d+:\\d+\\)')),
+      );
+    });
+  });
+
+  group('a stale skills tree names the remedy that fits', () {
+    // The tree and the binary can disagree three ways, and the two commands
+    // that close the gap point in opposite directions. The finding used to
+    // say "written by X" and leave the choice to the reader — and for the case
+    // where both said the same version it read as a contradiction.
+    Future<String> staleTreeWrittenBy(String version) async {
+      final wrote = await runInProcess(fx, ['update-skills', '--no-format']);
+      expect(wrote.exitCode, 0, reason: wrote.stderr);
+      fx
+          .file('.claude/skills/frx-doctor/SKILL.md')
+          .writeAsStringSync('stale\n');
+      final manifest = fx.file('.claude/skills/.frx-owned');
+      manifest.writeAsStringSync(
+        manifest.readAsStringSync().replaceFirst(
+          RegExp(r'^version: .*$', multiLine: true),
+          'version: $version',
+        ),
+      );
+      final fs = await findings();
+      final f = fs.firstWhere(
+        (f) => '${f['message']}'.contains('.claude/skills/'),
+        orElse: () => {},
+      );
+      expect(f, isNotEmpty, reason: fs.toString());
+      return f['message'] as String;
+    }
+
+    test('written by an older frx: update-skills', () async {
+      final message = await staleTreeWrittenBy('0.0.1');
+      expect(message, contains('frx update-skills'));
+      expect(message, isNot(contains('frx upgrade')));
+    });
+
+    test('written by a newer frx: upgrade', () async {
+      final message = await staleTreeWrittenBy('99.0.0');
+      expect(message, contains('frx upgrade'));
+      expect(message, contains('newer than this'));
+    });
+
+    test(
+      'written by another build of the same version: both, and why',
+      () async {
+        final message = await staleTreeWrittenBy(frxVersion);
+        expect(message, contains('build between releases'));
+        expect(message, contains('frx update-skills'));
+        expect(message, contains('frx upgrade'));
+      },
+    );
   });
 
   test('--json carries no process-state finding', () async {
@@ -180,7 +283,7 @@ void main() {
     void writeChainingBase() {
       fx.file('business/lib/redux/common/action.dart')
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync(r"""
+        ..writeAsStringSync('''
 mixin WaitingAction on ReduxAction<AppState> {
   @override
   Future<void> before() async {
@@ -194,7 +297,7 @@ mixin WaitingAction on ReduxAction<AppState> {
     dispatchSync(WaitAction.remove(this));
   }
 }
-""");
+''');
     }
 
     void writeAction(String withClause) {
@@ -353,12 +456,12 @@ mixin WaitingAction on ReduxAction<AppState> {
       // project's own WaitingAction passes the chain on.
       fx.file('business/lib/redux/common/action.dart')
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync(r"""
+        ..writeAsStringSync('''
 mixin WaitingAction on ReduxAction<AppState> {
   @override
   void after() => dispatchSync(WaitAction.remove(this));
 }
-""");
+''');
       final fs = await findings();
       expect(
         fs.any(
@@ -496,8 +599,7 @@ mixin WaitingAction on ReduxAction<AppState> {
           for (final f in ix.filesUnder(
             Directory(p.join(fx.root.path, pkg, 'lib')),
           ))
-            if (ix.parsesOf(f) > 1)
-              '\${p.basename(f.path)} ×\${ix.parsesOf(f)}',
+            if (ix.parsesOf(f) > 1) r'${p.basename(f.path)} ×${ix.parsesOf(f)}',
       ];
       expect(twice, isEmpty);
     });

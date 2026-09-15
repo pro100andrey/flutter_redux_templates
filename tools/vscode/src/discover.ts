@@ -57,9 +57,10 @@ export function dartInstallBinDirs(env: DiscoveryEnv): string[] {
  * the one-line install, this directory *is* where frx lives and `PATH` will not
  * say so.
  *
- * Kept in step with the two scripts by hand, because there is nothing to
- * generate it from: they run on machines that have no checkout. If one moves,
- * this moves.
+ * Kept in step with the two scripts by `test/discover_seam.test.ts`, which
+ * reads each script's default and compares it with what this returns. There is
+ * nothing to generate it from — the scripts run on machines that have no
+ * checkout — so a test across the seam is what stands in for the generator.
  */
 export function installerBinDirs(env: DiscoveryEnv): string[] {
   const p = pathFor(env.platform);

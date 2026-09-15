@@ -131,10 +131,10 @@ class AddSubstateCommand extends WritingCommand {
 
     return WritePlan(
       changes: Changeset([
-        // With --force, regenerate the folder cleanly so files from a prior kind
-        // don't linger (e.g. a value-kind `set_value_action.dart` when the
-        // substate is re-scaffolded as a table). Deletes run first, so declaring
-        // it alongside the writes is safe.
+        // With --force, regenerate the folder cleanly so files from a prior
+        // kind don't linger (e.g. a value-kind `set_value_action.dart` when the
+        // substate is re-scaffolded as a table). Deletes run first, so
+        // declaring it alongside the writes is safe.
         if (force && exists) DeleteDirectory(substateDir),
         for (final entry in files.entries)
           WriteFile(p.join(substateDir, entry.key), entry.value),

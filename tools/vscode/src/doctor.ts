@@ -86,7 +86,9 @@ export class FrxDoctor {
       // fallback was added to end, one level down.
       const how = !f.file && f.fix ? ' — run “FRX: Doctor — fix”.' : '';
       const d = new vscode.Diagnostic(
-        new vscode.Range(0, 0, 0, 0),
+        // On the declaration the CLI named when it named one; the top of the
+        // file otherwise — see `rangeFor`.
+        diag.rangeFor(f),
         `frx doctor: ${f.message}${how}`,
         severity,
       );

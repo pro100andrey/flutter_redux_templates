@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
 import '../util/console.dart';
+import 'inventory.dart';
 
 /// Lists the substates currently composed into `AppState`, read via AST.
 ///
@@ -65,25 +66,13 @@ class ListSubstatesCommand extends Command<int> {
       return 0;
     }
 
-    console.out.writeln('AppState substates  (${source.file.path})');
-    console.out.writeln();
+    printInventory(
+      title: 'AppState substates  (${source.file.path})',
+      columns: ('FIELD', 'TYPE'),
+      rows: [for (final s in substates) (s.field, s.type)],
+      unit: 'field',
+    );
 
-    if (substates.isEmpty) {
-      console.out.writeln('  (none found)');
-      return 0;
-    }
-
-    final fieldWidth = substates
-        .map((s) => s.field.length)
-        .fold(5, (a, b) => a > b ? a : b);
-
-    console.out.writeln('  ${'FIELD'.padRight(fieldWidth)}  TYPE');
-    console.out.writeln('  ${'-' * fieldWidth}  ${'-' * 20}');
-    for (final s in substates) {
-      console.out.writeln('  ${s.field.padRight(fieldWidth)}  ${s.type}');
-    }
-    console.out.writeln();
-    console.out.writeln('${substates.length} field(s).');
     return 0;
   }
 }

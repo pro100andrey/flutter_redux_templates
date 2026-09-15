@@ -3,6 +3,32 @@
 class Casing {
   Casing(this.words);
 
+  factory Casing.parse(String input) {
+    if (!_validName.hasMatch(input.trim())) {
+      throw const FormatException(
+        'name must start with a letter and use only letters, digits, '
+        'spaces, _ or -',
+      );
+    }
+    final spaced = input
+        // split camelCase / PascalCase boundaries: "userProfile" -> "user
+        // Profile"
+        .replaceAllMapped(_caseBoundary, (m) => '${m[1]} ${m[2]}')
+        // collapse separators to spaces
+        .replaceAll(_separators, ' ')
+        .trim();
+
+    final words = [
+      for (final w in spaced.split(' '))
+        if (w.isNotEmpty) w.toLowerCase(),
+    ];
+
+    if (words.isEmpty) {
+      throw const FormatException('name must contain at least one letter');
+    }
+    return Casing(words);
+  }
+
   /// Lower-cased words, e.g. `['user', 'profile']`.
   final List<String> words;
 
@@ -12,34 +38,11 @@ class Casing {
   /// class name or string literal with an injectable character.
   static final _validName = RegExp(r'^[A-Za-z][A-Za-z0-9 _-]*$');
 
-  factory Casing.parse(String input) {
-    if (!_validName.hasMatch(input.trim())) {
-      throw const FormatException(
-        'name must start with a letter and use only letters, digits, '
-        'spaces, _ or -',
-      );
-    }
-    final spaced = input
-        // split camelCase / PascalCase boundaries: "userProfile" -> "user Profile"
-        .replaceAllMapped(
-          RegExp(r'([a-z0-9])([A-Z])'),
-          (m) => '${m[1]} ${m[2]}',
-        )
-        // collapse separators to spaces
-        .replaceAll(RegExp(r'[_\-\s]+'), ' ')
-        .trim();
+  /// Where one word ends and the next begins inside `camelCase`.
+  static final _caseBoundary = RegExp('([a-z0-9])([A-Z])');
 
-    final words = spaced
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .map((w) => w.toLowerCase())
-        .toList();
-
-    if (words.isEmpty) {
-      throw const FormatException('name must contain at least one letter');
-    }
-    return Casing(words);
-  }
+  /// A run of anything that separates words: `_`, `-`, whitespace.
+  static final _separators = RegExp(r'[_\-\s]+');
 
   /// `user_profile`
   String get snake => words.join('_');

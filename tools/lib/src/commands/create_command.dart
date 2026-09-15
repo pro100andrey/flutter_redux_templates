@@ -18,11 +18,11 @@ import 'options.dart';
 /// renamed is declared in the repo's `mold.yaml`, which travels inside the
 /// archive; nothing about the renaming lives here.
 ///
-/// **The template has no placeholders in its source**, which is the whole point:
-/// it builds, runs and has tests, so it stays current by being the thing we
-/// actually use. Its identity token is `flutter_application_1` — exactly what
-/// `flutter create flutter_application_1` emits, so the platform folders can be
-/// regenerated at any Flutter upgrade and diffed against ours.
+/// **The template has no placeholders in its source**, which is the whole
+/// point: it builds, runs and has tests, so it stays current by being the thing
+/// we actually use. Its identity token is `flutter_application_1` — exactly
+/// what `flutter create flutter_application_1` emits, so the platform folders
+/// can be regenerated at any Flutter upgrade and diffed against ours.
 ///
 /// **`--without` is what makes the optional packages optional.** `add-package`
 /// exists to put `models`, `http_client` or `storage` back into a project that
@@ -34,10 +34,10 @@ import 'options.dart';
 ///
 /// **It deliberately does not emit the changeset format** the other writing
 /// commands share. That format carries a unified diff per change so a reviewer
-/// can see an edit that has not happened yet; here every one of five hundred–odd
-/// files is a creation into an empty directory, so the diffs would be the files
-/// themselves and the plan would be larger than the archive. Counts and the
-/// resolved identity are what a caller can act on.
+/// can see an edit that has not happened yet; here every one of five
+/// hundred–odd files is a creation into an empty directory, so the diffs would
+/// be the files themselves and the plan would be larger than the archive.
+/// Counts and the resolved identity are what a caller can act on.
 class CreateCommand extends Command<int> {
   CreateCommand() {
     argParser
@@ -50,7 +50,8 @@ class CreateCommand extends Command<int> {
         'org',
         help:
             'Reverse-DNS organisation prefix — the stem of the Android '
-            'applicationId, the Apple bundle identifier and the Kotlin package.',
+            'applicationId, the Apple bundle identifier and the Kotlin '
+            'package.',
         defaultsTo: 'com.example',
       )
       ..addOption(
@@ -138,10 +139,15 @@ class CreateCommand extends Command<int> {
         onWarning: warnings.add,
       );
 
-      final reached = PackageScaffold.importersOf(
-        const ArchiveReader().read(bytes).files,
-        without,
-      );
+      // Only when something is left out: the question has a known answer
+      // otherwise, and asking it means unpacking the archive a second time in
+      // memory just to hand over its files.
+      final reached = without.isEmpty
+          ? const <PackageKind, List<String>>{}
+          : packageImportersOf(
+              const ArchiveReader().read(bytes).files,
+              without,
+            );
       if (reached.isNotEmpty) {
         _refuse(reached, target: target, asJson: asJson);
         return 70;
@@ -153,7 +159,9 @@ class CreateCommand extends Command<int> {
           targetDir: target,
           vars: vars,
         );
-        if (!await _prune(without, target: target)) return 70;
+        if (!await _prune(without, target: target)) {
+          return 70;
+        }
       }
 
       for (final warning in warnings) {
@@ -194,14 +202,16 @@ class CreateCommand extends Command<int> {
     List<PackageKind> omitted, {
     required String target,
   }) async {
-    if (omitted.isEmpty) return true;
+    if (omitted.isEmpty) {
+      return true;
+    }
 
     final transaction = WriteTransaction();
     try {
       await withTransaction(transaction, () async {
         for (final kind in omitted) {
           await apply(
-            Changeset(PackageScaffold.omit(target, kind)),
+            Changeset(omitPackage(target, kind)),
             format: false,
           );
         }
@@ -278,11 +288,12 @@ class CreateCommand extends Command<int> {
     UnpackPlan plan, {
     required List<PackageKind> omitted,
   }) {
-    if (omitted.isEmpty) return plan.files;
+    if (omitted.isEmpty) {
+      return plan.files;
+    }
     return [
       for (final file in plan.files)
-        if (!omitted.any((kind) => PackageScaffold.isUnder(kind.dir, file.to)))
-          file,
+        if (!omitted.any((kind) => isUnderPackageDir(kind.dir, file.to))) file,
     ];
   }
 

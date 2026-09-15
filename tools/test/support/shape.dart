@@ -4,11 +4,11 @@ import 'package:test/test.dart';
 /// changes, `applied` flipped.
 ///
 /// Not deep equality. Two of the `build` fields describe an **event** — whether
-/// the build ran, and whether it was handed to a live watch — and a plan has had
-/// no event, so it reports them as not-yet-happened rather than predicting them.
-/// Start a watch and the applied result honestly says `handedToWatch: true` while
-/// the plan honestly says `false`; asserting they match made the suite go red on a
-/// machine that was set up correctly.
+/// the build ran, and whether it was handed to a live watch — and a plan has
+/// had no event, so it reports them as not-yet-happened rather than predicting
+/// them. Start a watch and the applied result honestly says
+/// `handedToWatch: true` while the plan honestly says `false`; asserting they
+/// match made the suite go red on a machine that was set up correctly.
 void expectSameShape(
   Map<String, Object?> planned,
   Map<String, Object?> applied,

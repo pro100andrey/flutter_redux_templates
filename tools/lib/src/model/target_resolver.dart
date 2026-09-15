@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../redux/app_state_source.dart';
+import '../refusal.dart';
 import '../routing/routes_source.dart';
 import '../util/casing.dart';
 import 'page_artifact.dart';
@@ -30,18 +31,10 @@ class Resolution {
 /// own work while [resolve] answers the substate-vs-page question uniformly,
 /// including the "matches both" (exit 64) and "nothing wired" (exit 70) cases.
 class TargetResolver {
-  const TargetResolver(this.appState, this.routes, {String? origin})
-    : _origin = origin;
-
-  final AppStateSource? appState;
-  final RoutesSource? routes;
-
-  /// The search origin (`--root` or the current directory) — surfaced in the
-  /// "not inside a frx project" message.
-  final String? _origin;
+  const TargetResolver(this.appState, this.routes, {this._origin});
 
   /// Locates both wiring sources from [root] (or the current directory),
-  /// tolerating a missing one (its `locate` throws [StateError] → null).
+  /// tolerating a missing one (its `locate` throws [FrxRefusal] → null).
   ///
   /// The one place that still *walks* for these files rather than taking them
   /// from a resolved workspace, and it is asking a different question: not
@@ -55,10 +48,17 @@ class TargetResolver {
     origin: root,
   );
 
+  final AppStateSource? appState;
+  final RoutesSource? routes;
+
+  /// The search origin (`--root` or the current directory) — surfaced in the
+  /// "not inside a frx project" message.
+  final String? _origin;
+
   static T? _tryLocate<T>(T Function() locate) {
     try {
       return locate();
-    } on StateError {
+    } on FrxRefusal {
       return null;
     }
   }
@@ -92,18 +92,26 @@ class TargetResolver {
     if (forced != null) {
       return Resolution.resolved(ArtifactKind.values.byName(forced));
     }
+
     final substate = isSubstate(name);
     final page = isPage(name);
     if (substate && page) {
       return Resolution.failure(
-        '"${name.pascal}" matches both a substate (${SubstateArtifact(name).field}) '
+        '"${name.pascal}" matches both a substate '
+        '(${SubstateArtifact(name).field}) '
         'and a page (${PageArtifact(name).routeType}). '
         'Disambiguate with --kind substate|page.',
         64,
       );
     }
-    if (substate) return const Resolution.resolved(ArtifactKind.substate);
-    if (page) return const Resolution.resolved(ArtifactKind.page);
+    if (substate) {
+      return const Resolution.resolved(ArtifactKind.substate);
+    }
+
+    if (page) {
+      return const Resolution.resolved(ArtifactKind.page);
+    }
+
     return Resolution.failure(
       'Nothing named "${name.pascal}" is wired — no substate field '
       '"${SubstateArtifact(name).field}" in AppState and no route '

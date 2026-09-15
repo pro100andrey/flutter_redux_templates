@@ -84,6 +84,15 @@ jobs:
           dart pub get
           dart run bin/frx.dart doctor --root ..
 
+      - name: frx graph — nothing unreached
+        # The "nothing reaches" list is advice, not drift, so doctor does not
+        # report it — frx's own `add-action -k waiting` writes a selector nothing
+        # reads yet. For the template it is a gate all the same: this repository
+        # shipped seven dead selectors for months with doctor green, and this is
+        # the step that would have said so.
+        working-directory: tools
+        run: dart run bin/frx.dart graph --fail-on-orphans --root ..
+
       - name: frx against the real monorepo
         # Runs here rather than in the `tools` job because it needs the Flutter
         # packages resolved: it compares frx's page nodes against the route
@@ -93,9 +102,24 @@ jobs:
         run: dart test test/reality_test.dart
 
   tools:
-    name: frx CLI
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: frx CLI (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    # The binary is released for Linux, macOS and Windows, and until now only
+    # Linux ever ran the suite: the other two got a three-command smoke test at
+    # release time. Path handling is where a CLI differs across them, and 900
+    # tests that never saw a backslash said nothing about it.
+    #
+    # Windows is `continue-on-error` for now — the suite was written on Linux
+    # and has never been run there, so its first runs are information, not a
+    # gate. Flip it to a gate (drop the key) once a run comes back green; a leg
+    # that fails on `contains('app/lib/…')` in a message is a test to fix, not a
+    # bug in frx, and the failures name themselves in the log.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     defaults:
       run:
         working-directory: tools
@@ -181,5 +205,11 @@ jobs:
       - name: Test
         # `pretest` compiles first; the suite runs against out/.
         run: npm test
+      - name: Integration test in a real VS Code
+        # The unit suite runs against a hand-written `vscode` stub; this is the
+        # one run against the host itself — activation, command registration,
+        # the doctor command end to end. `@vscode/test-electron` downloads a VS
+        # Code into .vscode-test/ and needs a display, hence xvfb.
+        run: xvfb-run -a npm run test:integration
       - name: Package VSIX
         run: npx --yes @vscode/vsce package

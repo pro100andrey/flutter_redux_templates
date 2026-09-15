@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -7,26 +8,29 @@ import 'package:tools/src/util/casing.dart';
 /// the shapes the AST sources parse (`app_state.dart`, `selectors.dart`,
 /// `app_router.dart`) so tests exercise the same code paths as the live repo.
 ///
-/// Call [create] in `setUp` and [dispose] in `tearDown`. [root] is the repo
+/// Call [Fixture.create] in `setUp` and [dispose] in `tearDown`. [root] is
+/// the repo
 /// root to hand commands via `--root`.
 class Fixture {
   Fixture._(this.root);
 
+  /// Creates the fixture tree under a fresh temp dir.
+  factory Fixture.create() {
+    final root = Directory.systemTemp.createTempSync('frx_fixture_');
+    return Fixture._(root).._write();
+  }
+
   final Directory root;
 
-  /// Creates the fixture tree under a fresh temp dir.
-  static Fixture create() {
-    final root = Directory.systemTemp.createTempSync('frx_fixture_');
-    final f = Fixture._(root);
-    f._write();
-    return f;
-  }
-
   void dispose() {
-    if (root.existsSync()) root.deleteSync(recursive: true);
+    if (root.existsSync()) {
+      root.deleteSync(recursive: true);
+    }
   }
 
-  String path(String relative) => p.join(root.path, relative);
+  /// Normalised, so a [relative] written with `/` compares equal to what the
+  /// CLI reports on Windows, where `p.join` keeps the `/` and the CLI does not.
+  String path(String relative) => p.normalize(p.join(root.path, relative));
 
   File file(String relative) => File(path(relative));
 
@@ -121,7 +125,7 @@ abstract class ${pascal}State with _\$${pascal}State {
 
   // --- fixture sources (already dart-formatted) ------------------------------
 
-  static const _appState = '''
+  static const _appState = r'''
 import 'package:async_redux/async_redux.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -133,7 +137,7 @@ export 'selectors.dart';
 part 'app_state.freezed.dart';
 
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required ConnectivityState connectivity,
     required LogInState logIn,
@@ -219,19 +223,30 @@ class _AuthGuard extends AutoRouteGuard {
 /// shells out, and the fidelity check in `commands_test.dart` that runs both
 /// and requires the same bytes.
 Future<ProcessResult> runFrx(Fixture fixture, List<String> args) async =>
-    Process.run('dart', [
-      await _snapshot(),
-      ...args,
-      if (!args.contains('--root')) ...['--root', fixture.root.path],
-    ]);
+    Process.run(
+      'dart',
+      [
+        await _snapshot(),
+        ...args,
+        if (!args.contains('--root')) ...['--root', fixture.root.path],
+      ],
+      // Said outright: the default is the system encoding, which on Windows is
+      // the console code page, and every `—` and `✗` the CLI wrote came back
+      // as three characters of mojibake.
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
 
 /// Runs the CLI with `Directory.current` set to the fixture root (for commands
 /// that resolve by cwd, like `__complete`). No `--root` is appended.
 Future<ProcessResult> runFrxIn(Fixture fixture, List<String> args) async =>
-    Process.run('dart', [
-      await _snapshot(),
-      ...args,
-    ], workingDirectory: fixture.root.path);
+    Process.run(
+      'dart',
+      [await _snapshot(), ...args],
+      workingDirectory: fixture.root.path,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
 
 /// The CLI compiled to a kernel snapshot, built once and reused.
 ///
@@ -245,7 +260,9 @@ Future<String> _snapshot() => _pending ??= _buildSnapshot();
 
 Future<String> _buildSnapshot() async {
   final out = File(p.join('.dart_tool', 'frx_test', 'frx.dill')).absolute;
-  if (!_isStale(out)) return out.path;
+  if (!_isStale(out)) {
+    return out.path;
+  }
 
   out.parent.createSync(recursive: true);
   // Stage the build in a unique directory beside the target and rename it into
@@ -266,22 +283,43 @@ Future<String> _buildSnapshot() async {
     if (r.exitCode != 0) {
       throw StateError('could not compile the CLI for tests:\n${r.stderr}');
     }
-    tmp.renameSync(out.path);
+    try {
+      tmp.renameSync(out.path);
+    } on FileSystemException {
+      // Another suite's isolate landed its build first and is already running
+      // a subprocess from it. POSIX swaps the directory entry underneath that
+      // process; Windows refuses to replace a file something holds open, and
+      // said "access is denied" for every test in the isolate that lost.
+      // Same sources, same snapshot: theirs is as good as ours.
+      if (_isStale(out)) {
+        rethrow;
+      }
+    }
   } finally {
-    if (stage.existsSync()) stage.deleteSync(recursive: true);
+    if (stage.existsSync()) {
+      stage.deleteSync(recursive: true);
+    }
   }
   return out.path;
 }
 
 /// Whether [snapshot] is missing or older than any `lib/` or `bin/` source.
 bool _isStale(File snapshot) {
-  if (!snapshot.existsSync()) return true;
+  if (!snapshot.existsSync()) {
+    return true;
+  }
   final built = snapshot.lastModifiedSync();
   for (final dir in [Directory('lib'), Directory('bin')]) {
-    if (!dir.existsSync()) continue;
+    if (!dir.existsSync()) {
+      continue;
+    }
     for (final entity in dir.listSync(recursive: true)) {
-      if (entity is! File || !entity.path.endsWith('.dart')) continue;
-      if (entity.lastModifiedSync().isAfter(built)) return true;
+      if (entity is! File || !entity.path.endsWith('.dart')) {
+        continue;
+      }
+      if (entity.lastModifiedSync().isAfter(built)) {
+        return true;
+      }
     }
   }
   return false;

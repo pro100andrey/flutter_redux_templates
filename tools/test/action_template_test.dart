@@ -62,7 +62,7 @@ void main() {
   });
 
   group('the generated base class', () {
-    test('is the app\'s own Action, for every kind', () {
+    test("is the app's own Action, for every kind", () {
       // Every hand-written action in the repo extends `Action` — it is what
       // carries deps/env/Selectors. Scaffolding a bare ReduxAction meant the
       // first edit to a generated file was changing its base class.
@@ -179,7 +179,7 @@ void main() {
       // `containsAll` was the other half of the problem: one-directional, so
       // additions to the package were invisible by construction. This is set
       // equality against what is on disk.
-      final lib = PackageSource.libOf('async_redux', repoRoot: _repoRoot());
+      final lib = packageLibOf('async_redux', repoRoot: _repoRoot());
       if (lib == null) {
         markTestSkipped('async_redux not resolved here — nothing to compare');
         return;
@@ -193,7 +193,7 @@ void main() {
         r'^mixin\s+([A-Za-z]\w*)(?:<[^>]*>)?\s+on\s+\w',
         multiLine: true,
       );
-      for (final file in PackageSource.dartFiles(lib)) {
+      for (final file in packageDartFiles(lib)) {
         for (final m in pattern.allMatches(file.readAsStringSync())) {
           declared.add(m.group(1)!);
         }
@@ -217,12 +217,13 @@ void main() {
     });
 
     test('implies is the `on` clause async_redux declares', () {
-      // A third transcription. async_redux writes `mixin NoDialog on
-      // CheckInternet`, and frx writes `noDialog(implies: checkInternet)` —
-      // the same fact, by hand. Deriving it means a mixin that gains or loses
-      // a base cannot leave frx emitting a `with` clause in the wrong order,
-      // which is a compile error in the generated file.
-      final lib = PackageSource.libOf('async_redux', repoRoot: _repoRoot());
+      // A third transcription. async_redux writes
+      // `mixin NoDialog on CheckInternet`, and frx writes
+      // `noDialog(implies: checkInternet)` — the same fact, by hand. Deriving
+      // it means a mixin that gains or loses a base cannot leave frx emitting a
+      // `with` clause in the wrong order, which is a compile error in the
+      // generated file.
+      final lib = packageLibOf('async_redux', repoRoot: _repoRoot());
       if (lib == null) {
         markTestSkipped('async_redux not resolved here — nothing to compare');
         return;
@@ -232,7 +233,7 @@ void main() {
         r'^mixin\s+(\w+)(?:<[^>]*>)?\s+on\s+(\w+)',
         multiLine: true,
       );
-      for (final file in PackageSource.dartFiles(lib)) {
+      for (final file in packageDartFiles(lib)) {
         for (final m in pattern.allMatches(file.readAsStringSync())) {
           bases[m.group(1)!] = m.group(2)!;
         }
@@ -256,7 +257,7 @@ void main() {
       // side would leave frx writing a `TODO` about a knob that no longer
       // exists — and a wrong name in a comment is still valid Dart, so
       // nothing downstream would notice. `knobs` makes those names data.
-      final lib = PackageSource.libOf('async_redux', repoRoot: _repoRoot());
+      final lib = packageLibOf('async_redux', repoRoot: _repoRoot());
       if (lib == null) {
         markTestSkipped('async_redux not resolved here — nothing to compare');
         return;
@@ -267,7 +268,7 @@ void main() {
         r'(?:get\s+)?(\w+)',
         multiLine: true,
       );
-      for (final file in PackageSource.dartFiles(lib)) {
+      for (final file in packageDartFiles(lib)) {
         for (final m in member.allMatches(file.readAsStringSync())) {
           declared.add(m.group(1)!);
         }
@@ -305,7 +306,7 @@ void main() {
       // A scaffolded action stayed fresh for 60ms with a comment promising a
       // minute, so `Fresh` silently did nothing — and every test passed,
       // because a wrong number is still valid Dart.
-      final lib = PackageSource.libOf('async_redux', repoRoot: _repoRoot());
+      final lib = packageLibOf('async_redux', repoRoot: _repoRoot());
       if (lib == null) {
         markTestSkipped('async_redux not resolved here — nothing to compare');
         return;
@@ -317,7 +318,7 @@ void main() {
         r'^\s*int get (\w+) => \d+;\s*//\s*(\w+)',
         multiLine: true,
       );
-      for (final file in PackageSource.dartFiles(lib)) {
+      for (final file in packageDartFiles(lib)) {
         for (final m in pattern.allMatches(file.readAsStringSync())) {
           declared[m.group(1)!] = m.group(2)!.toLowerCase();
         }
@@ -328,7 +329,9 @@ void main() {
       for (final m in ActionMixin.values) {
         final block = m.overrideBlock;
         for (final entry in declared.entries) {
-          if (!block.contains('int get ${entry.key} =>')) continue;
+          if (!block.contains('int get ${entry.key} =>')) {
+            continue;
+          }
           checked++;
           expect(
             block.toLowerCase(),
@@ -356,7 +359,7 @@ void main() {
       //
       // Derived for the reason the other three are: transcribed, it goes stale
       // the first time the package changes, and nothing fails.
-      final lib = PackageSource.libOf('async_redux', repoRoot: _repoRoot());
+      final lib = packageLibOf('async_redux', repoRoot: _repoRoot());
       if (lib == null) {
         markTestSkipped('async_redux not resolved here — nothing to compare');
         return;
@@ -378,7 +381,9 @@ void main() {
         // without `super.after()` ends it.
         final body = _methodBody(slice!, 'after');
         final swallows = body != null && !body.contains('super.after()');
-        if (swallows) swallowers++;
+        if (swallows) {
+          swallowers++;
+        }
 
         // The other half of the same scan: which hooks it overrides at all.
         // `swallowsAfter` says whether putting it last breaks the chain; this
@@ -411,21 +416,22 @@ void main() {
       // async_redux enforces exclusivity by private-member collision, and it
       // names the members after the group:
       //
-      //   _cannot_combine_mixins_Fresh_Throttle_NonReentrant_UnlimitedRetryCheckInternet
+      //   _cannot_combine_mixins_Fresh_Throttle_NonReentrant_
+      //   UnlimitedRetryCheckInternet
       //
       // So the rule frx transcribes into `exclusiveGroups` is *readable* from
       // the package. Deriving it is the difference between "frx agrees with
       // itself" — which `conflictsWith agrees with conflictIn` already checks —
       // and "frx agrees with async_redux", which nothing checked.
-      final lib = PackageSource.libOf('async_redux', repoRoot: _repoRoot());
+      final lib = packageLibOf('async_redux', repoRoot: _repoRoot());
       if (lib == null) {
         markTestSkipped('async_redux not resolved here — nothing to compare');
         return;
       }
 
-      final marker = RegExp(r'_cannot_combine_mixins_([A-Za-z_]+)');
+      final marker = RegExp('_cannot_combine_mixins_([A-Za-z_]+)');
       final groups = <Set<String>>{};
-      for (final file in PackageSource.dartFiles(lib)) {
+      for (final file in packageDartFiles(lib)) {
         for (final m in marker.allMatches(file.readAsStringSync())) {
           groups.add(m.group(1)!.split('_').where((s) => s.isNotEmpty).toSet());
         }
@@ -448,14 +454,17 @@ void main() {
 
       for (final a in ActionMixin.values) {
         for (final b in ActionMixin.values) {
-          if (a == b) continue;
+          if (a == b) {
+            continue;
+          }
           expect(
             a.conflictsWith.contains(b),
             collideInPackage(a, b),
             reason:
                 '${a.name} + ${b.name}: frx says '
                 '${a.conflictsWith.contains(b) ? '' : 'no '}conflict, '
-                'async_redux says ${collideInPackage(a, b) ? '' : 'no '}conflict',
+                'async_redux says '
+                '${collideInPackage(a, b) ? '' : 'no '}conflict',
           );
         }
       }
@@ -499,7 +508,7 @@ String _withClause(String source) {
 Map<String, String> _mixinSources(Directory lib) {
   final slices = <String, String>{};
   final decl = RegExp(r'^mixin\s+(\w+)(?:<[^>]*>)?\s+on\s', multiLine: true);
-  for (final file in PackageSource.dartFiles(lib)) {
+  for (final file in packageDartFiles(lib)) {
     final source = file.readAsStringSync();
     final found = decl.allMatches(source).toList();
     for (var i = 0; i < found.length; i++) {
@@ -521,7 +530,9 @@ String? _methodBody(String mixinSource, String name) {
     '^  (?:Future<void>|void)\\s+$name\\(\\)\\s*(async\\s*)?(\\{|=>)',
     multiLine: true,
   ).firstMatch(mixinSource);
-  if (decl == null) return null;
+  if (decl == null) {
+    return null;
+  }
 
   // `=> expr;` — everything to the semicolon.
   if (decl.group(2) == '=>') {
@@ -531,7 +542,9 @@ String? _methodBody(String mixinSource, String name) {
   // `{ … }` — brace-matched from the opening brace.
   var depth = 0;
   for (var i = decl.end - 1; i < mixinSource.length; i++) {
-    if (mixinSource[i] == '{') depth++;
+    if (mixinSource[i] == '{') {
+      depth++;
+    }
     if (mixinSource[i] == '}' && --depth == 0) {
       return mixinSource.substring(decl.end, i);
     }
@@ -542,7 +555,7 @@ String? _methodBody(String mixinSource, String name) {
 /// The monorepo root, where the Flutter packages are resolved.
 ///
 /// The tests run from `tools/`, whose own `.dart_tool` has never heard of
-/// async_redux — see [PackageSource].
+/// async_redux — see `package_source.dart`.
 Directory _repoRoot() => Directory.current;
 
 void _mixinCatalogueTests() {
@@ -553,7 +566,9 @@ void _mixinCatalogueTests() {
       // combination that then fails, or hides one that would have worked.
       for (final a in ActionMixin.values) {
         for (final b in ActionMixin.values) {
-          if (a == b) continue;
+          if (a == b) {
+            continue;
+          }
           final refused =
               ActionMixin.conflictIn(ActionMixin.expand([a.name, b.name])) !=
               null;
@@ -566,7 +581,7 @@ void _mixinCatalogueTests() {
       }
     });
 
-    test('an implied mixin carries its parent\'s exclusions', () {
+    test("an implied mixin carries its parent's exclusions", () {
       // `noDialog` shares no group with `abortWhenNoInternet` — the
       // `checkInternet` it implies does. A picker filtering on the literal
       // pick would offer the pair.

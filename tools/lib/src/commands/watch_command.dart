@@ -4,9 +4,10 @@ import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
 import '../engine/watch_supervision.dart';
+import '../refusal.dart';
+import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
-import '../util/console.dart';
 
 /// Runs `build_runner watch` from the right directory with the right flags, so
 /// you don't have to `cd` to the workspace root or remember the incantation.
@@ -27,7 +28,7 @@ class WatchCommand extends Command<int> {
       ..addFlag(
         'print',
         negatable: false,
-        help: 'Print the command that would run, then exit (don\'t watch).',
+        help: "Print the command that would run, then exit (don't watch).",
       )
       ..addOption('root', help: kRootHelp);
   }
@@ -54,7 +55,7 @@ class WatchCommand extends Command<int> {
     } else {
       cwd = p.join(workspace.root.path, package);
       if (!File(p.join(cwd, 'pubspec.yaml')).existsSync()) {
-        throw StateError(
+        throw FrxRefusal(
           'No package "$package" at ${p.relative(cwd)} '
           '(looked for its pubspec.yaml).',
         );

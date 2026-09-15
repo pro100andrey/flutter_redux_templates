@@ -51,7 +51,7 @@ void main() {
   group('imports follow --dir', () {
     test('a primitive in the same folder is imported without a hop', () {
       expect(
-        make('pin', WidgetKind.field, dir: 'inputs').widget(),
+        make('pin', WidgetKind.field).widget(),
         contains("import 'input_form_field.dart';"),
       );
     });

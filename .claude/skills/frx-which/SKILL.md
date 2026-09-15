@@ -7,7 +7,7 @@ description: >-
 
 # `frx which`
 
-Resolve an identifier (class/route/field) to its frx artifact.
+Resolve an identifier (class/route/field) to its frx artifact. Exits 1 when nothing wired answers to it.
 
 ```
 frx which <identifier>

@@ -84,7 +84,9 @@ void _optionWiringTests() {
         for (final entry in c.argParser.options.entries) {
           final option = entry.value;
           final allowedHelp = option.allowedHelp;
-          if (allowedHelp == null) continue;
+          if (allowedHelp == null) {
+            continue;
+          }
           expect(
             option.allowed ?? const <String>[],
             containsAll(allowedHelp.keys),
@@ -116,8 +118,12 @@ void _optionWiringTests() {
       const noRepositoryToRoot = {'create', 'upgrade'};
 
       for (final c in commands) {
-        if (!c.argParser.options.containsKey('json')) continue;
-        if (noRepositoryToRoot.contains(c.name)) continue;
+        if (!c.argParser.options.containsKey('json')) {
+          continue;
+        }
+        if (noRepositoryToRoot.contains(c.name)) {
+          continue;
+        }
         expect(
           c.argParser.options,
           contains('root'),
@@ -142,7 +148,9 @@ void _optionWiringTests() {
       // pairing the base guarantees for everything else is still theirs to get
       // right.
       for (final c in commands) {
-        if (!c.argParser.options.containsKey('format')) continue;
+        if (!c.argParser.options.containsKey('format')) {
+          continue;
+        }
         expect(
           c.argParser.options,
           contains('json'),
@@ -151,17 +159,19 @@ void _optionWiringTests() {
       }
     });
 
-    test('a command\'s usage line names the arguments it declares', () {
+    test("a command's usage line names the arguments it declares", () {
       // The arity message is derived from `positionals`, and the usage line
       // printed beside it is hand-written. They said different things before
       // there was a declaration at all — `add-nav` answered "give exactly two
       // pages" under a usage line reading `<from> <to>` — and nothing checked.
       for (final c in commands) {
-        if (c is! NameArg) continue;
+        if (c is! NameArg) {
+          continue;
+        }
         for (final arg in c.positionals) {
           expect(
             c.invocation,
-            contains('<' + arg + '>'),
+            contains('<$arg>'),
             reason:
                 '${c.name} declares <$arg> but its invocation does not '
                 'mention it',

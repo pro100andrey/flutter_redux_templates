@@ -56,7 +56,8 @@ void main() {
     // spawns a command that does not exist, frx exits 64, and the user sees
     // "FRX failed (exit 64)" with no clue which name is wrong.
     final invoked = RegExp(
-      r"'(add-[a-z-]+|list-[a-z-]+|remove|rename|doctor|graph|flow|which|new|watch)'",
+      "'(add-[a-z-]+|list-[a-z-]+|remove|rename|doctor|graph|flow|which|new"
+      "|watch)'",
     ).allMatches(source).map((m) => m.group(1)!).toSet();
     expect(invoked, isNotEmpty, reason: 'found no frx invocations to check');
     expect(
@@ -91,8 +92,8 @@ void main() {
   test('every declared command is in both the palette and the overlay', () {
     // The mirror rule: one inventory, two renderings. It tightens the check
     // above rather than adding a new one — same question ("surfaced, or
-    // deliberately not, with the reason written down"), asked of the editor's own
-    // commands instead of the CLI's.
+    // deliberately not, with the reason written down"), asked of the editor's
+    // own commands instead of the CLI's.
     //
     // It matters more than usual here, because the defect it fixes *was* drift
     // nobody noticed: the two surfaces had come apart in both directions, and
@@ -103,14 +104,17 @@ void main() {
             as Map<String, Object?>;
     final contributes = manifest['contributes']! as Map<String, Object?>;
     final declared = {
-      for (final c in (contributes['commands']! as List).cast<Map>())
-        c['command'] as String,
+      for (final c
+          in (contributes['commands']! as List<Object?>)
+              .cast<Map<String, Object?>>())
+        c['command']! as String,
     };
     final palette = {
       for (final e
-          in ((contributes['menus']! as Map)['commandPalette']! as List)
-              .cast<Map>())
-        e['command'] as String: e['when'] as String,
+          in ((contributes['menus']! as Map<String, Object?>)['commandPalette']!
+                  as List<Object?>)
+              .cast<Map<String, Object?>>())
+        e['command']! as String: e['when']! as String,
     };
     final overlay = RegExp(r"command:\s*'(frx\.[A-Za-z]+)'")
         .allMatches(
@@ -160,8 +164,8 @@ void main() {
       }
     }
 
-    // The other direction: an overlay row for a command that does not exist is a
-    // dead entry, which is how the last drift started.
+    // The other direction: an overlay row for a command that does not exist is
+    // a dead entry, which is how the last drift started.
     expect(overlay.difference(declared), isEmpty);
     for (final absent in [..._notInThePalette.keys, ..._notInTheOverlay.keys]) {
       expect(
@@ -183,7 +187,7 @@ void main() {
     // What is left to check is that the editor still *reads* it. A hand-written
     // list that happened to be correct today would pass every other gate.
     final ui = File(p.join(vscode.path, 'src', 'ui.ts')).readAsStringSync();
-    final decl = RegExp(r'export const ARTIFACT_KINDS = (.+);').firstMatch(ui);
+    final decl = RegExp('export const ARTIFACT_KINDS = (.+);').firstMatch(ui);
     expect(
       decl,
       isNotNull,
@@ -207,10 +211,10 @@ void main() {
   test('the editor derives its package list rather than declaring it', () {
     // The copy this replaces carried its own reason: "hand-written rather than
     // derived — `add-package` takes its kind as a positional, so there is no
-    // `--kind` list for the generator to harvest". True of the parser and beside
-    // the point; the catalogue is an enum, and an enum is data whether or not a
-    // flag exposes it. `PACKAGES` is that enum, and this is the check that the
-    // editor still reads it rather than listing three rows again.
+    // `--kind` list for the generator to harvest". True of the parser and
+    // beside the point; the catalogue is an enum, and an enum is data whether
+    // or not a flag exposes it. `PACKAGES` is that enum, and this is the check
+    // that the editor still reads it rather than listing three rows again.
     final create = File(
       p.join(vscode.path, 'src', 'commands', 'create.ts'),
     ).readAsStringSync();
@@ -231,10 +235,10 @@ void main() {
   });
 
   test('the editor keeps no second statement of the file layout', () {
-    // `codelens.ts` matched `\\connectors\\(\\w+)_page_connector.dart` and joined
-    // `ui/lib/pages` by hand. Renaming a directory in Dart does not break that
-    // — the lens just stops appearing, on a provider nobody re-tests after
-    // moving a folder. It reads `LAYOUT` now, which this pins.
+    // `codelens.ts` matched `\\connectors\\(\\w+)_page_connector.dart` and
+    // joined `ui/lib/pages` by hand. Renaming a directory in Dart does not
+    // break that — the lens just stops appearing, on a provider nobody re-tests
+    // after moving a folder. It reads `LAYOUT` now, which this pins.
     final codelens = File(
       p.join(vscode.path, 'src', 'codelens.ts'),
     ).readAsStringSync();
@@ -253,7 +257,7 @@ void main() {
         isNot(contains(literal)),
         reason:
             'codelens.ts spells out "$literal" instead of reading LAYOUT — '
-            'the layout is the CLI\'s to state.',
+            "the layout is the CLI's to state.",
       );
     }
     expect(codelens, contains('LAYOUT.'));
@@ -278,8 +282,8 @@ void main() {
 /// Editor commands deliberately absent from the palette, and why.
 ///
 /// The rule's subject is capabilities of the *tooling* — things that change the
-/// code or reveal something about it. A control that acts on the tooling's own UI
-/// is not one.
+/// code or reveal something about it. A control that acts on the tooling's own
+/// UI is not one.
 const _notInThePalette = {
   // Refreshing a view acts on the view, the way a scrollbar does. It stays on
   // the tree's own title bar, where the thing it refreshes is.
@@ -297,7 +301,8 @@ const _notInThePalette = {
 /// Editor commands deliberately absent from the overlay, and why.
 const _notInTheOverlay = {
   'frx.refreshTree': 'acts on the view, not on the code',
-  // It *is* the overlay. A row that reopened it would be a mirror facing itself.
+  // It *is* the overlay. A row that reopened it would be a mirror facing
+  // itself.
   'frx.menu': 'it is the overlay',
   // The overlay lists work you can start. Answering a plan already in front of
   // you is the finish of work started elsewhere, not a way in.
@@ -309,8 +314,8 @@ const _notInTheOverlay = {
 /// CLI commands the extension deliberately does not surface, and why.
 const _notInTheEditor = {
   // It replaces the binary the extension is holding a path to, mid-session. The
-  // editor resolves `frx` once and spawns it repeatedly; swapping the file under
-  // that is a class of confusion nobody asked for, and the upgrade is an
+  // editor resolves `frx` once and spawns it repeatedly; swapping the file
+  // under that is a class of confusion nobody asked for, and the upgrade is an
   // operator's decision about their machine rather than an editing action. The
   // terminal is where it belongs.
   'upgrade',

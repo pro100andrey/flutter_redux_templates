@@ -1,11 +1,11 @@
 import 'package:args/args.dart';
-import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
+import '../model/artifact_files.dart';
+import '../model/artifact_name.dart';
 import '../scaffold/artifact_templates.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
-import '../model/artifact_name.dart';
 
 /// Scaffolds a `StoreConnector` for the dumb widget of the same name.
 ///
@@ -27,16 +27,17 @@ class AddConnectorCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
+    final typed = requireName();
     // See [ArtifactName]: `Toolbar` and `ToolbarConnector` are one artifact.
-    final name = ArtifactName.connectorStem(requireName());
-
-    final file = p.join(
-      repo.appConnectors.path,
-      '${name.snake}_connector.dart',
-    );
+    final name = ArtifactName.connectorStem(typed);
 
     return WritePlan(
-      changes: Changeset([WriteFile(file, ArtifactTemplates.connector(name))]),
+      changes: Changeset([
+        WriteFile(
+          connectorFile(repo, typed),
+          ArtifactTemplates.connector(name),
+        ),
+      ]),
       header: 'Connector "${name.pascal}Connector"',
     );
   }

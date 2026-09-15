@@ -67,7 +67,8 @@ void main() {
         c.applyTo(['add-substate', 'x'], 'add-substate', options),
         containsAllInOrder(['--kind', 'table']),
       );
-      // add-action also has a `kind` option, but with different values — leave it.
+      // add-action also has a `kind` option, but with different values — leave
+      // it.
       expect(
         c.applyTo(['add-action', 'x'], 'add-action', options),
         isNot(contains('--kind')),

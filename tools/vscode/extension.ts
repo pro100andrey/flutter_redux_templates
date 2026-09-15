@@ -23,6 +23,7 @@ import * as frx from './src/frx';
 import { showMap } from './src/map';
 import * as paths from './src/paths';
 import * as plan from './src/plan_view';
+import * as upgradeCheck from './src/upgrade_check';
 import { FrxRenameProvider } from './src/rename_provider';
 import { FrxTreeProvider } from './src/tree';
 import type { FrxTreeItem } from './src/tree';
@@ -152,6 +153,13 @@ function activateMonorepo(context: vscode.ExtensionContext, app: App): void {
     // extension can reach it.
     void theWatch.reapStaleWatch().catch(() => {}).then(() => theWatch.resume());
     theDoctor.refresh(); // initial audit into the Problems panel
+    // Once a day, ask the installed binary whether a newer release exists.
+    // After the audit rather than before it: the audit is what the window
+    // opened for, and this is news that can arrive a moment later.
+    void frx
+      .resolveFrx(context, root)
+      .then((inv) => (inv ? upgradeCheck.maybeCheckForUpgrade(context, inv) : undefined))
+      .catch(() => {});
 
     // Auto-refresh on external edits: the tree and the doctor findings depend
     // on sources that also change outside the extension (manual edits, git

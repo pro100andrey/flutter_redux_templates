@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/model/page_artifact.dart';
 import 'package:tools/src/model/substate_artifact.dart';
@@ -44,9 +45,14 @@ void main() {
       final redux = Directory('/repo/business/lib/redux');
       expect(
         a.stateFile(redux).path,
-        '/repo/business/lib/redux/forgot_password/models/forgot_password_state.dart',
+        p.join(
+          redux.path,
+          'forgot_password',
+          'models',
+          'forgot_password_state.dart',
+        ),
       );
-      expect(a.dir(redux).path, '/repo/business/lib/redux/forgot_password');
+      expect(a.dir(redux).path, p.join(redux.path, 'forgot_password'));
     });
 
     test('renamableBasenames maps only the generated basenames', () {
@@ -101,9 +107,9 @@ void main() {
       return RoutesSource(f);
     }
 
-    const appState = '''
+    const appState = r'''
 @freezed
-abstract class AppState with _\$AppState {
+abstract class AppState with _$AppState {
   const factory AppState({
     required LogInState logIn,
     required Wait wait,

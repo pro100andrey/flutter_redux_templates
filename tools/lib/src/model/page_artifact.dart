@@ -1,8 +1,9 @@
-import 'package:analyzer/dart/ast/ast.dart';
 import 'dart:io';
 
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/declarations.dart';
 import '../util/casing.dart';
 import 'artifact_name.dart';
 
@@ -11,25 +12,9 @@ import 'artifact_name.dart';
 /// The single source of truth for "how a page is spelled" — its route type,
 /// page and connector class names, file paths, connector import and default
 /// route path. Every command that reasons about a page (add / remove / rename /
-/// doctor) reads these here instead of re-deriving them by string interpolation.
+/// doctor) reads these here instead of re-deriving them by string
+/// interpolation.
 class PageArtifact {
-  /// The annotation auto_route keys a page connector on.
-  static const routePageAnnotation = 'RoutePage';
-
-  /// Whether [unit] declares a class carrying `@RoutePage()`.
-  ///
-  /// Read off the parse tree, never out of the text: `app_router.dart`'s own doc
-  /// comment says the word, and a check that cannot tell prose from code reports
-  /// the file that is most certainly in the right place. One home, because the
-  /// audit's route check and the placement rules both ask — and two syntactic
-  /// tests for one question is the failure this repository has already paid for.
-  static bool carriesRoutePage(CompilationUnit unit) =>
-      unit.declarations.whereType<ClassDeclaration>().any(isRoutePage);
-
-  /// Whether [decl] is an `@RoutePage()` class.
-  static bool isRoutePage(ClassDeclaration decl) =>
-      decl.metadata.any((m) => m.name.name == routePageAnnotation);
-
   /// A page named by a **user**: `Home` and `HomePage` are the same page.
   ///
   /// The stemming belongs on this constructor and not inside each command,
@@ -54,17 +39,37 @@ class PageArtifact {
   /// a route type — taken exactly as read.
   ///
   /// Beside [fromRouteType] and non-stemming for the same reason: the audit
-  /// derives a route type from `home_page_page_connector.dart` to ask whether it
-  /// is registered, and a project scaffolded before the stemming really does
+  /// derives a route type from `home_page_page_connector.dart` to ask whether
+  /// it is registered, and a project scaffolded before the stemming really does
   /// contain that file behind a registered `HomePageRoute`. Stemming there
   /// makes `frx doctor` report a correctly wired page as unregistered.
   factory PageArtifact.parse(String input) =>
       PageArtifact._(Casing.parse(input));
 
+  /// The annotation auto_route keys a page connector on.
+  static const routePageAnnotation = 'RoutePage';
+
+  /// Whether [unit] declares a class carrying `@RoutePage()`.
+  ///
+  /// Read off the parse tree, never out of the text: `app_router.dart`'s own
+  /// doc comment says the word, and a check that cannot tell prose from code
+  /// reports the file that is most certainly in the right place. One home,
+  /// because the audit's route check and the placement rules both ask — and two
+  /// syntactic tests for one question is the failure this repository has
+  /// already paid for.
+  static bool carriesRoutePage(CompilationUnit unit) =>
+      classesIn(unit).any(isRoutePage);
+
+  /// Whether [decl] is an `@RoutePage()` class.
+  static bool isRoutePage(ClassDeclaration decl) =>
+      decl.metadata.any((m) => m.name.name == routePageAnnotation);
+
   /// Recovers the artifact from a generated route type (`LogInRoute` → the
   /// `logIn` page), or null when [routeType] is not a `<Pascal>Route`.
   static PageArtifact? fromRouteType(String routeType) {
-    if (!routeType.endsWith('Route')) return null;
+    if (!routeType.endsWith('Route')) {
+      return null;
+    }
     final base = routeType.substring(0, routeType.length - 'Route'.length);
     return PageArtifact._(Casing.parse(Casing.parse(base).snake));
   }
@@ -80,9 +85,12 @@ class PageArtifact {
   /// The `@RoutePage()` connector class in `app`, e.g. `LogInPageConnector`.
   String get connectorClass => '${name.pascal}PageConnector';
 
+  /// The connector's basename — what the router imports and what sits in the
+  /// connectors folder, spelled once so the two cannot disagree.
+  String get _connectorBasename => '${name.snake}_page_connector.dart';
+
   /// The connector import as written in `app_router.dart`.
-  String get connectorImport =>
-      '../connectors/${name.snake}_page_connector.dart';
+  String get connectorImport => '../connectors/$_connectorBasename';
 
   /// The default route path, `/dash-separated-words` (no params).
   String get defaultPath => '/${name.words.join('-')}';
@@ -93,5 +101,5 @@ class PageArtifact {
 
   /// The connector file, absolute, under [connectorsDir].
   File connectorFile(Directory connectorsDir) =>
-      File(p.join(connectorsDir.path, '${name.snake}_page_connector.dart'));
+      File(p.join(connectorsDir.path, _connectorBasename));
 }

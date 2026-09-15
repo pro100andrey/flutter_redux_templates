@@ -37,7 +37,7 @@ void main() {
   tearDown(() => dir.deleteSync(recursive: true));
 
   /// A `selectors.dart` of some other shape, for the compatibility case.
-  File _tmp(String content) =>
+  File tmp(String content) =>
       File('${dir.path}/other.dart')..writeAsStringSync(content);
 
   test('wire adds the facade getter and appends the extension type', () {
@@ -51,10 +51,10 @@ void main() {
       imports: const [],
     );
     expect(r.unchanged, isFalse);
-    // One getter, on the mixin. There were two — the second on an `extension
-    // type Select` that carried the same list — and nothing called it: no
-    // consumer constructed a `Selector` or read `.select`, so half of what
-    // wiring a substate cost was a list only this writer ever touched.
+    // One getter, on the mixin. There were two — the second on an
+    // `extension type Select` that carried the same list — and nothing called
+    // it: no consumer constructed a `Selector` or read `.select`, so half of
+    // what wiring a substate cost was a list only this writer ever touched.
     expect(
       r.source,
       contains('SelectProfile get profile => SelectProfile(state);'),
@@ -76,7 +76,7 @@ void main() {
     // mixin alone would have `add-substate` report success while
     // `state.select.cart` did not exist, and the developer would meet a compile
     // error in code the tool had just claimed to wire.
-    final old = _tmp('''
+    final old = tmp('''
 import 'app_state.dart';
 
 extension type const Selector(AppState _state) {
@@ -134,7 +134,8 @@ extension type SelectLogIn(AppState _state) implements Selector {
       field: 'profile',
       pascal: 'Profile',
       block:
-          'extension type SelectProfile(AppState _state) implements Selector {\n'
+          'extension type SelectProfile(AppState _state) implements Selector '
+          '{\n'
           '  IList<int> get view => _state.profile.view;\n'
           '}\n',
       imports: const [

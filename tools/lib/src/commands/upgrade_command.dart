@@ -91,24 +91,27 @@ class UpgradeCommand extends Command<int> {
     // gate a command without being parsed: 0 when there is nothing to do, 1
     // when there is. Without `--check` an upgrade is the work, not the news,
     // and a successful one exits 0.
-    if (check && result.status == UpgradeStatus.available) return 1;
-    return result.status == UpgradeStatus.refused ? 1 : 0;
+    if (check && result.status == .available) {
+      return 1;
+    }
+    return result.status == .refused ? 1 : 0;
   }
 
   void _report(UpgradeResult result) {
     switch (result.status) {
-      case UpgradeStatus.current:
+      case .current:
         console.out.writeln('frx ${result.from} is the newest release.');
-      case UpgradeStatus.available:
+      case .available:
         // Only `--check` returns this — an unchecked run installs instead of
         // announcing — so the hint needs no condition. The `check` parameter
-        // stays out of it rather than reading as a branch that can go both ways.
+        // stays out of it rather than reading as a branch that can go both
+        // ways.
         console.out
           ..writeln('frx ${result.to} is available (this is ${result.from}).')
           ..writeln('Run `frx upgrade` to install it.');
-      case UpgradeStatus.upgraded:
+      case .upgraded:
         console.out.writeln('frx ${result.from} → ${result.to}');
-      case UpgradeStatus.refused:
+      case .refused:
         console.err.writeln('frx: ${result.message}');
     }
   }

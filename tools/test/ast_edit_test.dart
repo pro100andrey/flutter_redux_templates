@@ -19,7 +19,9 @@ class _Finder<T extends AstNode> extends GeneralizingAstVisitor<void> {
 
   @override
   void visitNode(AstNode node) {
-    if (found != null) return;
+    if (found != null) {
+      return;
+    }
     if (node is T) {
       found = node;
       return;
@@ -33,15 +35,15 @@ void main() {
     test('applies disjoint edits highest-offset-first', () {
       const src = 'abcdef';
       final out = applyEdits(src, [
-        Edit.insert(0, '<'),
-        Edit.replace(2, 4, 'CD'),
-        Edit.insert(6, '>'),
+        const Edit.insert(0, '<'),
+        const Edit.replace(2, 4, 'CD'),
+        const Edit.insert(6, '>'),
       ]);
       expect(out, '<abCDef>');
     });
 
     test('a single insert lands at the offset', () {
-      expect(applyEdits('ac', [Edit.insert(1, 'b')]), 'abc');
+      expect(applyEdits('ac', [const Edit.insert(1, 'b')]), 'abc');
     });
   });
 
@@ -100,7 +102,8 @@ void main() {
 
     test('falls back to appending when the anchor is absent', () {
       // The AppState wire hits this when the state has no `wait` field. It used
-      // to insert at the delimiter and emit `int aint b` — which does not parse.
+      // to insert at the delimiter and emit `int aint b` — which does not
+      // parse.
       const src = 'class S { const factory S({int a}) = _S; }';
       final out = intoParams(src, 'int b', before: 'wait');
       expect(out, contains('int a, int b'));
@@ -133,7 +136,7 @@ void main() {
           "import 'package:a/a.dart';\n"
           "import 'package:c/c.dart';\n";
       final edit = importInsertion(importsOf(src), 'package:b/b.dart');
-      expect(applyEdits(src, [edit]), contains("package:a/a.dart"));
+      expect(applyEdits(src, [edit]), contains('package:a/a.dart'));
       final out = applyEdits(src, [edit]);
       expect(
         out.indexOf('package:b'),
@@ -205,8 +208,8 @@ void main() {
 
     test('keeps the package block above a relative one added beside it', () {
       // The two branches that can name the same offset from different sections:
-      // `package:` after the last package import, relative after the last import
-      // overall — the same token when the file has only package imports.
+      // `package:` after the last package import, relative after the last
+      // import overall — the same token when the file has only package imports.
       const src = "import 'package:a/a.dart';\n";
       final out = addImports(src, ['package:z/z.dart', '../foo.dart']);
       expect(

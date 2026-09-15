@@ -27,7 +27,7 @@ import 'package:tools/src/skills/skill_gen.dart';
 void main() {
   test('.claude/skills matches the CLI commands', () {
     final repoRoot = p.dirname(Directory.current.absolute.path);
-    final fresh = SkillGen.generate();
+    final fresh = SkillGen().generate();
 
     const regen = 'Regenerate them: cd tools && make skills';
 
@@ -66,7 +66,9 @@ void main() {
   });
 
   test('every command an agent reaches for has a skill', () {
-    final generated = SkillGen.generate().keys
+    final generated = SkillGen()
+        .generate()
+        .keys
         .map((k) => k.split('/')[2])
         .where((n) => n.startsWith('frx-'))
         .map((n) => n.substring(4))

@@ -5,7 +5,7 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
 
-import '../ast/source_index.dart';
+import '../ast/file_source.dart';
 import '../workspace/frx_workspace.dart';
 import 'ast_edit.dart';
 
@@ -60,10 +60,17 @@ class ChangedEntry {
 /// **Opt-in, like the docs export.** A project that deleted the block, or never
 /// had it, gets no findings and no edits: [changed] returns null and every edit
 /// is a no-op.
-class StoreSource {
-  StoreSource(this.file);
+class StoreSource extends FileSource {
+  StoreSource(super.file);
 
-  final File file;
+  /// The `store.dart` of an already-resolved workspace.
+  ///
+  /// No `locate`: nothing looks for a project *by* its store, and walking up
+  /// from a root already resolved is how a reader ends up outside the repo it
+  /// was pointed at.
+  factory StoreSource.of(FrxWorkspace repo) =>
+      // Normalised for the reason `locateFile` gives: the constant holds `/`.
+      StoreSource(File(p.normalize(p.join(repo.root.path, _relativePath))));
 
   /// Path of `store.dart` relative to the repo root.
   static const _relativePath = 'business/lib/redux/store.dart';
@@ -76,29 +83,19 @@ class StoreSource {
   static bool owns(String path, {required String root}) =>
       p.equals(path, p.join(root, _relativePath));
 
-  /// The `store.dart` of an already-resolved workspace.
-  ///
-  /// No `locate`: nothing looks for a project *by* its store, and walking up
-  /// from a root already resolved is how a reader ends up outside the repo it
-  /// was pointed at.
-  static StoreSource of(FrxWorkspace repo) =>
-      StoreSource(File(p.join(repo.root.path, _relativePath)));
-
-  bool get exists => file.existsSync();
-
   /// The block, or null when this project has none frx can act on.
   ///
   /// Recognised by shape rather than by the names around it — a list literal
   /// whose *every* element is `if (a.<field> != b.<field>) '<label>'`, assigned
-  /// to something. Keying on `pending.changed` or on `prev`/`next` would tie frx
-  /// to identifiers a clone is free to rename.
+  /// to something. Keying on `pending.changed` or on `prev`/`next` would tie
+  /// frx to identifiers a clone is free to rename.
   ///
   /// **Two candidates is no candidate.** Shape alone is not a unique key: a
   /// helper elsewhere in the file can rhyme with it, and taking the first in
   /// traversal order is a coin flip that loses silently — measured, a decoy
   /// declared above the observer took `add-substate`'s entry and turned the
   /// audit into nine bogus findings. Ambiguity is reported by
-  /// [checkChangeLog], not resolved by position.
+  /// `checkChangeLog`, not resolved by position.
   ///
   /// An empty list is not the block either: there is nothing in it to
   /// recognise, and a monorepo with no substates has nothing to trace.
@@ -112,8 +109,25 @@ class StoreSource {
   /// The state in which frx does nothing and says why, rather than guessing.
   bool get ambiguous => _blocks().length > 1;
 
-  List<ListLiteral> _blocks() =>
-      exists ? _blocksIn(sourceIndex.unitFor(file)) : const [];
+  List<ListLiteral> _blocks() => exists ? _blocksOf(unit) : const [];
+
+  /// [_blocksIn], remembered per tree.
+  ///
+  /// The audit asks [ambiguous] and then [changed] of one reader, and a
+  /// command asks [changed] and then edits; each is a walk of the whole file
+  /// for a list that has not moved. Keyed on the tree's identity, which is
+  /// what the index hands back unchanged for as long as the file is — a
+  /// rewritten file is a new tree and a new walk.
+  List<ListLiteral> _blocksOf(CompilationUnit unit) {
+    if (!identical(unit, _walked)) {
+      _walked = unit;
+      _walkedBlocks = _blocksIn(unit);
+    }
+    return _walkedBlocks;
+  }
+
+  CompilationUnit? _walked;
+  var _walkedBlocks = const <ListLiteral>[];
 
   /// Adds an entry for [field], after the last one.
   ///
@@ -121,7 +135,9 @@ class StoreSource {
   /// every substate before it, so a new field is always the newest of the ones
   /// this list tracks.
   EditOutcome wire({required String field}) => _edit((entries, source, list) {
-    if (entries.any((e) => e.field == field)) return null;
+    if (entries.any((e) => e.field == field)) {
+      return null;
+    }
     final (prev, next) = _operandsOf(entries.first);
     return (
       edits: [
@@ -144,7 +160,10 @@ class StoreSource {
     final gone = entries
         .where((e) => e.field == field || e.label == field)
         .toList();
-    if (gone.isEmpty) return null;
+    if (gone.isEmpty) {
+      return null;
+    }
+
     return (
       edits: [for (final e in gone) removeListItem(source, e.node)],
       changes: [for (final e in gone) "changed: '${e.label}'"],
@@ -171,18 +190,21 @@ class StoreSource {
     final blocks = _blocksIn(
       parseString(content: content, throwIfDiagnostics: false).unit,
     );
-    if (blocks.length != 1) return content;
+    if (blocks.length != 1) {
+      return content;
+    }
+
     final stale = _entriesOf(
       blocks.single,
     )!.where((e) => e.field == field && e.label == was);
-    if (stale.isEmpty) return content;
+    if (stale.isEmpty) {
+      return content;
+    }
+
     return applyEdits(content, [
       for (final e in stale)
-        Edit.replace(
-          _labelOf(e.node)!.offset,
-          _labelOf(e.node)!.end,
-          "'$field'",
-        ),
+        if (_labelOf(e.node) case final label?)
+          Edit.replace(label.offset, label.end, "'$field'"),
     ]);
   }
 
@@ -199,10 +221,16 @@ class StoreSource {
     )
     plan,
   ) {
-    if (!exists) return const Edited.nothing('');
-    final source = sourceIndex.sourceOf(file);
-    final blocks = _blocksIn(sourceIndex.unitToEdit(file));
-    if (blocks.length != 1) return Edited.nothing(source);
+    if (!exists) {
+      return const Edited.nothing('');
+    }
+
+    final (:source, :unit) = snapshotToEdit;
+    final blocks = _blocksOf(unit);
+    if (blocks.length != 1) {
+      return Edited.nothing(source);
+    }
+
     final list = blocks.single;
     final planned = plan(_entriesOf(list)!, source, list);
     return planned == null
@@ -228,25 +256,42 @@ class StoreSource {
   /// Every element must fit, not merely some: a list that mixes the shape with
   /// anything else is somebody else's list that happens to rhyme.
   static List<ChangedEntry>? _entriesOf(ListLiteral list) {
-    if (list.elements.isEmpty) return null;
+    if (list.elements.isEmpty) {
+      return null;
+    }
+
     final entries = <ChangedEntry>[];
     for (final element in list.elements) {
       final entry = _entryOf(element);
-      if (entry == null) return null;
+      if (entry == null) {
+        return null;
+      }
       entries.add(entry);
     }
     return entries;
   }
 
   static ChangedEntry? _entryOf(CollectionElement element) {
-    if (element is! IfElement) return null;
+    if (element is! IfElement) {
+      return null;
+    }
+
     final test = element.expression;
-    if (test is! BinaryExpression || test.operator.lexeme != '!=') return null;
+    if (test is! BinaryExpression || test.operator.lexeme != '!=') {
+      return null;
+    }
+
     final left = _fieldOf(test.leftOperand);
     final right = _fieldOf(test.rightOperand);
-    if (left == null || left != right) return null;
+    if (left == null || left != right) {
+      return null;
+    }
+
     final label = _labelOf(element);
-    if (label == null || element.elseElement != null) return null;
+    if (label == null || element.elseElement != null) {
+      return null;
+    }
+
     return ChangedEntry(field: left, label: label.value, node: element);
   }
 

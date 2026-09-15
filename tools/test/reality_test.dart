@@ -20,9 +20,9 @@ import 'support/in_process.dart';
 /// substate upstream does not break it — only an architectural change does, and
 /// then failing is the right answer.
 ///
-/// Skipped when `../app` is absent (a standalone `dart install --source path
-/// tools` checkout), because a test that cannot see the repo has learned
-/// nothing.
+/// Skipped when `../app` is absent (a standalone
+/// `dart install --source path tools` checkout), because a test that cannot see
+/// the repo has learned nothing.
 void main() {
   final root = _repoRoot();
   if (root == null) {
@@ -41,7 +41,7 @@ void main() {
   });
 
   List<Map<String, Object?>> nodesOfKind(String kind) => [
-    for (final n in graph['nodes'] as List)
+    for (final n in graph['nodes']! as List)
       if ((n as Map<String, Object?>)['kind'] == kind) n,
   ];
 
@@ -106,7 +106,7 @@ void main() {
       generated.difference(known),
       isEmpty,
       reason:
-          'auto_route generates a route frx\'s page nodes do not mention — '
+          "auto_route generates a route frx's page nodes do not mention — "
           'the router reader and the generator disagree about naming',
     );
     expect(
@@ -123,8 +123,8 @@ void main() {
     // no single pusher is genuinely unresolvable that way. The point is that a
     // *new* blind spot fails here instead of quietly widening.
     final unresolved = [
-      for (final u in graph['unresolved'] as List)
-        (u as Map<String, Object?>)['kind'] as String,
+      for (final u in graph['unresolved']! as List)
+        (u as Map<String, Object?>)['kind']! as String,
     ];
     expect(
       unresolved.toSet().difference(_knownUnresolvedKinds),
@@ -140,7 +140,7 @@ void main() {
     // themselves are the message when it breaks.
     final res = await runInProcessAt(root, ['doctor', '--json']);
     final findings =
-        (jsonDecode(res.stdout) as Map<String, Object?>)['findings'] as List;
+        (jsonDecode(res.stdout) as Map<String, Object?>)['findings']! as List;
     expect(
       [for (final f in findings) (f as Map)['message']],
       isEmpty,
@@ -193,6 +193,8 @@ String? _repoRoot() {
         Directory(p.join(dir.path, 'business', 'lib')).existsSync()) {
       return dir.path;
     }
-    if (dir.parent.path == dir.path) return null;
+    if (dir.parent.path == dir.path) {
+      return null;
+    }
   }
 }

@@ -5,35 +5,38 @@ import 'package:path/path.dart' as p;
 import '../scaffold/widget_scaffold.dart';
 import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
-import 'artifact_name.dart';
 import 'artifact_files.dart';
+import 'artifact_name.dart';
+import 'substate_artifact.dart';
+import 'target_resolver.dart' show TargetResolver;
 
 /// The artifacts `remove` can delete that are *file sets* rather than wiring.
 ///
-/// A substate and a page are not here, and the split is the point. Those two are
-/// registered somewhere — a field in `AppState`, a route in `AppRouter` — so
-/// removing one is an unwiring problem, resolved through [TargetResolver] from
-/// what the project declares. Everything in this enum is instead a set of files
-/// in a known place, scaffolded by a command that wired nothing central, and so
-/// resolved from the filesystem.
+/// A substate and a page are not here, and the split is the point. Those two
+/// are registered somewhere — a field in `AppState`, a route in `AppRouter` —
+/// so removing one is an unwiring problem, resolved through [TargetResolver]
+/// from what the project declares. Everything in this enum is instead a set of
+/// files in a known place, scaffolded by a command that wired nothing central,
+/// and so resolved from the filesystem.
 ///
 /// Keeping the two apart is why `ArtifactKind` did not grow: it is also the
-/// input to `rename` and `which`, which ask "what does this class name decompose
-/// to" — a question no member of this enum answers, because none of them has a
-/// class name convention to read backwards.
+/// input to `rename` and `which`, which ask "what does this class name
+/// decompose to" — a question no member of this enum answers, because none of
+/// them has a class name convention to read backwards.
 ///
-/// What this buys over `rm`, which is what the traced runs reached for 60+ times
-/// across six builds: the *set*. A service is two files in a folder, and a model
-/// leaves `.freezed.dart` and `.g.dart` siblings that do not compile once their
-/// source is gone.
+/// What this buys over `rm`, which is what the traced runs reached for 60+
+/// times across six builds: the *set*. A service is two files in a folder, and
+/// a model leaves `.freezed.dart` and `.g.dart` siblings that do not compile
+/// once their source is gone.
 enum RemovableKind {
   /// `business/lib/redux/<substate>/actions/<snake>_action.dart` — one file,
   /// under whichever substate owns it.
   action,
 
-  /// `models/lib/<snake>.dart`, plus its build_runner siblings. Covers `add-model`
-  /// and `add-enum` alike: both write one file to the same directory, and from
-  /// the outside a deleted freezed model and a deleted enum are the same job.
+  /// `models/lib/<snake>.dart`, plus its build_runner siblings. Covers
+  /// `add-model` and `add-enum` alike: both write one file to the same
+  /// directory, and from the outside a deleted freezed model and a deleted enum
+  /// are the same job.
   model,
 
   /// `ui/lib/<dir>/<file>.dart` — one file.
@@ -65,7 +68,6 @@ class RemovableArtifact {
     required this.files,
     String? className,
     this.directories = const [],
-    this.missing = const [],
     this.dangles,
   }) : className = className ?? name.pascal;
 
@@ -91,11 +93,6 @@ class RemovableArtifact {
   /// Directories deleted whole — a service's folder.
   final List<String> directories;
 
-  /// Paths the convention predicts but the disk does not have. Narrated rather
-  /// than treated as an error: an artifact missing one of its files is still
-  /// worth removing, and saying so is more useful than refusing.
-  final List<String> missing;
-
   /// What is left dangling, in the closing note. `remove` deletes an artifact;
   /// it does not chase the code that referenced it — the same stance the
   /// substate path already takes.
@@ -105,9 +102,10 @@ class RemovableArtifact {
 /// Resolves a name plus a [RemovableKind] to the files that make it up.
 ///
 /// Returns null when nothing of that kind carries the name. A name it will not
-/// answer for — matching under two substates, in two widget folders, or naming a
-/// connector that belongs to a page — is reported through [blocked] rather than
-/// guessed at, because picking one and deleting it is not a recoverable mistake.
+/// answer for — matching under two substates, in two widget folders, or naming
+/// a connector that belongs to a page — is reported through [blocked] rather
+/// than guessed at, because picking one and deleting it is not a recoverable
+/// mistake.
 class RemovableResolver {
   RemovableResolver(this.repo);
 
@@ -121,11 +119,11 @@ class RemovableResolver {
   RemovableArtifact? resolve(RemovableKind kind, Casing name, {String? state}) {
     blocked = null;
     return switch (kind) {
-      RemovableKind.action => _action(name, state),
-      RemovableKind.model => _model(name),
-      RemovableKind.widget => _widget(name),
-      RemovableKind.connector => _connector(name),
-      RemovableKind.service => _service(name),
+      .action => _action(name, state),
+      .model => _model(name),
+      .widget => _widget(name),
+      .connector => _connector(name),
+      .service => _service(name),
     };
   }
 
@@ -135,36 +133,36 @@ class RemovableResolver {
     // `ArchiveTask` and `ArchiveTaskAction` name the same file — see
     // [ArtifactName], which `add-action` now reads too, so the two directions
     // are the same statement rather than two that happen to agree.
-    final snake = '${ArtifactName.actionStem(name).snake}_action';
+    final stem = ArtifactName.actionStem(name).snake;
+    final snake = '${stem}_action';
 
-    final hits = <String>[];
+    // Substate folder → the action file it holds, for the folders that do.
+    final hits = <String, String>{};
     for (final dir in state != null ? [state] : repo.substateDirs()) {
-      final f = File(
-        p.join(repo.businessRedux.path, dir, 'actions', '$snake.dart'),
-      );
-      if (f.existsSync()) hits.add(dir);
+      final file = SubstateArtifact.actionFileIn(repo.businessRedux, dir, stem);
+      if (file.existsSync()) {
+        hits[dir] = file.path;
+      }
     }
 
-    if (hits.isEmpty) return null;
-    if (hits.length > 1) {
-      blocked =
-          '"${name.pascal}" names an action under ${hits.length} substates '
-          '(${hits.join(', ')}). Disambiguate with --state <substate>.';
+    if (hits.isEmpty) {
       return null;
     }
 
-    final owner = hits.single;
-    final file = p.join(
-      repo.businessRedux.path,
-      owner,
-      'actions',
-      '$snake.dart',
-    );
+    if (hits.length > 1) {
+      blocked =
+          '"${name.pascal}" names an action under ${hits.length} substates '
+          '(${hits.keys.join(', ')}). Disambiguate with --state <substate>.';
+      return null;
+    }
+
+    final className = _pascalOf(snake);
+    final MapEntry(key: owner, value: file) = hits.entries.single;
     return RemovableArtifact(
-      kind: RemovableKind.action,
+      kind: .action,
       name: name,
-      className: _pascalOf(snake),
-      header: 'Remove action "${_pascalOf(snake)}"  (substate: $owner)',
+      className: className,
+      header: 'Remove action "$className"  (substate: $owner)',
       files: [file],
       dangles:
           'anything that dispatched it no longer compiles — run `frx doctor` / '
@@ -175,16 +173,19 @@ class RemovableResolver {
   // --- model / enum ----------------------------------------------------------
 
   RemovableArtifact? _model(Casing name) {
-    final source = File(ArtifactFiles.model(repo, name));
-    if (!source.existsSync()) return null;
+    final source = File(modelFile(repo, name));
+    if (!source.existsSync()) {
+      return null;
+    }
 
     // The generated siblings go with it. Left behind they are the worse half of
     // the failure: `task.freezed.dart` still `part of 'task.dart'`, so the
-    // package stops compiling on a file the user never wrote and did not delete.
-    final generated = ArtifactFiles.modelGenerated(repo, name);
+    // package stops compiling on a file the user never wrote and did not
+    // delete.
+    final generated = modelGeneratedFiles(repo, name);
 
     return RemovableArtifact(
-      kind: RemovableKind.model,
+      kind: .model,
       name: name,
       header: 'Remove model "${name.pascal}"',
       files: [source.path, ...generated],
@@ -198,13 +199,13 @@ class RemovableResolver {
 
   /// The backward read of [WidgetScaffold.fileNameFor].
   ///
-  /// A widget's file is named after its *class*, not after the argument: `-k
-  /// field` turns `Pin` into `PinFormField` and writes `pin_form_field.dart`.
-  /// So the name the user types does not name the file, and looking for
-  /// `<typed>.dart` found nothing for exactly the kinds that rename — measured:
-  /// `add-widget Pin --dir inputs -k field` then `remove Pin --kind widget`
-  /// exited 70. Every kind's spelling is tried, because `remove` is not told
-  /// which one built it.
+  /// A widget's file is named after its *class*, not after the argument:
+  /// `-k field` turns `Pin` into `PinFormField` and writes
+  /// `pin_form_field.dart`. So the name the user types does not name the file,
+  /// and looking for `<typed>.dart` found nothing for exactly the kinds that
+  /// rename — measured: `add-widget Pin --dir inputs -k field` then
+  /// `remove Pin --kind widget` exited 70. Every kind's spelling is tried,
+  /// because `remove` is not told which one built it.
   RemovableArtifact? _widget(Casing name) {
     final spellings = {
       for (final kind in WidgetKind.values)
@@ -220,7 +221,9 @@ class RemovableResolver {
       }
     }
 
-    if (hits.isEmpty) return null;
+    if (hits.isEmpty) {
+      return null;
+    }
 
     if (hits.length > 1) {
       // **Refuse. Do not prefer the straight spelling.**
@@ -239,12 +242,13 @@ class RemovableResolver {
       // the view's own class and the stem of `PinFormField`, so no spelling
       // isolates the view. Saying so is the honest answer — the way out is to
       // rename one of them or delete the file.
-      final named = hits.map((h) {
-        final cls = _pascalOf(h.file.substring(0, h.file.length - 5));
-        return '$cls (ui/lib/${h.dir}/${h.file})';
-      }).toList()..sort();
+      final named = [
+        for (final h in hits)
+          '${_classOfFile(h.file)} (ui/lib/${h.dir}/${h.file})',
+      ]..sort();
       blocked =
-          '"${name.pascal}" names ${hits.length} widgets — ${named.join(', ')}. '
+          '"${name.pascal}" names ${hits.length} widgets — '
+          '${named.join(', ')}. '
           'Re-run with the class of the one you mean. If that is the name you '
           'just typed, it is also the stem of the other, so nothing tells them '
           'apart: rename one, or delete the file directly.';
@@ -255,10 +259,10 @@ class RemovableResolver {
     final widget = p.join(repo.uiLib.path, hit.dir, hit.file);
     // The class, read back off the file that was found — so the report names
     // what is being deleted rather than what was typed.
-    final className = _pascalOf(hit.file.substring(0, hit.file.length - 5));
+    final className = _classOfFile(hit.file);
 
     return RemovableArtifact(
-      kind: RemovableKind.widget,
+      kind: .widget,
       name: name,
       className: className,
       header: 'Remove widget "$className"  (ui/lib/${hit.dir})',
@@ -271,14 +275,17 @@ class RemovableResolver {
 
   RemovableArtifact? _connector(Casing name) {
     final snake = '${ArtifactName.connectorStem(name).snake}_connector';
-    final file = File(p.join(repo.appConnectors.path, '$snake.dart'));
-    if (!file.existsSync()) return null;
+    final file = File(connectorFile(repo, name));
+    if (!file.existsSync()) {
+      return null;
+    }
 
     // A page's connector is half of the page, not a connector of its own:
-    // `add-page` writes both and registers the route against this file. Deleting
-    // it alone leaves a route pointing at nothing — and the two are told apart by
-    // the name, since `add-page` writes `<name>_page_connector.dart` where
-    // `add-connector` writes `<name>_connector.dart`.
+    // `add-page` writes both and registers the route against this file.
+    // Deleting it alone leaves a route pointing at nothing — and the two are
+    // told apart by the name, since `add-page` writes
+    // `<name>_page_connector.dart` where `add-connector` writes
+    // `<name>_connector.dart`.
     //
     // Caught by `remove HomePage`, which auto-detection resolved here and would
     // have silently orphaned the page: the page's own canonical name is `Home`,
@@ -295,7 +302,7 @@ class RemovableResolver {
     }
 
     return RemovableArtifact(
-      kind: RemovableKind.connector,
+      kind: .connector,
       name: name,
       className: _pascalOf(snake),
       header: 'Remove connector "${_pascalOf(snake)}"',
@@ -308,8 +315,10 @@ class RemovableResolver {
 
   RemovableArtifact? _service(Casing name) {
     final stem = ArtifactName.serviceStem(name);
-    final dir = ArtifactFiles.serviceDir(repo, name);
-    if (!dir.existsSync()) return null;
+    final dir = serviceDir(repo, name);
+    if (!dir.existsSync()) {
+      return null;
+    }
 
     final held =
         dir
@@ -320,17 +329,17 @@ class RemovableResolver {
           ..sort();
 
     return RemovableArtifact(
-      kind: RemovableKind.service,
+      kind: .service,
       name: name,
       className: '${stem.pascal}Service',
       header:
           'Remove service "${stem.pascal}Service"  (${held.length} file(s))',
       files: const [],
       directories: [dir.path],
-      // `add-service` does not write `dependencies.dart` either — the field that
-      // constructs the service is hand-written, so removal stays symmetric and
-      // points at it instead of editing it. Naming the file is the whole value:
-      // it is the one place the project will not compile from.
+      // `add-service` does not write `dependencies.dart` either — the field
+      // that constructs the service is hand-written, so removal stays symmetric
+      // and points at it instead of editing it. Naming the file is the whole
+      // value: it is the one place the project will not compile from.
       dangles:
           'business/lib/dependencies.dart still constructs it — drop its field '
           'and import',
@@ -338,4 +347,9 @@ class RemovableResolver {
   }
 
   static String _pascalOf(String snake) => Casing.parse(snake).pascal;
+
+  /// The class a `<snake>.dart` basename holds, by the convention that names
+  /// a file after its class.
+  static String _classOfFile(String basename) =>
+      _pascalOf(basename.substring(0, basename.length - '.dart'.length));
 }

@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'console.dart';
 
 /// Minimal stdin prompting for the `frx new` wizard. Works on a TTY and on
 /// piped input alike (EOF → [AbortException]), so wizard flows are testable
-/// with `echo -e '…' | frx new`.
+/// with `echo -e '…' | frx new` — and in-process, through a [CapturedConsole]
+/// whose `input` holds the answers one per line.
 class AbortException implements Exception {
   const AbortException();
 }
@@ -11,10 +11,17 @@ class AbortException implements Exception {
 /// Reads one line, trimmed. Throws [AbortException] on EOF (ctrl-D / end of
 /// piped input).
 String _readLine() {
-  final line = stdin.readLineSync();
-  if (line == null) throw const AbortException();
+  final line = console.readLine();
+  if (line == null) {
+    throw const AbortException();
+  }
   return line.trim();
 }
+
+/// The `(reason — hint)` line a re-ask prints, with the hint only when there is
+/// one.
+String _reAsk(String reason, String? hint) =>
+    '  ($reason${hint != null ? ' — $hint' : ''})';
 
 /// Asks a free-form question. Empty input returns [def] when given; when
 /// [required] and no default, re-asks. [pattern] re-asks until matched.
@@ -30,13 +37,17 @@ String ask(
     console.out.write('$question$suffix: ');
     final input = _readLine();
     if (input.isEmpty) {
-      if (def != null) return def;
-      if (!required) return '';
-      console.out.writeln('  (required${hint != null ? ' — $hint' : ''})');
+      if (def != null) {
+        return def;
+      }
+      if (!required) {
+        return '';
+      }
+      console.out.writeln(_reAsk('required', hint));
       continue;
     }
     if (pattern != null && !pattern.hasMatch(input)) {
-      console.out.writeln('  (invalid${hint != null ? ' — $hint' : ''})');
+      console.out.writeln(_reAsk('invalid', hint));
       continue;
     }
     return input;
@@ -53,11 +64,19 @@ String choose(String question, Map<String, String> options) {
   while (true) {
     console.out.write('Choice [1]: ');
     final input = _readLine();
-    if (input.isEmpty) return keys.first;
+    if (input.isEmpty) {
+      return keys.first;
+    }
+
     final n = int.tryParse(input);
-    if (n != null && n >= 1 && n <= keys.length) return keys[n - 1];
+    if (n != null && n >= 1 && n <= keys.length) {
+      return keys[n - 1];
+    }
+
     // Also accept the option name itself.
-    if (keys.contains(input)) return input;
+    if (keys.contains(input)) {
+      return input;
+    }
     console.out.writeln('  (enter 1–${keys.length})');
   }
 }
@@ -67,9 +86,17 @@ bool confirm(String question, {bool def = false}) {
   while (true) {
     console.out.write('$question [${def ? 'Y/n' : 'y/N'}]: ');
     final input = _readLine().toLowerCase();
-    if (input.isEmpty) return def;
-    if (input == 'y' || input == 'yes') return true;
-    if (input == 'n' || input == 'no') return false;
+    if (input.isEmpty) {
+      return def;
+    }
+
+    if (input == 'y' || input == 'yes') {
+      return true;
+    }
+
+    if (input == 'n' || input == 'no') {
+      return false;
+    }
   }
 }
 
@@ -82,9 +109,10 @@ List<String> askList(String question, {int min = 0, String? hint}) {
         .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList();
-    if (items.length >= min) return items;
-    console.out.writeln(
-      '  (need at least $min${hint != null ? ' — $hint' : ''})',
-    );
+    if (items.length >= min) {
+      return items;
+    }
+
+    console.out.writeln(_reAsk('need at least $min', hint));
   }
 }

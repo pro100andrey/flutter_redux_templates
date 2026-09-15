@@ -141,7 +141,7 @@ void main() {
 
       final doctor = await runFrx(fx, ['doctor', '--json']);
       expect(
-        (doctor.stdout as String),
+        doctor.stdout as String,
         isNot(contains('flow-docs')),
         reason: 'nothing left for doctor to report',
       );

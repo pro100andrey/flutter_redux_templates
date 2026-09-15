@@ -6,8 +6,8 @@ import '../util/console.dart';
 /// Keeping a `build_runner watch` from outliving the process that started it.
 ///
 /// The problem, measured rather than assumed: `frx watch` is the parent of
-/// `dart run build_runner watch`, and killing `frx` leaves the child running. It
-/// reparents to pid 1 and keeps going for hours regenerating nothing, which
+/// `dart run build_runner watch`, and killing `frx` leaves the child running.
+/// It reparents to pid 1 and keeps going for hours regenerating nothing, which
 /// looks exactly like a working setup until a generated file turns out to be
 /// stale. `frx doctor` reports those, but reporting is the cure for a wound
 /// already taken.
@@ -30,7 +30,8 @@ abstract final class WatchSupervision {
   /// half-written generated file happens.
   static const drainTimeout = Duration(seconds: 10);
 
-  /// Runs `dart <args>` in [cwd] as a supervised watch, returning its exit code.
+  /// Runs `dart <args>` in [cwd] as a supervised watch, returning its exit
+  /// code.
   ///
   /// Three things happen that a bare [Process.start] does not do:
   ///
@@ -80,25 +81,29 @@ abstract final class WatchSupervision {
   /// translated into the one signal it does handle.
   ///
   /// **The second Ctrl-C is an escape hatch, not a courtesy.** Swallowing
-  /// `SIGINT` for the whole life of the run replaces the default disposition, so
-  /// a watch that wedges — lock contention, a builder that never returns — makes
-  /// `frx` unkillable from the keyboard: the child never exits, `await
-  /// proc.exitCode` never completes, and every Ctrl-C is absorbed. The old
-  /// unsupervised path at least let the first one through. Counting them keeps
-  /// the graceful first press and restores the way out.
+  /// `SIGINT` for the whole life of the run replaces the default disposition,
+  /// so a watch that wedges — lock contention, a builder that never returns —
+  /// makes `frx` unkillable from the keyboard: the child never exits,
+  /// `await proc.exitCode` never completes, and every Ctrl-C is absorbed. The
+  /// old unsupervised path at least let the first one through. Counting them
+  /// keeps the graceful first press and restores the way out.
   static List<StreamSubscription<ProcessSignal>> _watchSignals(Process proc) {
     final subs = <StreamSubscription<ProcessSignal>>[];
 
     void translate(ProcessSignal signal) {
       // `sigterm` cannot be watched on Windows; asking would throw.
-      if (Platform.isWindows && signal != ProcessSignal.sigint) return;
+      if (Platform.isWindows && signal != ProcessSignal.sigint) {
+        return;
+      }
       subs.add(signal.watch().listen((_) => unawaited(_stop(proc))));
     }
 
     var interrupts = 0;
     subs.add(
       ProcessSignal.sigint.watch().listen((_) {
-        if (++interrupts < 2) return;
+        if (++interrupts < 2) {
+          return;
+        }
         console.err.writeln(
           '\n⚠ build_runner is not stopping — leaving it to the reaper.',
         );
@@ -112,13 +117,13 @@ abstract final class WatchSupervision {
 
   /// Asks [proc] to drain, then insists.
   ///
-  /// **Never to [Process.pid] alone.** `dart run` is a launcher: it compiles the
-  /// build script and runs it as a *child* (`dartaotruntime`), and that child is
-  /// what installs build_runner's `SIGINT` handler. Measured: two `SIGINT`s to
-  /// the launcher left both processes running, and one to the group ended both.
-  /// It is also why Ctrl-C works today, since a tty signals the whole foreground
-  /// group rather than one pid. [signalPlan] decides which of the two shapes
-  /// reaches the pair safely.
+  /// **Never to [Process.pid] alone.** `dart run` is a launcher: it compiles
+  /// the build script and runs it as a *child* (`dartaotruntime`), and that
+  /// child is what installs build_runner's `SIGINT` handler. Measured: two
+  /// `SIGINT`s to the launcher left both processes running, and one to the
+  /// group ended both. It is also why Ctrl-C works today, since a tty signals
+  /// the whole foreground group rather than one pid. [signalPlan] decides which
+  /// of the two shapes reaches the pair safely.
   static Future<void> _stop(Process proc) async {
     _signalTree(proc.pid, ProcessSignal.sigint);
     try {
@@ -133,13 +138,13 @@ abstract final class WatchSupervision {
   ///
   /// Prefers the group, which is the watch and nothing else *when we lead it*.
   /// Started from an interactive shell, job control makes `frx` a group leader,
-  /// so its group holds exactly the launcher and the script. Started without job
-  /// control (`nohup`, CI, a spawn from an editor), `frx` inherits the caller's
-  /// group, and signalling that would reach the caller's other jobs — so there
-  /// the child and its direct children are named by pid instead.
+  /// so its group holds exactly the launcher and the script. Started without
+  /// job control (`nohup`, CI, a spawn from an editor), `frx` inherits the
+  /// caller's group, and signalling that would reach the caller's other jobs —
+  /// so there the child and its direct children are named by pid instead.
   ///
-  /// Pure, and separated for that reason: which of the two it picks is the whole
-  /// correctness question, and it is not observable from the outside of a
+  /// Pure, and separated for that reason: which of the two it picks is the
+  /// whole correctness question, and it is not observable from the outside of a
   /// process that has already exited.
   ///
   /// **The group form is only ever used for `INT`.** We are a member of that
@@ -149,9 +154,9 @@ abstract final class WatchSupervision {
   /// for what the user asked to be a clean stop. `INT` is safe there because we
   /// hold a handler for it; `KILL` cannot be handled by anyone.
   ///
-  /// **Children are signalled before the launcher.** `pkill -P <launcher>` finds
-  /// children *of a living process* — kill the launcher first and the build
-  /// script is already reparented to init, so the second command matches
+  /// **Children are signalled before the launcher.** `pkill -P <launcher>`
+  /// finds children *of a living process* — kill the launcher first and the
+  /// build script is already reparented to init, so the second command matches
   /// nothing and the escalation leaves behind exactly the orphan this module
   /// exists to prevent.
   static List<List<String>> signalPlan({
@@ -221,8 +226,8 @@ abstract final class WatchSupervision {
   /// so it is a pattern already proven inside this dependency tree rather than
   /// an invention. Two deliberate differences: it watches *our* pid, where
   /// build_runner watches its own (which is why build_runner's reaper does
-  /// nothing about this problem); and it sends `SIGINT` where build_runner sends
-  /// `-9`, because the thing being stopped here is a watch with a lock to
+  /// nothing about this problem); and it sends `SIGINT` where build_runner
+  /// sends `-9`, because the thing being stopped here is a watch with a lock to
   /// release, not a build script.
   ///
   /// Known limits, none of them repairable at this layer: the poll is

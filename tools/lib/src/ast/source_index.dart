@@ -14,13 +14,13 @@
 /// The tier is currently split between parsing that throws on a diagnostic and
 /// parsing that does not, with no rule saying which applies where. The rule:
 ///
-/// - A file frx is about to **edit** must parse cleanly — [unitToEdit]. Every
-///   edit in this codebase is a character-offset splice computed against a tree,
-///   and offsets taken from a tree built out of broken source do not describe
-///   the file they will be applied to.
-/// - A file frx is only **reading to report on** must not — [unitFor]. One
-///   unparseable file in somebody's repo must not take the whole audit down, and
-///   a recovered tree still answers most of what a check asks.
+/// - A file frx is about to **edit** must parse cleanly — `unitToEdit`. Every
+///   edit in this codebase is a character-offset splice computed against a
+///   tree, and offsets taken from a tree built out of broken source do not
+///   describe the file they will be applied to.
+/// - A file frx is only **reading to report on** must not — `unitFor`. One
+///   unparseable file in somebody's repo must not take the whole audit down,
+///   and a recovered tree still answers most of what a check asks.
 ///
 /// ## What is cached is the parse, not the file
 ///
@@ -44,6 +44,7 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
+import '../refusal.dart';
 import '../workspace/frx_workspace.dart';
 
 /// One run's worth of parsed Dart.
@@ -91,22 +92,44 @@ class SourceIndex {
   /// rather than throwing. See the strictness rule on [SourceIndex].
   CompilationUnit unitFor(File file) => _entry(file, parse: true).unit!;
 
-  /// The tree for [file], for a caller about to compute edit offsets against it.
+  /// The tree for [file], for a caller about to compute edit offsets against
+  /// it.
   ///
-  /// Throws [StateError] when the file does not parse cleanly — the convention
+  /// Throws [FrxRefusal] when the file does not parse cleanly — the convention
   /// the runner renders as `✗ <message>` and exits 70 by, because "the file you
   /// asked me to edit does not compile" is the user's problem to fix, not a
   /// crash.
-  CompilationUnit unitToEdit(File file) {
+  CompilationUnit unitToEdit(File file) => _entryToEdit(file).unit!;
+
+  /// The text and tree of [file], from one read.
+  ///
+  /// What a splice needs as a pair: its offsets are read off the `unit` and
+  /// land in the `source`, and that only holds when both came from the same
+  /// bytes. [sourceOf] followed by [unitFor] is two reads, and a
+  /// save from an editor between them hands back a tree for text the caller
+  /// does not hold — an edit spliced at the wrong offsets, silently.
+  Snapshot snapshotOf(File file) {
+    final entry = _entry(file, parse: true);
+    return (source: entry.source, unit: entry.unit!);
+  }
+
+  /// [snapshotOf], refused when the file does not parse cleanly — the
+  /// strictness of [unitToEdit] for the same reason.
+  Snapshot snapshotToEdit(File file) {
+    final entry = _entryToEdit(file);
+    return (source: entry.source, unit: entry.unit!);
+  }
+
+  _Entry _entryToEdit(File file) {
     final entry = _entry(file, parse: true);
     if (entry.hasErrors) {
-      throw StateError(
+      throw FrxRefusal(
         '${p.relative(file.path)} does not parse. frx edits by splicing at '
         'offsets read off the parse tree, and a tree recovered from broken '
         'source does not describe the file — fix the syntax error first.',
       );
     }
-    return entry.unit!;
+    return entry;
   }
 
   /// The tree for [file], or null when [wanted] rejects its text.
@@ -115,14 +138,16 @@ class SourceIndex {
   /// the handful that could match is what makes an audit something you avoid
   /// running. On a miss the file is read and **not** parsed.
   ///
-  /// A predicate rather than a list of needles, because the real filters are not
-  /// all the same shape: the placement rules want `extension` *and* `Select`, or
-  /// `@RoutePage`. A caller that needs to know *which* matched should ask
-  /// [sourceOf] and then [unitFor] — the same two lookups, without a closure
-  /// that has to run for the answer to be right.
+  /// A predicate rather than a list of needles, because the real filters are
+  /// not all the same shape: the placement rules want `extension` *and*
+  /// `Select`, or `@RoutePage`. A caller that needs to know *which* matched
+  /// should ask [sourceOf] and then [unitFor] — the same two lookups, without a
+  /// closure that has to run for the answer to be right.
   CompilationUnit? unitIf(File file, bool Function(String source) wanted) {
     final entry = _entry(file, parse: false);
-    if (!wanted(entry.source)) return null;
+    if (!wanted(entry.source)) {
+      return null;
+    }
     return _entry(file, parse: true).unit!;
   }
 
@@ -134,23 +159,23 @@ class SourceIndex {
   /// The index is the only module that can say: tolerance is its policy, and
   /// [unitFor] hands a recovered tree back looking exactly like a clean one. So
   /// every answer built from one is a guess presented as a fact — a graph node
-  /// for a class the analyzer inferred, an audit that found no `@RoutePage` in a
-  /// file whose annotation it could not read.
+  /// for a class the analyzer inferred, an audit that found no `@RoutePage` in
+  /// a file whose annotation it could not read.
   ///
   /// Only what this run actually parsed: a sweep that pre-filters on text
   /// ([unitIf]) never parses a file it rejected, and a file nothing read is a
   /// file nothing claimed anything about.
   List<File> get recovered => [
     for (final entry in _units.entries)
-      if (entry.value.hasErrors) File(entry.key),
+      if (entry.value.hasErrors) File(entry.value.path),
   ]..sort((a, b) => a.path.compareTo(b.path));
 
   /// Dart files under [dir].
   ///
-  /// Generated output is excluded by default: it is nobody's decision, and it is
-  /// the bulk of what a recursive listing returns. The carcass check is the one
-  /// caller that wants it — what a removed substate left behind is exactly the
-  /// generated file nothing regenerates.
+  /// Generated output is excluded by default: it is nobody's decision, and it
+  /// is the bulk of what a recursive listing returns. The carcass check is the
+  /// one caller that wants it — what a removed substate left behind is exactly
+  /// the generated file nothing regenerates.
   List<File> filesUnder(
     Directory dir, {
     bool recursive = true,
@@ -160,8 +185,14 @@ class SourceIndex {
         'f${recursive ? 'r' : ''}${includeGenerated ? 'g' : ''}:'
         '${p.canonicalize(dir.path)}';
     return _listing(dir, key, recursive, (e) {
-      if (e is! File || !e.path.endsWith('.dart')) return false;
-      if (e.path.contains('.dart_tool')) return false;
+      if (e is! File || !e.path.endsWith('.dart')) {
+        return false;
+      }
+
+      if (e.path.contains('.dart_tool')) {
+        return false;
+      }
+
       return includeGenerated || !FrxWorkspace.isGenerated(e.path);
     }).cast<File>();
   }
@@ -182,10 +213,14 @@ class SourceIndex {
     bool Function(FileSystemEntity) keep,
   ) {
     final cached = _listings[key];
-    if (cached != null) return cached;
+    if (cached != null) {
+      return cached;
+    }
     // A directory that is not there is not cached: `docs/flows/` is opt-in, and
     // a run that creates it must see it.
-    if (!dir.existsSync()) return const [];
+    if (!dir.existsSync()) {
+      return const [];
+    }
     // Sorted: a listing feeds node order in `frx graph` and section order in
     // the docs export, and `listSync` promises no order at all — so the same
     // tree produced a different file on a different filesystem.
@@ -205,19 +240,28 @@ class SourceIndex {
     final source = file.readAsStringSync();
     final cached = _units[key];
     if (cached != null && cached.source == source) {
-      if (!parse || cached.unit != null) return cached;
+      if (!parse || cached.unit != null) {
+        return cached;
+      }
     }
-    if (!parse) return _units[key] = _Entry(source: source);
+
+    if (!parse) {
+      return _units[key] = _Entry(path: file.path, source: source);
+    }
 
     final parsed = parseString(content: source, throwIfDiagnostics: false);
     _parseCounts.update(key, (n) => n + 1, ifAbsent: () => 1);
     return _units[key] = _Entry(
+      path: file.path,
       source: source,
       unit: parsed.unit,
       hasErrors: parsed.errors.isNotEmpty,
     );
   }
 }
+
+/// A file's text and the tree parsed from exactly that text.
+typedef Snapshot = ({String source, CompilationUnit unit});
 
 const _zoneKey = #frxSourceIndex;
 
@@ -226,8 +270,8 @@ const _zoneKey = #frxSourceIndex;
 /// Held in a zone rather than a mutable global, for the reason `console` gives
 /// for the same choice: `dart test` runs a suite's cases on one isolate, so a
 /// global is shared state between them. A process-global was tried and is the
-/// wrong shape twice over — a listing is a snapshot of a directory, and `frx
-/// batch` writes between intents.
+/// wrong shape twice over — a listing is a snapshot of a directory, and
+/// `frx batch` writes between intents.
 ///
 /// Outside a scope every lookup gets a fresh index and therefore no caching.
 /// That is the safe default: a caller that has not said how long its snapshot
@@ -248,7 +292,17 @@ R inSourceIndex<R>(R Function() body) => Zone.current[_zoneKey] != null
     : withSourceIndex(SourceIndex(), body);
 
 class _Entry {
-  _Entry({required this.source, this.unit, this.hasErrors = false});
+  _Entry({
+    required this.path,
+    required this.source,
+    this.unit,
+    this.hasErrors = false,
+  });
+
+  /// The path the file was asked for by, not the canonical key it is filed
+  /// under: what is reported reads as the caller wrote it, where the key on
+  /// Windows is the same path in lower case.
+  final String path;
 
   final String source;
 

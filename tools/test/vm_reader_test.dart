@@ -6,7 +6,7 @@ import 'package:tools/src/ast/vm_reader.dart';
 /// showing, and `props` decides whether the model tells the truth in `==`.
 void main() {
   ViewModel read(String source, String className) {
-    final vm = VmReader.readClass(source, className);
+    final vm = readViewModelClass(source, className);
     expect(vm, isNotNull, reason: 'expected to find $className');
     return vm!;
   }
@@ -217,21 +217,21 @@ class Card extends StatelessWidget {
   final CardVm vm;
 }
 ''';
-    expect(VmReader.readClass(file, 'CardVm'), isNotNull);
-    expect(VmReader.read(file).map((v) => v.className), contains('CardVm'));
+    expect(readViewModelClass(file, 'CardVm'), isNotNull);
+    expect(readViewModels(file).map((v) => v.className), contains('CardVm'));
   });
 
   test('a class with no generative constructor is skipped', () {
-    const freezed = '''
-abstract class LogInState with _\$LogInState {
+    const freezed = r'''
+abstract class LogInState with _$LogInState {
   const factory LogInState({String? email}) = _LogInState;
 }
 ''';
-    expect(VmReader.readClass(freezed, 'LogInState'), isNull);
+    expect(readViewModelClass(freezed, 'LogInState'), isNull);
   });
 
   test('an absent class reads as null, not as an error', () {
-    expect(VmReader.readClass(card, 'NoSuchVm'), isNull);
+    expect(readViewModelClass(card, 'NoSuchVm'), isNull);
   });
 
   test('a class with a no-argument constructor is not a view-model', () {
@@ -248,7 +248,7 @@ class Sentinel {
   const Sentinel();
 }
 ''';
-    expect(VmReader.read(markers), isEmpty);
+    expect(readViewModels(markers), isEmpty);
   });
 
   test('generic fields keep their type argument', () {

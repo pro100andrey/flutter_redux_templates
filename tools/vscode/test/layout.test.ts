@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import { anchorSlots, countCrossings, orderColumns } from '../src/layout';
+import { countCrossings, nesting, orderColumns } from '../src/layout';
 import type { LayoutEdge } from '../src/layout';
 
 /// Ordering the picture's two columns.
@@ -11,12 +11,6 @@ import type { LayoutEdge } from '../src/layout';
 /// is why it is a pure function rather than a step inside the renderer.
 
 const e = (from: string, to: string): LayoutEdge => ({ from, to });
-
-/** A row lookup over two ordered columns, as `picture()` builds one. */
-const rowsOf = (actors: string[], state: string[]) => {
-  const rows = new Map([...actors, ...state].map((id, i) => [id, i]));
-  return (id: string) => rows.get(id) ?? Number.POSITIVE_INFINITY;
-};
 
 test('countCrossings: two edges that swap order cross', () => {
   // a1→s2 and a2→s1, drawn between two ordered columns, must cross exactly once.
@@ -263,58 +257,72 @@ test('the live monorepo shape: 44 crossings become a handful', () => {
   // would trade them away. That narrower guarantee has its own case above.
 });
 
-test('anchors: edges leaving one node get a slot each, ordered by where they land', () => {
-  // Every line used to start at the same point, a fixed offset from a node's top,
-  // so two relations leaving one row were one stroke until they had drifted far
-  // enough apart to tell. The slot is what spreads them along the row's edge; the
-  // order is by the row they reach, so the fan does not cross itself.
-  const edges = [e('a1', 's3'), e('a1', 's1'), e('a1', 's2')];
-  const anchors = anchorSlots(edges, rowsOf(['a1'], ['s1', 's2', 's3']));
+// --- nesting: a built row follows its builder ---------------------------------
 
-  assert.deepStrictEqual(
-    anchors.map((a) => [a.from.slot, a.from.of]),
-    [[2, 3], [0, 3], [1, 3]],
-    'a1 fans three ways, ordered s1 · s2 · s3',
-  );
-  assert.deepStrictEqual(
-    anchors.map((a) => [a.to.slot, a.to.of]),
-    [[0, 1], [0, 1], [0, 1]],
-    'each substate receives exactly one',
-  );
-});
-
-test('anchors: a node with one edge keeps the middle', () => {
-  const anchors = anchorSlots([e('a1', 's1')], rowsOf(['a1'], ['s1']));
-  assert.deepStrictEqual(anchors, [
-    { from: { slot: 0, of: 1 }, to: { slot: 0, of: 1 } },
-  ]);
-});
-
-test('anchors: two edges between the same pair still get separate slots', () => {
-  // A property of the function, not of the picture: `picture()` merges relations
-  // between one pair into a single line, so it no longer asks this — but a caller
-  // that does must not get one anchor twice.
-  const anchors = anchorSlots([e('a1', 's1'), e('a1', 's1')], rowsOf(['a1'], ['s1']));
-  assert.notDeepStrictEqual(anchors[0].from.slot, anchors[1].from.slot);
-  assert.strictEqual(anchors[0].from.of, 2);
-});
-
-test('anchors: ends off the picture still get distinct slots', () => {
-  // Two of them: both rows are `Infinity`, and a comparator that subtracts them
-  // sees `NaN` — which leaves the order to the engine and can hand two edges the
-  // same slot.
-  const anchors = anchorSlots(
-    [e('a1', 'gone'), e('a1', 'alsoGone'), e('a1', 's1')],
-    rowsOf(['a1'], ['s1']),
-  );
-  assert.deepStrictEqual(
-    anchors.map((a) => a.from.slot).sort(),
-    [0, 1, 2],
-    'three relations leave a1, each on its own anchor',
-  );
+test('orderColumns: a built row follows its builder, wherever the builder goes', () => {
+  // `a1` builds `r`; `r` reads `s2`, `a2` reads `s1`. Alphabetical order puts
+  // `a1 a2 r` against `s1 s2` — one crossing. Free ordering would fix it by
+  // moving `r` alone; nested, `r` may only move with `a1`.
+  const builtBy = new Map([['r', 'a1']]);
+  const ordered = orderColumns(['a1', 'a2', 'r'], ['s1', 's2'], [e('r', 's2'), e('a2', 's1')], builtBy);
+  assert.strictEqual(ordered.crossings, 0);
   assert.strictEqual(
-    anchors[2].from.slot,
-    0,
-    'the one that lands on the picture attaches highest',
+    ordered.actors.indexOf('r'),
+    ordered.actors.indexOf('a1') + 1,
+    'the built row is directly under its builder',
+  );
+});
+
+test('orderColumns: a builder is placed by the barycenter of its whole subtree', () => {
+  // The builder itself has no edge across. Its key must come from what it
+  // builds, or the block would sink to the end as edgeless and drag `r` with it.
+  const builtBy = new Map([['r', 'page']]);
+  const ordered = orderColumns(
+    ['idle', 'page', 'r', 'other'],
+    ['s1', 's2'],
+    [e('r', 's1'), e('other', 's2')],
+    builtBy,
+  );
+  assert.deepStrictEqual(ordered.actors, ['page', 'r', 'other', 'idle']);
+  assert.strictEqual(ordered.crossings, 0);
+});
+
+test('orderColumns: siblings are ordered among themselves', () => {
+  const builtBy = new Map([['r1', 'page'], ['r2', 'page']]);
+  const ordered = orderColumns(
+    ['page', 'r1', 'r2'],
+    ['s1', 's2'],
+    [e('r1', 's2'), e('r2', 's1')],
+    builtBy,
+  );
+  assert.strictEqual(ordered.crossings, 0);
+  assert.strictEqual(ordered.actors[0], 'page');
+});
+
+test('orderColumns: a builder outside the column is no builder', () => {
+  const ordered = orderColumns(['a'], ['s'], [e('a', 's')], new Map([['a', 'ghost']]));
+  assert.deepStrictEqual(ordered.actors, ['a']);
+});
+
+test('orderColumns: a build cycle is cut, and every row survives it', () => {
+  // `a` is built by `b`, `b` by `c`, `c` by `a`. The first row met is cut loose
+  // and heads the block; what is left is a chain, `a` builds `c` builds `b`.
+  const builtBy = new Map([['a', 'b'], ['b', 'c'], ['c', 'a']]);
+  const ordered = orderColumns(['a', 'b', 'c'], ['s'], [e('b', 's')], builtBy);
+  assert.deepStrictEqual(ordered.actors, ['a', 'c', 'b']);
+  assert.deepStrictEqual(
+    [...nesting(['a', 'b', 'c'], builtBy)],
+    [['b', 'c'], ['c', 'a']],
+    'and the nesting says the same, so the picture can drop the same lines',
+  );
+});
+
+test('orderColumns: with nothing nested, the map changes nothing', () => {
+  const actors = ['a1', 'a2', 'a3'];
+  const state = ['s1', 's2', 's3'];
+  const edges = [e('a1', 's3'), e('a2', 's2'), e('a3', 's1')];
+  assert.deepStrictEqual(
+    orderColumns(actors, state, edges, new Map()),
+    orderColumns(actors, state, edges),
   );
 });

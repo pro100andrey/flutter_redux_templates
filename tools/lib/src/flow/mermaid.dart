@@ -10,10 +10,11 @@ String renderSequence(PageFlow flow) {
   final b = StringBuffer();
   final ids = _ParticipantIds(flow);
 
-  b.writeln('sequenceDiagram');
-  b.writeln('    autonumber');
-  b.writeln('    actor User');
-  b.writeln('    participant UI as ${_esc(flow.pageClass)}');
+  b
+    ..writeln('sequenceDiagram')
+    ..writeln('    autonumber')
+    ..writeln('    actor User')
+    ..writeln('    participant UI as ${_esc(flow.pageClass)}');
   // One lane per connector that actually holds a view-model. A page connected
   // in one place has exactly the one it always had; a page composed of regions
   // gets a lane each, which is the difference between "this screen dispatches
@@ -21,17 +22,25 @@ String renderSequence(PageFlow flow) {
   for (final entry in ids.connectors.entries) {
     b.writeln('    participant ${entry.value} as ${_esc(entry.key)}');
   }
+
   for (final entry in ids.actions.entries) {
     b.writeln('    participant ${entry.value} as ${_esc(entry.key)}');
   }
-  if (ids.usesState) b.writeln('    participant ST as AppState');
-  if (ids.usesRouter) b.writeln('    participant NAV as Router');
+
+  if (ids.usesState) {
+    b.writeln('    participant ST as AppState');
+  }
+
+  if (ids.usesRouter) {
+    b.writeln('    participant NAV as Router');
+  }
 
   for (final useCase in flow.useCases) {
     final from = ids.laneOf(useCase);
-    b.writeln();
-    b.writeln('    User->>UI: ${_esc(useCase.qualifiedLabel)}');
-    b.writeln('    UI->>$from: ${_esc(useCase.name)}()');
+    b
+      ..writeln()
+      ..writeln('    User->>UI: ${_esc(useCase.qualifiedLabel)}')
+      ..writeln('    UI->>$from: ${_esc(useCase.name)}()');
     _writeSteps(b, useCase.steps, flow, ids, from: from, indent: '    ');
   }
 
@@ -41,9 +50,9 @@ String renderSequence(PageFlow flow) {
   // nothing to compare it against. `UI` is the note's anchor because it is the
   // one participant every diagram has.
   //
-  // "Not drawn" and not "not traced": the note states a fact about this picture,
-  // which is all it can know. Some of what it counts is a callback the reader
-  // could not follow, and some is a dispatch that was never a callback —
+  // "Not drawn" and not "not traced": the note states a fact about this
+  // picture, which is all it can know. Some of what it counts is a callback the
+  // reader could not follow, and some is a dispatch that was never a callback —
   // `onInit: (store) => store.dispatch(…)` fires on open and belongs to no
   // interaction. Both are missing from the diagram, which is what the reader
   // needs told; neither is evidence that tracing failed.
@@ -74,9 +83,14 @@ void _writeSteps(
     // Guarded dispatches become an `alt` block; consecutive steps under the
     // same condition share one block.
     if (step.condition != openAlt) {
-      if (openAlt != null) b.writeln('${indent}end');
+      if (openAlt != null) {
+        b.writeln('${indent}end');
+      }
+
       openAlt = step.condition;
-      if (openAlt != null) b.writeln('${indent}alt ${_esc(openAlt)}');
+      if (openAlt != null) {
+        b.writeln('${indent}alt ${_esc(openAlt)}');
+      }
     }
     final pad = openAlt == null ? indent : '$indent    ';
 
@@ -103,11 +117,14 @@ void _writeSteps(
     b.writeln('$pad$from->>$open$id: ${_esc(step.kind.name)}');
 
     final notes = _notesFor(action);
-    if (notes != null) b.writeln('${pad}Note over $id: ${_esc(notes)}');
+    if (notes != null) {
+      b.writeln('${pad}Note over $id: ${_esc(notes)}');
+    }
 
     if (action?.writesLabel case final w?) {
       b.writeln('$pad$id->>ST: copyWith(${_esc(w)})');
     }
+
     if (action?.throwsUserException ?? false) {
       // Propagates to the caller, where async_redux surfaces it as a dialog.
       b.writeln('$pad$id--x$from: UserException');
@@ -120,17 +137,23 @@ void _writeSteps(
         '${nestedId == null ? '(${_esc(nested.target)})' : ''}',
       );
     }
+
     if (step.kind.isRoundTrip) {
       b.writeln('$pad$id-->>-$from: ActionStatus');
     }
   }
 
-  if (openAlt != null) b.writeln('${indent}end');
+  if (openAlt != null) {
+    b.writeln('${indent}end');
+  }
 }
 
 /// The one-line note under an action: its mixins and whether it's async.
 String? _notesFor(ActionInfo? action) {
-  if (action == null) return null;
+  if (action == null) {
+    return null;
+  }
+
   final parts = <String>[...action.mixins, if (action.isAsync) 'async'];
   return parts.isEmpty ? null : parts.join(' · ');
 }
@@ -147,8 +170,11 @@ class _ParticipantIds {
     var lane = 0;
     for (final useCase in flow.useCases) {
       final owner = useCase.owner;
-      if (owner != null) connectors.putIfAbsent(owner, () => 'R${++lane}');
+      if (owner != null) {
+        connectors.putIfAbsent(owner, () => 'R${++lane}');
+      }
     }
+
     if (connectors.length > 1 && !flow.useCases.any((u) => u.owner == null)) {
       // The frame holds no view-model of its own — the composition case. Its
       // lane would be an empty column captioned with the one class in the
@@ -163,14 +189,19 @@ class _ParticipantIds {
           usesRouter = true;
           continue;
         }
-        if (!flow.actions.containsKey(step.target)) continue;
-        actions.putIfAbsent(step.target, () => 'A${++n}');
+
         final action = flow.actions[step.target];
+        if (action == null) {
+          continue;
+        }
+
+        actions.putIfAbsent(step.target, () => 'A${++n}');
         // `writes.isNotEmpty`, not `writesLabel != null`: the label is a
         // rendering of the writes, and joining every one of them into a string
         // to compare it against null is the shape this was all changed to stop.
-        if (action?.writes.isNotEmpty ?? false) usesState = true;
-        if (action?.dispatches.isNotEmpty ?? false) usesState = true;
+        if (action.writes.isNotEmpty || action.dispatches.isNotEmpty) {
+          usesState = true;
+        }
       }
     }
   }
@@ -181,8 +212,8 @@ class _ParticipantIds {
   /// Connector class → lane id, in the order the regions are reached.
   final Map<String, String> connectors = {};
   final Map<String, String> actions = {};
-  bool usesState = false;
-  bool usesRouter = false;
+  var usesState = false;
+  var usesRouter = false;
 
   /// The lane [useCase] is dispatched from.
   String laneOf(UseCase useCase) =>
@@ -222,19 +253,14 @@ String renderRouteMap(RouteMap map) {
   // by name, and the reader had both halves. Read once — the getter is O(n),
   // and asking it per page was the O(n^2) this used to do.
   final childIndex = map.children;
-  final childOf = {
-    for (final entry in childIndex.entries)
-      for (final page in entry.value) page: entry.key,
-  };
+  final nested = {for (final kids in childIndex.values) ...kids};
   final byPage = {for (final n in map.pages) n.page: n};
   final childrenOf = {
     for (final entry in childIndex.entries)
       entry.key: [
-        for (final page in entry.value)
-          if (byPage[page] case final node?) node,
+        for (final page in entry.value) ?byPage[page],
       ],
   };
-  final tops = map.pages.where((n) => !childOf.containsKey(n.page)).toList();
 
   void writeGroup(PageNode n, String indent) {
     final kids = childrenOf[n.page];
@@ -242,21 +268,31 @@ String renderRouteMap(RouteMap map) {
       b.writeln('$indent${_flowNode(n)}');
       return;
     }
-    b.writeln(
-      '${indent}subgraph frxTabs_${_flowId(n.page)}'
-      '["${_escFlow(n.pageClass)} · tabs"]',
-    );
-    b.writeln('$indent    ${_flowNode(n)}');
+
+    b
+      ..writeln(
+        '${indent}subgraph frxTabs_${_flowId(n.page)}'
+        '["${_escFlow(n.pageClass)} · tabs"]',
+      )
+      ..writeln('$indent    ${_flowNode(n)}');
     for (final kid in kids) {
       b.writeln('$indent    ${_flowNode(kid)}');
     }
+
     b.writeln('${indent}end');
   }
 
   // Public screens grouped, so the auth boundary is a visible region rather
-  // than a property you have to look up per node.
-  final public = tops.where((n) => n.public).toList();
-  final rest = tops.where((n) => !n.public).toList();
+  // than a property you have to look up per node. Only the top-level screens
+  // are placed; a nested one is drawn inside its shell's group.
+  final public = <PageNode>[];
+  final rest = <PageNode>[];
+  for (final n in map.pages) {
+    if (!nested.contains(n.page)) {
+      (n.public ? public : rest).add(n);
+    }
+  }
+
   if (public.isNotEmpty && rest.isNotEmpty) {
     b.writeln('    subgraph frxPublic["reachable logged out"]');
     for (final n in public) {
@@ -266,13 +302,19 @@ String renderRouteMap(RouteMap map) {
   } else {
     rest.insertAll(0, public);
   }
+
   for (final n in rest) {
     writeGroup(n, '    ');
   }
 
-  if (popsOut) b.writeln('    frxBack(["◀ back"])');
+  if (popsOut) {
+    b.writeln('    frxBack(["◀ back"])');
+  }
 
-  if (map.edges.isNotEmpty) b.writeln();
+  if (map.edges.isNotEmpty) {
+    b.writeln();
+  }
+
   for (final e in map.edges) {
     final target = e.to != null
         ? _flowId(e.to!)
@@ -280,7 +322,10 @@ String renderRouteMap(RouteMap map) {
         ? 'frxBack'
         : null;
     // A push to a route with no page of its own has nothing to point at.
-    if (target == null) continue;
+    if (target == null) {
+      continue;
+    }
+
     b.writeln(
       '    ${_flowId(e.from)} ${_arrow(e.kind)}|"${_escFlow(_edgeLabel(e))}"| '
       '$target',
@@ -304,9 +349,9 @@ String renderRouteMap(RouteMap map) {
 /// `push` is a solid hop, `pop` a dashed return, anything else (`replace`,
 /// `pushAndRemoveUntil`) a thick arrow — it drops what came before.
 String _arrow(NavKind kind) => switch (kind) {
-  NavKind.push => '-->',
-  NavKind.pop => '-.->',
-  NavKind.other => '==>',
+  .push => '-->',
+  .pop => '-.->',
+  .other => '==>',
 };
 
 String _flowNode(PageNode n) {
@@ -323,8 +368,14 @@ String _flowNode(PageNode n) {
 /// dispatched from a reducer rather than the view-model.
 String _edgeLabel(NavEdge e) {
   final parts = StringBuffer(e.fromAction ? '⚡ ${e.via}' : e.via);
-  if (e.method != 'push' && e.method != 'pop') parts.write(' (${e.method})');
-  if (e.condition != null) parts.write(' [${e.condition}]');
+  if (e.method != 'push' && e.method != 'pop') {
+    parts.write(' (${e.method})');
+  }
+
+  if (e.condition != null) {
+    parts.write(' [${e.condition}]');
+  }
+
   return parts.toString();
 }
 
@@ -350,4 +401,6 @@ String _flowId(String page) => _flowKeywords.contains(page) ? '${page}_' : page;
 /// condition like `a || b` would otherwise close the label mid-word.
 String _escFlow(String s) => _esc(
   s.replaceAll('||', ' or ').replaceAll('|', '/').replaceAll('"', "'"),
-).replaceAll(RegExp(r'\s+'), ' ');
+).replaceAll(_whitespace, ' ');
+
+final _whitespace = RegExp(r'\s+');

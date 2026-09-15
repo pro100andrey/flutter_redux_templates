@@ -9,6 +9,7 @@ import 'package:tools/src/command_runner.dart';
 import 'package:tools/src/commands/writing_command.dart';
 import 'package:tools/src/engine/build_step.dart';
 import 'package:tools/src/engine/changeset.dart';
+import 'package:tools/src/refusal.dart';
 import 'package:tools/src/util/console.dart';
 import 'package:tools/src/workspace/frx_workspace.dart';
 
@@ -18,8 +19,8 @@ import 'support/in_process.dart';
 /// "A command that writes files" as a module rather than a convention.
 ///
 /// Exercised through a command built on it, not in isolation: the thing worth
-/// pinning is what a *command* gets for free — the flags it did not declare, the
-/// tail it did not write, and the batch seam it does not know about.
+/// pinning is what a *command* gets for free — the flags it did not declare,
+/// the tail it did not write, and the batch seam it does not know about.
 void main() {
   late Fixture fx;
   setUp(() => fx = Fixture.create());
@@ -80,7 +81,8 @@ void main() {
       () async {
         File(p.join(fx.root.path, 'probe.txt')).writeAsStringSync('mine\n');
         final res = await run(_Probe(), []);
-        // 70 is the contract the editor reads: `scaffold.ts` retries with --force.
+        // 70 is the contract the editor reads: `scaffold.ts` retries with
+        // --force.
         expect(res.exitCode, 70);
         expect(res.stderr, contains('already exists'));
         expect(
@@ -138,10 +140,10 @@ void main() {
       expect(File(p.join(fx.root.path, 'probe.txt')).existsSync(), isFalse);
     });
 
-    test('a refusal is reachable without running the command', () async {
+    test('a refusal is reachable without running the command', () {
       expect(
         () => _Refuses().planFor(FrxWorkspace(fx.root), _noArgs),
-        throwsA(isA<StateError>()),
+        throwsA(isA<FrxRefusal>()),
       );
     });
   });
@@ -181,20 +183,23 @@ void main() {
       transaction.rollback();
     });
 
-    test('the report goes to the transaction, for the batch to merge', () async {
-      // Narration is silenced by the batch's own `withConsole`, not here; what
-      // the base owes the transaction is the per-intent report it merges into
-      // one.
-      final transaction = WriteTransaction();
-      await withTransaction(transaction, () => run(_Probe(), ['--json']));
-      expect(transaction.reports, hasLength(1));
-      transaction.rollback();
-    });
+    test(
+      'the report goes to the transaction, for the batch to merge',
+      () async {
+        // Narration is silenced by the batch's own `withConsole`, not here;
+        // what the base owes the transaction is the per-intent report it merges
+        // into one.
+        final transaction = WriteTransaction();
+        await withTransaction(transaction, () => run(_Probe(), ['--json']));
+        expect(transaction.reports, hasLength(1));
+        transaction.rollback();
+      },
+    );
   });
 }
 
 /// Empty results, for the tests that read a plan rather than run a command.
-final _noArgs = ArgParser().parse(const []);
+final ArgResults _noArgs = ArgParser().parse(const []);
 
 /// A command that writes one file, so the base's tail has something to carry.
 class _Probe extends WritingCommand {

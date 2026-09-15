@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:tools/src/refusal.dart';
 import 'package:tools/src/workspace/frx_workspace.dart';
 
 /// Finding the project when it is not the repository.
@@ -44,15 +45,16 @@ void main() {
 
   test('walking up still wins from inside the project', () {
     project('.');
-    Directory(p.join(tmp.path, 'business/lib/redux'))
-      ..createSync(recursive: true);
+    Directory(
+      p.join(tmp.path, 'business/lib/redux'),
+    ).createSync(recursive: true);
     expect(locate('business/lib/redux').path, tmp.path);
   });
 
   test('a project one level down is found from the outer root', () {
     repo();
     project('apps/tm_console');
-    expect(locate('.').path, p.join(tmp.path, 'apps/tm_console'));
+    expect(locate('.').path, p.join(tmp.path, 'apps', 'tm_console'));
   });
 
   test('two projects below are refused, and both are named', () {
@@ -62,10 +64,14 @@ void main() {
     expect(
       () => locate('.'),
       throwsA(
-        isA<StateError>().having(
+        isA<FrxRefusal>().having(
           (e) => e.message,
           'message',
-          allOf(contains('apps/one'), contains('apps/two'), contains('--root')),
+          allOf(
+            contains(p.join('apps', 'one')),
+            contains(p.join('apps', 'two')),
+            contains('--root'),
+          ),
         ),
       ),
     );
@@ -74,7 +80,7 @@ void main() {
   test('naming one of two resolves it', () {
     project('apps/one');
     project('apps/two');
-    expect(locate('apps/two').path, p.join(tmp.path, 'apps/two'));
+    expect(locate('apps/two').path, p.join(tmp.path, 'apps', 'two'));
   });
 
   test('a project is not descended into', () {
@@ -83,7 +89,7 @@ void main() {
     repo();
     project('apps/tm_console');
     project('apps/tm_console/example');
-    expect(locate('.').path, p.join(tmp.path, 'apps/tm_console'));
+    expect(locate('.').path, p.join(tmp.path, 'apps', 'tm_console'));
   });
 
   test('nothing anywhere keeps the caller’s own message', () {
@@ -93,7 +99,7 @@ void main() {
     expect(
       () => locate('empty'),
       throwsA(
-        isA<StateError>().having(
+        isA<FrxRefusal>().having(
           (e) => e.message,
           'message',
           contains('nothing at'),
@@ -107,7 +113,7 @@ void main() {
     // cannot hold a project of ours. Finding one there would also be wrong.
     repo();
     project('build/generated/app');
-    expect(() => locate('.'), throwsA(isA<StateError>()));
+    expect(() => locate('.'), throwsA(isA<FrxRefusal>()));
   });
 
   test('a directory that is not a repo is not searched at all', () {
@@ -117,21 +123,22 @@ void main() {
     // only have been unpacked somewhere that looks like a checkout, so that is
     // the test — and it is two `existsSync` calls, not a walk.
     project('apps/tm_console');
-    // No pubspec.yaml and no .git at the origin: nothing here says "repository".
-    expect(() => locate('.'), throwsA(isA<StateError>()));
+    // No pubspec.yaml and no .git at the origin: nothing here says
+    // "repository".
+    expect(() => locate('.'), throwsA(isA<FrxRefusal>()));
   });
 
   test('a pubspec at the origin is enough to look', () {
     repo();
     project('apps/tm_console');
-    expect(locate('.').path, p.join(tmp.path, 'apps/tm_console'));
+    expect(locate('.').path, p.join(tmp.path, 'apps', 'tm_console'));
   });
 
   test('a .git at the origin is enough to look', () {
     // `bloom` has both; a checkout that vendors no root pubspec has only this.
     Directory(p.join(tmp.path, '.git')).createSync();
     project('apps/tm_console');
-    expect(locate('.').path, p.join(tmp.path, 'apps/tm_console'));
+    expect(locate('.').path, p.join(tmp.path, 'apps', 'tm_console'));
   });
 
   test('the search stops before it becomes a full-disk walk', () {
@@ -139,6 +146,6 @@ void main() {
     // than the case it serves, so this is a known edge, not a mystery.
     repo();
     project('a/b/c/d');
-    expect(() => locate('.'), throwsA(isA<StateError>()));
+    expect(() => locate('.'), throwsA(isA<FrxRefusal>()));
   });
 }

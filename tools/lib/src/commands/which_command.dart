@@ -4,8 +4,8 @@ import 'package:args/command_runner.dart';
 
 import '../model/naming_convention.dart';
 import '../model/target_resolver.dart';
-import 'options.dart';
 import '../util/console.dart';
+import 'options.dart';
 
 /// Resolves an identifier (a generated class, route, field or folder name) back
 /// to the frx artifact it belongs to — the authoritative token → artifact map.
@@ -25,6 +25,8 @@ class WhichCommand extends Command<int> {
             'Emit JSON ({kind, name, suffix, prefix}) instead of a line. '
             'kind is null when the identifier is not a wired artifact.',
       )
+      // No flag for the exit code: a miss exits 1 in both modes (see
+      // [exitNoMatch]), and the JSON is still printed on it.
       ..addOption('root', help: kRootHelp);
   }
 
@@ -33,7 +35,17 @@ class WhichCommand extends Command<int> {
 
   @override
   String get description =>
-      'Resolve an identifier (class/route/field) to its frx artifact.';
+      'Resolve an identifier (class/route/field) to its frx artifact. '
+      'Exits 1 when nothing wired answers to it.';
+
+  /// Nothing is wired under that name.
+  ///
+  /// `grep`'s convention, and `upgrade --check`'s: 1 is "no", not "broken".
+  /// It used to be 0 with a sentence, which read as success to anything that
+  /// does not parse English — an agent gating a rename on `frx which`, a
+  /// script's `&&`. A refusal (70) is wrong the other way: the question was
+  /// answerable, and the answer was no.
+  static const exitNoMatch = 1;
 
   @override
   String get invocation => 'frx which <identifier>';
@@ -64,12 +76,12 @@ class WhichCommand extends Command<int> {
                 },
         ),
       );
-      return 0;
+      return match == null ? exitNoMatch : 0;
     }
 
     if (match == null) {
       console.out.writeln('"$token" is not a wired frx substate or page.');
-      return 0;
+      return exitNoMatch;
     }
     final via = match.suffix != null
         ? ' (from the ${match.suffix} suffix)'

@@ -8,6 +8,9 @@
 /// entries rather than as edges that silently do not exist.
 library;
 
+import '../flow/flow_model.dart' show PageFlow;
+import '../flow/route_map.dart' show RouteMap;
+
 /// What an artifact is. The node id is `<kind>:<name>`, and for artifacts that
 /// belong to a substate the name is qualified with it — `SetEmailAction` alone
 /// is not an identifier, this repo has three of them.
@@ -185,9 +188,9 @@ class Unresolved {
   /// The node whose reading hit the gap — `page:logIn`, `selector:logIn.email`.
   ///
   /// What makes a gap attributable, and therefore what lets [AppGraph.focusOn]
-  /// keep only the ones belonging to the subgraph it returns. [at] cannot do it:
-  /// it is a display string, and across the readers it has been a file path, a
-  /// node id and a route class name.
+  /// keep only the ones belonging to the subgraph it returns. [at] cannot do
+  /// it: it is a display string, and across the readers it has been a file
+  /// path, a node id and a route class name.
   final String owner;
 
   /// The file to go read. No line number: the parse-only readers do not carry
@@ -278,7 +281,9 @@ class AppGraph {
 
   GraphNode? node(String id) {
     for (final n in nodes) {
-      if (n.id == id) return n;
+      if (n.id == id) {
+        return n;
+      }
     }
     return null;
   }
@@ -349,7 +354,7 @@ class AppGraph {
     };
     final usedBy = <String, Set<String>>{};
     for (final e in edges) {
-      if (e.kind == EdgeKind.uses) {
+      if (e.kind == .uses) {
         usedBy.putIfAbsent(e.to, () => {}).add(e.from);
       }
     }
@@ -361,17 +366,23 @@ class AppGraph {
       for (final entry in usedBy.entries)
         if (entry.value.any((from) => !selectors.contains(from))) entry.key,
     };
+
     for (var pass = 0; pass < selectors.length; pass++) {
       final before = live.length;
       for (final entry in usedBy.entries) {
-        if (entry.value.any(live.contains)) live.add(entry.key);
+        if (entry.value.any(live.contains)) {
+          live.add(entry.key);
+        }
       }
-      if (live.length == before) break;
+
+      if (live.length == before) {
+        break;
+      }
     }
 
     return [
       for (final n in nodes)
-        if (n.kind == NodeKind.selector && !live.contains(n.id))
+        if (n.kind == .selector && !live.contains(n.id))
           (
             node: n,
             why: usedBy.containsKey(n.id)
@@ -387,8 +398,8 @@ class AppGraph {
   ///
   /// [depth] null follows the edges until the set closes. Unbounded is the
   /// sensible default for an impact question and terminates for the same reason
-  /// a bounded one does: the node set is finite and each pass either grows it or
-  /// stops.
+  /// a bounded one does: the node set is finite and each pass either grows it
+  /// or stops.
   AppGraph focusOn(
     String id, {
     int? depth = 1,
@@ -431,9 +442,9 @@ class AppGraph {
         for (final e in edges)
           if (reached.contains(e.from) && reached.contains(e.to)) e,
       ],
-      // Scoped to the subgraph. Kept whole, a gap belonging to an unrelated page
-      // was reported against whatever you focused, which misattributes it — and
-      // the one thing this list exists to do is say where the answer is
+      // Scoped to the subgraph. Kept whole, a gap belonging to an unrelated
+      // page was reported against whatever you focused, which misattributes it
+      // — and the one thing this list exists to do is say where the answer is
       // incomplete.
       unresolved: [
         for (final u in unresolved)

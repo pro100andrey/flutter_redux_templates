@@ -72,8 +72,9 @@ void main() {
     });
 
     test('a comment reference carries its generated-code prefix too', () {
-      // `\\b` is what put `_LogInState` and `_\$LogInState` on different footings
-      // in the first place; a comment should not be where that accident lives on.
+      // `\\b` is what put `_LogInState` and `_\$LogInState` on different
+      // footings in the first place; a comment should not be where that
+      // accident lives on.
       expect(
         rename(
           '/// [LogInState], [_LogInState] and [_\$LogInState].\nclass X {}\n',
@@ -181,7 +182,8 @@ void main() {
     });
 
     test('a directive URI is not also read as one of them', () {
-      // Two rules over one literal would splice it twice at overlapping offsets.
+      // Two rules over one literal would splice it twice at overlapping
+      // offsets.
       expect(
         rename(
           "import 'log_in/x.dart';\n",

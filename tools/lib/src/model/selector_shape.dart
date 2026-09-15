@@ -10,26 +10,28 @@
 ///   the half that actually puts the getters on the facade — was reported by
 ///   nothing. The rule went silent in exactly the case it exists for.
 /// - The graph reader matched a composite only as `on Select` or `on Selector`
-///   exactly, so `extension … on SelectLogIn` was invisible and the selectors it
-///   read counted as read by nobody — a false "nothing reads it" in the
+///   exactly, so `extension … on SelectLogIn` was invisible and the selectors
+///   it read counted as read by nobody — a false "nothing reads it" in the
 ///   dead-selector list, which is the direction that invites deleting working
 ///   code.
 ///
-/// **Recognition is wider than generation.** [declare] writes the one shape frx
-/// makes; [of] accepts several, including the ones a project scaffolded before
-/// the spine collapsed still contains (`implements Selector`, an `extension type
-/// Select`). The declaration this architecture most needs to notice is the one a
-/// human wrote by hand and got subtly wrong, and a recognizer that only sees
-/// what the generator writes today cannot report either a bad one or an old
-/// one.
+/// **Recognition is wider than generation.** `declare` writes the one shape frx
+/// makes; `of` accepts several, including the ones a project scaffolded before
+/// the spine collapsed still contains (`implements Selector`, an
+/// `extension type Select`). The declaration this architecture most needs to
+/// notice is the one a human wrote by hand and got subtly wrong, and a
+/// recognizer that only sees what the generator writes today cannot report
+/// either a bad one or an old one.
 ///
 /// This module is the *primitive*: it owns the facade's vocabulary and the test
 /// for belonging to it. [SubstateArtifact] keeps the substate-shaped questions
-/// and asks here for the naming, so `Select` is spelled in one place rather than
-/// in each module that happens to need it.
+/// and asks here for the naming, so `Select` is spelled in one place rather
+/// than in each module that happens to need it.
 library;
 
 import 'package:analyzer/dart/ast/ast.dart';
+
+import 'substate_artifact.dart' show SubstateArtifact;
 
 /// One selector declaration, read off the parse tree.
 class SelectorDecl {
@@ -55,11 +57,12 @@ class SelectorDecl {
   /// `extension type Select…`, whatever it extends for an `extension … on`.
   ///
   /// This is what decides how a getter is *called*, which is not what it is
-  /// *declared* on: a getter added by `extension X on SelectLogIn` is reached as
-  /// `select.logIn.<getter>`, not as `select.<getter>`, however `X` is named.
+  /// *declared* on: a getter added by `extension X on SelectLogIn` is reached
+  /// as `select.logIn.<getter>`, not as `select.<getter>`, however `X` is
+  /// named.
   final String owner;
 
-  /// The declaration's members, empty when it has no block body.
+  /// The declaration's members, empty when it has none.
   final List<ClassMember> members;
 
   /// Whether these getters land on the facade's own spine rather than on a
@@ -104,37 +107,44 @@ abstract final class SelectorShape {
   ///
   /// Deliberately syntactic, and deliberately generous: it keys on the name and
   /// on what an extension extends, never on what a type *is*. The placement
-  /// rules already state the bar a rule has to clear — its syntactic form cannot
-  /// be wrong in the common case — and inheritance defeats a syntactic reading,
-  /// which is why an `implements` clause is not required here.
+  /// rules already state the bar a rule has to clear — its syntactic form
+  /// cannot be wrong in the common case — and inheritance defeats a syntactic
+  /// reading, which is why an `implements` clause is not required here.
   ///
   /// **The `Selectors` mixin declaration itself is not handled, and that is not
   /// an omission.** It carries only the spine — one `SelectX get <field>` per
   /// substate — which is a hop onto a substate's selectors, not a selector.
   /// `addSelector`, the only thing that writes a computed getter, targets a
-  /// `Select<Pascal>` extension type. A composite written as `extension … on
-  /// Selectors` *is* handled, by the [ExtensionDeclaration] branch, and lands on
-  /// the spine exactly as it did when it was written `on Select`.
+  /// `Select<Pascal>` extension type. A composite written as
+  /// `extension … on Selectors` *is* handled, by the [ExtensionDeclaration]
+  /// branch, and lands on the spine exactly as it did when it was written
+  /// `on Select`.
   static SelectorDecl? of(AstNode node) {
     if (node is ExtensionTypeDeclaration) {
       final name = node.namePart.typeName.lexeme;
-      if (!isSelectorType(name)) return null;
+      if (!isSelectorType(name)) {
+        return null;
+      }
       return SelectorDecl(
         name: name,
         owner: name,
-        members: _membersOf(node.body),
+        members: node.body.members,
         declaresOwner: true,
       );
     }
     if (node is ExtensionDeclaration) {
       final on = node.onClause?.extendedType;
-      if (on is! NamedType) return null;
+      if (on is! NamedType) {
+        return null;
+      }
       final owner = on.name.lexeme;
-      if (!isSelectorType(owner)) return null;
+      if (!isSelectorType(owner)) {
+        return null;
+      }
       return SelectorDecl(
         name: node.name?.lexeme,
         owner: owner,
-        members: _membersOf(node.body),
+        members: node.body.members,
         declaresOwner: false,
       );
     }
@@ -157,11 +167,13 @@ abstract final class SelectorShape {
   /// Whether [type] names a selector type at all.
   ///
   /// The prefix alone is not the test: `Selectable` starts with `Select` and is
-  /// an ordinary Dart name. What is required is that the rest start a new word —
-  /// or that the name be the spine itself, which carries no word after the
+  /// an ordinary Dart name. What is required is that the rest start a new word
+  /// — or that the name be the spine itself, which carries no word after the
   /// prefix at all.
   static bool isSelectorType(String type) {
-    if (isFacadeSpine(type)) return true;
+    if (isFacadeSpine(type)) {
+      return true;
+    }
     if (!type.startsWith(facadeType) || type.length == facadeType.length) {
       return false;
     }
@@ -180,7 +192,4 @@ abstract final class SelectorShape {
   /// subtype of something with no other purpose.
   static String declare({required String type, required String body}) =>
       'extension type $type(AppState _state) {\n$body}\n';
-
-  static List<ClassMember> _membersOf(AstNode? body) =>
-      body is BlockClassBody ? body.members : const <ClassMember>[];
 }

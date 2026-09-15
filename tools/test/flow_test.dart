@@ -1,11 +1,11 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
 import 'package:tools/src/flow/flow_model.dart';
 import 'package:tools/src/flow/flow_reader.dart';
 import 'package:tools/src/flow/mermaid.dart';
 import 'package:tools/src/workspace/frx_workspace.dart';
-import 'package:path/path.dart' as p;
-import 'package:test/test.dart';
 
 /// A minimal workspace holding one realistic connector + the action it reaches.
 ({Directory root, File connector}) _workspace() {
@@ -96,7 +96,8 @@ PageFlow _read() {
 
 /// A page connector that holds no view-model at all, handing each slot to a
 /// region connector — the shape a screen takes once its view-model has been
-/// split. `frame` builds two regions; one of them takes a third as its own slot.
+/// split. `frame` builds two regions; one of them takes a third as its own
+/// slot.
 ({Directory root, File connector}) _composed() {
   final root = Directory.systemTemp.createTempSync('frx_regions_');
   addTearDown(() => root.deleteSync(recursive: true));
@@ -527,7 +528,7 @@ void main() {
       );
     });
 
-    test('reads the actions through each region\'s own imports', () {
+    test("reads the actions through each region's own imports", () {
       final flow = _readComposed();
       expect(
         flow.actions.keys,
@@ -636,7 +637,8 @@ void main() {
         isEmpty,
         reason:
             'a plain local, a destructuring `final (pair, _)`, an `if-case` '
-            'variable, a `switch` arm variable, a `session.userName` read and a '
+            'variable, a `switch` arm variable, a `session.userName` read and '
+            'a '
             '`refresh` parameter each collide with a dispatching method, and '
             'none of the six is a call to it',
       );
@@ -650,10 +652,10 @@ void main() {
 
     test('one helper answering for two fields still leaves gaps visible', () {
       // The accounting subtracted a tally of attributions from a tally of call
-      // sites. `_open()` is one site answering for two fields, so the two totals
-      // cancelled and the report concluded nothing was missing — while `BAction`,
-      // held in a field, was genuinely undrawn. A silence produced *by* the thing
-      // built to break silence.
+      // sites. `_open()` is one site answering for two fields, so the two
+      // totals cancelled and the report concluded nothing was missing — while
+      // `BAction`, held in a field, was genuinely undrawn. A silence produced
+      // *by* the thing built to break silence.
       final flow = _readShared();
 
       expect(
@@ -769,7 +771,7 @@ void main() {
 
     test('from the reducer', () {
       expect(
-        dispatchesOf(r"""
+        dispatchesOf('''
 class SomeAction extends Action {
   @override
   AppState reduce() {
@@ -777,7 +779,7 @@ class SomeAction extends Action {
     return state;
   }
 }
-"""),
+'''),
         ['NextAction'],
       );
     });
@@ -788,7 +790,7 @@ class SomeAction extends Action {
       // method a mixin requires the action to override was reported by `graph`
       // as one nothing reaches, on the list you read as safe to delete.
       expect(
-        dispatchesOf(r"""
+        dispatchesOf('''
 class SomeAction extends Action {
   @override
   AppState reduce() => state;
@@ -796,7 +798,7 @@ class SomeAction extends Action {
   @override
   void after() => dispatch(SweepAction());
 }
-"""),
+'''),
         ['SweepAction'],
       );
     });
@@ -808,7 +810,7 @@ class SomeAction extends Action {
       // is why it survived every other test — and on a real project it
       // accounted for two of the reported orphans on its own.
       expect(
-        dispatchesOf(r"""
+        dispatchesOf('''
 class SomeAction extends Action {
   @override
   Future<AppState?> reduce() async {
@@ -821,7 +823,7 @@ class _SomethingStarted extends Action {
   @override
   AppState reduce() => state;
 }
-"""),
+'''),
         ['StampAction'],
       );
     });
@@ -841,14 +843,14 @@ class _SomethingStarted extends Action {
         ..writeAsStringSync('// router\n');
       final file = File(p.join(root.path, 'app/lib/connectors/c.dart'))
         ..parent.createSync(recursive: true)
-        ..writeAsStringSync(r"""
+        ..writeAsStringSync('''
 class CConnector extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Button(
     onEscape: () => StoreProvider.dispatch<AppState>(context, EscapeAction()),
   );
 }
-""");
+''');
       final read = FlowReader(
         FrxWorkspace.locate(startDir: root.path),
       ).readDispatches(file);

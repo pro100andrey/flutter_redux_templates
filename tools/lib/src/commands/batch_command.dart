@@ -5,30 +5,27 @@ import 'package:args/command_runner.dart';
 
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
-import '../engine/write_report.dart';
 import '../engine/write_path.dart';
-import '../workspace/frx_workspace.dart';
-import 'options.dart';
+import '../engine/write_report.dart';
+import '../refusal.dart';
 import '../util/console.dart';
+import '../workspace/frx_workspace.dart';
+import 'batch_declaration.dart';
+import 'options.dart';
 
 /// A feature's worth of artifacts, declared once and wired in **one
 /// transaction**.
 ///
-/// Building a feature meant several invocations — two substates, three pages, the
-/// navigation between them — each its own unit, each potentially running codegen.
-/// Atomicity changed what that is worth: a batch is not merely fewer keystrokes,
-/// it is **one rollback boundary where eight calls are eight boundaries**, and a
-/// failure at the fifth call leaves the first four applied.
+/// Building a feature meant several invocations — two substates, three pages,
+/// the navigation between them — each its own unit, each potentially running
+/// codegen. Atomicity changed what that is worth: a batch is not merely fewer
+/// keystrokes, it is **one rollback boundary where eight calls are eight
+/// boundaries**, and a failure at the fifth call leaves the first four applied.
 ///
-/// **The input is a declaration of intents** — the commands you would have typed,
-/// as data. A file is reviewable, diffable and committable; standard input suits
-/// an agent generating one.
-///
-/// **It is deliberately not the changeset format.** A changeset describes file
-/// operations; a batch declares intents. Feeding a changeset back in would mean
-/// "apply exactly these file edits", bypassing the readers that derive them — and
-/// deriving the edits rather than being told them is where frx's value lives. The
-/// appealing symmetry of "plan out, plan in" was examined and withdrawn.
+/// **The input is a declaration of intents** — the commands you would have
+/// typed, as data; what one may say, and how it is read, is
+/// `batch_declaration.dart`. What is here is running them: one transaction,
+/// one report, one codegen per package.
 class BatchCommand extends Command<int> {
   BatchCommand() {
     argParser
@@ -68,17 +65,6 @@ class BatchCommand extends Command<int> {
   @override
   List<String> get aliases => ['bat'];
 
-  /// Flags that decide *when or whether* the batch writes. They belong to the
-  /// batch, so an intent carrying one is refused rather than quietly obeyed —
-  /// a per-intent `--dry-run` would mean the batch was partly a rehearsal.
-  static const _batchOwned = {
-    'dry-run',
-    'apply',
-    'json',
-    'build-runner',
-    'format',
-  };
-
   @override
   Future<int> run() async {
     final results = argResults!;
@@ -99,9 +85,9 @@ class BatchCommand extends Command<int> {
       return 70;
     }
 
-    final List<_Intent> intents;
+    final List<Intent> intents;
     try {
-      intents = _parse(raw);
+      intents = parseBatchDeclaration(raw);
     } on FormatException catch (e) {
       // Reported before anything runs, so a malformed declaration cannot apply
       // part of itself.
@@ -116,20 +102,20 @@ class BatchCommand extends Command<int> {
     // One boundary for the whole batch.
     final transaction = WriteTransaction();
     _Failure? failure;
-    final done = <_Intent>[];
+    final done = <Intent>[];
 
-    // Each intent's own narration is swallowed: the batch reports the batch, and
-    // a `--json` consumer's stdout must carry one object. The captured output is
-    // what the failure report quotes.
+    // Each intent's own narration is swallowed: the batch reports the batch,
+    // and a `--json` consumer's stdout must carry one object. The captured
+    // output is what the failure report quotes.
     final captured = CapturedConsole();
     await withConsole(
       captured,
       () => withTransaction(transaction, () async {
         for (final intent in intents) {
-          // Every way an intent can refuse is caught here, because the batch owns
-          // the unwind: a `StateError` escaping to the runner's own handler would
-          // report the refusal and leave the transaction half applied, with
-          // nobody left to roll it back.
+          // Every way an intent can refuse is caught here, because the batch
+          // owns the unwind: a `FrxRefusal` escaping to the runner's own
+          // handler would report the refusal and leave the transaction half
+          // applied, with nobody left to roll it back.
           final int code;
           try {
             code =
@@ -138,7 +124,7 @@ class BatchCommand extends Command<int> {
           } on UsageException catch (e) {
             failure = _Failure(intent, 64, e.message);
             return;
-          } on StateError catch (e) {
+          } on FrxRefusal catch (e) {
             failure = _Failure(intent, 70, e.message);
             return;
           } on Object catch (e) {
@@ -174,8 +160,8 @@ class BatchCommand extends Command<int> {
     if (dryRun) {
       // The batch really was applied, and is now unwound. Planning each intent
       // against the untouched tree would be a different question: `add-nav`
-      // refuses a destination that is not registered, so intent five's plan does
-      // not exist until intents one to four have happened.
+      // refuses a destination that is not registered, so intent five's plan
+      // does not exist until intents one to four have happened.
       final planned = _plannedBuild(transaction);
       _reportRollback(transaction.rollback());
       console.out.writeln(
@@ -209,145 +195,6 @@ class BatchCommand extends Command<int> {
     return 0;
   }
 
-  /// The declaration, validated. Throws [FormatException] with what to fix.
-  ///
-  /// **Scope is the additive commands only** — every creation command, including
-  /// the field, selector and navigation commands, which are the ordering case and
-  /// cannot be excluded without removing the point. Rename and removal stay out: a
-  /// declaration file that deletes artifacts is a different class of risk, nothing
-  /// asked for it, and the asymmetry runs one way — widening later is additive,
-  /// narrowing after release is a break.
-  List<_Intent> _parse(String raw) {
-    final Object? decoded;
-    try {
-      decoded = jsonDecode(raw);
-    } on FormatException catch (e) {
-      throw FormatException('the declaration is not valid JSON: ${e.message}');
-    }
-    if (decoded is! Map<String, Object?>) {
-      throw const FormatException(
-        'the declaration must be an object with an "intents" list.',
-      );
-    }
-    final list = decoded['intents'];
-    if (list is! List) {
-      throw const FormatException('"intents" must be a list.');
-    }
-    if (list.isEmpty) {
-      throw const FormatException('"intents" is empty — nothing to wire.');
-    }
-
-    final intents = <_Intent>[];
-    for (var i = 0; i < list.length; i++) {
-      final where = 'intent ${i + 1}';
-      final entry = list[i];
-      if (entry is! Map<String, Object?>) {
-        throw FormatException('$where must be an object.');
-      }
-      final command = entry['command'];
-      if (command is! String || command.isEmpty) {
-        throw FormatException('$where has no "command".');
-      }
-      _refuse(where, command);
-
-      final args = <String>[];
-      switch (entry['args']) {
-        case null:
-          break;
-        case final List raw:
-          for (final a in raw) {
-            if (a is! String) {
-              throw FormatException(
-                '$where: every "args" entry must be a string.',
-              );
-            }
-            args.add(a);
-          }
-        default:
-          throw FormatException('$where: "args" must be a list of strings.');
-      }
-
-      final options = <String>[];
-      switch (entry['options']) {
-        case null:
-          break;
-        case final Map<String, Object?> raw:
-          for (final option in raw.entries) {
-            options.addAll(_flag(where, option.key, option.value));
-          }
-        default:
-          throw FormatException('$where: "options" must be an object.');
-      }
-
-      final argv = [command, ...args, ...options];
-      // Checked over the whole argv, not over `options` alone: a flag spelled
-      // into `args` reaches the command just the same, and `--dry-run` smuggled
-      // in that way made an intent silently a rehearsal — the batch reported
-      // success and wrote nothing.
-      _refuseBatchFlags(where, argv);
-      intents.add(_Intent(argv));
-    }
-    return intents;
-  }
-
-  /// Refuses a command that is not a creation command, saying which it is.
-  void _refuse(String where, String command) {
-    const destructive = {
-      'rename': 'renaming moves files and rewrites references',
-      'remove': 'removal deletes artifacts',
-    };
-    if (destructive[command] case final why?) {
-      throw FormatException(
-        '$where: "$command" is not allowed in a batch — $why, and a declaration '
-        'file that does it is a different class of risk. Run it on its own.',
-      );
-    }
-    if (command == 'new') {
-      throw FormatException(
-        '$where: "new" is the interactive wizard; it prints the flag-driven '
-        'command it would run — declare that instead.',
-      );
-    }
-    if (!command.startsWith('add-')) {
-      throw FormatException(
-        '$where: "$command" is not a creation command. A batch wires artifacts; '
-        'reading and auditing commands are not part of one.',
-      );
-    }
-  }
-
-  /// Refuses an intent that carries a flag deciding *when or whether* the batch
-  /// writes, however it was spelled.
-  void _refuseBatchFlags(String where, List<String> argv) {
-    for (final arg in argv) {
-      if (!arg.startsWith('--')) continue;
-      // `--flag`, `--no-flag` and `--flag=value` all name the same flag.
-      final named = arg.substring(2).split('=').first;
-      final bare = named.startsWith('no-') ? named.substring(3) : named;
-      if (_batchOwned.contains(bare)) {
-        throw FormatException(
-          '$where: "$bare" belongs to the batch, not to an intent — pass it to '
-          '`frx batch` instead.',
-        );
-      }
-    }
-  }
-
-  /// One `options` entry as argv. A bool is a flag, a list is repeated.
-  List<String> _flag(String where, String key, Object? value) =>
-      switch (value) {
-        true => ['--$key'],
-        false => ['--no-$key'],
-        final String s => ['--$key', s],
-        final num n => ['--$key', '$n'],
-        final List<Object?> many => [
-          for (final v in many) ...['--$key', '$v'],
-        ],
-        _ => throw FormatException(
-          '$where: "$key" must be a string, a number, a boolean or a list.',
-        ),
-      };
-
   /// The build step as a planned result, so the two states are one shape.
   BuildReport? _plannedBuild(WriteTransaction transaction) {
     final step = _byPackage(transaction).values.firstOrNull;
@@ -370,7 +217,9 @@ class BatchCommand extends Command<int> {
     required bool report,
   }) async {
     final byPackage = _byPackage(transaction);
-    if (byPackage.isEmpty) return null;
+    if (byPackage.isEmpty) {
+      return null;
+    }
     final steps = byPackage.values.toList();
     // `ran` and `handedToWatch` are aggregated rather than taken from the first
     // package, because they are the load-bearing fields: reporting the first
@@ -403,7 +252,7 @@ class BatchCommand extends Command<int> {
   /// as `write`, including the overwrites, edits and moves that every
   /// single-command plan names properly. See [WriteReport.human].
   String _humanPlan(
-    List<_Intent> intents,
+    List<Intent> intents,
     WriteReport report,
     FrxWorkspace repo,
   ) {
@@ -424,26 +273,16 @@ class BatchCommand extends Command<int> {
   }
 }
 
-/// One declared intent, as the argv it becomes.
-class _Intent {
-  _Intent(this.argv);
-
-  final List<String> argv;
-
-  /// How the intent reads in a report — the command line it stands for.
-  String get description => argv.join(' ');
-}
-
 /// The intent that stopped the batch, and what it said.
 class _Failure {
   _Failure(this.intent, this.code, String captured)
     : reason = _lastLine(captured);
 
-  final _Intent intent;
+  final Intent intent;
   final int code;
 
-  /// What the intent said before it gave up — the last line of its stderr, which
-  /// is where every command's refusal lands.
+  /// What the intent said before it gave up — the last line of its stderr,
+  /// which is where every command's refusal lands.
   final String reason;
 
   static String _lastLine(String captured) {

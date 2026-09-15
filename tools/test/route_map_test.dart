@@ -275,9 +275,9 @@ void main() {
       'a parent route with no page of its own leaves the child top-level',
       () {
         // The shape the old renderer handled by returning null from its lookup:
-        // a `parent` naming a route frx could not pair with a page. Keeping that
-        // behaviour matters — the alternative is dropping the node entirely,
-        // which is the bug the public-shell fix was about.
+        // a `parent` naming a route frx could not pair with a page. Keeping
+        // that behaviour matters — the alternative is dropping the node
+        // entirely, which is the bug the public-shell fix was about.
         const map = RouteMap(
           pages: [
             PageNode(
@@ -323,7 +323,7 @@ void main() {
       final box = out.substring(out.indexOf('subgraph frxTabs_account'));
       expect(box.substring(0, box.indexOf('end')), contains('profile['));
       // And it appears once — inside the region, not also beside it.
-      expect(RegExp('profile\\[').allMatches(out).length, 1);
+      expect(RegExp(r'profile\[').allMatches(out).length, 1);
     });
 
     test('a public tab shell keeps its children', () {
@@ -389,8 +389,8 @@ void main() {
 
     test('a page named after mermaid syntax cannot break the diagram', () {
       final out = renderRouteMap(
-        RouteMap(
-          pages: const [
+        const RouteMap(
+          pages: [
             PageNode(page: 'end', routeType: 'EndRoute', pageClass: 'EndPage'),
             PageNode(
               page: 'home',
@@ -398,7 +398,7 @@ void main() {
               pageClass: 'HomePage',
             ),
           ],
-          edges: const [
+          edges: [
             NavEdge(from: 'home', to: 'end', method: 'push', via: 'onDone'),
           ],
         ),
@@ -409,12 +409,12 @@ void main() {
 
     test('a label cannot smuggle in an edge or statement delimiter', () {
       final out = renderRouteMap(
-        RouteMap(
-          pages: const [
+        const RouteMap(
+          pages: [
             PageNode(page: 'a', routeType: 'ARoute', pageClass: 'APage'),
             PageNode(page: 'b', routeType: 'BRoute', pageClass: 'BPage'),
           ],
-          edges: const [
+          edges: [
             NavEdge(
               from: 'a',
               to: 'b',
@@ -428,7 +428,7 @@ void main() {
       final edge = out.split('\n').firstWhere((l) => l.contains('-->'));
       expect('|'.allMatches(edge), hasLength(2), reason: 'exactly one label');
       expect(edge, isNot(contains('"y"')));
-      expect(edge, contains('x == \'y\' or z'));
+      expect(edge, contains("x == 'y' or z"));
     });
   });
 

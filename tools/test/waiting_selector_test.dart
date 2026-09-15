@@ -120,8 +120,9 @@ void main() {
   test('a substate outside the facade still gets its action', () async {
     // The action is what was asked for; refusing the whole command over the
     // half it volunteered would be the worse trade.
-    Directory(fx.path('business/lib/redux/stray/actions'))
-      ..createSync(recursive: true);
+    Directory(
+      fx.path('business/lib/redux/stray/actions'),
+    ).createSync(recursive: true);
     final r = await addAction(['save', '-s', 'stray', '-k', 'waiting']);
     expect(r.stderr, contains('SelectStray is not wired'));
     expect(
@@ -130,24 +131,36 @@ void main() {
     );
   });
 
-  test('the four selectors already in the live template are untouched', () {
-    // The work adds a default; it does not rewrite what is there. Read from the
-    // real monorepo, because that is where the four are.
+  test('the live template carries no per-slice isWaiting', () {
+    // It carried four, one per auth slice, and nothing read them: the modal
+    // barrier folds off `SelectComposites.isBusy`, and `frx graph` listed all
+    // four under "nothing reaches". They are gone, and CI gates the graph on
+    // that list — so this pins the other half: the scaffolder still writes one
+    // on `-k waiting` (the cases above), but the template does not ship any it
+    // does not read. Read from the real monorepo, because that is the file the
+    // claim is about.
     final live = File('../business/lib/redux/selectors.dart');
-    if (!live.existsSync()) return;
+    if (!live.existsSync()) {
+      return;
+    }
     final src = live.readAsStringSync();
     expect(
       RegExp(
         r'bool get isWaiting => _state\.wait\.isWaitingForType<\w+Action>\(\);',
-      ).allMatches(src).length,
-      4,
+      ).allMatches(src),
+      isEmpty,
+    );
+    expect(
+      src,
+      contains('bool get isBusy'),
+      reason: 'the fold that replaced them',
     );
   });
 
   test('a --json consumer hears about a skipped reader too', () async {
-    // The whole point of routing the note to stderr: an agent that only reads the
-    // changeset would otherwise see the action created and never learn that the
-    // reader it implies was left out.
+    // The whole point of routing the note to stderr: an agent that only reads
+    // the changeset would otherwise see the action created and never learn that
+    // the reader it implies was left out.
     await addAction(['save_profile', '-s', 'log_in', '-k', 'waiting']);
     final second = await runInProcess(fx, [
       'add-action',
@@ -183,9 +196,10 @@ void main() {
   });
 
   // A table substate waits the same way an action does. It used to arrive with
-  // a second spelling of the idea — an `X Waiting` enum, and a `Retrieve` action
-  // hand-writing the `before()`/`after()` pair that `WaitingAction` exists to
-  // provide — which nothing in the template itself used. One spelling.
+  // a second spelling of the idea — an `X Waiting` enum, and a `Retrieve`
+  // action hand-writing the `before()`/`after()` pair that `WaitingAction`
+  // exists to provide — which nothing in the template itself used. One
+  // spelling.
   group('a table substate waits the way the rest of the template does', () {
     setUp(() async {
       final r = await runInProcess(fx, [

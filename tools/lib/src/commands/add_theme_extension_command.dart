@@ -1,7 +1,7 @@
 import 'package:args/args.dart';
-import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
+import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
@@ -27,11 +27,12 @@ class AddThemeExtensionCommand extends WritingCommand {
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
     final name = requireName();
 
-    final file = p.join(repo.uiThemeExtensions.path, '${name.snake}.dart');
-
     return WritePlan(
       changes: Changeset([
-        WriteFile(file, ArtifactTemplates.themeExtension(name)),
+        WriteFile(
+          themeExtensionFile(repo, name),
+          ArtifactTemplates.themeExtension(name),
+        ),
       ]),
       header: 'ThemeExtension "${name.pascal}"',
     );

@@ -15,8 +15,8 @@ import '../util/casing.dart';
 /// frx remove     ArchiveTaskAction   →  looks for archive_task_action.dart
 /// ```
 ///
-/// `add` never stripped; `remove` always did. Same for `add-connector
-/// ToolbarConnector`, which wrote `ToolbarConnectorConnector`.
+/// `add` never stripped; `remove` always did. Same for
+/// `add-connector ToolbarConnector`, which wrote `ToolbarConnectorConnector`.
 ///
 /// The fix is to strip, not to stop stripping: the stem is what the templates
 /// want (`${stem.pascal}Action`) and what the directory layout is keyed on, so
@@ -49,8 +49,8 @@ class ArtifactName {
   /// `Sync`, from either `Sync` or `SyncService`.
   ///
   /// Missed the first time round, on the premise that `service` had "no suffix
-  /// rule left to get backwards". It has one — `add-service` writes `class
-  /// ${n.pascal}Service` — so `add-service SyncService` produced
+  /// rule left to get backwards". It has one — `add-service` writes
+  /// `class ${n.pascal}Service` — so `add-service SyncService` produced
   /// `SyncServiceService` in `services/sync_service/`, the identical defect
   /// that had just been fixed for actions and connectors.
   static Casing serviceStem(Casing name) => _stem(name, 'service');

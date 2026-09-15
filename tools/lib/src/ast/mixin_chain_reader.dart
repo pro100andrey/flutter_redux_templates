@@ -11,9 +11,9 @@
 /// `NonReentrant.after()` releases its lock and returns.
 ///
 /// Both readings are syntactic, which is the bound worth naming: frx parses
-/// without resolution, so a mixin here is the name as written. That is exact for
-/// the question asked — whether *this* source puts *this* name after that one —
-/// and blind to a mixin reached through an alias or an intermediate base.
+/// without resolution, so a mixin here is the name as written. That is exact
+/// for the question asked — whether *this* source puts *this* name after that
+/// one — and blind to a mixin reached through an alias or an intermediate base.
 library;
 
 import 'dart:io';
@@ -21,13 +21,22 @@ import 'dart:io';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 
+import 'declarations.dart';
 import 'source_index.dart';
 
 /// A class, the mixins it applies, and the hooks it overrides itself.
 class MixinApplication {
-  const MixinApplication(this.className, this.mixins, this.hooks);
+  const MixinApplication(
+    this.className,
+    this.mixins,
+    this.hooks, {
+    this.offset,
+  });
 
   final String className;
+
+  /// Where the class name sits, for a finding to anchor on.
+  final int? offset;
 
   /// Bare mixin names in written order — `Retry<AppState>` reads as `Retry`,
   /// because the chain is about which mixin, not how it is parameterised.
@@ -54,13 +63,16 @@ class MixinApplication {
 
 /// One `before()`/`after()` override, on a mixin or on a class.
 class HookOverride {
-  const HookOverride(this.name, {required this.chainsSuper});
+  const HookOverride(this.name, {required this.chainsSuper, this.offset});
 
   /// `before` or `after`.
   final String name;
 
-  /// Whether the body calls `super.<name>()` anywhere — including `await
-  /// super.before()` and an `=> super.after()` arrow body.
+  /// Where the hook's name sits, for a finding to anchor on.
+  final int? offset;
+
+  /// Whether the body calls `super.<name>()` anywhere — including
+  /// `await super.before()` and an `=> super.after()` arrow body.
   final bool chainsSuper;
 }
 
@@ -82,76 +94,74 @@ class DeclaredMixin {
       hooks.any((h) => h.name == 'after' && !h.chainsSuper);
 }
 
-abstract final class MixinChainReader {
-  /// Every mixin [file] declares with an `on` clause.
-  ///
-  /// For `list-mixins`, whose catalogue is async_redux's and therefore does not
-  /// contain `WaitingAction` — the one mixin in this architecture that has to
-  /// go last, named nowhere in the command whose job is to say what may be
-  /// combined with what.
-  static List<DeclaredMixin> declaredIn(File file) => [
-    for (final d in sourceIndex.unitFor(file).declarations)
-      if (d is MixinDeclaration && d.onClause != null)
-        DeclaredMixin(
-          d.name.lexeme,
-          d.onClause!.superclassConstraints.map((t) => t.toSource()).join(', '),
-          _hooksIn(d.body.members),
-        ),
-  ];
+/// Every mixin [file] declares with an `on` clause.
+///
+/// For `list-mixins`, whose catalogue is async_redux's and therefore does not
+/// contain `WaitingAction` — the one mixin in this architecture that has to
+/// go last, named nowhere in the command whose job is to say what may be
+/// combined with what.
+List<DeclaredMixin> declaredMixinsIn(File file) => [
+  for (final d in sourceIndex.unitFor(file).declarations)
+    if (d is MixinDeclaration && d.onClause != null)
+      DeclaredMixin(
+        d.name.lexeme,
+        d.onClause!.superclassConstraints.map((t) => t.toSource()).join(', '),
+        _hookOverridesIn(d.body.members),
+      ),
+];
 
-  /// Every class in [file] that applies at least one mixin.
-  ///
-  /// Only those: a class with no `with` clause has no chain to end, because
-  /// `ReduxAction.before()` and `after()` are empty.
-  static List<MixinApplication> applicationsIn(File file) => [
-    for (final c in sourceIndex.unitFor(file).declarations)
-      if (c is ClassDeclaration && c.withClause != null)
-        MixinApplication(c.namePart.typeName.lexeme, [
+/// Every class in [file] that applies at least one mixin.
+///
+/// Only those: a class with no `with` clause has no chain to end, because
+/// `ReduxAction.before()` and `after()` are empty.
+List<MixinApplication> mixinApplicationsIn(File file) => [
+  for (final c in sourceIndex.unitFor(file).declarations)
+    if (c is ClassDeclaration && c.withClause != null)
+      MixinApplication(
+        c.namePart.typeName.lexeme,
+        [
           for (final m in c.withClause!.mixinTypes)
             m.toSource().split('<').first.trim(),
-        ], _hooksIn(c.body.members)),
-  ];
+        ],
+        _hookOverridesIn(c.body.members),
+        offset: c.namePart.typeName.offset,
+      ),
+];
 
-  /// The lifecycle hooks the mixin called [name] in [file] overrides, or an
-  /// empty list when the file declares no such mixin.
-  ///
-  /// Only `before` and `after`: they are the two async_redux calls once per
-  /// action with no return value to thread, which is what makes a missing
-  /// `super` invisible rather than a type error.
-  static List<HookOverride> hooksOf(File file, String name) {
-    for (final d in sourceIndex.unitFor(file).declarations) {
-      if (d is! MixinDeclaration) continue;
-      // `name`/`body.members`, not the `namePart` spelling `declarations.dart`
-      // uses for a class: analyzer 14 gives a mixin a plain name token.
-      if (d.name.lexeme != name) continue;
-      return _hooksIn(d.body.members);
-    }
-    return const [];
-  }
-
-  /// The `before()`/`after()` declarations among [members], with whether each
-  /// passes the chain on.
-  static List<HookOverride> _hooksIn(Iterable<ClassMember> members) => [
-    for (final member in members)
-      if (member is MethodDeclaration &&
-          const {'before', 'after'}.contains(member.name.lexeme))
-        HookOverride(
-          member.name.lexeme,
-          // A visitor, not a `contains('super.after(')` over the source: a
-          // comment explaining why the call is *missing* would otherwise read
-          // as the call being present, which is the one direction of error
-          // that hides the bug.
-          chainsSuper: _CallsSuper(member.name.lexeme).found(member.body),
-        ),
-  ];
+/// The lifecycle hooks the mixin called [name] in [file] overrides, or an
+/// empty list when the file declares no such mixin.
+///
+/// Only `before` and `after`: they are the two async_redux calls once per
+/// action with no return value to thread, which is what makes a missing
+/// `super` invisible rather than a type error.
+List<HookOverride> hookOverridesOf(File file, String name) {
+  final mixin = mixinNamed(sourceIndex.unitFor(file), name);
+  return mixin == null ? const [] : _hookOverridesIn(mixin.body.members);
 }
+
+/// The `before()`/`after()` declarations among [members], with whether each
+/// passes the chain on.
+List<HookOverride> _hookOverridesIn(Iterable<ClassMember> members) => [
+  for (final member in members)
+    if (member is MethodDeclaration &&
+        const {'before', 'after'}.contains(member.name.lexeme))
+      HookOverride(
+        member.name.lexeme,
+        // A visitor, not a `contains('super.after(')` over the source: a
+        // comment explaining why the call is *missing* would otherwise read
+        // as the call being present, which is the one direction of error
+        // that hides the bug.
+        chainsSuper: _CallsSuper(member.name.lexeme).found(member.body),
+        offset: member.name.offset,
+      ),
+];
 
 /// Whether a body contains `super.<name>(…)`.
 class _CallsSuper extends RecursiveAstVisitor<void> {
   _CallsSuper(this.name);
 
   final String name;
-  bool _found = false;
+  var _found = false;
 
   bool found(FunctionBody body) {
     body.accept(this);

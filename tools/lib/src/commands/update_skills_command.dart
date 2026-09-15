@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:args/args.dart';
-import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
 import '../skills/skill_gen.dart';
@@ -49,26 +46,23 @@ class UpdateSkillsCommand extends WritingCommand {
 
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    final skillsDir = Directory(p.join(repo.root.path, '.claude', 'skills'));
-    final owned = SkillGen.ownedIn(skillsDir);
-    // Rendered once and handed on: the header wants the count and the plan
-    // wants the content, and they are the same render.
-    final generated = SkillGen.generate();
-    final changes = Changeset(
-      SkillGen.changesIn(repo.root, generated: generated),
-    );
-    final skills = changes.changes
-        .where((c) => c.path.endsWith('SKILL.md'))
-        .length;
-    final removed = changes.changes.whereType<DeleteDirectory>().length;
+    final owned = SkillGen.ownedIn(repo.claudeSkills);
+    // One `SkillGen`, so the tree is rendered once: the plan wants its
+    // content and the header wants its count, and they are the same render.
+    final gen = SkillGen();
+    final changes = Changeset(gen.changesIn(repo));
+    // `Changeset.changes` hands out a copy; one is enough for two counts.
+    final planned = changes.changes;
+    final skills = planned.where((c) => c.path.endsWith('SKILL.md')).length;
+    final removed = planned.whereType<DeleteDirectory>().length;
 
     return WritePlan(
       changes: changes,
-      // `SkillGen.directories().length`, not another `generate()`: the header
+      // `gen.directories().length`, not another `generate()`: the header
       // wants a count, and rendering thirty documents a third time to take
       // `.length` of them is the sort of thing this repository measures.
       header:
-          'Skills — ${SkillGen.directories().length} for frx '
+          'Skills — ${gen.directories().length} for frx '
           '${SkillGen.version}',
       narrate: () {
         if (changes.isEmpty) {

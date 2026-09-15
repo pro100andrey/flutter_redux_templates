@@ -31,7 +31,7 @@ void main() {
   group('list-substates', () {
     test('--json names every wired substate with its file', () async {
       final out = await json(['list-substates', '--json']);
-      final rows = (out['substates'] as List).cast<Map<String, Object?>>();
+      final rows = (out['substates']! as List).cast<Map<String, Object?>>();
       expect(
         rows.map((r) => r['field']),
         containsAll(['connectivity', 'logIn']),
@@ -49,11 +49,11 @@ void main() {
       // The two renderings drifting apart is the failure worth pinning: the
       // table is what a human reads and the JSON is what the editor reads.
       final rows =
-          ((await json(['list-substates', '--json']))['substates'] as List)
+          ((await json(['list-substates', '--json']))['substates']! as List)
               .cast<Map<String, Object?>>();
       final table = await runInProcess(fx, ['list-substates']);
       for (final r in rows) {
-        expect(table.stdout, contains(r['field'] as String));
+        expect(table.stdout, contains(r['field']! as String));
       }
     });
   });
@@ -61,7 +61,7 @@ void main() {
   group('list-routes', () {
     test('--json names every registered route and its path', () async {
       final out = await json(['list-routes', '--json']);
-      final rows = (out['routes'] as List).cast<Map<String, Object?>>();
+      final rows = (out['routes']! as List).cast<Map<String, Object?>>();
       expect(rows.map((r) => r['route']), contains('LogInRoute'));
       expect(
         rows.firstWhere((r) => r['route'] == 'LogInRoute')['path'],
@@ -71,21 +71,22 @@ void main() {
   });
 
   group('list-widget-dirs', () {
-    test('--json reports an empty repo as no folders, not as a failure', () {
-      // The fixture has `ui/lib/widgets/.keep` and no .dart anywhere, which is
-      // deliberately the empty case: a folder with no widget in it is not an
-      // established home.
-      return expectLater(
+    // The fixture has `ui/lib/widgets/.keep` and no .dart anywhere, which is
+    // deliberately the empty case: a folder with no widget in it is not an
+    // established home.
+    test(
+      '--json reports an empty repo as no folders, not as a failure',
+      () => expectLater(
         json(['list-widget-dirs', '--json']).then((o) => o['dirs']),
         completion(isEmpty),
-      );
-    });
+      ),
+    );
   });
 
   group('list-mixins', () {
     test('--json carries the catalogue the editor filters on', () async {
       final out = await json(['list-mixins', '--json']);
-      final rows = (out['mixins'] as List).cast<Map<String, Object?>>();
+      final rows = (out['mixins']! as List).cast<Map<String, Object?>>();
       expect(rows, hasLength(greaterThan(5)));
       final retry = rows.firstWhere((m) => m['name'] == 'retry');
       expect(retry['clause'], 'Retry');
@@ -95,14 +96,16 @@ void main() {
       expect(retry['conflictsWith'], contains('debounce'));
     });
 
-    test('--json also carries the mixins the project itself declares', () async {
-      // The catalogue is async_redux's, so the one mixin in this architecture
-      // that *must* go last — the app's own `WaitingAction` — was absent from
-      // the command whose job is to say what combines with what. It reads the
-      // repo now, which is what `--root` had been accepted and ignored for.
-      fx.file('business/lib/redux/common/action.dart')
-        ..parent.createSync(recursive: true)
-        ..writeAsStringSync('''
+    test(
+      '--json also carries the mixins the project itself declares',
+      () async {
+        // The catalogue is async_redux's, so the one mixin in this architecture
+        // that *must* go last — the app's own `WaitingAction` — was absent from
+        // the command whose job is to say what combines with what. It reads the
+        // repo now, which is what `--root` had been accepted and ignored for.
+        fx.file('business/lib/redux/common/action.dart')
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync('''
 mixin WaitingAction on ReduxAction<AppState> {
   @override
   Future<void> before() async {
@@ -123,17 +126,19 @@ mixin MarksRowBusy on Action {
 }
 ''');
 
-      final out = await json(['list-mixins', '--json']);
-      final rows = (out['projectMixins'] as List).cast<Map<String, Object?>>();
-      final byName = {for (final m in rows) m['name']: m};
+        final out = await json(['list-mixins', '--json']);
+        final rows = (out['projectMixins']! as List)
+            .cast<Map<String, Object?>>();
+        final byName = {for (final m in rows) m['name']: m};
 
-      expect(byName.keys, containsAll(['WaitingAction', 'MarksRowBusy']));
-      expect(byName['WaitingAction']!['on'], 'ReduxAction<AppState>');
-      expect(byName['WaitingAction']!['swallowsAfter'], isFalse);
-      // The shape the whole mixin-order defect was: an `after()` that cleans up
-      // and returns, so anything mixed in before it never runs.
-      expect(byName['MarksRowBusy']!['swallowsAfter'], isTrue);
-    });
+        expect(byName.keys, containsAll(['WaitingAction', 'MarksRowBusy']));
+        expect(byName['WaitingAction']!['on'], 'ReduxAction<AppState>');
+        expect(byName['WaitingAction']!['swallowsAfter'], isFalse);
+        // The shape the whole mixin-order defect was: an `after()` that cleans
+        // up and returns, so anything mixed in before it never runs.
+        expect(byName['MarksRowBusy']!['swallowsAfter'], isTrue);
+      },
+    );
 
     test('a root with no project still answers about async_redux', () async {
       // It reads the repo now, so "reads nothing from disk" is no longer the
@@ -152,15 +157,15 @@ mixin MarksRowBusy on Action {
   group('graph', () {
     test('--json joins substates, actions and pages into one graph', () async {
       final out = await json(['graph', '--json']);
-      final nodes = (out['nodes'] as List).cast<Map<String, Object?>>();
+      final nodes = (out['nodes']! as List).cast<Map<String, Object?>>();
       final kinds = nodes.map((n) => n['kind']).toSet();
       expect(kinds, contains('substate'));
       expect(kinds, contains('page'));
-      expect(out['edges'], isA<List>());
+      expect(out['edges'], isA<List<Object?>>());
       // Every edge points at a node that exists — the property a consumer
       // relies on and nothing checked.
       final ids = nodes.map((n) => n['id']).toSet();
-      for (final e in (out['edges'] as List).cast<Map<String, Object?>>()) {
+      for (final e in (out['edges']! as List).cast<Map<String, Object?>>()) {
         expect(ids, contains(e['from']), reason: 'dangling from: $e');
         expect(ids, contains(e['to']), reason: 'dangling to: $e');
       }
@@ -180,8 +185,9 @@ mixin MarksRowBusy on Action {
     );
 
     test('--focus takes a symbol, not only a node id', () async {
-      // Through the same resolver `frx which` and the editor's F2 use — a second
-      // implementation of "what does LogInRoute mean" is how conventions fork.
+      // Through the same resolver `frx which` and the editor's F2 use — a
+      // second implementation of "what does LogInRoute mean" is how conventions
+      // fork.
       for (final token in ['page:logIn', 'LogInRoute', 'LogInPageConnector']) {
         final out = await json(['graph', '--json', '--focus', token]);
         expect(
@@ -274,16 +280,22 @@ mixin MarksRowBusy on Action {
       expect(out['suffix'], 'PageConnector');
     });
 
-    test('a name nothing wires is kind:null and exit 0, not a failure', () async {
-      // Not an oversight — the editor depends on it. `queries.which` reads
-      // `m && m.kind ? m : null`, and its `_json` helper turns a non-zero exit
-      // into null before that runs. Exiting non-zero here would make "I looked
-      // and it is not an artifact" indistinguishable from "frx broke", and F2
-      // rename would fall back to Dart-Code either way — silently.
-      final r = await runInProcess(fx, ['which', 'NoSuchThing', '--json']);
-      expect(r.exitCode, 0);
-      expect(jsonDecode(r.stdout), {'kind': null});
-    });
+    test(
+      'a name nothing wires is kind:null and exit 1 — a no, not a failure',
+      () async {
+        // `grep`'s convention: 1 is "looked, and no", 70 stays "could not
+        // look" (no project under --root). It exited 0 with the same JSON,
+        // which read as success to a shell's `&&` and to an agent gating a
+        // rename on it. The editor is unaffected: `queries.which` passes
+        // `ignoreCode` to its `_json` helper and reads the JSON, and it
+        // returned null for `kind: null` before as well — so "not an
+        // artifact" and "frx broke" both already fell back to Dart-Code's F2;
+        // the exit code now tells the two apart for everyone else.
+        final r = await runInProcess(fx, ['which', 'NoSuchThing', '--json']);
+        expect(r.exitCode, 1);
+        expect(jsonDecode(r.stdout), {'kind': null});
+      },
+    );
   });
 
   group('add-tabs', () {
@@ -352,8 +364,8 @@ mixin MarksRowBusy on Action {
       () async {
         // The check that makes the scaffold compile: auto_route generates no
         // route class for an unregistered page, so there is nothing to push.
-        // Ordered after the connector check, which is why this needs a connector
-        // on disk to reach it at all.
+        // Ordered after the connector check, which is why this needs a
+        // connector on disk to reach it at all.
         File(fx.path('app/lib/connectors/stray_page_connector.dart'))
           ..parent.createSync(recursive: true)
           ..writeAsStringSync('@RoutePage()\nclass StrayPageConnector {}\n');
@@ -391,7 +403,7 @@ mixin MarksRowBusy on Action {
         'profile',
         '--no-format',
       ]);
-      expect(first.exitCode, 0, reason: first.stderr.toString());
+      expect(first.exitCode, 0, reason: first.stderr);
       expect(first.stdout, contains('ProfileRoute'));
       // Five edits across two packages: the view-model field, the dispatch that
       // fills it, the argument handed to the page, and the page's own parameter
@@ -410,7 +422,7 @@ mixin MarksRowBusy on Action {
         'profile',
         '--no-format',
       ]);
-      expect(again.exitCode, 0, reason: again.stderr.toString());
+      expect(again.exitCode, 0, reason: again.stderr);
       expect(again.stdout, contains('already has `onTapProfile`'));
       expect(
         connector.readAsStringSync(),
@@ -535,7 +547,7 @@ mixin MarksRowBusy on Action {
           '--force',
           '--no-format',
         ]);
-        expect(forced.exitCode, 0, reason: forced.stderr.toString());
+        expect(forced.exitCode, 0, reason: forced.stderr);
         // The folder is replaced, not merged: the value kind's setter must not
         // survive into a table-kind substate.
         expect(
@@ -555,7 +567,7 @@ mixin MarksRowBusy on Action {
           'cart',
           '--dry-run',
         ]);
-        expect(planned.exitCode, 0, reason: planned.stderr.toString());
+        expect(planned.exitCode, 0, reason: planned.stderr);
         expect(planned.stdout, contains('overwrite'));
       },
     );

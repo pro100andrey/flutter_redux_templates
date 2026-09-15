@@ -25,12 +25,12 @@ enum Unsearchable {
 /// What makes [bytes] unsearchable and where, or null when nothing does.
 ///
 /// The offset is a byte index, not a line: the point of the report is to be
-/// actionable on a file no editor will show you the problem in, and `xxd -s
-/// <offset>` is the tool that works there.
+/// actionable on a file no editor will show you the problem in, and
+/// `xxd -s <offset>` is the tool that works there.
 ///
 /// **Why this rule and not "any control byte".** Only these two cause the
-/// skipping. A stray `0x01` is untidy, but `grep` still reads the file and still
-/// finds what is in it, so reporting it would be this module claiming a
+/// skipping. A stray `0x01` is untidy, but `grep` still reads the file and
+/// still finds what is in it, so reporting it would be this module claiming a
 /// consequence it cannot demonstrate.
 ({Unsearchable kind, int offset})? unsearchableIn(List<int> bytes) {
   // NUL first, over the *whole* array. Folding this into the ASCII scan below
@@ -39,7 +39,9 @@ enum Unsearchable {
   // would decode cleanly and be reported as fine, which is the failure this
   // whole module exists to stop.
   final nul = bytes.indexOf(0);
-  if (nul >= 0) return (kind: Unsearchable.nulByte, offset: nul);
+  if (nul >= 0) {
+    return (kind: Unsearchable.nulByte, offset: nul);
+  }
 
   // Pure ASCII is valid UTF-8 by definition, and nearly every source in a Dart
   // project is — so the decode below, which allocates a whole String only to
@@ -47,7 +49,9 @@ enum Unsearchable {
   // debounced editor event; a full decode per file, on top of the one
   // `SourceIndex` already does, is not free.
   for (final byte in bytes) {
-    if (byte >= 0x80) return _decodeFrom(bytes);
+    if (byte >= 0x80) {
+      return _decodeFrom(bytes);
+    }
   }
   return null;
 }
@@ -74,8 +78,9 @@ enum Unsearchable {
 String describeUnsearchable(Unsearchable kind, int offset) => switch (kind) {
   Unsearchable.nulByte =>
     'holds a NUL byte at offset $offset, which makes the whole file binary to '
-        'grep, git grep and ripgrep — they skip it, so nothing declared here is '
-        'findable. Write it as an escape (`\\u0000`), or key on something that '
+        'grep, git grep and ripgrep — they skip it, so nothing declared here '
+        'is '
+        r'findable. Write it as an escape (`\u0000`), or key on something that '
         'needs no separator.',
   Unsearchable.notUtf8 =>
     'is not valid UTF-8 (first bad byte at offset $offset), so search tools '

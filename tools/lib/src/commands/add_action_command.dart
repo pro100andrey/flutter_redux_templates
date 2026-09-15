@@ -1,18 +1,17 @@
-import 'dart:io';
-
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
 import '../engine/changeset.dart';
+import '../model/artifact_name.dart';
 import '../model/substate_artifact.dart';
 import '../redux/selectors_source.dart';
+import '../refusal.dart';
 import '../scaffold/artifact_templates.dart';
 import '../util/casing.dart';
 import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
-import '../model/artifact_name.dart';
 
 /// Scaffolds a `ReduxAction` into an existing substate's `actions/` folder.
 class AddActionCommand extends WritingCommand {
@@ -47,7 +46,8 @@ class AddActionCommand extends WritingCommand {
         allowed: ActionMixin.values.map((m) => m.name),
         help:
             'async_redux behaviour mixin (repeatable). Dependencies are added '
-            'automatically (noDialog → checkInternet, unlimitedRetries → retry).',
+            'automatically (noDialog → checkInternet, unlimitedRetries → '
+            'retry).',
         // Derived from the enum, so a mixin cannot be added without its
         // description showing up here — the hand-written copy this replaces had
         // drifted to eight of the ten.
@@ -61,7 +61,7 @@ class AddActionCommand extends WritingCommand {
         'selector',
         defaultsTo: true,
         help:
-            'For --kind waiting, also add the substate\'s `isWaiting` getter '
+            "For --kind waiting, also add the substate's `isWaiting` getter "
             'to its Select<Pascal> in selectors.dart.',
       );
   }
@@ -95,10 +95,12 @@ class AddActionCommand extends WritingCommand {
       usageException(e.message);
     }
 
-    final stateDir = Directory(p.join(repo.businessRedux.path, state.snake));
+    final artifact = SubstateArtifact(state);
+    final stateDir = artifact.dir(repo.businessRedux);
     if (!stateDir.existsSync()) {
       refuse(
-        'Substate "${state.snake}" not found under ${p.relative(repo.businessRedux.path)}.\n'
+        'Substate "${state.snake}" not found under '
+        '${p.relative(repo.businessRedux.path)}.\n'
         'Available: ${repo.substateDirs().join(', ')}',
       );
     }
@@ -119,12 +121,11 @@ class AddActionCommand extends WritingCommand {
       );
     }
 
-    final file = p.join(stateDir.path, 'actions', '${name.snake}_action.dart');
+    final file = artifact.actionFile(repo.businessRedux, name.snake).path;
 
     // Most mixins make before()/reduce() effectively async — a sync action
     // carrying one must not be dispatched via dispatchSync.
-    if (kind == ActionKind.sync &&
-        mixins.any((m) => m != ActionMixin.nonReentrant)) {
+    if (kind == .sync && mixins.any((m) => m != .nonReentrant)) {
       console.err.writeln(
         '⚠ These mixins do async work in before()/around reduce() — dispatch '
         'the action with dispatch()/dispatchAndWait(), not dispatchSync().',
@@ -135,7 +136,7 @@ class AddActionCommand extends WritingCommand {
         ? ''
         : ' + ${mixins.map((m) => m.clause).join(', ')}';
 
-    final waiting = kind == ActionKind.waiting && (results['selector'] as bool)
+    final waiting = kind == .waiting && (results['selector'] as bool)
         ? _waitingSelector(repo, state, name)
         : null;
 
@@ -155,7 +156,8 @@ class AddActionCommand extends WritingCommand {
           'Action (${kind.name}$mixinSuffix) '
           '"${name.pascal}Action → ${state.snake}"',
       narrate: () {
-        // The edit the plan is about to make; a skip has already gone to stderr.
+        // The edit the plan is about to make; a skip has already gone to
+        // stderr.
         if (waiting?.edit != null) {
           console.out
             ..writeln('${p.relative(repo.selectorsFile.path)}:')
@@ -171,16 +173,16 @@ class AddActionCommand extends WritingCommand {
   ///
   /// **Always named `isWaiting`, and never overwriting one that exists.** That
   /// matches the four already hand-written in this template, one per waiting
-  /// action. A second waiting action in the same substate is reported as a taken
-  /// name rather than disambiguated: naming the getter after the action would
-  /// make those four an exception to their own rule, and naming only the later
-  /// ones differently would make a selector's name depend on the order the
-  /// artifacts happened to be created in.
+  /// action. A second waiting action in the same substate is reported as a
+  /// taken name rather than disambiguated: naming the getter after the action
+  /// would make those four an exception to their own rule, and naming only the
+  /// later ones differently would make a selector's name depend on the order
+  /// the artifacts happened to be created in.
   ///
-  /// A substate whose selector block is absent (not wired, or no `selectors.dart`
-  /// at all) gets the action and a note. The action is what was asked for; making
-  /// the reader a precondition for it would refuse the whole command over the
-  /// half it volunteered.
+  /// A substate whose selector block is absent (not wired, or no
+  /// `selectors.dart` at all) gets the action and a note. The action is what
+  /// was asked for; making the reader a precondition for it would refuse the
+  /// whole command over the half it volunteered.
   _WaitingSelector? _waitingSelector(
     FrxWorkspace repo,
     Casing state,
@@ -203,7 +205,7 @@ class AddActionCommand extends WritingCommand {
         // The idiom already in the template, four times over.
         expr: '_state.wait.isWaitingForType<${action.pascal}Action>()',
       );
-    } on StateError {
+    } on FrxRefusal {
       // The substate is not in the facade, so there is no block to add to.
       return _WaitingSelector(
         null,

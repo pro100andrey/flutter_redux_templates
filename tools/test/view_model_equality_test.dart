@@ -148,7 +148,7 @@ class _Vm extends Vm {
       });
     }
 
-    test('a field sharing a name with somebody else\'s member is not called '
+    test("a field sharing a name with somebody else's member is not called "
         'derived', () async {
       // `user.id` reads `user`; `id` is a member of it and names nothing here.
       // Recording both made an unrelated field `id` be reported as compared
@@ -205,7 +205,7 @@ class _Vm extends Vm {
   });
 
   test(
-    'the finding carries no fix — which field belongs is the author\'s call',
+    "the finding carries no fix — which field belongs is the author's call",
     () async {
       connector('''
 class _Vm extends Vm {

@@ -1,9 +1,14 @@
 // CodeLens for the monorepo's conventional files — actions right where you
 // read the code:
 //   • `redux/<sub>/models/<sub>_state.dart`  → "⚡ Add action…" above the class
-//   • `app/lib/connectors/<x>_page_connector.dart` → "Open page"
+//   • `app/lib/connectors/<x>_page_connector.dart` → "Open page" · "Flow"
+//   • `app/lib/connectors/<x>_connector.dart` → "Open widget"
 //   • `ui/lib/pages/<x>_page.dart`           → "Open connector"
-// Pure path/regex derivation — no CLI calls, so lenses are instant.
+//   • `ui/lib/**/<x>.dart`                   → "Open connector", when one exists
+// Pure path/regex derivation — no CLI calls, so lenses are instant. The one
+// read beyond the path is the widget connector's own imports: which widget it
+// wraps is stated there and nowhere else, since `add-widget -k field` puts
+// `Pin` in `pin_form_field.dart` and `list-widget-dirs` puts it in any folder.
 //
 // **The layout comes from `LAYOUT`, not from here.** Those three shapes were
 // spelled out in four regexes and two `path.join`s, which is the same copy of
@@ -97,6 +102,19 @@ export class FrxLensProvider implements vscode.CodeLensProvider {
         }),
       ];
     }
+    // Widget connector → the widget it wraps. No Flow: `frx flow` walks a page.
+    // Tested after the page connector, whose suffix this one is a tail of.
+    const widgetConnector = file.match(
+      new RegExp(
+        `\\${sep}${leafOf(LAYOUT.connectors)}\\${sep}(\\w+)${escaped(LAYOUT.widgetConnectorSuffix)}$`,
+      ),
+    );
+    if (widgetConnector) {
+      const widget = this._widgetOf(document, widgetConnector[1]);
+      if (!widget) return [];
+      const className = `${naming.pascalOf(widgetConnector[1])}Connector`;
+      return this._openLens(document, className, widget, 'Open widget');
+    }
     const page = file.match(
       new RegExp(
         `\\${sep}${leafOf(LAYOUT.pages)}\\${sep}(\\w+)${escaped(LAYOUT.pageSuffix)}$`,
@@ -109,8 +127,41 @@ export class FrxLensProvider implements vscode.CodeLensProvider {
       );
       return this._openLens(document, `${naming.pascalOf(page[1])}Page`, conn, 'Open connector');
     }
+    // Any other file of the ui package → its connector, when one is named for
+    // it. The reverse of "Open widget", by path alone: `<stem>_connector.dart`
+    // is what `add-connector` writes, so a widget whose class carries a kind
+    // suffix (`PinFormField` for `pin`) gets no lens here — the connector's own
+    // import is the only place that pairing is stated, and this file is not it.
+    const uiDir = dirOf(this.root, LAYOUT.ui) + sep;
+    if (file.startsWith(uiDir) && file.endsWith('.dart')) {
+      const stem = path.basename(file, '.dart');
+      const conn = path.join(
+        dirOf(this.root, LAYOUT.connectors),
+        `${stem}${LAYOUT.widgetConnectorSuffix}`,
+      );
+      return this._openLens(document, naming.pascalOf(stem), conn, 'Open connector');
+    }
 
     return [];
+  }
+
+  /**
+   * The ui file a widget connector wraps, read off its imports — or null.
+   *
+   * The import whose basename is the connector's stem, when there is one:
+   * `status_bar_connector.dart` imports `package:ui/console/status_bar.dart`
+   * beside a dialog it also uses. Failing that, the only `package:ui/` import,
+   * if there is only one — a `-k field` connector imports
+   * `pin_form_field.dart` for a stem of `pin`. Two or more and none matching is
+   * a guess, and the lens is not shown rather than shown wrong.
+   */
+  private _widgetOf(document: vscode.TextDocument, stem: string): string | null {
+    const imports = [...document.getText().matchAll(/^import\s+'package:ui\/([^']+\.dart)'/gm)]
+      .map((m) => m[1]);
+    const named = imports.find((p) => p.endsWith(`/${stem}.dart`) || p === `${stem}.dart`);
+    const chosen = named ?? (imports.length === 1 ? imports[0] : undefined);
+    if (!chosen) return null;
+    return path.join(dirOf(this.root, LAYOUT.ui), ...chosen.split('/'));
   }
 
   /** A "jump to counterpart" lens, only when the counterpart exists. */

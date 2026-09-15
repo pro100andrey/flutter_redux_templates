@@ -48,10 +48,10 @@ const kPreviewNotice = 'Preview only — re-run with --apply to apply.';
 /// the two destructive commands, and "overwrite what is already there" on every
 /// scaffolder — the collision guard below reads the same flag on the same
 /// [ArgResults] to mean the second. Without this gate the first scaffolder to
-/// reach for the shared helper, which is the obvious thing to do since it is the
-/// shared write path, would silently make `frx add-page Home --force` mean
-/// "apply" instead of "overwrite". A command with no `--apply` cannot get `true`
-/// out of this, so the mistake is not available to make.
+/// reach for the shared helper, which is the obvious thing to do since it is
+/// the shared write path, would silently make `frx add-page Home --force` mean
+/// "apply" instead of "overwrite". A command with no `--apply` cannot get
+/// `true` out of this, so the mistake is not available to make.
 bool applying(ArgResults results) =>
     results.options.contains('apply') &&
     (_flag(results, 'apply') || _flag(results, 'force'));
@@ -70,10 +70,10 @@ typedef DeferredBuild = BuildStep Function(List<String> written);
 /// Handles in one place what the forked copies each handled themselves: the
 /// overwrite guard (exit 70), `--dry-run`, `--diff` when the command declares
 /// it, `dart format`, the `docs/flows` refresh, the written count and the
-/// build_runner step. A command's own narration (`+ field: …`, `• already
-/// present — skipped`) stays with the command and is emitted by [narrate],
-/// which runs between the plan and the dry-run check so the output reads in the
-/// order it always did.
+/// build_runner step. A command's own narration (`+ field: …`,
+/// `• already present — skipped`) stays with the command and is emitted by
+/// [narrate], which runs between the plan and the dry-run check so the output
+/// reads in the order it always did.
 ///
 /// [repoRoot] enables the `docs/flows` refresh. Pass it whenever the command
 /// has a workspace in hand — it is a no-op unless the repo opted in, and
@@ -97,8 +97,9 @@ Future<int> runChangeset(
   final dryRun = previewOnly ?? _flag(results, 'dry-run');
   final force = _flag(results, 'force');
   final asJson = machineMode(results);
-  // A batch stages every intent into one transaction; inside one, this command's
-  // narration, its `--json` line and its codegen all belong to the batch.
+  // A batch stages every intent into one transaction; inside one, this
+  // command's narration, its `--json` line and its codegen all belong to the
+  // batch.
   final transaction = currentTransaction;
 
   // Frozen before anything is applied: a creation's operation and diff are both
@@ -111,7 +112,9 @@ Future<int> runChangeset(
           relativeTo: relativeTo ?? repoRoot?.path,
         )
       : null;
-  if (transaction != null && report != null) transaction.reports.add(report);
+  if (transaction != null && report != null) {
+    transaction.reports.add(report);
+  }
 
   if (!asJson) {
     console.out
@@ -142,23 +145,25 @@ Future<int> runChangeset(
 
     if (_flag(results, 'diff')) {
       final diff = plan.diff(from: relativeTo);
-      if (diff.isNotEmpty)
+      if (diff.isNotEmpty) {
         console.out
           ..write(diff)
           ..writeln();
+      }
     }
   }
 
   if (dryRun) {
-    // The planned state carries the build step too, so the two states really are
-    // one shape. Its outcome fields are facts, not predictions: nothing ran and
-    // nothing was handed over, because nothing was applied.
+    // The planned state carries the build step too, so the two states really
+    // are one shape. Its outcome fields are facts, not predictions: nothing ran
+    // and nothing was handed over, because nothing was applied.
+    final formattable = plan.formattable;
     console.out.writeln(
       report?.render(
             applied: false,
-            build: build == null || plan.formattable.isEmpty
+            build: build == null || formattable.isEmpty
                 ? null
-                : plannedBuild(build(plan.formattable)),
+                : plannedBuild(build(formattable)),
           ) ??
           previewNotice,
     );
@@ -186,6 +191,7 @@ Future<int> runChangeset(
       transaction.buildSteps.add(step);
       return 0;
     }
+
     final built = await runBuild(
       step,
       enabled: _flag(results, 'build-runner'),
@@ -196,16 +202,21 @@ Future<int> runChangeset(
         report.render(applied: true, build: appliedBuild(step, built)),
       );
     }
+
     return built.code;
   }
-  if (report != null) console.out.writeln(report.render(applied: true));
+
+  if (report != null) {
+    console.out.writeln(report.render(applied: true));
+  }
+
   return 0;
 }
 
 /// The build step as a carried-out result: what it was, and what became of it.
 ///
-/// Public for the same reason [plannedBuild] is — `rename` and `batch` build their
-/// own changesets and owe the same object.
+/// Public for the same reason [plannedBuild] is — `rename` and `batch` build
+/// their own changesets and owe the same object.
 BuildReport appliedBuild(BuildStep step, Built built) => (
   package: step.packageRoot,
   command: buildCommandLine(step),

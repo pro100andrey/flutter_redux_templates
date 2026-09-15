@@ -1,9 +1,9 @@
 import 'package:args/command_runner.dart';
 
 import '../scaffold/artifact_templates.dart';
+import '../util/console.dart';
 import '../util/prompt.dart' as prompt;
 import 'options.dart';
-import '../util/console.dart';
 
 /// `frx new` — an interactive wizard over the scaffolders: pick an artifact,
 /// answer a few prompts, and the equivalent flag-driven command runs. The
@@ -41,7 +41,9 @@ class NewCommand extends Command<int> {
     }
 
     final root = argResults?['root'] as String?;
-    if (root != null) args.addAll(['--root', root]);
+    if (root != null) {
+      args.addAll(['--root', root]);
+    }
 
     console.out
       ..writeln()
@@ -80,9 +82,11 @@ class NewCommand extends Command<int> {
           'table': 'byId IMap table + view + Add…/Retrieve… actions',
         });
         return ['add-substate', name, '-k', kind, ..._buildRunner()];
+
       case 'page':
         final public = prompt.confirm('Public (reachable while logged out)?');
         return ['add-page', name, if (public) '--public', ..._buildRunner()];
+
       case 'action':
         final state = prompt.ask(
           'Substate (its folder under redux)',
@@ -107,6 +111,7 @@ class NewCommand extends Command<int> {
           kind,
           for (final m in mixins) ...['-m', m],
         ];
+
       case 'tabs':
         final tabs = prompt.askList(
           'Tab pages, comma-separated (≥2)',
@@ -119,6 +124,7 @@ class NewCommand extends Command<int> {
           for (final t in tabs) ...['-t', t],
           ..._buildRunner(),
         ];
+
       case 'model':
         final cases = prompt.askList(
           'Union cases, comma-separated (empty = plain model)',
@@ -131,6 +137,7 @@ class NewCommand extends Command<int> {
           for (final c in cases) ...['-c', c],
           ..._buildRunner(),
         ];
+
       case 'enum':
         final values = prompt.askList(
           'Values, comma-separated (≥1)',
@@ -142,6 +149,7 @@ class NewCommand extends Command<int> {
           name,
           for (final v in values) ...['-v', v],
         ];
+
       case 'retrofit' || 'theme-extension':
         return ['add-$type', name, ..._buildRunner()];
       default: // widget, connector, service — name-only.

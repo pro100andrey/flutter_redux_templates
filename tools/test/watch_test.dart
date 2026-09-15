@@ -2,7 +2,8 @@ import 'package:test/test.dart';
 
 import 'support/fixture.dart';
 
-/// `frx watch --print` resolves the build_runner incantation without running it.
+/// `frx watch --print` resolves the build_runner incantation without running
+/// it.
 void main() {
   late Fixture fx;
 
@@ -26,10 +27,11 @@ void main() {
   test('no flag build_runner has retired is passed', () async {
     // `--delete-conflicting-outputs` was carried here — and printed in every
     // "run this yourself" hint — long after build_runner dropped it. It never
-    // failed a build: 2.15 answers `W These options have been removed and were
-    // ignored`, so the only symptom was a warning line and a copy-pasteable
-    // command that earned one. The template floors build_runner at ^2.15.1, so
-    // there is no reachable version where it means anything.
+    // failed a build: 2.15 answers
+    // `W These options have been removed and were ignored`, so the only symptom
+    // was a warning line and a copy-pasteable command that earned one. The
+    // template floors build_runner at ^2.15.1, so there is no reachable version
+    // where it means anything.
     final res = await runFrx(fx, ['watch', '--print']);
     expect(res.exitCode, 0, reason: res.stderr.toString());
     expect(res.stdout, isNot(contains('--delete-conflicting-outputs')));

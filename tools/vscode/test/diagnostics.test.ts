@@ -85,3 +85,38 @@ test('a file-less fixable finding names the command that fixes it', () => {
     'frx doctor: an orphan substate',
   ]);
 });
+
+// --- where a finding is squiggled ---------------------------------------------
+
+test('a finding with a line and column lands on them, 0-based', () => {
+  // The CLI reports 1-based positions, as the analyzer does and as a person
+  // reads them; the editor counts from 0. Off by one here puts every squiggle
+  // on the line *after* the declaration.
+  const r = diag.rangeFor({ line: 5, column: 3 }) as any;
+  assert.strictEqual(r.start.line, 4);
+  assert.strictEqual(r.start.character, 2);
+  assert.strictEqual(r.end.line, 4, 'zero-width: the CLI names a point, not an extent');
+  assert.strictEqual(r.end.character, 2);
+});
+
+test('a finding with a line and no column lands at the start of that line', () => {
+  const r = diag.rangeFor({ line: 5 }) as any;
+  assert.strictEqual(r.start.line, 4);
+  assert.strictEqual(r.start.character, 0);
+});
+
+test('a finding with no position lands at the top of the file', () => {
+  // Where every doctor finding used to land. Still the honest anchor for one
+  // about a file as a whole — a missing part, a stale export.
+  const r = diag.rangeFor({}) as any;
+  assert.strictEqual(r.start.line, 0);
+  assert.strictEqual(r.start.character, 0);
+});
+
+test('a column without a line is not a position', () => {
+  // Half an anchor: the CLI never emits it, but a consumer that trusted it
+  // would squiggle column 7 of line 1, which names nothing.
+  const r = diag.rangeFor({ column: 7 }) as any;
+  assert.strictEqual(r.start.line, 0);
+  assert.strictEqual(r.start.character, 0);
+});

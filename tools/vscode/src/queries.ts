@@ -112,7 +112,15 @@ export interface GraphGap {
 export interface GraphEdge {
   from: string;
   to: string;
-  kind: 'writes' | 'dispatches' | 'navigates' | 'reads' | 'restores' | 'waitsFor' | 'uses';
+  kind:
+    | 'writes'
+    | 'dispatches'
+    | 'navigates'
+    | 'reads'
+    | 'restores'
+    | 'builds'
+    | 'waitsFor'
+    | 'uses';
   /** What triggers it — a callback, a `copyWith` field list, a getter name. */
   via?: string;
   condition?: string;
@@ -144,12 +152,20 @@ export interface AppGraph {
   orphans: GraphGap[];
 }
 
-/** A finding of `frx doctor --json`. `fix` names the remedy `--fix` applies. */
+/**
+ * A finding of `frx doctor --json`. `fix` names the remedy `--fix` applies.
+ *
+ * `line`/`column` are 1-based and present only when the CLI could anchor the
+ * finding to a declaration inside `file`; a finding about a file as a whole
+ * (a missing part, a stale export) carries neither.
+ */
 export interface DoctorFinding {
   severity: 'error' | 'warn';
   message: string;
   file: string | null;
   fix: FixId | null;
+  line?: number;
+  column?: number;
 }
 
 /** A match of `frx which <word> --json`. */
@@ -246,7 +262,10 @@ export async function which(
   word: string,
   root: string,
 ): Promise<WhichMatch | null> {
-  const m = await _json(inv, ['which', word], root);
+  // `which` exits 1 when nothing is wired under that name — a no-match status,
+  // like grep's — and still prints `{kind: null}`, so the code is not an error
+  // here: null is the answer, not a failure to get one.
+  const m = await _json(inv, ['which', word], root, true);
   return m && m.kind ? m : null;
 }
 

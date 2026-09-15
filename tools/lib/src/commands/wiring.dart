@@ -13,12 +13,17 @@ import '../util/console.dart';
 ///
 /// ```dart
 /// // the change — fifteen sites across the tier
-/// wire.unchanged ? null : EditFile(f.path, before: f.readAsStringSync(), after: wire.source)
+/// wire.unchanged
+///     ? null
+///     : EditFile(f.path, before: f.readAsStringSync(), after: wire.source)
 ///
 /// // the report — nine near-verbatim closures
 /// console.out.writeln('Router (${p.relative(f.path)}):');
-/// if (wire.unchanged) { console.out.writeln('  • … already registered — wiring skipped.'); }
-/// else { for (final c in wire.changes) console.out.writeln('  + $c'); }
+/// if (wire.unchanged) {
+///   console.out.writeln('  • … already registered — wiring skipped.');
+/// } else {
+///   for (final c in wire.changes) console.out.writeln('  + $c');
+/// }
 /// ```
 ///
 /// Both are derived from [EditOutcome], which every source module in the AST
@@ -116,8 +121,14 @@ class Wiring {
   /// interleaves notes between them, and `add-nav` runs its two together.
   void narrate() {
     if (outcome.unchanged) {
-      if (silent) return;
-      if (headingWhenSkipped) console.out.writeln(heading);
+      if (silent) {
+        return;
+      }
+
+      if (headingWhenSkipped) {
+        console.out.writeln(heading);
+      }
+
       console.out.writeln('  • $skipped');
       return;
     }
@@ -167,7 +178,9 @@ extension WiringList on List<Wiring> {
   Iterable<EditFile> get edits sync* {
     for (final w in this) {
       final edit = w.edit;
-      if (edit != null) yield edit;
+      if (edit != null) {
+        yield edit;
+      }
     }
   }
 
@@ -177,7 +190,9 @@ extension WiringList on List<Wiring> {
   /// to say leaves no gap where its report would have been.
   void narrate() {
     for (final w in this) {
-      if (w.silent) continue;
+      if (w.silent) {
+        continue;
+      }
       w.narrate();
       console.out.writeln();
     }

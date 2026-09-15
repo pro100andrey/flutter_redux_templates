@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:args/command_runner.dart';
 
 import '../scaffold/widget_scaffold.dart';
+import '../util/console.dart';
 import '../workspace/frx_workspace.dart';
 import 'options.dart';
-import '../util/console.dart';
 
 /// Lists the folders under `ui/lib/` that already hold widgets — what
 /// `add-widget --dir` suggests.
@@ -46,8 +46,7 @@ class ListWidgetDirsCommand extends Command<int> {
           // Where each kind usually goes, so a picker can offer it first.
           // `view` has no home — a card, a tile and a header are all views.
           'home': {
-            for (final k in WidgetKind.values)
-              if (k.homeDir case final home?) k.name: home,
+            for (final k in WidgetKind.values) k.name: ?k.homeDir,
           },
         }),
       );
@@ -60,9 +59,11 @@ class ListWidgetDirsCommand extends Command<int> {
       );
       return 0;
     }
+
     for (final d in dirs) {
       console.out.writeln(d);
     }
+
     return 0;
   }
 }

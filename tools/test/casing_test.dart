@@ -33,7 +33,7 @@ void main() {
     });
 
     test('rejects injectable / empty names', () {
-      for (final bad in const ['', '  ', 'a\$b', 'a.b', 'a/b', "a'b", 'a;b']) {
+      for (final bad in const ['', '  ', r'a$b', 'a.b', 'a/b', "a'b", 'a;b']) {
         expect(() => Casing.parse(bad), throwsFormatException, reason: bad);
       }
     });

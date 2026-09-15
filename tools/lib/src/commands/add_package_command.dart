@@ -45,6 +45,7 @@ class AddPackageCommand extends WritingCommand {
     final requested = results.rest.first;
 
     final kind = PackageKind.byName(requested);
+    String row(PackageKind k) => '  ${k.dir.padRight(12)} ${k.summary}';
     if (kind == null) {
       // Named rather than listed as `allowed:` on an option, because the
       // argument is positional — and because a refusal that says what *is*
@@ -52,7 +53,7 @@ class AddPackageCommand extends WritingCommand {
       refuse(
         '"$requested" is not a package this command knows how to create.\n'
         'Available:\n'
-        '${PackageKind.values.map((k) => '  ${k.dir.padRight(12)} ${k.summary}').join('\n')}',
+        '${PackageKind.values.map(row).join('\n')}',
       );
     }
 
@@ -70,7 +71,7 @@ class AddPackageCommand extends WritingCommand {
     }
 
     return WritePlan(
-      changes: Changeset(PackageScaffold.create(repo, kind)),
+      changes: Changeset(createPackage(repo, kind)),
       header: 'Package "${kind.dir}" — ${kind.summary}',
       narrate: () => console.out
         ..writeln('  Workspace:')

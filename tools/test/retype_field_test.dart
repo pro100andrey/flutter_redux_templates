@@ -5,13 +5,14 @@ import 'support/fixture.dart';
 /// `add-field --force` on a field that already exists: rewrite its declaration
 /// rather than answering "already present".
 ///
-/// The gap this closes was created by closing another one. `add-substate --kind
-/// table` scaffolds `IMap<int, Object>` because the element type is not known
-/// when the slice is made, and tightening it to `IMap<int, Task>` was hand work
-/// — fine while a state file could be hand-edited. Once the guard refused that
-/// channel there was no way left, and a traced run shipped `Object` because of
-/// it: the agent tried `Write`, then `Edit`, was refused both times, probed
-/// `add-field`, and found it silently did nothing.
+/// The gap this closes was created by closing another one.
+/// `add-substate --kind table` scaffolds `IMap<int, Object>` because the
+/// element type is not known when the slice is made, and tightening it to
+/// `IMap<int, Task>` was hand work — fine while a state file could be
+/// hand-edited. Once the guard refused that channel there was no way left, and
+/// a traced run shipped `Object` because of it: the agent tried `Write`, then
+/// `Edit`, was refused both times, probed `add-field`, and found it silently
+/// did nothing.
 void main() {
   late Fixture fx;
 
@@ -106,7 +107,7 @@ void main() {
           after,
           contains('Task byId(String id)'),
           reason:
-              'byId indexes the table, so its types are the table\'s — leaving '
+              "byId indexes the table, so its types are the table's — leaving "
               'Object compiled and made every caller cast',
         );
         expect(after, isNot(contains('Object byId')));
@@ -132,7 +133,7 @@ void main() {
 
     test('a key and value of the same type do not cross', () async {
       await tableSubstate();
-      final path = 'business/lib/redux/selectors.dart';
+      const path = 'business/lib/redux/selectors.dart';
       // The state after one retype to a map whose key and value match: looking
       // the old type up in the argument list finds index 0 for both, so the
       // return type took the *key*'s replacement.
@@ -163,7 +164,7 @@ void main() {
 
     test('a named parameter is carried too, not left behind', () async {
       await tableSubstate();
-      final path = 'business/lib/redux/selectors.dart';
+      const path = 'business/lib/redux/selectors.dart';
       fx
           .file(path)
           .writeAsStringSync(
@@ -194,7 +195,7 @@ void main() {
 
     test('a name that merely ends in the getter is not its accessor', () async {
       await tableSubstate();
-      final path = 'business/lib/redux/selectors.dart';
+      const path = 'business/lib/redux/selectors.dart';
       fx
           .file(path)
           .writeAsStringSync(
@@ -229,7 +230,7 @@ void main() {
       // Somebody's own accessor over something else. It happens to be called
       // byId and to return Object; the rule is what the body reads, not what
       // the member is called.
-      final path = 'business/lib/redux/selectors.dart';
+      const path = 'business/lib/redux/selectors.dart';
       fx
           .file(path)
           .writeAsStringSync(
@@ -308,11 +309,11 @@ void main() {
   });
 
   test('--force refuses to drop a default it was not told about', () async {
-    // The silent one. Retyping rebuilds the declaration from this invocation, so
-    // an `@Default(0)` the old one carried and the new one does not is written
-    // away — changing what `AppState.initial()` produces for every reader, with
-    // nothing in the report saying so. A nullable target does not require
-    // `--default`, which is exactly where it slipped through.
+    // The silent one. Retyping rebuilds the declaration from this invocation,
+    // so an `@Default(0)` the old one carried and the new one does not is
+    // written away — changing what `AppState.initial()` produces for every
+    // reader, with nothing in the report saying so. A nullable target does not
+    // require `--default`, which is exactly where it slipped through.
     await ok([
       'add-field',
       'log_in',
@@ -337,7 +338,8 @@ void main() {
       reason: 'refused, so nothing was rewritten',
     );
 
-    // Saying so explicitly is the way through — either keeping it or changing it.
+    // Saying so explicitly is the way through — either keeping it or changing
+    // it.
     await ok([
       'add-field',
       'log_in',
@@ -355,8 +357,8 @@ void main() {
 
   test('a type this project defines reaches the setter action too', () async {
     // The setter was the one file of the three that never got the project-type
-    // lookup: the state file and the facade both did. `final Task? picked;` in a
-    // file importing only app_state.dart is an undefined name.
+    // lookup: the state file and the facade both did. `final Task? picked;` in
+    // a file importing only app_state.dart is an undefined name.
     await ok([
       'add-field',
       'log_in',
