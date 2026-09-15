@@ -124,9 +124,11 @@ class Wiring {
       if (silent) {
         return;
       }
+
       if (headingWhenSkipped) {
         console.out.writeln(heading);
       }
+
       console.out.writeln('  • $skipped');
       return;
     }

@@ -78,9 +78,11 @@ class FlowCommand extends Command<int> with NameArg {
     if (routes && md) {
       usageException('Use either --routes or --md, not both.');
     }
+
     if (argResults!.flag('check') && !md) {
       usageException('--check only applies to --md.');
     }
+
     if ((routes || md) && argResults!.rest.isNotEmpty) {
       usageException(
         '--${routes ? 'routes' : 'md'} covers the whole app — drop the '
@@ -98,9 +100,11 @@ class FlowCommand extends Command<int> with NameArg {
     if (md) {
       return _exportDocs(workspace, json: json);
     }
+
     if (routes) {
       return _routeMap(workspace, json: json);
     }
+
     return _pageFlow(workspace, json: json);
   }
 

@@ -70,6 +70,7 @@ ArgumentList? pageRouteArgs(CollectionElement element) {
       return (element: element, args: args);
     }
   }
+
   return null;
 }
 
@@ -96,6 +97,7 @@ void _collectRoutes(
     if (args == null) {
       continue;
     }
+
     final page = namedArgumentIn(args, 'page')?.toSource();
     final path = namedArgumentIn(args, 'path');
     final initial = namedArgumentIn(args, 'initial');
@@ -127,6 +129,7 @@ String? _joinPath(String? parentPath, String? own, {required bool nested}) {
   if (own == null) {
     return parentPath;
   }
+
   if (own.startsWith('/') || !nested) {
     return own;
   }
@@ -136,9 +139,11 @@ String? _joinPath(String? parentPath, String? own, {required bool nested}) {
   if (parentPath == null) {
     return own.isEmpty ? null : '…/$own';
   }
+
   if (own.isEmpty) {
     return parentPath;
   }
+
   final base = parentPath.endsWith('/')
       ? parentPath.substring(0, parentPath.length - 1)
       : parentPath;
@@ -154,10 +159,12 @@ bool anyParamPath(Iterable<CollectionElement> elements) {
     if (args == null) {
       continue;
     }
+
     final path = namedArgumentIn(args, 'path');
     if (path is SimpleStringLiteral && path.value.contains(':')) {
       return true;
     }
+
     final children = namedArgumentIn(args, 'children');
     if (children is ListLiteral && anyParamPath(children.elements)) {
       return true;
@@ -172,6 +179,7 @@ SetOrMapLiteral? authAreaSetOf(CompilationUnit unit) {
   if (guard == null) {
     return null;
   }
+
   for (final member in guard.body.members.whereType<FieldDeclaration>()) {
     for (final v in member.fields.variables) {
       if (v.name.lexeme == '_authArea' && v.initializer is SetOrMapLiteral) {
@@ -190,5 +198,6 @@ CollectionElement? authAreaMember(SetOrMapLiteral authArea, String routeType) {
       return e;
     }
   }
+
   return null;
 }

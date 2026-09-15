@@ -53,6 +53,7 @@ Future<int> executeRename(
       if (!f.path.endsWith('.dart') || FrxWorkspace.isGenerated(f.path)) {
         continue;
       }
+
       final original = f.readAsStringSync();
       final planned = plan.rename.of(
         parseString(content: original, throwIfDiagnostics: false).unit,
@@ -71,6 +72,7 @@ Future<int> executeRename(
           count++;
         }
       }
+
       if (content != original) {
         edits[f.path] = (before: original, after: content, count: count);
       }
@@ -207,5 +209,6 @@ Future<int> executeRename(
       report.render(applied: true, build: appliedBuild(step, built)),
     );
   }
+
   return built.code;
 }

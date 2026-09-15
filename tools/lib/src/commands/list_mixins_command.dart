@@ -58,9 +58,11 @@ class ListMixinsCommand extends Command<int> {
     } on Object {
       return const [];
     }
+
     if (!repo.businessRedux.existsSync()) {
       return const [];
     }
+
     return inSourceIndex(
       () => [
         for (final file in sourceIndex.filesUnder(repo.businessRedux))
@@ -110,10 +112,13 @@ class ListMixinsCommand extends Command<int> {
     final width = ActionMixin.values
         .map((m) => m.name.length)
         .reduce((a, b) => a > b ? a : b);
+
     console.out.writeln(
       'async_redux behaviour mixins  (frx add-action --mixin)',
     );
+
     console.out.writeln();
+
     for (final m in ActionMixin.values) {
       console.out.writeln('  ${m.name.padRight(width)}  ${m.summary}');
       // Computed once: it is a getter that rescans every mixin and allocates.
@@ -135,6 +140,7 @@ class ListMixinsCommand extends Command<int> {
         console.out.writeln('  ${' ' * width}  ↳ $note');
       }
     }
+
     if (project.isNotEmpty) {
       final w = project
           .map((m) => m.name.length)
@@ -143,6 +149,7 @@ class ListMixinsCommand extends Command<int> {
         ..writeln()
         ..writeln('this project declares  (business/lib/redux)')
         ..writeln();
+
       for (final m in project) {
         console.out.writeln('  ${m.name.padRight(w)}  on ${m.on}');
         for (final h in m.hooks) {
@@ -152,6 +159,7 @@ class ListMixinsCommand extends Command<int> {
                     'needs its own ${h.name}() may follow it';
           console.out.writeln('  ${' ' * w}  ↳ ${h.name}() $chaining');
         }
+
         if (m.hooks.isEmpty) {
           console.out.writeln('  ${' ' * w}  ↳ overrides no lifecycle hook');
         }

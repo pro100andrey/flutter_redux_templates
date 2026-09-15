@@ -188,9 +188,11 @@ class SourceIndex {
       if (e is! File || !e.path.endsWith('.dart')) {
         return false;
       }
+
       if (e.path.contains('.dart_tool')) {
         return false;
       }
+
       return includeGenerated || !FrxWorkspace.isGenerated(e.path);
     }).cast<File>();
   }
@@ -242,6 +244,7 @@ class SourceIndex {
         return cached;
       }
     }
+
     if (!parse) {
       return _units[key] = _Entry(source: source);
     }

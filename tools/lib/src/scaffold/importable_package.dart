@@ -65,6 +65,7 @@ class ImportablePackage {
       if (unit == null) {
         continue;
       }
+
       if (_declares(unit, identifier)) {
         return file;
       }
@@ -142,13 +143,16 @@ class ImportablePackage {
         if (p.canonicalize(candidate.path) == key) {
           continue;
         }
+
         final unit = sourceIndex.unitIf(candidate, (s) => s.contains(basename));
         if (unit == null) {
           continue;
         }
+
         if (!_exports(unit, candidate, key, identifier)) {
           continue;
         }
+
         final uri = _entryFor(candidate, identifier, seen);
         if (uri != null) {
           return uri;
@@ -183,16 +187,19 @@ class ImportablePackage {
       if (uri == null || uri.contains(':')) {
         continue;
       }
+
       final resolved = p.canonicalize(
         p.normalize(p.join(p.dirname(from.path), p.fromUri(uri))),
       );
       if (resolved != target) {
         continue;
       }
+
       if (_combinatorsAdmit(directive, identifier, File(target))) {
         return true;
       }
     }
+
     return false;
   }
 
@@ -219,6 +226,7 @@ class ImportablePackage {
           if (shown.contains(identifier)) {
             continue;
           }
+
           final unit = sourceIndex.unitIf(
             target,
             (s) => s.contains(identifier),
@@ -229,6 +237,7 @@ class ImportablePackage {
           if (owners.any(shown.contains)) {
             continue;
           }
+
           return false;
         case HideCombinator(:final hiddenNames):
           if (hiddenNames.any((n) => n.name == identifier)) {

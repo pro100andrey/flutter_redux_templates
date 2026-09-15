@@ -201,6 +201,7 @@ ViewModel? readViewModelClass(String source, String className) {
     if (decl.namePart.typeName.lexeme != className) {
       continue;
     }
+
     final vm = _readViewModelClass(decl);
     if (vm != null) {
       return vm;
@@ -214,6 +215,7 @@ ViewModel? _readViewModelClass(ClassDeclaration decl) {
   if (ctor == null) {
     return null;
   }
+
   final declared = fieldTypesOf(decl);
   final stated = _equality(decl, ctor);
   return ViewModel(
@@ -248,13 +250,16 @@ ConstructorDeclaration? _dataConstructor(ClassDeclaration decl) {
     if (member.name != null) {
       continue;
     }
+
     if (member.factoryKeyword != null) {
       continue;
     }
+
     final params = member.parameters.parameters;
     if (params.isEmpty) {
       continue;
     }
+
     if (params.every((p) => p is FieldFormalParameter)) {
       return member;
     }
@@ -269,6 +274,7 @@ VmField? _readParameter(
   if (param is! FieldFormalParameter) {
     return null;
   }
+
   final name = param.name.lexeme;
   // `this.x` is almost never written with a type — the type sits on the field
   // declaration. Reading only the parameter reports every field of every model
@@ -295,6 +301,7 @@ _Equality _equality(
     if (initializer is! SuperConstructorInvocation) {
       continue;
     }
+
     for (final arg in initializer.argumentList.arguments) {
       if (arg is! NamedArgument || arg.name.lexeme != 'equals') {
         continue;
@@ -302,6 +309,7 @@ _Equality _equality(
       return _identifiersIn(arg.argumentExpression);
     }
   }
+
   return _props(decl);
 }
 
@@ -315,6 +323,7 @@ _Equality _props(ClassDeclaration decl) {
     if (!m.isGetter || m.name.lexeme != 'props') {
       continue;
     }
+
     final body = m.body;
     final expr = switch (body) {
       ExpressionFunctionBody(:final expression) => expression,
@@ -375,12 +384,14 @@ _Equality _identifiersIn(Expression expr) {
     if (e is! Expression) {
       return const _Equality.unreadable();
     }
+
     if (e is SimpleIdentifier) {
       names.add(e.name);
       continue;
     }
     e.accept(_IdentifierNames(mentions.add));
   }
+
   return _Equality(names: names, mentions: mentions);
 }
 

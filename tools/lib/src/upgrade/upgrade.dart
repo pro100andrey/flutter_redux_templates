@@ -114,11 +114,11 @@ class Upgrader {
   /// Mac running an x64 binary under Rosetta would answer about the machine and
   /// hand back an archive the process cannot exec.
   static String? get platformSlug => switch (Abi.current()) {
-    Abi.macosArm64 => 'macos-arm64',
-    Abi.macosX64 => 'macos-x64',
-    Abi.linuxX64 => 'linux-x64',
-    Abi.linuxArm64 => 'linux-arm64',
-    Abi.windowsX64 => 'windows-x64',
+    .macosArm64 => 'macos-arm64',
+    .macosX64 => 'macos-x64',
+    .linuxX64 => 'linux-x64',
+    .linuxArm64 => 'linux-arm64',
+    .windowsX64 => 'windows-x64',
     _ => null,
   };
 

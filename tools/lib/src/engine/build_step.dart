@@ -28,10 +28,12 @@ Future<void> formatFiles(
   if (!enabled) {
     return;
   }
+
   final dart = written.where((f) => f.endsWith('.dart')).toList();
   if (dart.isEmpty) {
     return;
   }
+
   final res = await Process.run('dart', ['format', ...dart]);
   if (res.exitCode != 0) {
     console.err.writeln('⚠ dart format failed:\n${res.stderr}');
@@ -55,11 +57,13 @@ Future<void> refreshFlowDocs(Directory repoRoot) async {
   if (!docs.enabled) {
     return;
   }
+
   try {
     final changed = docs.write();
     if (changed.isEmpty) {
       return;
     }
+
     console.out.writeln('  ✓ docs/flows refreshed (${changed.length} file(s))');
   } on Object catch (e) {
     // e.g. no AppRouter to read — doctor reports that on its own.
@@ -184,6 +188,7 @@ Future<Built> runBuild(
         ..writeln()
         ..writeln('Running build_runner in $rel …');
     }
+
     for (final args in step.commands) {
       final code = await streamProcess('dart', args, step.packageRoot);
       if (code != 0) {
@@ -192,12 +197,14 @@ Future<Built> runBuild(
     }
     return (code: 0, ran: true, handedToWatch: false, watchPid: null);
   }
+
   if (report) {
     console.out
       ..writeln()
       ..writeln('Next: ${step.nextHint}:')
       ..writeln('  $byHand');
   }
+
   return (code: 0, ran: false, handedToWatch: false, watchPid: null);
 }
 
@@ -212,7 +219,7 @@ Future<int> streamProcess(String exe, List<String> args, String cwd) async {
     exe,
     args,
     workingDirectory: cwd,
-    mode: ProcessStartMode.inheritStdio,
+    mode: .inheritStdio,
   );
   return proc.exitCode;
 }

@@ -21,5 +21,6 @@ ImportDirective? importNamed(Iterable<ImportDirective> imports, String uri) {
       return d;
     }
   }
+
   return null;
 }

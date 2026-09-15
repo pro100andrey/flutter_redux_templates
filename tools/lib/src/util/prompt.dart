@@ -67,10 +67,12 @@ String choose(String question, Map<String, String> options) {
     if (input.isEmpty) {
       return keys.first;
     }
+
     final n = int.tryParse(input);
     if (n != null && n >= 1 && n <= keys.length) {
       return keys[n - 1];
     }
+
     // Also accept the option name itself.
     if (keys.contains(input)) {
       return input;
@@ -87,9 +89,11 @@ bool confirm(String question, {bool def = false}) {
     if (input.isEmpty) {
       return def;
     }
+
     if (input == 'y' || input == 'yes') {
       return true;
     }
+
     if (input == 'n' || input == 'no') {
       return false;
     }
@@ -108,6 +112,7 @@ List<String> askList(String question, {int min = 0, String? hint}) {
     if (items.length >= min) {
       return items;
     }
+
     console.out.writeln(_reAsk('need at least $min', hint));
   }
 }

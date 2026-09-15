@@ -85,6 +85,7 @@ class GraphReport {
       if (of == null) {
         continue;
       }
+
       of.sort((a, b) => a.id.compareTo(b.id));
       console.out.writeln('  ${kind.name} (${of.length})');
       for (final n in of) {
@@ -107,6 +108,7 @@ class GraphReport {
       if (of == null) {
         continue;
       }
+
       of.sort((a, b) => '${a.from}${a.to}'.compareTo('${b.from}${b.to}'));
       console.out.writeln('  ${kind.name} (${of.length})');
       for (final e in of) {
@@ -128,6 +130,7 @@ class GraphReport {
     for (final item in items) {
       groups.putIfAbsent(kindOf(item), () => []).add(item);
     }
+
     return groups;
   }
 

@@ -191,6 +191,7 @@ Future<int> runChangeset(
       transaction.buildSteps.add(step);
       return 0;
     }
+
     final built = await runBuild(
       step,
       enabled: _flag(results, 'build-runner'),
@@ -201,11 +202,14 @@ Future<int> runChangeset(
         report.render(applied: true, build: appliedBuild(step, built)),
       );
     }
+
     return built.code;
   }
+
   if (report != null) {
     console.out.writeln(report.render(applied: true));
   }
+
   return 0;
 }
 

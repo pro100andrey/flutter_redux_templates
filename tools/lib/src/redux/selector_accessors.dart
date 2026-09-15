@@ -96,6 +96,7 @@ List<Edit> accessorRetypeEdits(
     if (doc == null) {
       continue;
     }
+
     for (final (from, to) in [(oldValue, newValue), (oldKey, newKey)]) {
       if (from == to) {
         continue;
@@ -103,6 +104,7 @@ List<Edit> accessorRetypeEdits(
       edits.addAll(docRetypeEdits(doc, from: from, to: to, bracketed: true));
     }
   }
+
   return edits;
 }
 
@@ -127,6 +129,7 @@ List<Edit> docRetypeEdits(
     if (at < 0) {
       continue;
     }
+
     final start = token.offset + at + inset;
     edits.add(Edit.replace(start, start + from.length, to));
   }
@@ -156,6 +159,7 @@ bool indexesGetter(String source, String getter) {
     if (at == 0) {
       return true;
     }
+
     final before = source.codeUnitAt(at - 1);
     final isIdentifierChar =
         (before >= 0x30 && before <= 0x39) ||
@@ -168,6 +172,7 @@ bool indexesGetter(String source, String getter) {
       return true;
     }
   }
+
   return false;
 }
 
@@ -190,16 +195,20 @@ List<String>? typeArgumentsOf(String type) {
     if (ch == '<') {
       depth++;
     }
+
     if (ch == '>') {
       depth--;
     }
+
     if (ch == ',' && depth == 0) {
       args.add(buffer.toString().trim());
       buffer.clear();
       continue;
     }
+
     buffer.write(ch);
   }
   args.add(buffer.toString().trim());
+
   return args;
 }

@@ -172,9 +172,11 @@ class NavSource {
     if (cls == null) {
       throw FrxRefusal('no `class $pageClass` in the page file');
     }
+
     if (declaresField(cls, callback)) {
       return Edited.nothing(content);
     }
+
     final ctor = _constructor(cls);
     if (ctor == null) {
       throw FrxRefusal('`$pageClass` has no constructor');
@@ -251,6 +253,7 @@ class NavSource {
       if (m.name.lexeme != 'fromStore') {
         continue;
       }
+
       final made = Construction.of(resultOf(m.body));
       if (made != null && made.fullName == '_Vm') {
         return made;

@@ -131,6 +131,7 @@ class SelectorsSource extends FileSource {
         );
         changes.add('${SelectorShape.facadeType}.$field => $type(_state)');
       }
+
       edits.add(Edit.insert(content.length, '\n$block'));
       changes.add('extension type $type');
     }
@@ -170,6 +171,7 @@ class SelectorsSource extends FileSource {
         '(see `frx list-substates`).',
       );
     }
+
     final existing = _getters(ext.body, getterName).firstOrNull;
     if (existing != null) {
       // Retyping touches the return type and nothing else. The body is the
@@ -184,6 +186,7 @@ class SelectorsSource extends FileSource {
           alreadyPresent: true,
         );
       }
+
       final edits = <Edit>[
         Edit.replace(
           existing.returnType!.offset,
@@ -198,10 +201,12 @@ class SelectorsSource extends FileSource {
       if (doc != null) {
         edits.addAll(docRetypeEdits(doc, from: declared, to: returnType));
       }
+
       edits.addAll(
         accessorRetypeEdits(ext, getterName, from: declared, to: returnType),
       );
       final added = addImports(applyEdits(content, edits), imports);
+
       return SelectorsAddResult(
         source: added.source,
         changes: [
@@ -280,6 +285,7 @@ class SelectorsSource extends FileSource {
     if (ext == null) {
       return Unwired.absent(content);
     }
+
     final getter = _getters(ext.body, getterName).firstOrNull;
     if (getter == null) {
       return Unwired.absent(content);
@@ -314,6 +320,7 @@ class SelectorsSource extends FileSource {
       file: file,
       removedNames: removed,
     );
+
     return Unwired(
       source: unused.source,
       changes: [...changes, ...pruned.changes, ...unused.changes],
@@ -415,10 +422,12 @@ class SelectorsSource extends FileSource {
         if (!m.isGetter) {
           continue;
         }
+
         final body = m.body.toSource().replaceAll(_whitespace, ' ').trim();
         if (body.isEmpty) {
           continue;
         }
+
         byBody.putIfAbsent(body, () => []).add(m.name.lexeme);
       }
       final groups = [
@@ -441,10 +450,12 @@ class SelectorsSource extends FileSource {
       if (ext.namePart.typeName.lexeme != selectorType) {
         continue;
       }
+
       for (final m in _getters(ext.body, name)) {
         return m.name.offset;
       }
     }
+
     return null;
   }
 
@@ -487,9 +498,11 @@ class SelectorsSource extends FileSource {
       if (indexesGetter(body, getterName)) {
         continue;
       }
+
       if (!mentionsIdentifier(body, getterName)) {
         continue;
       }
+
       names.add(
         member.isGetter ? member.name.lexeme : '${member.name.lexeme}()',
       );

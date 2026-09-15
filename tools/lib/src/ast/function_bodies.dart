@@ -17,6 +17,7 @@ Expression? resultOf(FunctionBody body) {
   if (body is ExpressionFunctionBody) {
     return body.expression;
   }
+
   final finder = _ReturnFinder();
   body.accept(finder);
   return finder.expression;

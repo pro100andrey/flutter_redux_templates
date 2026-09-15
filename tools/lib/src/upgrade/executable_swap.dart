@@ -62,6 +62,7 @@ void _swapOnWindows(File executable, File staged) {
       /* still held by a process that has not exited */
     }
   }
+
   var movedAside = false;
   if (executable.existsSync()) {
     try {

@@ -22,5 +22,6 @@ bool mentionsIdentifier(String source, String identifier) {
       return true;
     }
   }
+
   return false;
 }

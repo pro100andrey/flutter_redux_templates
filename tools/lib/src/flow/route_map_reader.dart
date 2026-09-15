@@ -67,6 +67,7 @@ class RouteMapReader {
       if (flow == null) {
         continue;
       }
+
       for (final edge in _edgesOf(page, flow)) {
         if (seen.add(edge.key)) {
           edges.add(edge);
@@ -86,6 +87,7 @@ class RouteMapReader {
           yield _edge(page, step, via: useCase.label);
           continue;
         }
+
         final action = flow.actions[step.target];
         for (final nested in action?.dispatches ?? const <DispatchStep>[]) {
           if (!nested.isNavigation) {

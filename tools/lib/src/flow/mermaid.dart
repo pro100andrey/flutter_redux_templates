@@ -22,12 +22,15 @@ String renderSequence(PageFlow flow) {
   for (final entry in ids.connectors.entries) {
     b.writeln('    participant ${entry.value} as ${_esc(entry.key)}');
   }
+
   for (final entry in ids.actions.entries) {
     b.writeln('    participant ${entry.value} as ${_esc(entry.key)}');
   }
+
   if (ids.usesState) {
     b.writeln('    participant ST as AppState');
   }
+
   if (ids.usesRouter) {
     b.writeln('    participant NAV as Router');
   }
@@ -83,6 +86,7 @@ void _writeSteps(
       if (openAlt != null) {
         b.writeln('${indent}end');
       }
+
       openAlt = step.condition;
       if (openAlt != null) {
         b.writeln('${indent}alt ${_esc(openAlt)}');
@@ -120,6 +124,7 @@ void _writeSteps(
     if (action?.writesLabel case final w?) {
       b.writeln('$pad$id->>ST: copyWith(${_esc(w)})');
     }
+
     if (action?.throwsUserException ?? false) {
       // Propagates to the caller, where async_redux surfaces it as a dialog.
       b.writeln('$pad$id--x$from: UserException');
@@ -132,6 +137,7 @@ void _writeSteps(
         '${nestedId == null ? '(${_esc(nested.target)})' : ''}',
       );
     }
+
     if (step.kind.isRoundTrip) {
       b.writeln('$pad$id-->>-$from: ActionStatus');
     }
@@ -147,6 +153,7 @@ String? _notesFor(ActionInfo? action) {
   if (action == null) {
     return null;
   }
+
   final parts = <String>[...action.mixins, if (action.isAsync) 'async'];
   return parts.isEmpty ? null : parts.join(' · ');
 }
@@ -167,6 +174,7 @@ class _ParticipantIds {
         connectors.putIfAbsent(owner, () => 'R${++lane}');
       }
     }
+
     if (connectors.length > 1 && !flow.useCases.any((u) => u.owner == null)) {
       // The frame holds no view-model of its own — the composition case. Its
       // lane would be an empty column captioned with the one class in the
@@ -181,10 +189,12 @@ class _ParticipantIds {
           usesRouter = true;
           continue;
         }
+
         final action = flow.actions[step.target];
         if (action == null) {
           continue;
         }
+
         actions.putIfAbsent(step.target, () => 'A${++n}');
         // `writes.isNotEmpty`, not `writesLabel != null`: the label is a
         // rendering of the writes, and joining every one of them into a string
@@ -258,6 +268,7 @@ String renderRouteMap(RouteMap map) {
       b.writeln('$indent${_flowNode(n)}');
       return;
     }
+
     b
       ..writeln(
         '${indent}subgraph frxTabs_${_flowId(n.page)}'
@@ -267,6 +278,7 @@ String renderRouteMap(RouteMap map) {
     for (final kid in kids) {
       b.writeln('$indent    ${_flowNode(kid)}');
     }
+
     b.writeln('${indent}end');
   }
 
@@ -280,6 +292,7 @@ String renderRouteMap(RouteMap map) {
       (n.public ? public : rest).add(n);
     }
   }
+
   if (public.isNotEmpty && rest.isNotEmpty) {
     b.writeln('    subgraph frxPublic["reachable logged out"]');
     for (final n in public) {
@@ -289,6 +302,7 @@ String renderRouteMap(RouteMap map) {
   } else {
     rest.insertAll(0, public);
   }
+
   for (final n in rest) {
     writeGroup(n, '    ');
   }
@@ -300,6 +314,7 @@ String renderRouteMap(RouteMap map) {
   if (map.edges.isNotEmpty) {
     b.writeln();
   }
+
   for (final e in map.edges) {
     final target = e.to != null
         ? _flowId(e.to!)
@@ -310,6 +325,7 @@ String renderRouteMap(RouteMap map) {
     if (target == null) {
       continue;
     }
+
     b.writeln(
       '    ${_flowId(e.from)} ${_arrow(e.kind)}|"${_escFlow(_edgeLabel(e))}"| '
       '$target',
@@ -333,9 +349,9 @@ String renderRouteMap(RouteMap map) {
 /// `push` is a solid hop, `pop` a dashed return, anything else (`replace`,
 /// `pushAndRemoveUntil`) a thick arrow — it drops what came before.
 String _arrow(NavKind kind) => switch (kind) {
-  NavKind.push => '-->',
-  NavKind.pop => '-.->',
-  NavKind.other => '==>',
+  .push => '-->',
+  .pop => '-.->',
+  .other => '==>',
 };
 
 String _flowNode(PageNode n) {
@@ -355,9 +371,11 @@ String _edgeLabel(NavEdge e) {
   if (e.method != 'push' && e.method != 'pop') {
     parts.write(' (${e.method})');
   }
+
   if (e.condition != null) {
     parts.write(' [${e.condition}]');
   }
+
   return parts.toString();
 }
 

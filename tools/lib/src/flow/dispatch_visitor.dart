@@ -132,9 +132,11 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
     if (body == null || _boundNearby(name, at)) {
       return;
     }
+
     if (!_visited.add(name)) {
       return;
     }
+
     final v = DispatchVisitor(body, _locals, _visited);
     body.accept(v);
     steps.addAll(v.steps);
@@ -161,16 +163,20 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
     if (node is FunctionExpression) {
       return _inParams(node.parameters, name);
     }
+
     if (node is MethodDeclaration) {
       return _inParams(node.parameters, name);
     }
+
     if (node is FunctionDeclaration) {
       return _inParams(node.functionExpression.parameters, name);
     }
+
     if (node is CatchClause) {
       return node.exceptionParameter?.name.lexeme == name ||
           node.stackTraceParameter?.name.lexeme == name;
     }
+
     if (node is Block) {
       // A `var`/`final` anywhere in the enclosing block, not only before this
       // point: Dart hoists local declarations over their whole block, so a name
@@ -181,6 +187,7 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
             statement.variables.variables.any((v) => v.name.lexeme == name)) {
           return true;
         }
+
         if (statement is FunctionDeclarationStatement &&
             statement.functionDeclaration.name.lexeme == name) {
           return true;
@@ -209,15 +216,19 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
     if (node is SwitchPatternCase) {
       return _patternBinds(node.guardedPattern.pattern, name);
     }
+
     if (node is SwitchExpressionCase) {
       return _patternBinds(node.guardedPattern.pattern, name);
     }
+
     if (node is ForStatement) {
       return _loopBinds(node.forLoopParts, name);
     }
+
     if (node is ForElement) {
       return _loopBinds(node.forLoopParts, name);
     }
+
     return false;
   }
 
@@ -227,12 +238,15 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
     if (parts is ForPartsWithDeclarations) {
       return parts.variables.variables.any((v) => v.name.lexeme == name);
     }
+
     if (parts is ForEachPartsWithDeclaration) {
       return parts.loopVariable.name.lexeme == name;
     }
+
     if (parts is ForEachPartsWithPattern) {
       return _patternBinds(parts.pattern, name);
     }
+
     return false;
   }
 
@@ -291,6 +305,7 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
     if (!isInvocationName && !isPartOfDotted) {
       _follow(node.name, node);
     }
+
     super.visitSimpleIdentifier(node);
   }
 
@@ -375,10 +390,12 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
     } else {
       return null;
     }
+
     final kept = [
       for (final a in args)
         if (!(a is NamedArgument && a.name.lexeme == 'key')) a.toSource(),
     ];
+
     return kept.isEmpty ? null : kept.join(', ');
   }
 
@@ -397,6 +414,7 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
       if (n is FunctionExpression) {
         return null; // left the callback
       }
+
       if (n is IfStatement) {
         return n.expression.toSource();
       }

@@ -96,9 +96,11 @@ class FrxConfig {
       if (value == null || !options.contains(name)) {
         return;
       }
+
       if (_present(args, name, abbr)) {
         return;
       }
+
       out.add(value ? '--$name' : '--no-$name');
     }
 
@@ -124,6 +126,7 @@ class FrxConfig {
       if (a == '--$name' || a == '--no-$name' || a.startsWith('--$name=')) {
         return true;
       }
+
       if (abbr != null &&
           a.length >= 2 &&
           a[0] == '-' &&
@@ -132,6 +135,7 @@ class FrxConfig {
         return true;
       }
     }
+
     return false;
   }
 }

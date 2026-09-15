@@ -58,7 +58,7 @@ mixin SubstateRemoval on WritingCommand {
         appState.file,
         unwire,
         skipped: 'field "${a.field}" not present — nothing to unwire.',
-        way: WiringWay.unwired,
+        way: .unwired,
       ),
       if (storeUnwire != null)
         Wiring.of(
@@ -66,7 +66,7 @@ mixin SubstateRemoval on WritingCommand {
           store.file,
           storeUnwire,
           skipped: 'change log does not list "${a.field}" — nothing to unwire.',
-          way: WiringWay.unwired,
+          way: .unwired,
         ),
       if (selUnwire != null)
         Wiring.of(
@@ -74,7 +74,7 @@ mixin SubstateRemoval on WritingCommand {
           selectors.file,
           selUnwire,
           skipped: '${a.selectorType} absent — nothing to unwire.',
-          way: WiringWay.unwired,
+          way: .unwired,
         ),
     ];
 

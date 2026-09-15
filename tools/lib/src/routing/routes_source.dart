@@ -71,6 +71,7 @@ class RoutesSource extends FileSource {
     if (set == null) {
       return const {};
     }
+
     return {
       for (final e in set.elements)
         if (e.toSource() case final member when member.endsWith('.name'))
@@ -220,6 +221,7 @@ class RoutesSource extends FileSource {
     if (registered == null) {
       return RouteUnwireResult.absent(content);
     }
+
     final entry = registered.element;
 
     final edits = <Edit>[removeListItem(content, entry)];
@@ -287,6 +289,7 @@ class RoutesSource extends FileSource {
     if (getter == null) {
       throw FrxRefusal('AppRouter.routes getter not found in "${file.path}".');
     }
+
     final expr = resultOf(getter.body);
     if (expr is! ListLiteral) {
       throw const FrxRefusal(

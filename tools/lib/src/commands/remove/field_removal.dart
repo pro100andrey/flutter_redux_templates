@@ -208,6 +208,7 @@ mixin FieldRemoval on WritingCommand {
         naming.add(file.path);
       }
     }
+
     return naming..sort();
   }
 
@@ -267,6 +268,7 @@ mixin FieldRemoval on WritingCommand {
         if (sourceIndex.unitIf(file, (s) => s.contains(field)) == null) {
           continue;
         }
+
         final declared = StateSource(
           file,
         ).declarationOf(className: artifact.stateType, name: field);

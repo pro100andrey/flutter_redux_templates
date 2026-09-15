@@ -99,6 +99,7 @@ class CompleteCommand extends Command<int> {
     if (appState == null) {
       return const [];
     }
+
     return [
       for (final s in appState.readSubstates())
         if (s.isSubstate) Casing.parse(s.field).snake,
@@ -113,6 +114,7 @@ class CompleteCommand extends Command<int> {
     if (routes == null) {
       return const [];
     }
+
     return [
       for (final r in routes.readRoutes())
         if (PageArtifact.fromRouteType(r.routeType) case final a?) a.name.snake,

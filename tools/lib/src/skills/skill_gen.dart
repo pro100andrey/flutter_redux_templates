@@ -134,6 +134,7 @@ class SkillGen {
       if (trimmed.isEmpty || trimmed.startsWith('#')) {
         continue;
       }
+
       if (trimmed.startsWith('version:')) {
         version = trimmed.substring('version:'.length).trim();
         continue;
@@ -149,6 +150,7 @@ class SkillGen {
       }
       dirs.add(trimmed);
     }
+
     return (version: version, directories: dirs);
   }
 

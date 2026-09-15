@@ -5,7 +5,6 @@ import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
 import '../ast/rename_edits.dart';
-import '../engine/build_step.dart';
 import '../model/page_artifact.dart';
 import '../model/substate_artifact.dart';
 import '../model/target_resolver.dart';
@@ -109,6 +108,7 @@ class RenameCommand extends Command<int> with NameArg {
       console.err.writeln(resolution.error);
       return resolution.code;
     }
+
     final appState = resolver.appState;
     final routes = resolver.routes;
     final kind = resolution.kind!;
@@ -116,7 +116,7 @@ class RenameCommand extends Command<int> with NameArg {
     // Collision guard: the new name must not already exist in that role.
     // Matches any field (not just `…State` ones) so renaming onto a framework
     // field like `wait` is refused too.
-    if (kind == ArtifactKind.substate && appState != null) {
+    if (kind == .substate && appState != null) {
       final newField = SubstateArtifact(newName).field;
       if (appState.readSubstates().any((s) => s.field == newField)) {
         console.err.writeln(
@@ -125,7 +125,7 @@ class RenameCommand extends Command<int> with NameArg {
         return 70;
       }
     }
-    if (kind == ArtifactKind.page && routes != null) {
+    if (kind == .page && routes != null) {
       final newRoute = PageArtifact(newName).routeType;
       if (routes.readRoutes().any((r) => r.routeType == newRoute)) {
         console.err.writeln(
@@ -136,7 +136,7 @@ class RenameCommand extends Command<int> with NameArg {
     }
 
     final repoRoot = (routes?.repoRoot ?? appState!.repoRoot).path;
-    return kind == ArtifactKind.substate
+    return kind == .substate
         ? _renameSubstate(oldName, newName, appState!, repoRoot, results)
         : _renamePage(oldName, newName, routes!, repoRoot, results);
   }
@@ -191,7 +191,7 @@ class RenameCommand extends Command<int> with NameArg {
         rename: rename,
         // The old ui page is deleted (moved) — the same reason `frx remove`
         // cleans first.
-        build: BuildStep.cleanBuild(
+        build: .cleanBuild(
           routes.appPackageRoot.path,
           nextHint: 'regenerate the router (rename the route class)',
         ),
@@ -242,6 +242,7 @@ class RenameCommand extends Command<int> with NameArg {
         staleGenerated.add(f.path);
         continue;
       }
+
       final rel = p.relative(f.path, from: oldDir.path);
       final base = p.basename(rel);
       moves.add((
@@ -287,7 +288,7 @@ class RenameCommand extends Command<int> with NameArg {
         moves: moves,
         rename: rename,
         emptiedDirs: [oldDir.path],
-        build: BuildStep.build(
+        build: .build(
           FrxWorkspace.packageRootOf(appState.file.path),
           nextHint: 'regenerate the freezed part for the renamed state',
         ),

@@ -59,6 +59,7 @@ List<SelectorGetter> readSelectorGetters(CompilationUnit unit) {
   for (final s in v.selectors) {
     (byOwner[s.ownerType] ??= {})[s.getter] = s;
   }
+
   byOwner.values.forEach(_inheritFromSiblings);
   return v.selectors;
 }
@@ -85,6 +86,7 @@ void _inheritFromSiblings(Map<String, SelectorGetter> group) {
         changed |= _merge(s.waitsForActions, other.waitsForActions);
       }
     }
+
     if (!changed) {
       break;
     }
@@ -135,14 +137,17 @@ class _SelectorVisitor extends RecursiveAstVisitor<void> {
     if (decl == null || (decl.declaresOwner && decl.onFacadeSpine)) {
       return;
     }
+
     final type = decl.name;
     if (type == null) {
       return;
     }
+
     for (final m in decl.members.whereType<MethodDeclaration>()) {
       if (!m.isGetter) {
         continue;
       }
+
       final s = SelectorGetter(type, decl.owner, m.name.lexeme, m.name.offset);
       m.body.accept(_BodyReader(s));
       s.body = m.body;
@@ -191,13 +196,16 @@ class _BodyReader extends RecursiveAstVisitor<void> {
       }
       return;
     }
+
     if (parent is PropertyAccess && parent.propertyName == node) {
       return;
     }
+
     if (parent is MethodInvocation && parent.methodName == node) {
       _waitedOn(parent);
       return;
     }
+
     if (_stateReceivers.contains(node.name)) {
       return;
     }
@@ -215,6 +223,7 @@ class _BodyReader extends RecursiveAstVisitor<void> {
     if (node.methodName.name != 'isWaitingForType') {
       return;
     }
+
     for (final arg
         in node.typeArguments?.arguments ?? const <TypeAnnotation>[]) {
       if (arg is NamedType) {

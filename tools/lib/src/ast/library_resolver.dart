@@ -37,6 +37,7 @@ class LibraryResolver {
     if (uri.startsWith('dart:')) {
       return _sdk(uri);
     }
+
     if (uri.startsWith('package:')) {
       final rest = uri.substring('package:'.length);
       final slash = rest.indexOf('/');
@@ -46,9 +47,11 @@ class LibraryResolver {
       final lib = _packageLib(rest.substring(0, slash));
       return lib == null ? null : File(p.join(lib, rest.substring(slash + 1)));
     }
+
     if (uri.contains(':')) {
       return null; // some other scheme
     }
+
     return File(p.normalize(p.join(from, uri)));
   }
 
@@ -91,19 +94,23 @@ Map<String, String>? _embeddedLibraries(String? skyEngineLib) {
   if (skyEngineLib == null) {
     return null;
   }
+
   final file = File(p.join(skyEngineLib, '_embedder.yaml'));
   if (!file.existsSync()) {
     return null;
   }
+
   final Object? doc;
   try {
     doc = loadYaml(file.readAsStringSync());
   } on YamlException {
     return null;
   }
+
   if (doc is! YamlMap) {
     return null;
   }
+
   final libs = doc['embedded_libs'];
   if (libs is! YamlMap) {
     return null;
@@ -122,12 +129,14 @@ Map<String, String>? _sdkLibraries() {
   if (!file.existsSync()) {
     return null;
   }
+
   final Object? doc;
   try {
     doc = jsonDecode(file.readAsStringSync());
   } on FormatException {
     return null;
   }
+
   if (doc is! Map) {
     return null;
   }
@@ -137,6 +146,7 @@ Map<String, String>? _sdkLibraries() {
   if (platform is! Map || platform['libraries'] is! Map) {
     return null;
   }
+
   return {
     for (final entry
         in (platform['libraries']! as Map<String, Object?>).entries)
@@ -159,30 +169,36 @@ Map<String, String>? _readPackageConfig(String dir) {
     if (!config.existsSync()) {
       continue;
     }
+
     final Object? doc;
     try {
       doc = jsonDecode(config.readAsStringSync());
     } on FormatException {
       return null;
     }
+
     if (doc is! Map || doc['packages'] is! List) {
       return null;
     }
+
     final base = p.join(at.path, '.dart_tool');
     final packages = <String, String>{};
     for (final entry in doc['packages'] as List) {
       if (entry is! Map) {
         continue;
       }
+
       final name = entry['name'];
       final root = entry['rootUri'];
       if (name is! String || root is! String) {
         continue;
       }
+
       final rootPath = _fromUri(root, base);
       if (rootPath == null) {
         continue;
       }
+
       final lib = entry['packageUri'];
       packages[name] = p.normalize(
         p.join(rootPath, lib is String ? lib : 'lib'),
@@ -190,6 +206,7 @@ Map<String, String>? _readPackageConfig(String dir) {
     }
     return packages;
   }
+
   return null;
 }
 
@@ -199,8 +216,10 @@ String? _fromUri(String uri, String base) {
   if (uri.startsWith('file://')) {
     return p.fromUri(Uri.parse(uri));
   }
+
   if (uri.contains(':')) {
     return null;
   }
+
   return p.normalize(p.join(base, p.fromUri(uri)));
 }

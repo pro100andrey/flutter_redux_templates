@@ -101,6 +101,7 @@ class GraphCommand extends Command<int> {
     if (focusArg == null && results.wasParsed('depth')) {
       usageException('--depth only applies with --focus.');
     }
+
     if (focusArg == null && results.wasParsed('direction')) {
       usageException('--direction only applies with --focus.');
     }
@@ -159,6 +160,7 @@ class GraphCommand extends Command<int> {
     if (results.flag('fail-on-orphans') && graph.orphans.isNotEmpty) {
       return 1;
     }
+
     return 0;
   }
 
@@ -204,6 +206,7 @@ class GraphCommand extends Command<int> {
     if (byName.length == 1) {
       return (id: byName.single.id, error: null);
     }
+
     if (byName.length > 1) {
       return (
         id: null,

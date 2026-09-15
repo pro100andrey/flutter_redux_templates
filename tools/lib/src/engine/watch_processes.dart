@@ -30,11 +30,14 @@ int? buildRunnerWatchPid({String? within}) {
     if (watch.orphaned) {
       continue;
     }
+
     if (!_watches(watch, within)) {
       continue;
     }
+
     return watch.pid;
   }
+
   return null;
 }
 
@@ -51,6 +54,7 @@ bool _watches(_Watch watch, String? within) {
   if (within == null) {
     return true;
   }
+
   final cwd = watch.cwd;
   // A watch whose directory cannot be read is treated as this repo's, which is
   // the safe direction: standing down needlessly costs a rebuild the developer
@@ -58,6 +62,7 @@ bool _watches(_Watch watch, String? within) {
   if (cwd == null) {
     return true;
   }
+
   final root = _realPath(within);
   final at = _realPath(cwd);
   return at == root || p.isWithin(root, at);
@@ -114,6 +119,7 @@ List<_Watch> _watchProcesses({bool needCwd = false}) {
     if (found.exitCode != 0) {
       return const [];
     }
+
     final pids = [
       for (final line in const LineSplitter().convert(found.stdout as String))
         ?int.tryParse(line.trim()),
@@ -163,9 +169,11 @@ Map<int, String> _cwds(Iterable<int> pids) {
     }
     return out;
   }
+
   if (!Platform.isMacOS) {
     return out;
   }
+
   try {
     final res = Process.runSync('lsof', [
       '-a',
@@ -175,6 +183,7 @@ Map<int, String> _cwds(Iterable<int> pids) {
       pids.join(','),
       '-Fn',
     ]);
+
     int? current;
     for (final line in const LineSplitter().convert(res.stdout as String)) {
       if (line.startsWith('p')) {
@@ -187,6 +196,7 @@ Map<int, String> _cwds(Iterable<int> pids) {
   } on ProcessException {
     return out;
   }
+
   return out;
 }
 
@@ -213,13 +223,16 @@ Map<int, _Proc> _describe(Iterable<int> pids) {
     if (parts.length < 3) {
       continue;
     }
+
     final pid = int.tryParse(parts[0]);
     final ppid = int.tryParse(parts[1]);
     if (pid == null || ppid == null) {
       continue;
     }
+
     out[pid] = (ppid: ppid, session: parts[2]);
   }
+
   return out;
 }
 
@@ -264,14 +277,18 @@ bool _isOrphan(_Proc watch, _Proc? parent) {
   if (watch.ppid <= 1) {
     return true;
   }
+
   if (parent == null) {
     return true; // the parent is gone from the table entirely
   }
+
   if (watch.session.isEmpty || parent.session.isEmpty) {
     return false;
   }
+
   if (watch.session == '-' || parent.session == '-') {
     return false;
   }
+
   return watch.session != parent.session;
 }

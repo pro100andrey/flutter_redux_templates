@@ -16,6 +16,7 @@ void checkGeneratedParts(FrxWorkspace repo, List<Finding> into) {
         if (target.existsSync()) {
           continue;
         }
+
         into.add(
           Finding.error(
             '${p.relative(entity.path, from: repo.root.path)} → part '

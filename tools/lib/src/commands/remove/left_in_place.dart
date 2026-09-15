@@ -18,6 +18,7 @@ void narrateLeftInPlace(String still, List<String> files) {
   if (files.isEmpty) {
     return;
   }
+
   console.out.writeln('$still (left in place, will not compile):');
   for (final f in files) {
     console.out.writeln('  ! ${p.relative(f)}');

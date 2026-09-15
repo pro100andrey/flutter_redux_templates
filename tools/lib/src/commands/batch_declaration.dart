@@ -46,6 +46,7 @@ List<Intent> parseBatchDeclaration(String raw) {
   } on FormatException catch (e) {
     throw FormatException('the declaration is not valid JSON: ${e.message}');
   }
+
   if (decoded is! Map<String, Object?>) {
     throw const FormatException(
       'the declaration must be an object with an "intents" list.',
@@ -55,6 +56,7 @@ List<Intent> parseBatchDeclaration(String raw) {
   if (list is! List) {
     throw const FormatException('"intents" must be a list.');
   }
+
   if (list.isEmpty) {
     throw const FormatException('"intents" is empty — nothing to wire.');
   }
@@ -66,6 +68,7 @@ List<Intent> parseBatchDeclaration(String raw) {
     if (entry is! Map<String, Object?>) {
       throw FormatException('$where must be an object.');
     }
+
     final command = entry['command'];
     if (command is! String || command.isEmpty) {
       throw FormatException('$where has no "command".');

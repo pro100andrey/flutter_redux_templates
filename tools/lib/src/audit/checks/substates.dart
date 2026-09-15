@@ -31,6 +31,7 @@ void checkSubstates(FrxWorkspace repo, List<Finding> into) {
     if (!s.isSubstate) {
       continue;
     }
+
     final stateFile = SubstateArtifact.parse(
       s.field,
     ).stateFile(source.reduxDir);
@@ -69,6 +70,7 @@ void checkSubstates(FrxWorkspace repo, List<Finding> into) {
       _checkSubstateCarcass(dir, base, into);
       continue;
     }
+
     final expectedType = SubstateArtifact.parse(base).stateType;
     if (!wiredTypes.contains(expectedType)) {
       into.add(

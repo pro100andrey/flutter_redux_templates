@@ -43,28 +43,28 @@ abstract final class NamingConvention {
     if (token.endsWith('PageConnector'))
       (
         base: _dropEnd(token, 'PageConnector'),
-        kind: ArtifactKind.page,
+        kind: .page,
         suffix: 'PageConnector',
         prefix: null,
       ),
     if (token.endsWith('Route'))
       (
         base: _dropEnd(token, 'Route'),
-        kind: ArtifactKind.page,
+        kind: .page,
         suffix: 'Route',
         prefix: null,
       ),
     if (token.endsWith('Page') && !token.endsWith('PageConnector'))
       (
         base: _dropEnd(token, 'Page'),
-        kind: ArtifactKind.page,
+        kind: .page,
         suffix: 'Page',
         prefix: null,
       ),
     if (token.endsWith(stateSuffix))
       (
         base: _dropEnd(token, stateSuffix),
-        kind: ArtifactKind.substate,
+        kind: .substate,
         suffix: stateSuffix,
         prefix: null,
       ),
@@ -72,7 +72,7 @@ abstract final class NamingConvention {
         token.length > selectorPrefix.length)
       (
         base: token.substring(selectorPrefix.length),
-        kind: ArtifactKind.substate,
+        kind: .substate,
         suffix: null,
         prefix: selectorPrefix,
       ),
@@ -97,19 +97,22 @@ abstract final class NamingConvention {
       } on FormatException {
         continue;
       }
+
       if ((c.kind == null || c.kind == ArtifactKind.substate) &&
           isSubstate(name)) {
         return ResolvedName(
-          ArtifactKind.substate,
+          .substate,
           name.snake,
           c.suffix,
           c.prefix,
         );
       }
+
       if ((c.kind == null || c.kind == ArtifactKind.page) && isPage(name)) {
         return ResolvedName(ArtifactKind.page, name.snake, c.suffix, c.prefix);
       }
     }
+
     return null;
   }
 

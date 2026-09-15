@@ -74,6 +74,7 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
     if (!names.any(source.contains)) {
       continue;
     }
+
     final where = p.relative(file.path);
     final unit = sourceIndex.unitFor(file);
     Position? at(int? offset) =>
@@ -83,6 +84,7 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
       if (hook.chainsSuper) {
         continue;
       }
+
       final here = at(hook.offset);
       into.add(
         Finding.error(
@@ -104,6 +106,7 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
         if (!swallowers.contains(swallower)) {
           continue;
         }
+
         into.add(
           Finding.error(
             '$where — ${applied.className} applies $swallower after '
@@ -134,6 +137,7 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
         if (hook.chainsSuper || !owed.contains(hook.name)) {
           continue;
         }
+
         final eaten = [
           if (applied.mixins.contains('WaitingAction')) 'WaitingAction',
           for (final m in ActionMixin.values)

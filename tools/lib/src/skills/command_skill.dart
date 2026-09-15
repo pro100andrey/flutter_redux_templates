@@ -91,6 +91,7 @@ String _fold(String text, String indent) {
     if (w.isEmpty) {
       continue;
     }
+
     if (!bare && line.length + w.length + 1 > 76) {
       lines.add(line.toString().trimRight());
       line
@@ -103,9 +104,11 @@ String _fold(String text, String indent) {
       ..write(' ');
     bare = false;
   }
+
   if (!bare) {
     lines.add(line.toString().trimRight());
   }
+
   return lines.join('\n');
 }
 

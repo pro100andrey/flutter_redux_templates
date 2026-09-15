@@ -133,6 +133,7 @@ class StateSource extends FileSource {
     if (params.leftDelimiter == null || params.rightDelimiter == null) {
       return false;
     }
+
     final group = params.parameters.where(
       (other) => other.isNamed == p.isNamed,
     );
@@ -151,7 +152,8 @@ class StateSource extends FileSource {
     if (before > 0 && source[before - 1] == ',') {
       start = before - 1;
     }
-    return Edit.replace(start, params.rightDelimiter!.end, '');
+
+    return .replace(start, params.rightDelimiter!.end, '');
   }
 
   /// The members of [className] whose source still names [field] — a computed
@@ -174,15 +176,18 @@ class StateSource extends FileSource {
       if (member is ConstructorDeclaration) {
         continue;
       }
+
       if (!mentionsIdentifier(member.toSource(), field)) {
         continue;
       }
+
       names.add(switch (member) {
         MethodDeclaration(:final name) => name.lexeme,
         FieldDeclaration(:final fields) => fields.variables.first.name.lexeme,
         _ => member.toSource(),
       });
     }
+
     return names;
   }
 
@@ -216,6 +221,7 @@ class StateSource extends FileSource {
       if (annotation.name.name != 'Default') {
         continue;
       }
+
       final args = annotation.arguments?.arguments;
       if (args != null && args.isNotEmpty) {
         return args.first.toSource();
@@ -244,6 +250,7 @@ class StateSource extends FileSource {
         '— is it a `@freezed` state class?',
       );
     }
+
     return ctor.parameters;
   }
 }

@@ -45,6 +45,7 @@ List<String> modelGeneratedFiles(FrxWorkspace repo, Casing name) {
   if (!dir.existsSync()) {
     return const [];
   }
+
   return dir
       .listSync()
       .whereType<File>()

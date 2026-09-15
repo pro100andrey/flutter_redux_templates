@@ -28,6 +28,7 @@ void checkDuplicateSelectors(FrxWorkspace repo, List<Finding> into) {
   if (!selectors.exists) {
     return;
   }
+
   final where = p.relative(selectors.file.path);
 
   for (final entry in selectors.duplicateGetters().entries) {

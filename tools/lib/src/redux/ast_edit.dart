@@ -143,9 +143,11 @@ int pastLineBreak(String source, int at) {
   if (end < source.length && source[end] == '\r') {
     end++;
   }
+
   if (end < source.length && source[end] == '\n') {
     end++;
   }
+
   return end;
 }
 
@@ -180,6 +182,7 @@ Edit importInsertion(List<ImportDirective> imports, String uri) {
   if (imports.isEmpty) {
     return Edit.insert(0, "import '$uri';\n");
   }
+
   return incomingIsPackage
       ? Edit.insert(imports.first.offset, "import '$uri';\n")
       : Edit.insert(imports.last.end, "\n\nimport '$uri';");

@@ -50,6 +50,7 @@ Directory walkUpForMarker(
   if (below.length == 1) {
     return below.single;
   }
+
   if (below.length > 1) {
     final names = below.map((d) => p.relative(d.path, from: origin)).toList()
       ..sort();
@@ -85,6 +86,7 @@ List<Directory> _searchBelow(String origin, String marker) {
   if (!plausible) {
     return const [];
   }
+
   final question = (origin, marker);
   return _searched.putIfAbsent(
     question,
@@ -242,6 +244,7 @@ class FrxWorkspace {
     if (!lib.existsSync()) {
       return const [];
     }
+
     final names = <String>[
       for (final e in lib.listSync().whereType<Directory>())
         if (!notWidgetDirs.contains(p.basename(e.path)) &&
@@ -293,6 +296,7 @@ class FrxWorkspace {
     if (!dir.existsSync()) {
       return const [];
     }
+
     return [
       for (final entry in sourceIndex.directoriesIn(dir))
         if (isSubstateDir(p.basename(entry.path))) entry,

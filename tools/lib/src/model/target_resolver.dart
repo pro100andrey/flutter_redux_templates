@@ -92,6 +92,7 @@ class TargetResolver {
     if (forced != null) {
       return Resolution.resolved(ArtifactKind.values.byName(forced));
     }
+
     final substate = isSubstate(name);
     final page = isPage(name);
     if (substate && page) {
@@ -106,9 +107,11 @@ class TargetResolver {
     if (substate) {
       return const Resolution.resolved(ArtifactKind.substate);
     }
+
     if (page) {
       return const Resolution.resolved(ArtifactKind.page);
     }
+
     return Resolution.failure(
       'Nothing named "${name.pascal}" is wired — no substate field '
       '"${SubstateArtifact(name).field}" in AppState and no route '

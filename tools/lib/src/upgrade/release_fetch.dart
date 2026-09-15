@@ -92,6 +92,7 @@ Future<void> _verify(File archive, String asset, String base) async {
   if (line == null) {
     throw UpgradeException('$asset is not listed in checksums.txt');
   }
+
   final expected = line.split(_columns).first.toLowerCase();
   final actual = sha256.convert(archive.readAsBytesSync()).toString();
   if (actual != expected) {

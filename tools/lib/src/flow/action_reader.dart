@@ -113,9 +113,11 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   if (target is PrefixedIdentifier && target.identifier.name == 'copyWith') {
     return _qualify(node.methodName.name, fields);
   }
+
   if (node.methodName.name != 'copyWith') {
     return const [];
   }
+
   if (target is PrefixedIdentifier) {
     return _qualify(target.identifier.name, fields);
   }
@@ -136,6 +138,7 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   if (target is! SimpleIdentifier || target.name != 'state') {
     return const [];
   }
+
   return [for (final f in fields) (substate: f.name.lexeme, field: null)];
 }
 

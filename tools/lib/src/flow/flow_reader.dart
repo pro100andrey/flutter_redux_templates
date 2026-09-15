@@ -123,6 +123,7 @@ class FlowReader {
           if (step.isNavigation || actions.containsKey(step.target)) {
             continue;
           }
+
           final actionFile = actionFiles[step.target];
           actions[step.target] = actionFile == null
               ? ActionInfo(className: step.target)
@@ -171,6 +172,7 @@ class FlowReader {
     if (built.isEmpty) {
       return const {};
     }
+
     return {
       for (final (cls, file) in _importedClasses(unit, from, '_connector.dart'))
         if (built.contains(cls)) cls: file,
@@ -241,10 +243,12 @@ class FlowReader {
       if (uri == null || !uri.endsWith(suffix)) {
         continue;
       }
+
       final file = _resolveImport(uri, from);
       if (file == null || !file.existsSync()) {
         continue;
       }
+
       final cls = firstClassNameIn(sourceIndex.unitFor(file));
       if (cls != null) {
         yield (cls, file);
@@ -259,6 +263,7 @@ class FlowReader {
       if (uri.contains(':')) {
         return null; // dart:, http: — not ours
       }
+
       return File(p.normalize(p.join(from.path, uri)));
     }
     final rest = uri.substring('package:'.length);

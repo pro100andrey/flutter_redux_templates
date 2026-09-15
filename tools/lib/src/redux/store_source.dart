@@ -162,6 +162,7 @@ class StoreSource extends FileSource {
     if (gone.isEmpty) {
       return null;
     }
+
     return (
       edits: [for (final e in gone) removeListItem(source, e.node)],
       changes: [for (final e in gone) "changed: '${e.label}'"],
@@ -191,12 +192,14 @@ class StoreSource extends FileSource {
     if (blocks.length != 1) {
       return content;
     }
+
     final stale = _entriesOf(
       blocks.single,
     )!.where((e) => e.field == field && e.label == was);
     if (stale.isEmpty) {
       return content;
     }
+
     return applyEdits(content, [
       for (final e in stale)
         if (_labelOf(e.node) case final label?)
@@ -220,11 +223,13 @@ class StoreSource extends FileSource {
     if (!exists) {
       return const Edited.nothing('');
     }
+
     final (:source, :unit) = snapshotToEdit;
     final blocks = _blocksOf(unit);
     if (blocks.length != 1) {
       return Edited.nothing(source);
     }
+
     final list = blocks.single;
     final planned = plan(_entriesOf(list)!, source, list);
     return planned == null
@@ -253,6 +258,7 @@ class StoreSource extends FileSource {
     if (list.elements.isEmpty) {
       return null;
     }
+
     final entries = <ChangedEntry>[];
     for (final element in list.elements) {
       final entry = _entryOf(element);
@@ -268,19 +274,23 @@ class StoreSource extends FileSource {
     if (element is! IfElement) {
       return null;
     }
+
     final test = element.expression;
     if (test is! BinaryExpression || test.operator.lexeme != '!=') {
       return null;
     }
+
     final left = _fieldOf(test.leftOperand);
     final right = _fieldOf(test.rightOperand);
     if (left == null || left != right) {
       return null;
     }
+
     final label = _labelOf(element);
     if (label == null || element.elseElement != null) {
       return null;
     }
+
     return ChangedEntry(field: left, label: label.value, node: element);
   }
 

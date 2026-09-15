@@ -119,11 +119,11 @@ class RemovableResolver {
   RemovableArtifact? resolve(RemovableKind kind, Casing name, {String? state}) {
     blocked = null;
     return switch (kind) {
-      RemovableKind.action => _action(name, state),
-      RemovableKind.model => _model(name),
-      RemovableKind.widget => _widget(name),
-      RemovableKind.connector => _connector(name),
-      RemovableKind.service => _service(name),
+      .action => _action(name, state),
+      .model => _model(name),
+      .widget => _widget(name),
+      .connector => _connector(name),
+      .service => _service(name),
     };
   }
 
@@ -148,6 +148,7 @@ class RemovableResolver {
     if (hits.isEmpty) {
       return null;
     }
+
     if (hits.length > 1) {
       blocked =
           '"${name.pascal}" names an action under ${hits.length} substates '
@@ -158,7 +159,7 @@ class RemovableResolver {
     final className = _pascalOf(snake);
     final MapEntry(key: owner, value: file) = hits.entries.single;
     return RemovableArtifact(
-      kind: RemovableKind.action,
+      kind: .action,
       name: name,
       className: className,
       header: 'Remove action "$className"  (substate: $owner)',
@@ -184,7 +185,7 @@ class RemovableResolver {
     final generated = modelGeneratedFiles(repo, name);
 
     return RemovableArtifact(
-      kind: RemovableKind.model,
+      kind: .model,
       name: name,
       header: 'Remove model "${name.pascal}"',
       files: [source.path, ...generated],
@@ -261,7 +262,7 @@ class RemovableResolver {
     final className = _classOfFile(hit.file);
 
     return RemovableArtifact(
-      kind: RemovableKind.widget,
+      kind: .widget,
       name: name,
       className: className,
       header: 'Remove widget "$className"  (ui/lib/${hit.dir})',
@@ -301,7 +302,7 @@ class RemovableResolver {
     }
 
     return RemovableArtifact(
-      kind: RemovableKind.connector,
+      kind: .connector,
       name: name,
       className: _pascalOf(snake),
       header: 'Remove connector "${_pascalOf(snake)}"',
@@ -328,7 +329,7 @@ class RemovableResolver {
           ..sort();
 
     return RemovableArtifact(
-      kind: RemovableKind.service,
+      kind: .service,
       name: name,
       className: '${stem.pascal}Service',
       header:

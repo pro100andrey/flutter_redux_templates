@@ -63,10 +63,12 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
   if (_silencedIn(repo).contains(rule)) {
     return;
   }
+
   for (final dir in [repo.appLib, repo.uiLib]) {
     if (!dir.existsSync()) {
       continue;
     }
+
     for (final file in sourceIndex.filesUnder(dir)) {
       // Same bargain the placement sweep strikes: a textual pre-filter decides
       // whether to look, never what to report. A file with neither shape cannot
@@ -75,6 +77,7 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
       if (!source.contains('equals:') && !source.contains('get props')) {
         continue;
       }
+
       final unit = sourceIndex.unitFor(file);
       for (final vm in viewModelsOfFile(file)) {
         for (final field in vm.fieldsOutsideEquality) {

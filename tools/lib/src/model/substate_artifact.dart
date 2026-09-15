@@ -43,9 +43,11 @@ class SubstateArtifact {
     if (!SelectorShape.isSelectorType(type)) {
       return null;
     }
+
     if (SelectorShape.isFacadeSpine(type)) {
       return null;
     }
+
     try {
       return Casing.parse(
         type.substring(SelectorShape.facadeType.length),

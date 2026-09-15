@@ -50,6 +50,7 @@ void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
     );
     return;
   }
+
   if (parsed is! Map<String, Object?>) {
     return;
   }
@@ -64,19 +65,23 @@ void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
     if (matchers is! List) {
       continue;
     }
+
     for (final matcher in matchers.whereType<Map<String, Object?>>()) {
       final declared = matcher['hooks'];
       if (declared is! List) {
         continue;
       }
+
       for (final hook in declared.whereType<Map<String, Object?>>()) {
         if (hook['type'] != 'command') {
           continue;
         }
+
         final command = hook['command'];
         if (command is! String) {
           continue;
         }
+
         final script = _hookScript(repo, command);
         if (script == null || File(script).existsSync()) {
           continue;

@@ -70,9 +70,11 @@ class RenameEdits {
       if (token.isEof) {
         break;
       }
+
       if (!_isIdentifier(token) || _isLocalisation(token)) {
         continue;
       }
+
       final to = _rename(token.lexeme);
       if (to != null) {
         edits.add(Edit.replace(token.offset, token.end, to));
@@ -99,6 +101,7 @@ class RenameEdits {
       if (uri is! SingleStringLiteral || was == null) {
         continue;
       }
+
       uris.add(uri.offset);
       final now = _rewritePath(was);
       if (now != was) {
@@ -113,6 +116,7 @@ class RenameEdits {
         if (uris.contains(literal.offset)) {
           continue;
         }
+
         final now = _rewriteLiteral(literal.value);
         if (now != literal.value) {
           edits.add(_replaceContents(literal, now));
@@ -149,10 +153,12 @@ class RenameEdits {
       if (value == entry.key) {
         return entry.value;
       }
+
       if (value.startsWith('${entry.key}/')) {
         return entry.value + value.substring(entry.key.length);
       }
     }
+
     return value;
   }
 

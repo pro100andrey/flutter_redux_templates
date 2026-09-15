@@ -69,6 +69,7 @@ class ActionIndex {
       if (!actionsDir.existsSync()) {
         continue;
       }
+
       final substate = Casing.parse(p.basename(dir.path)).camel;
       for (final file in sourceIndex.filesUnder(actionsDir)) {
         final read = reader.readActionWithImports(file);
@@ -79,6 +80,7 @@ class ActionIndex {
         if (!read.info.declaresClass) {
           continue;
         }
+
         byPath[p.canonicalize(file.path)] = GraphAction(
           id: 'action:$substate.${read.info.className}',
           substate: substate,
@@ -88,6 +90,7 @@ class ActionIndex {
         );
       }
     }
+
     return ActionIndex._(byPath);
   }
 

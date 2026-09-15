@@ -354,7 +354,7 @@ class AppGraph {
     };
     final usedBy = <String, Set<String>>{};
     for (final e in edges) {
-      if (e.kind == EdgeKind.uses) {
+      if (e.kind == .uses) {
         usedBy.putIfAbsent(e.to, () => {}).add(e.from);
       }
     }
@@ -366,6 +366,7 @@ class AppGraph {
       for (final entry in usedBy.entries)
         if (entry.value.any((from) => !selectors.contains(from))) entry.key,
     };
+
     for (var pass = 0; pass < selectors.length; pass++) {
       final before = live.length;
       for (final entry in usedBy.entries) {
@@ -373,6 +374,7 @@ class AppGraph {
           live.add(entry.key);
         }
       }
+
       if (live.length == before) {
         break;
       }
@@ -380,7 +382,7 @@ class AppGraph {
 
     return [
       for (final n in nodes)
-        if (n.kind == NodeKind.selector && !live.contains(n.id))
+        if (n.kind == .selector && !live.contains(n.id))
           (
             node: n,
             why: usedBy.containsKey(n.id)

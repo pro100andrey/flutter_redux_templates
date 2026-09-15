@@ -125,8 +125,7 @@ class AddActionCommand extends WritingCommand {
 
     // Most mixins make before()/reduce() effectively async — a sync action
     // carrying one must not be dispatched via dispatchSync.
-    if (kind == ActionKind.sync &&
-        mixins.any((m) => m != ActionMixin.nonReentrant)) {
+    if (kind == .sync && mixins.any((m) => m != .nonReentrant)) {
       console.err.writeln(
         '⚠ These mixins do async work in before()/around reduce() — dispatch '
         'the action with dispatch()/dispatchAndWait(), not dispatchSync().',
@@ -137,7 +136,7 @@ class AddActionCommand extends WritingCommand {
         ? ''
         : ' + ${mixins.map((m) => m.clause).join(', ')}';
 
-    final waiting = kind == ActionKind.waiting && (results['selector'] as bool)
+    final waiting = kind == .waiting && (results['selector'] as bool)
         ? _waitingSelector(repo, state, name)
         : null;
 

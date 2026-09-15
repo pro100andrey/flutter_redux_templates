@@ -16,6 +16,7 @@ Directory? nearestAncestorWith(Directory start, String marker) {
     if (File(p.join(dir.path, marker)).existsSync()) {
       return dir;
     }
+
     final parent = dir.parent;
     if (parent.path == dir.path) {
       return null;

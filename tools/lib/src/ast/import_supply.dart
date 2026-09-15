@@ -108,6 +108,7 @@ import 'source_index.dart';
     if (names == null) {
       continue; // unknown — see the library doc
     }
+
     final kept = _filter(names, imp.combinators);
     supplied[imp] = kept;
     for (final name in kept) {
@@ -163,6 +164,7 @@ Set<String> namesUsedIn(CompilationUnit unit) {
   for (final declaration in unit.declarations) {
     declaration.accept(visitor);
   }
+
   return visitor.names;
 }
 
@@ -171,6 +173,7 @@ Set<String> namesUsedIn(CompilationUnit unit) {
 Set<String> namesIn(AstNode node) {
   final visitor = _UsedNameVisitor();
   node.accept(visitor);
+
   return visitor.names;
 }
 
@@ -194,6 +197,7 @@ class _UsedNameVisitor extends RecursiveAstVisitor<void> {
     if (prefix != null) {
       names.add(prefix);
     }
+
     super.visitNamedType(node);
   }
 }

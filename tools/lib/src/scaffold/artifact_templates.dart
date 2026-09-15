@@ -131,15 +131,15 @@ ${viewModelSeam('${n.pascal}Connector')}''';
     ].join();
 
     final body = switch (kind) {
-      ActionKind.sync =>
+      .sync =>
         '  // TODO(frx): return a new state via state.copyWith(...), or null for none.\n'
             '  @override\n'
             '  AppState? reduce() => null;\n',
-      ActionKind.async =>
+      .async =>
         '  // TODO(frx): do async work, then return a new state (or null for none).\n'
             '  @override\n'
             '  Future<AppState?> reduce() async => null;\n',
-      ActionKind.waiting =>
+      .waiting =>
         '  // TODO(frx): async work guarded by the waiting barrier (see WaitingAction).\n'
             '  @override\n'
             '  Future<AppState?> reduce() async => null;\n',

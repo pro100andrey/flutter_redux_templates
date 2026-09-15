@@ -57,6 +57,7 @@ ExtensionTypeDeclaration? extensionTypeNamed(
       return d;
     }
   }
+
   return null;
 }
 
@@ -70,6 +71,7 @@ MixinDeclaration? mixinNamed(CompilationUnit unit, String name) {
       return d;
     }
   }
+
   return null;
 }
 
@@ -84,6 +86,7 @@ FormalParameter? parameterNamed(FormalParameterList params, String name) {
       return p;
     }
   }
+
   return null;
 }
 
@@ -98,6 +101,7 @@ ConstructorDeclaration? redirectingFactoryOf(ClassDeclaration cls) {
       return c;
     }
   }
+
   return null;
 }
 
@@ -112,14 +116,17 @@ Map<String, String> fieldTypesOf(ClassDeclaration cls) {
     if (member.isStatic) {
       continue;
     }
+
     final type = member.fields.type?.toSource();
     if (type == null) {
       continue;
     }
+
     for (final v in member.fields.variables) {
       types[v.name.lexeme] = type;
     }
   }
+
   return types;
 }
 

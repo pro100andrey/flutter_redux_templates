@@ -51,11 +51,13 @@ String _remedy({required String writtenBy, required String running}) {
         '`frx update-skills` (or `frx doctor --fix`) rewrites them from the '
         'frx that is here.';
   }
+
   if (order > 0) {
     return 'They were written by frx $writtenBy, which is newer than this '
         '$running: `frx upgrade` brings the binary up to them; '
         '`frx update-skills` would write them back down to $running instead.';
   }
+
   return 'They were written by another build of $running, so one side is a '
       'build between releases: `frx update-skills` if this frx is the one you '
       'are keeping, `frx upgrade` if it is the stale one.';

@@ -91,9 +91,11 @@ class Construction {
     if (angle == -1) {
       return dot;
     }
+
     if (dot == -1) {
       return angle;
     }
+
     return angle < dot ? angle : dot;
   }
 
@@ -115,6 +117,7 @@ class Construction {
           }
       }
     }
+
     return -1;
   }
 
@@ -199,6 +202,7 @@ class _ConstructionFinder extends RecursiveAstVisitor<void> {
     if (found != null) {
       return;
     }
+
     final made = Construction.of(node);
     if (made != null && where(made)) {
       found = made;
@@ -221,5 +225,6 @@ NamedArgument? namedArgumentOf(ArgumentList args, String name) {
       return e;
     }
   }
+
   return null;
 }

@@ -81,6 +81,7 @@ String addPathDependency(String source, String name) {
     if (deps.containsKey(name)) {
       return source;
     }
+
     return _splice(source, _placeFor(source, deps, name), _entry(name));
   }
   if (deps is YamlMap || deps.value == null) {
@@ -124,10 +125,12 @@ String removePathDependency(String source, String name) {
     if (key.value != name) {
       continue;
     }
+
     final from = _startOfLine(source, key.span.start.offset);
     final to = _afterLine(source, entry.value.span.end.offset);
     return source.substring(0, from) + source.substring(to);
   }
+
   return source;
 }
 
@@ -150,6 +153,7 @@ int _placeFor(String source, YamlMap deps, String name) {
     }
     previous = entry.value;
   }
+
   if (previous != null) {
     return _afterLine(source, previous.span.end.offset);
   }

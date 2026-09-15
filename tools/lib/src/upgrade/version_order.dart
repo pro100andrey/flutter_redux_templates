@@ -17,9 +17,11 @@ int compareVersions(String a, String b) {
       return l.compareTo(r);
     }
   }
+
   if (leftPre == rightPre) {
     return 0;
   }
+
   return leftPre ? -1 : 1;
 }
 

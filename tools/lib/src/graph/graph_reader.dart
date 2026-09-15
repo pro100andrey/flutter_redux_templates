@@ -123,7 +123,7 @@ class _GraphRead {
           GraphEdge(
             from: a.id,
             to: 'substate:${w.substate}',
-            kind: EdgeKind.writes,
+            kind: .writes,
             via: w.label,
           ),
         );
@@ -194,7 +194,7 @@ class _GraphRead {
               a.file,
               owner: a.id,
             ),
-            kind: EdgeKind.dispatches,
+            kind: .dispatches,
             condition: step.condition,
           ),
         );
@@ -222,6 +222,7 @@ class _GraphRead {
           },
         ),
       );
+
       final connectorFile = page.connectorFile;
       if (connectorFile != null) {
         graph.own(connectorFile, 'page:${page.page}');
@@ -247,7 +248,7 @@ class _GraphRead {
             owner: 'page:${e.from}',
             at: 'page:${e.from}',
             expr: 'GoAction.${e.method}',
-            why: e.kind == NavKind.pop
+            why: e.kind == .pop
                 ? 'pop with no single pusher — the destination is whatever is '
                       'on the stack, which the source does not state'
                 : 'navigation target is not a literal route',
@@ -259,7 +260,7 @@ class _GraphRead {
         GraphEdge(
           from: 'page:${e.from}',
           to: 'page:${e.to}',
-          kind: EdgeKind.navigates,
+          kind: .navigates,
           via: e.via,
           condition: e.condition,
           inferred: e.inferred,
@@ -275,6 +276,7 @@ class _GraphRead {
           if (step.isNavigation) {
             continue;
           }
+
           final file = flow.actions[step.target]?.file;
           graph.addEdge(
             GraphEdge(
@@ -285,7 +287,7 @@ class _GraphRead {
                 flow.connectorFile ?? id,
                 owner: id,
               ),
-              kind: EdgeKind.dispatches,
+              kind: .dispatches,
               via: useCase.label,
               condition: step.condition,
             ),
@@ -303,6 +305,7 @@ class _GraphRead {
       if (read.steps.isEmpty) {
         continue;
       }
+
       final name = artifactNameIn(consumer.unit, file);
       final id = 'service:$name';
       graph
@@ -328,7 +331,7 @@ class _GraphRead {
               file.path,
               owner: id,
             ),
-            kind: EdgeKind.dispatches,
+            kind: .dispatches,
             condition: step.condition,
           ),
         );

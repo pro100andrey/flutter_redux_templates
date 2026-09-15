@@ -141,6 +141,7 @@ class FlowDocs {
       if (entity is! File || !entity.path.endsWith('.md')) {
         continue;
       }
+
       if (entity.readAsStringSync().contains(marker)) {
         yield entity;
       }

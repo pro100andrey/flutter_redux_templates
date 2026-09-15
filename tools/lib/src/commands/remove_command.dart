@@ -216,6 +216,7 @@ class RemoveCommand extends WritingCommand
           'Disambiguate with --kind ${kinds.join('|')}.',
         );
       }
+
       if (matched.length == 1) {
         return removeFiles(matched.single, apply: apply);
       }
@@ -249,14 +250,14 @@ class RemoveCommand extends WritingCommand
     }
 
     return switch (resolution.kind!) {
-      ArtifactKind.substate => removeSubstate(
+      .substate => removeSubstate(
         name,
         resolver.appState ??
             refuse('Could not locate app_state.dart to remove a substate.'),
         repo,
         apply: apply,
       ),
-      ArtifactKind.page => removePage(
+      .page => removePage(
         name,
         resolver.routes ??
             refuse('Could not locate app_router.dart to remove a page.'),

@@ -59,9 +59,11 @@ class ListWidgetDirsCommand extends Command<int> {
       );
       return 0;
     }
+
     for (final d in dirs) {
       console.out.writeln(d);
     }
+
     return 0;
   }
 }

@@ -72,6 +72,7 @@ class ListSubstatesCommand extends Command<int> {
       rows: [for (final s in substates) (s.field, s.type)],
       unit: 'field',
     );
+
     return 0;
   }
 }

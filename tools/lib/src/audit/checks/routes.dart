@@ -30,6 +30,7 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
     if (page == null || !reported.add(type)) {
       continue;
     }
+
     final connector = page.connectorFile(routes.connectorsDir);
     if (!connector.existsSync()) {
       final at = entry.offset == null

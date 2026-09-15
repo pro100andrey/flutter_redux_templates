@@ -65,6 +65,7 @@ class ListRoutesCommand extends Command<int> {
       rows: [for (final r in routes) (r.routeType, r.fullPath ?? '')],
       unit: 'route',
     );
+
     return 0;
   }
 }

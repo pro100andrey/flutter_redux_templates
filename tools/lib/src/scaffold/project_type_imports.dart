@@ -50,6 +50,7 @@ abstract final class ProjectTypeImports {
         }
       }
     }
+
     return found.toList()..sort();
   }
 

@@ -84,6 +84,7 @@ Set<String> facadesIn(CompilationUnit unit) {
       if (types.contains(entry.key)) {
         continue;
       }
+
       if (entry.value.any(types.contains)) {
         types.add(entry.key);
         changed = true;
@@ -203,6 +204,7 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
     if (parent is PrefixedIdentifier || parent is PropertyAccess) {
       return;
     }
+
     final id = index[node.name];
     if (id != null) {
       used.add(id);
@@ -228,6 +230,7 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
     if (parts == null) {
       return;
     }
+
     for (var i = 0; i + 1 < parts.length; i++) {
       // The receiver either heads the chain, or the facade is in front of it —
       // `…select.logIn.email`, `selectors.logIn.email`.
@@ -244,6 +247,7 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
       if (!_isFacade(parts[i - 1])) {
         continue;
       }
+
       final id = index[parts[i]];
       if (id != null) {
         used.add(id);

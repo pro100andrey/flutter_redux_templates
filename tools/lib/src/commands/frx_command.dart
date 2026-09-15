@@ -120,10 +120,12 @@ mixin NameArg on Command<int> {
     if (i <= 0 || i == raw.length - 1) {
       return null;
     }
+
     final rest = raw.substring(i + 1).trim();
     if (rest.isEmpty) {
       return null;
     }
+
     return (Casing.parse(raw.substring(0, i).trim()), rest);
   }
 }

@@ -37,20 +37,20 @@ mixin FileRemoval on WritingCommand {
   /// `--kind`, which is the mistake this command's kind list makes easy.
   String notFound(RemovableKind kind, Casing name, String? state) =>
       switch (kind) {
-        RemovableKind.action =>
+        .action =>
           'No action "${name.pascal}" under '
               '${state == null ? 'any substate' : 'substate "$state"'} '
               '(looked for ${name.snake}_action.dart in redux/*/actions/).',
-        RemovableKind.model =>
+        .model =>
           'No model or enum "${name.pascal}" — models/lib/${name.snake}.dart '
               'does not exist.',
-        RemovableKind.widget =>
+        .widget =>
           'No widget "${name.pascal}" — no ${name.snake}.dart in any ui/lib '
               'widget folder.',
-        RemovableKind.connector =>
+        .connector =>
           'No connector "${name.pascal}" — '
               'app/lib/connectors/${name.snake}_connector.dart does not exist.',
-        RemovableKind.service =>
+        .service =>
           'No service "${name.pascal}" — '
               'business/lib/redux/services/${name.snake}/ does not exist.',
       };
