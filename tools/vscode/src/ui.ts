@@ -121,17 +121,27 @@ export async function resolveOrExplain(
   // someone who got here from the Marketplace has the extension and no checkout,
   // and being told to run a command inside a directory they do not have is a
   // dead end. Contributors already know the other way.
-  const pick = await vscode.window.showErrorMessage(
-    'FRX: could not find the `frx` CLI. Install it, set `frx.path`, or open the ' +
-      'monorepo so its tools/ package is reachable.',
-    'Install frx',
-    'Open Settings',
-  );
-  if (pick === 'Install frx') {
-    vscode.env.openExternal(vscode.Uri.parse(INSTALL_DOCS_URL));
-  } else if (pick === 'Open Settings') {
-    vscode.commands.executeCommand('workbench.action.openSettings', 'frx.path');
-  }
+  //
+  // Said, not awaited. A notification that offers buttons stays up until it is
+  // answered, and the promise behind it stays pending for as long as it does;
+  // the answer here is null either way, so there is nothing to wait for.
+  // Awaiting it held every command's promise open until a click — invisible in
+  // the editor, and how `frx.doctor` ran out the integration test's 60s on a
+  // runner with neither a binary nor a dart to `dart run` with.
+  void vscode.window
+    .showErrorMessage(
+      'FRX: could not find the `frx` CLI. Install it, set `frx.path`, or open the ' +
+        'monorepo so its tools/ package is reachable.',
+      'Install frx',
+      'Open Settings',
+    )
+    .then((pick) => {
+      if (pick === 'Install frx') {
+        vscode.env.openExternal(vscode.Uri.parse(INSTALL_DOCS_URL));
+      } else if (pick === 'Open Settings') {
+        vscode.commands.executeCommand('workbench.action.openSettings', 'frx.path');
+      }
+    });
   return null;
 }
 

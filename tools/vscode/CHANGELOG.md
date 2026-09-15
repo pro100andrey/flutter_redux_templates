@@ -54,6 +54,15 @@ changes are marked as such.
   `readme_command_map_test` now reads the table against the runner the way
   `skills_freshness_test` reads the skills. *(CLI)*
 
+- **A command with no `frx` to run comes back at once.** When neither the
+  binary nor a `dart` to `dart run` it with could be found, the "could not find
+  the `frx` CLI" notification offered *Install frx* and *Open Settings*, and the
+  command waited for the answer. A notification with buttons stays up until it
+  gets one, so every command's promise stayed open until a click — nothing a
+  person would notice, but the integration test runs `frx.doctor` on a runner
+  that has neither, and timed out at 60s. The notification still offers both and
+  acts on the pick; the command no longer waits on it.
+
 ### Added
 
 - **`frx graph --fail-on-orphans`** exits 1 when the "nothing reaches" list is
