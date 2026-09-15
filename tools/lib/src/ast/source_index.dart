@@ -167,7 +167,7 @@ class SourceIndex {
   /// file nothing claimed anything about.
   List<File> get recovered => [
     for (final entry in _units.entries)
-      if (entry.value.hasErrors) File(entry.key),
+      if (entry.value.hasErrors) File(entry.value.path),
   ]..sort((a, b) => a.path.compareTo(b.path));
 
   /// Dart files under [dir].
@@ -246,12 +246,13 @@ class SourceIndex {
     }
 
     if (!parse) {
-      return _units[key] = _Entry(source: source);
+      return _units[key] = _Entry(path: file.path, source: source);
     }
 
     final parsed = parseString(content: source, throwIfDiagnostics: false);
     _parseCounts.update(key, (n) => n + 1, ifAbsent: () => 1);
     return _units[key] = _Entry(
+      path: file.path,
       source: source,
       unit: parsed.unit,
       hasErrors: parsed.errors.isNotEmpty,
@@ -291,7 +292,17 @@ R inSourceIndex<R>(R Function() body) => Zone.current[_zoneKey] != null
     : withSourceIndex(SourceIndex(), body);
 
 class _Entry {
-  _Entry({required this.source, this.unit, this.hasErrors = false});
+  _Entry({
+    required this.path,
+    required this.source,
+    this.unit,
+    this.hasErrors = false,
+  });
+
+  /// The path the file was asked for by, not the canonical key it is filed
+  /// under: what is reported reads as the caller wrote it, where the key on
+  /// Windows is the same path in lower case.
+  final String path;
 
   final String source;
 

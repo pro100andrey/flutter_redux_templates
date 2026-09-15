@@ -54,7 +54,7 @@ void main() {
   test('a project one level down is found from the outer root', () {
     repo();
     project('apps/tm_console');
-    expect(locate('.').path, p.join(tmp.path, 'apps/tm_console'));
+    expect(locate('.').path, p.join(tmp.path, 'apps', 'tm_console'));
   });
 
   test('two projects below are refused, and both are named', () {
@@ -67,7 +67,11 @@ void main() {
         isA<FrxRefusal>().having(
           (e) => e.message,
           'message',
-          allOf(contains('apps/one'), contains('apps/two'), contains('--root')),
+          allOf(
+            contains(p.join('apps', 'one')),
+            contains(p.join('apps', 'two')),
+            contains('--root'),
+          ),
         ),
       ),
     );
@@ -76,7 +80,7 @@ void main() {
   test('naming one of two resolves it', () {
     project('apps/one');
     project('apps/two');
-    expect(locate('apps/two').path, p.join(tmp.path, 'apps/two'));
+    expect(locate('apps/two').path, p.join(tmp.path, 'apps', 'two'));
   });
 
   test('a project is not descended into', () {
@@ -85,7 +89,7 @@ void main() {
     repo();
     project('apps/tm_console');
     project('apps/tm_console/example');
-    expect(locate('.').path, p.join(tmp.path, 'apps/tm_console'));
+    expect(locate('.').path, p.join(tmp.path, 'apps', 'tm_console'));
   });
 
   test('nothing anywhere keeps the caller’s own message', () {
@@ -127,14 +131,14 @@ void main() {
   test('a pubspec at the origin is enough to look', () {
     repo();
     project('apps/tm_console');
-    expect(locate('.').path, p.join(tmp.path, 'apps/tm_console'));
+    expect(locate('.').path, p.join(tmp.path, 'apps', 'tm_console'));
   });
 
   test('a .git at the origin is enough to look', () {
     // `bloom` has both; a checkout that vendors no root pubspec has only this.
     Directory(p.join(tmp.path, '.git')).createSync();
     project('apps/tm_console');
-    expect(locate('.').path, p.join(tmp.path, 'apps/tm_console'));
+    expect(locate('.').path, p.join(tmp.path, 'apps', 'tm_console'));
   });
 
   test('the search stops before it becomes a full-disk walk', () {

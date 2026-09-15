@@ -207,15 +207,23 @@ String diffOf(Change c, {String? from}) => switch (c) {
   WriteFile() => unifiedDiff(
     _onDisk(c.path),
     c.content,
-    path: p.relative(c.path, from: from),
+    path: _posix(p.relative(c.path, from: from)),
   ),
   EditFile() => unifiedDiff(
     c.before,
     c.after,
-    path: p.relative(c.path, from: from),
+    path: _posix(p.relative(c.path, from: from)),
   ),
   DeleteFile() || DeleteDirectory() || MoveFile() => '',
 };
+
+/// [path] with `/` between its segments, whatever the platform separates with.
+///
+/// A diff header is the one place a path is a format rather than an address:
+/// `git apply` and every viewer read `a/app/lib/x.dart`, and a Windows run
+/// wrote `a/app\lib\x.dart` — a header nothing parses, over a diff that was
+/// otherwise the same bytes.
+String _posix(String path) => p.posix.joinAll(p.split(path));
 
 /// What [path] holds now, or nothing for a file that is not there yet.
 String _onDisk(String path) {

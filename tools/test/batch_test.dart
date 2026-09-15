@@ -73,14 +73,15 @@ void main() {
     ]);
     expect(r.exitCode, 0, reason: r.stderr);
 
+    final redux = p.join('business', 'lib', 'redux');
     expect(
       r.stdout,
-      contains('create  business/lib/redux/cart/models/cart_state.dart'),
+      contains('create  ${p.join(redux, 'cart', 'models', 'cart_state.dart')}'),
       reason: 'the verb, and a path relative to the repo root',
     );
     expect(
       r.stdout,
-      contains('edit  business/lib/redux/app_state.dart'),
+      contains('edit  ${p.join(redux, 'app_state.dart')}'),
       reason: 'wiring an existing file is an edit, not a write',
     );
     expect(

@@ -63,6 +63,17 @@ changes are marked as such.
   that has neither, and timed out at 60s. The notification still offers both and
   acts on the pick; the command no longer waits on it.
 
+- **The CLI on Windows.** The suite's first run there found three things a
+  user would have met. The agent-hooks check looked for the platform separator
+  in a hook command, which on Windows is `\`, so every hook read as a bare
+  name and a missing script was never reported — the fail-open the check
+  exists to catch. Paths built from the source constants kept the `/` the
+  constant was written with and gained `\` from every join after it, and went
+  into graph JSON and findings that way. And a diff header carried `\`, which
+  `git apply` does not read. All three are fixed, and the suite compares paths
+  as paths rather than as spellings; the Windows leg stays informational until
+  a run comes back green. *(CLI)*
+
 ### Added
 
 - **`frx graph --fail-on-orphans`** exits 1 when the "nothing reaches" list is

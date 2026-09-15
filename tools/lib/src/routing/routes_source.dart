@@ -34,7 +34,8 @@ class RoutesSource extends FileSource {
   /// where the router is — which makes re-walking the tree from a command that
   /// already holds a workspace a second answer to a question already answered.
   factory RoutesSource.of(FrxWorkspace repo) =>
-      RoutesSource(File(p.join(repo.root.path, _relativePath)));
+      // Normalised for the reason `locateFile` gives: the constant holds `/`.
+      RoutesSource(File(p.normalize(p.join(repo.root.path, _relativePath))));
 
   /// Finds `app_router.dart` by walking up from [startDir] (or the current
   /// directory) until `app/lib/navigation/app_router.dart` is found.

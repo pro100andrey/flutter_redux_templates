@@ -537,7 +537,10 @@ class LogInPage extends StatelessWidget {
       final session = g.nodes.firstWhere((n) => n.id == 'substate:session');
       // The reader's only consumer that can act on it is the editor's tree,
       // which opens this on a click — a node without it is a dead row.
-      expect(session.file, endsWith('session/models/session_state.dart'));
+      expect(
+        session.file,
+        endsWith(p.join('session', 'models', 'session_state.dart')),
+      );
     });
 
     test('a framework substate has no file of ours', () {

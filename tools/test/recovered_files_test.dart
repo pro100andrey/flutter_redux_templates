@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/ast/source_index.dart';
 
@@ -42,7 +43,7 @@ class BrokenAction extends Action {
           fx.file('business/lib/redux/log_in/actions/broken_action.dart'),
         );
       });
-      expect(index.recovered.map((f) => f.path.split('/').last), [
+      expect(index.recovered.map((f) => p.basename(f.path)), [
         'broken_action.dart',
       ]);
     });

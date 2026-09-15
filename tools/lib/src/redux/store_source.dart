@@ -69,7 +69,8 @@ class StoreSource extends FileSource {
   /// from a root already resolved is how a reader ends up outside the repo it
   /// was pointed at.
   factory StoreSource.of(FrxWorkspace repo) =>
-      StoreSource(File(p.join(repo.root.path, _relativePath)));
+      // Normalised for the reason `locateFile` gives: the constant holds `/`.
+      StoreSource(File(p.normalize(p.join(repo.root.path, _relativePath))));
 
   /// Path of `store.dart` relative to the repo root.
   static const _relativePath = 'business/lib/redux/store.dart';

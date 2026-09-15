@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -27,7 +28,9 @@ class Fixture {
     }
   }
 
-  String path(String relative) => p.join(root.path, relative);
+  /// Normalised, so a [relative] written with `/` compares equal to what the
+  /// CLI reports on Windows, where `p.join` keeps the `/` and the CLI does not.
+  String path(String relative) => p.normalize(p.join(root.path, relative));
 
   File file(String relative) => File(path(relative));
 
@@ -220,19 +223,30 @@ class _AuthGuard extends AutoRouteGuard {
 /// shells out, and the fidelity check in `commands_test.dart` that runs both
 /// and requires the same bytes.
 Future<ProcessResult> runFrx(Fixture fixture, List<String> args) async =>
-    Process.run('dart', [
-      await _snapshot(),
-      ...args,
-      if (!args.contains('--root')) ...['--root', fixture.root.path],
-    ]);
+    Process.run(
+      'dart',
+      [
+        await _snapshot(),
+        ...args,
+        if (!args.contains('--root')) ...['--root', fixture.root.path],
+      ],
+      // Said outright: the default is the system encoding, which on Windows is
+      // the console code page, and every `—` and `✗` the CLI wrote came back
+      // as three characters of mojibake.
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
 
 /// Runs the CLI with `Directory.current` set to the fixture root (for commands
 /// that resolve by cwd, like `__complete`). No `--root` is appended.
 Future<ProcessResult> runFrxIn(Fixture fixture, List<String> args) async =>
-    Process.run('dart', [
-      await _snapshot(),
-      ...args,
-    ], workingDirectory: fixture.root.path);
+    Process.run(
+      'dart',
+      [await _snapshot(), ...args],
+      workingDirectory: fixture.root.path,
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
 
 /// The CLI compiled to a kernel snapshot, built once and reused.
 ///

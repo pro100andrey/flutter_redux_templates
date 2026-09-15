@@ -105,11 +105,10 @@ void main() {
     test('the human report appends path:line for an anchored one', () async {
       fx.file('app/lib/connectors/home_page_connector.dart').deleteSync();
       final res = await runFrx(fx, ['doctor']);
+      final router = p.join('app', 'lib', 'navigation', 'app_router.dart');
       expect(
         res.stdout,
-        matches(
-          RegExp(r'HomeRoute.*\(app/lib/navigation/app_router\.dart:\d+:\d+\)'),
-        ),
+        matches(RegExp('HomeRoute.*\\(${RegExp.escape(router)}:\\d+:\\d+\\)')),
       );
     });
   });

@@ -65,5 +65,9 @@ File locateFile(String relativePath, {String? startDir}) {
         'Could not find "$relativePath" walking up from "$origin". '
         'Run this from inside the monorepo, or pass --root.',
   );
-  return File(p.join(root.path, relativePath));
+  // Normalised: `p.join` keeps the `/` inside [relativePath] as it is, so on
+  // Windows this was `C:\…\business/lib/redux\app_state.dart`, and every path
+  // derived from it — the redux dir, each substate's files — reached graph
+  // JSON and findings with both separators in it.
+  return File(p.normalize(p.join(root.path, relativePath)));
 }

@@ -82,14 +82,15 @@ void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
           continue;
         }
 
-        final script = _hookScript(repo, command);
-        if (script == null || File(script).existsSync()) {
+        final script = _hookScript(command);
+        if (script == null ||
+            File(p.join(repo.root.path, script)).existsSync()) {
           continue;
         }
         into.add(
           Finding.warn(
             '.claude/settings.json declares a ${event.key} hook whose script is '
-            'not at ${p.relative(script, from: repo.root.path)} — it fails '
+            'not at $script — it fails '
             'open, '
             'so what it refuses is being allowed with nothing said. '
             r'$CLAUDE_PROJECT_DIR is the directory holding .claude/, so a '
@@ -104,14 +105,15 @@ void checkAgentHooks(FrxWorkspace repo, List<Finding> into) {
   }
 }
 
-/// The file a hook command runs, resolved against [repo], or null when the
-/// command is not a plain path this check can be sure about.
+/// The project-relative path a hook command runs, as the settings file spells
+/// it, or null when the command is not a plain path this check can be sure
+/// about.
 ///
 /// Deliberately incurious. A command with a pipe, a redirect or its own
 /// arguments is somebody's shell one-liner, and guessing which token in it is
 /// the script would produce false warnings about hooks that work — worse than
 /// the silence this returns instead.
-String? _hookScript(FrxWorkspace repo, String command) {
+String? _hookScript(String command) {
   final trimmed = command.trim();
   if (trimmed.isEmpty) {
     return null;
@@ -130,10 +132,16 @@ String? _hookScript(FrxWorkspace repo, String command) {
   // not this project's file to have an opinion about. A bare name is the one
   // that bites: joined to the root it becomes a path that is never there, so
   // every `prettier`-style hook would be reported as broken.
-  if (p.isAbsolute(path) || !path.contains(p.separator)) {
+  //
+  // A path is told by a `/`, not by `p.separator`: a hook command is shell
+  // syntax and is written with `/` on every platform, while on Windows the
+  // separator is `\`, so every hook read as a bare name there and the check
+  // said nothing — the fail-open it exists to catch, one level up.
+  if (p.isAbsolute(path) ||
+      !(path.contains('/') || path.contains(p.separator))) {
     return null;
   }
-  return p.join(repo.root.path, path);
+  return p.posix.normalize(path);
 }
 
 const _projectDir = r'$CLAUDE_PROJECT_DIR';
