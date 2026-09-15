@@ -283,7 +283,18 @@ Future<String> _buildSnapshot() async {
     if (r.exitCode != 0) {
       throw StateError('could not compile the CLI for tests:\n${r.stderr}');
     }
-    tmp.renameSync(out.path);
+    try {
+      tmp.renameSync(out.path);
+    } on FileSystemException {
+      // Another suite's isolate landed its build first and is already running
+      // a subprocess from it. POSIX swaps the directory entry underneath that
+      // process; Windows refuses to replace a file something holds open, and
+      // said "access is denied" for every test in the isolate that lost.
+      // Same sources, same snapshot: theirs is as good as ours.
+      if (_isStale(out)) {
+        rethrow;
+      }
+    }
   } finally {
     if (stage.existsSync()) {
       stage.deleteSync(recursive: true);
