@@ -1,3 +1,8 @@
+// The decoy watches are stood up through `sh`, and the process table they are
+// found in is read the POSIX way; a Windows runner has neither.
+@TestOn('!windows')
+library;
+
 import 'dart:io';
 
 import 'package:path/path.dart' as p;

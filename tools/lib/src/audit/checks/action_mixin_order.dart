@@ -1,6 +1,7 @@
 import 'package:path/path.dart' as p;
 
 import '../../ast/mixin_chain_reader.dart';
+import '../../ast/positions.dart';
 import '../../ast/source_index.dart';
 import '../../scaffold/artifact_templates.dart';
 import '../../workspace/frx_workspace.dart';
@@ -74,11 +75,15 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
       continue;
     }
     final where = p.relative(file.path);
+    final unit = sourceIndex.unitFor(file);
+    Position? at(int? offset) =>
+        offset == null ? null : positionIn(unit, offset);
 
     for (final hook in hookOverridesOf(file, 'WaitingAction')) {
       if (hook.chainsSuper) {
         continue;
       }
+      final here = at(hook.offset);
       into.add(
         Finding.error(
           '$where — WaitingAction.${hook.name}() does not call '
@@ -87,11 +92,14 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
           '(NonReentrant keeps its lock, Throttle and Fresh keep theirs). '
           'Add `super.${hook.name}()`.',
           file: file.path,
+          line: here?.line,
+          column: here?.column,
         ),
       );
     }
 
     for (final applied in mixinApplicationsIn(file)) {
+      final here = at(applied.offset);
       for (final swallower in applied.after('WaitingAction')) {
         if (!swallowers.contains(swallower)) {
           continue;
@@ -104,6 +112,8 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
             'isWaitingForType<${applied.className}>() stays true once the '
             'action has run. Put WaitingAction last.',
             file: file.path,
+            line: here?.line,
+            column: here?.column,
           ),
         );
       }
@@ -131,6 +141,7 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
                 m.hooks.contains(hook.name))
               m.clause,
         ];
+        final hookAt = at(hook.offset);
         into.add(
           Finding.error(
             '$where — ${applied.className} overrides ${hook.name}() without '
@@ -138,6 +149,8 @@ void checkActionMixinOrder(FrxWorkspace repo, List<Finding> into) {
             'own mixins: ${eaten.join(', ')}.${hook.name}() never runs. '
             'Add `super.${hook.name}()`.',
             file: file.path,
+            line: hookAt?.line,
+            column: hookAt?.column,
           ),
         );
       }

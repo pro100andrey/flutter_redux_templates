@@ -27,3 +27,6 @@ node_modules/
 
 # Compiled output of the VSCode extension (built by `npm run compile`).
 tools/vscode/out/
+
+# `npm run test:integration` downloads a VS Code here (tools/vscode).
+.vscode-test/

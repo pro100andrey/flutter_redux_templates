@@ -180,18 +180,22 @@ void main() {
       expect(build['watchPid'], isA<int>());
     }, testOn: 'posix');
 
-    test('a command with no codegen step reports no build', () async {
-      // `add-selector` edits the facade and generates nothing.
-      final out = await write([
-        'add-selector',
-        'log_in',
-        'isReady',
-        '--expr',
-        '_state.logIn.email != null',
-        '--json',
-      ]);
-      expect(out.keys, isNot(contains('build')));
-    });
+    test(
+      'a command with no codegen step reports no build',
+      () async {
+        // `add-selector` edits the facade and generates nothing.
+        final out = await write([
+          'add-selector',
+          'log_in',
+          'isReady',
+          '--expr',
+          '_state.logIn.email != null',
+          '--json',
+        ]);
+        expect(out.keys, isNot(contains('build')));
+      },
+      skip: Platform.isWindows ? 'the decoy watch is spawned through sh' : null,
+    );
 
     test('the command names itself, so a log of results is readable', () async {
       final out = await write(['add-substate', 'cart', '--dry-run', '--json']);

@@ -42,6 +42,7 @@ frx graph [--json] [--focus <artifact>] [--direction inbound]
 
     --depth                   With --focus: how many hops out to follow, or `all` for as far as the edges go.
                               (defaults to "1")
+    --fail-on-orphans         Exit 1 when the "nothing reaches" list is not empty — a gate for CI. Advice rather than drift, which is why doctor does not report it: `add-action -k waiting` writes an isWaiting getter nothing reads yet, and a check that fired on frx's own output would be noise.
     --root                    Repo root to search from.
 ```
 

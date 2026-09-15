@@ -281,15 +281,18 @@ mixin MarksRowBusy on Action {
     });
 
     test(
-      'a name nothing wires is kind:null and exit 0, not a failure',
+      'a name nothing wires is kind:null and exit 1 — a no, not a failure',
       () async {
-        // Not an oversight — the editor depends on it. `queries.which` reads
-        // `m && m.kind ? m : null`, and its `_json` helper turns a non-zero
-        // exit into null before that runs. Exiting non-zero here would make "I
-        // looked and it is not an artifact" indistinguishable from "frx broke",
-        // and F2 rename would fall back to Dart-Code either way — silently.
+        // `grep`'s convention: 1 is "looked, and no", 70 stays "could not
+        // look" (no project under --root). It exited 0 with the same JSON,
+        // which read as success to a shell's `&&` and to an agent gating a
+        // rename on it. The editor is unaffected: `queries.which` passes
+        // `ignoreCode` to its `_json` helper and reads the JSON, and it
+        // returned null for `kind: null` before as well — so "not an
+        // artifact" and "frx broke" both already fell back to Dart-Code's F2;
+        // the exit code now tells the two apart for everyone else.
         final r = await runInProcess(fx, ['which', 'NoSuchThing', '--json']);
-        expect(r.exitCode, 0);
+        expect(r.exitCode, 1);
         expect(jsonDecode(r.stdout), {'kind': null});
       },
     );

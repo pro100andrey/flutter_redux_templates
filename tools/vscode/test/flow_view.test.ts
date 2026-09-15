@@ -38,11 +38,21 @@ test("nothing is vendored — mermaid is the platform's", () => {
   // marketplace icon. The claim itself is that no *library* is shipped: the
   // preview renders mermaid because VSCode 1.121 renders mermaid, and a vendored
   // copy would be a second renderer to keep in step with the first.
+  //
+  // `media/map/` is the exception that proves the rule: it is the FRX Map's
+  // own page — its stylesheet and script, written here, loaded by the webview
+  // by URI — not a library. So the claim is stated as it is: artwork, plus the
+  // extension's own page files, and nothing minified or third-party in either.
   const media = path.join(ROOT, 'media');
   const strays = fs.existsSync(media)
-    ? fs.readdirSync(media).filter((f) => !/\.(png|svg|jpg|gif)$/i.test(f))
+    ? fs.readdirSync(media).filter((f) => f !== 'map' && !/\.(png|svg|jpg|gif)$/i.test(f))
     : [];
-  assert.deepStrictEqual(strays, [], 'media/ holds artwork only, no code');
+  assert.deepStrictEqual(strays, [], 'media/ holds artwork and the map page only');
+  const page = path.join(media, 'map');
+  const vendored = fs.existsSync(page)
+    ? fs.readdirSync(page).filter((f) => /\.min\.|mermaid|vendor/i.test(f) || !/^map\.(css|js)$/.test(f))
+    : [];
+  assert.deepStrictEqual(vendored, [], 'media/map/ is the page itself: map.css and map.js, nothing shipped in');
 
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   // 1.121 is the release that merged `mermaid-markdown-features` in; below it

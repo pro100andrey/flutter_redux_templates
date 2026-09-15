@@ -14,9 +14,14 @@ class VmField {
     required this.type,
     required this.required,
     this.defaultValue,
+    this.offset,
   });
 
   final String name;
+
+  /// Where the parameter's name sits, for a finding to anchor on. Null for a
+  /// field built without a tree.
+  final int? offset;
 
   /// The written type, e.g. `String`, `String?`, `List<String>`, `ImageVm`.
   /// Not resolved — frx parses without resolution, so this is the source text.
@@ -273,6 +278,7 @@ VmField? _readParameter(
     type: param.type?.toSource() ?? declaredTypes[name] ?? 'dynamic',
     required: param.isRequired,
     defaultValue: param.defaultClause?.value.toSource(),
+    offset: param.name.offset,
   );
 }
 

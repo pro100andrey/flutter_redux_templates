@@ -1,0 +1,135 @@
+/* FRX Map — the page's stylesheet. Loaded by URI from map.ts; the CSP allows
+   the webview's own resource origin and nothing else, so nothing here is
+   inline. The colour variables come from the editor's chart palette, so the
+   picture follows the theme. */
+/* The palette is the editor's chart palette, so it follows the theme. One
+   colour means one thing everywhere it appears: a page's edge and a line
+   into state are both "changes", a substate's edge is "state". */
+:root {
+  --changes: var(--vscode-charts-blue, #3794ff);
+  --reads: var(--vscode-charts-lines, #6e6e6e);
+  --page: var(--vscode-charts-blue, #3794ff);
+  --consumer: var(--vscode-descriptionForeground, #8b8b8b);
+  --service: var(--vscode-charts-purple, #b180d7);
+  --persistor: var(--vscode-charts-orange, #d18616);
+  --substate: var(--vscode-charts-green, #89d185);
+}
+body { font-family: var(--vscode-font-family); color: var(--vscode-foreground);
+  background: var(--vscode-editor-background); margin: 0; padding: 16px; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+  opacity: .7; margin: 0 0 8px; font-weight: 600; }
+.toolbar { margin-bottom: 12px; display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap; }
+.legend { font-size: 12px; opacity: .75; display: flex; gap: 14px; flex-wrap: wrap; }
+.legend .line { display: inline-block; width: 22px; vertical-align: middle;
+  border-top: 2px solid var(--reads); margin: 0 4px 3px 0; }
+.legend .line.changes { border-top-color: var(--changes); }
+.legend .line.navigates { border-top-style: dashed; border-top-width: 1.5px; }
+.legend .line.builds { border-top-style: dotted; border-top-width: 1.5px; }
+button { font: inherit; color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background); border: none; padding: 4px 10px;
+  border-radius: 4px; cursor: pointer; }
+/* The picture and, beside it, the pane. The pane keeps to the top of the
+   viewport while the picture scrolls under it: what it describes is whatever
+   is focused, which is on screen by definition. On a panel too narrow for
+   both it becomes a sheet along the bottom, shown only while something is
+   focused, so it never covers a picture nobody asked about. */
+#wrap { display: flex; gap: 24px; align-items: flex-start; }
+#board { flex: 0 0 auto; }
+#pane { position: sticky; top: 16px; flex: 0 0 auto; width: 300px;
+  box-sizing: border-box; font-size: 12px; max-height: calc(100vh - 32px);
+  overflow: auto; border: 1px solid var(--vscode-panel-border); border-radius: 6px;
+  padding: 10px 12px; background: var(--vscode-editorWidget-background); }
+@media (max-width: 1000px) {
+  #pane { position: fixed; left: 16px; right: 16px; bottom: 0; top: auto; width: auto;
+    max-height: 40vh; border-radius: 6px 6px 0 0; z-index: 2; }
+  #pane.idle { display: none; }
+}
+#pane .hint { opacity: .5; font-style: italic; }
+#pane h3 { margin: 0 0 2px; font-size: 13px; cursor: pointer; }
+#pane h3:hover { text-decoration: underline; }
+#pane .kind { opacity: .7; margin-bottom: 6px; }
+#pane h4 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .05em; opacity: .7; }
+#pane h4.changes { color: var(--changes); opacity: 1; }
+#pane ul { list-style: none; margin: 0; padding: 0; }
+#pane li { padding: 2px 0; cursor: pointer; }
+#pane li:hover { text-decoration: underline; }
+#pane li .via { opacity: .6; font-family: var(--vscode-editor-font-family); }
+/* The side padding is the channel: an edge joining two nodes of one column
+   leaves and re-enters on that column's outer side, and needs room to do it.
+   Both it and the gap give way on a narrow panel — the columns do not, they
+   are sized to their content and hold it; what is left over is what the
+   lines get, and past that the page scrolls sideways rather than squeezing a
+   name onto two lines. */
+#board { position: relative; display: flex; align-items: flex-start;
+  gap: clamp(48px, 9vw, 120px); padding: 0 clamp(28px, 5vw, 70px); }
+/* The lines sit under the rows and take no pointer, except along their own
+   stroke: a line in the gap can be hovered for what it carries, and a line
+   under a row yields to the row. */
+svg { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+path.wire { pointer-events: stroke; }
+.col { position: relative; z-index: 1; flex: 0 0 auto; width: 280px; }
+/* The rows of the shorter column are placed, not stacked: each at the height of
+   the rows it relates to, so its lines run level instead of down the whole
+   canvas. The container is what the placement measures against. */
+.rows { position: relative; }
+.rows.placed > .node { position: absolute; left: 0; right: 0; margin: 0; }
+.node { box-sizing: border-box; border-radius: 6px; padding: 6px 10px;
+  margin-bottom: 10px; border: 1px solid var(--vscode-panel-border);
+  border-left-width: 3px; background: var(--vscode-editorWidget-background); }
+/* The kind, as a coloured edge: the column mixes screens, regions, services
+   and the persistor, and the subtitle says which — this lets the eye sort
+   them without reading. */
+.node.k-page { border-left-color: var(--page); }
+.node.k-consumer { border-left-color: var(--consumer); }
+.node.k-service { border-left-color: var(--service); }
+.node.k-persistor { border-left-color: var(--persistor); }
+.node.k-substate { border-left-color: var(--substate); }
+/* One line each, and the column is measured to hold them (see fit()): a
+   class name broken across two lines reads as two names. */
+.node .t { font-weight: 600; cursor: pointer; white-space: nowrap; }
+.node .t:hover { text-decoration: underline; }
+.node .s { opacity: .7; font-size: 12px; white-space: nowrap; }
+.owned, .regions { margin-top: 4px; font-size: 12px; }
+.owned .count, .regions { cursor: pointer; opacity: .8; user-select: none;
+  white-space: nowrap; }
+.owned ul { list-style: none; margin: 4px 0 0; padding: 0 0 0 10px;
+  border-left: 1px solid var(--vscode-panel-border); }
+.owned li { padding: 1px 0; cursor: pointer; }
+.owned li:hover { text-decoration: underline; }
+/* What a row builds sits inside it, indented: the composition reads as
+   containment, which is what it is. The last built row keeps no bottom margin,
+   so the builder's box closes tight around it. Folded, the regions are gone
+   and their lines land on the builder. */
+.built { margin: 8px 0 0 14px; }
+.built > .node:last-child { margin-bottom: 0; }
+.node.folded > .built { display: none; }
+.empty { opacity: .6; font-style: italic; }
+/* Focus and context: hovering a row dims everything not attached to it. The
+   crossings that remain stop mattering when one row's relations can be read on
+   their own. A transition, so the picture settles rather than flickering as the
+   pointer crosses rows. Dimmed by the row's own head rather than the row: a box
+   also holds what it builds, and opacity on the box would dim a lit row inside
+   an unlit one. */
+.node > .head, path.wire { transition: opacity .12s ease; }
+#board.focusing .node:not(.lit) > .head,
+#board.focusing path.wire:not(.lit) { opacity: .12; }
+#board.focusing path.wire.lit { stroke-width: 2; }
+/* A pinned row holds the focus after the pointer leaves, and says so. */
+.node.pinned > .head { outline: 1px solid var(--changes); outline-offset: 3px;
+  border-radius: 3px; }
+.gaps { margin-top: 20px; border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px; padding: 8px 12px; max-width: min(700px, 100%);
+  box-sizing: border-box; }
+.gaps .at, .gaps .why { opacity: .7; font-size: 12px; margin: 0 0 0 14px; }
+.gaps .why { margin-bottom: 8px; }
+/* A path has no space to break at; without this it runs out of the box. */
+.gaps code { font-family: var(--vscode-editor-font-family); overflow-wrap: anywhere; }
+/* A line's colour is what it does to state: a line that changes it, and a
+   line that only reads it. The first question on arriving anywhere is "who
+   can change this", and it used to take a hover per line to answer. */
+path.wire { fill: none; stroke: var(--reads); stroke-width: 1.5; opacity: .7; }
+path.wire.changes { stroke: var(--changes); opacity: .85; }
+path.navigates { stroke-dasharray: 4 3; }
+path.builds { stroke-dasharray: 1.5 3; }

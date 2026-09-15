@@ -848,6 +848,23 @@ curl -fsSL https://raw.githubusercontent.com/pro100andrey/flutter_redux_template
 cd tools && dart install .
 ```
 
+### The pair that shipped together
+
+The extension and the CLI share a version and are built on one tag, and the
+editor reads the CLI's contract — the `--kind` sets, the doctor remedy ids —
+out of generated constants. So a Marketplace update landing on a machine whose
+binary was never re-installed offers options that binary rejects, and the only
+symptom was "FRX failed (exit 64)". Once per session, when the binary is
+resolved, the two versions are compared by major.minor: a CLI that is behind
+gets a warning with an **Upgrade frx** action (`frx upgrade`, run from the
+editor); one that is ahead is told to update the extension.
+
+Once a day the extension also asks the installed binary `frx upgrade --check`
+and, when a newer release exists, offers to install it. Installed binaries
+only — the `dart run` fallback has nothing to upgrade — and never a word on
+failure: offline, the release endpoint down and a binary too old to know
+`--check` all look the same from here.
+
 ## Project detection
 
 Everything is gated on real project markers — nothing is guessed:
@@ -979,6 +996,16 @@ symbol→artifact mapping, the doctor quick-fixes, the overlay's rows, the
 (catches a broken require path or circular-load break). `npm run validate` runs
 the manifest gate; the palette ↔ overlay contract is pinned on the CLI side by
 `tools/test/extension_contract_test.dart`.
+
+### Integration tests in a real VS Code
+
+`npm test` runs against a hand-written `vscode` stub (`test/helpers.ts`), which
+is what makes it fast and what keeps it from proving anything about the host.
+`npm run test:integration` downloads a VS Code into `.vscode-test/` (ignored),
+opens this monorepo in it with every other extension disabled, and runs
+`test/integration/suite/` under mocha inside the host: the extension activates,
+every command the manifest contributes is registered, `frx.doctor` runs to
+completion. Headless runners need a display — CI uses `xvfb-run -a`.
 
 ## Build & install a VSIX
 

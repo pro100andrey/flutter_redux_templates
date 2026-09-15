@@ -1,10 +1,25 @@
 import './helpers';
 import { test } from 'node:test';
 import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as vm from 'node:vm';
-import { buildHtml, picture } from '../src/map';
+import { buildHtml as htmlOf, picture } from '../src/map';
 import type { AppGraph, GraphEdge, GraphNode } from '../src/queries';
-import type { PictureNode } from '../src/map';
+import type { Picture, PictureNode } from '../src/map';
+
+/**
+ * The page's stylesheet and script, read from `media/map/` — where they live
+ * now. They used to be a template literal inside `buildHtml`, and the tests
+ * below read the page as one text; they still do, by putting the three back
+ * together, so what each pins about the drawing is unchanged.
+ */
+const MEDIA = path.join(__dirname, '..', '..', 'media', 'map');
+const CLIENT_CSS = fs.readFileSync(path.join(MEDIA, 'map.css'), 'utf8');
+const CLIENT_JS = fs.readFileSync(path.join(MEDIA, 'map.js'), 'utf8');
+
+/** The whole page as text: the skeleton `buildHtml` builds plus the two files it loads. */
+const buildHtml = (p: Picture): string => htmlOf(p) + '\n' + CLIENT_CSS + '\n' + CLIENT_JS;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -718,14 +733,17 @@ test('a line meets a column at the column edge, not the row edge', () => {
   assert.ok(!/ra\.right - board\.left/.test(html), 'no line starts at a row edge');
 });
 
-test('the page it builds is JavaScript that actually parses', () => {
-  // The webview's script is written inside a template literal, which means the
-  // build has *two* levels of escaping and TypeScript checks neither: a lone
-  // `\n` in a string became a real newline in the emitted script, inside a
-  // string literal, and the whole page stopped parsing — a blank map, with
-  // nothing anywhere saying why. Every other test here reads the page as text
-  // and so could not see it.
-  const html = buildHtml(
+test('the page\'s script is JavaScript that actually parses', () => {
+  // The webview's script used to be written inside a template literal, which
+  // meant the build had *two* levels of escaping and TypeScript checked
+  // neither: a lone `\n` in a string became a real newline in the emitted
+  // script, inside a string literal, and the whole page stopped parsing — a
+  // blank map, with nothing anywhere saying why. It is a file now, and this
+  // parses the file the page loads; every other test here reads it as text
+  // and so could not see a break.
+  assert.doesNotThrow(() => new vm.Script(CLIENT_JS), 'media/map/map.js must parse');
+  // And the page reaches it: the data block it reads, and the script itself.
+  const html = htmlOf(
     picture(
       graphOf({
         nodes: [PAGE('logIn', '/login'), SUB('a', 'A'), SUB('b', 'B')],
@@ -737,12 +755,35 @@ test('the page it builds is JavaScript that actually parses', () => {
       }),
     ),
   );
-  const script = /<script nonce="[^"]*">([\s\S]*?)<\/script>/.exec(html)?.[1];
-  assert.ok(script, 'the page carries a script');
-  assert.doesNotThrow(
-    () => new vm.Script(script!),
-    'the webview script must parse',
+  assert.match(html, /<script type="application\/json" id="picture"/);
+  assert.match(CLIENT_JS, /getElementById\('picture'\)\.textContent/);
+  assert.match(html, /<script nonce="[^"]+" src="[^"]*map\.js"><\/script>/);
+});
+
+test('the page loads its stylesheet and script by the URIs it is given, under the nonce', () => {
+  // `buildHtml` is pure in its three inputs, which is what lets this be read:
+  // the same picture, assets and nonce give the same page.
+  const p = picture(graphOf({ nodes: [SUB('logIn', 'LogInState'), PAGE('logIn', '/login')] }));
+  const assets = {
+    css: 'vscode-resource://ext/media/map/map.css',
+    js: 'vscode-resource://ext/media/map/map.js',
+    cspSource: 'vscode-resource://ext',
+  };
+  const html = htmlOf(p, assets, 'N0NCE');
+  assert.strictEqual(html, htmlOf(p, assets, 'N0NCE'), 'pure');
+  assert.match(html, /<link rel="stylesheet" href="vscode-resource:\/\/ext\/media\/map\/map\.css" \/>/);
+  assert.match(html, /<script nonce="N0NCE" src="vscode-resource:\/\/ext\/media\/map\/map\.js"><\/script>/);
+  assert.match(html, /style-src vscode-resource:\/\/ext;/, 'the stylesheet origin is allowed by the policy');
+  assert.match(html, /script-src 'nonce-N0NCE';/);
+  // The picture travels as data, not as code: a JSON block the script parses.
+  const block = /<script type="application\/json" id="picture" nonce="N0NCE">([\s\S]*?)<\/script>/.exec(html);
+  assert.ok(block, 'the page carries the picture as a JSON block');
+  const parsed = JSON.parse(block![1]);
+  assert.deepStrictEqual(
+    parsed.state.map((n: PictureNode) => n.title),
+    ['logIn'],
   );
+  assert.strictEqual(parsed.crossings, undefined, 'what the ordering achieved is not drawn');
 });
 
 test('the html is self-contained and script-safe', () => {

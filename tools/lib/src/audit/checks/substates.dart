@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../ast/positions.dart';
 import '../../model/substate_artifact.dart';
 import '../../redux/app_state_source.dart';
 import '../../redux/store_source.dart';
@@ -34,12 +35,15 @@ void checkSubstates(FrxWorkspace repo, List<Finding> into) {
       s.field,
     ).stateFile(source.reduxDir);
     if (!stateFile.existsSync()) {
+      final at = s.offset == null ? null : positionIn(source.unit, s.offset!);
       into.add(
         Finding.error(
           'AppState.${s.field} (${s.type}) has no '
           '${p.relative(stateFile.path)}.',
           // The state file is missing; anchor on where the field is declared.
           file: source.file.path,
+          line: at?.line,
+          column: at?.column,
         ),
       );
     } else if (!File(
@@ -127,6 +131,7 @@ void checkChangeLog(FrxWorkspace repo, List<Finding> into) {
   };
 
   for (final entry in entries) {
+    final at = positionIn(store.unit, entry.node.offset);
     if (!entry.agrees) {
       // States what the line does, not why. A rename that moved the field and
       // left the string is how it usually happens, but the block belongs to the
@@ -137,6 +142,8 @@ void checkChangeLog(FrxWorkspace repo, List<Finding> into) {
           'the change log tests ${entry.field} and prints "${entry.label}", so '
           'the trace names something other than the field it watched.',
           file: store.file.path,
+          line: at.line,
+          column: at.column,
         ),
       );
     } else if (!substates.contains(entry.field)) {
@@ -145,6 +152,8 @@ void checkChangeLog(FrxWorkspace repo, List<Finding> into) {
           'the change log names "${entry.label}", which AppState no longer '
           'composes.',
           file: store.file.path,
+          line: at.line,
+          column: at.column,
         ),
       );
     }

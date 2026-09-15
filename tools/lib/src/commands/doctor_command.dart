@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:args/command_runner.dart';
+import 'package:path/path.dart' as p;
 
 import '../audit/checks.dart';
 import '../audit/finding.dart';
@@ -36,8 +37,9 @@ class DoctorCommand extends Command<int> {
         negatable: false,
         help:
             'Emit findings as JSON '
-            '({findings:[{severity,message,file,fix,rule}]}) instead of the '
-            'report. Read-only (ignores --fix).',
+            '({findings:[{severity,message,file,fix,rule,line?,column?}]}) '
+            'instead of the report. line/column are 1-based and present only '
+            'for a finding about a declaration. Read-only (ignores --fix).',
       )
       ..addOption('root', help: kRootHelp);
   }
@@ -114,8 +116,15 @@ class DoctorCommand extends Command<int> {
     }
     final errors = findings.where((f) => f.severity == Severity.error).length;
     for (final f in findings) {
+      // The line, when the finding is about one: the message names the file
+      // already, and a reader with a terminal that links `path:line` gets a
+      // jump instead of a search.
+      final at = f.line == null
+          ? ''
+          : '  (${p.relative(f.file!, from: repo.root.path)}:${f.line}'
+                '${f.column == null ? '' : ':${f.column}'})';
       console.out.writeln(
-        '  ${f.severity == Severity.error ? '✗' : '⚠'} ${f.message}',
+        '  ${f.severity == Severity.error ? '✗' : '⚠'} ${f.message}$at',
       );
     }
     console.out

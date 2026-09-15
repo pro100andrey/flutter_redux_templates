@@ -53,8 +53,8 @@ void main() {
     });
 
     test('the guard sees the flip in both directions', () async {
-      // `canEnterApp` is what the auth area is decided on, and `run_env` feeds
-      // the router a listenable over the same field.
+      // `session.isAvailable` is what the auth guard decides on, and `run_env`
+      // feeds the router a listenable over the same selector.
       final s = store();
       expect(SelectSession(s.state).isAvailable, isFalse);
 

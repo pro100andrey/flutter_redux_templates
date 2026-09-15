@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../ast/positions.dart';
 import '../../ast/source_index.dart';
 import '../../workspace/frx_workspace.dart';
 import '../finding.dart';
@@ -44,11 +45,18 @@ import '../text_bytes.dart';
 /// is the only way to say *where*. A file no editor will show you the problem
 /// in is one you need an offset for, and it is at most one file per audit.
 void checkSourceText(FrxWorkspace repo, List<Finding> into) {
-  void report(File file, Unsearchable kind, int offset) => into.add(
+  void report(
+    File file,
+    Unsearchable kind,
+    int offset, {
+    Position? at,
+  }) => into.add(
     Finding.warn(
       '${p.relative(file.path, from: repo.root.path)} '
       '${describeUnsearchable(kind, offset)}',
       file: file.path,
+      line: at?.line,
+      column: at?.column,
     ),
   );
 
@@ -80,6 +88,9 @@ void checkSourceText(FrxWorkspace repo, List<Finding> into) {
         file,
         Unsearchable.nulByte,
         utf8.encode(source.substring(0, at)).length,
+        // The byte offset is for `xxd`; the line is for the editor. Only the
+        // decodable case has a line to name.
+        at: positionInSource(source, at),
       );
     }
   }

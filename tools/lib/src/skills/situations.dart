@@ -251,11 +251,11 @@ one is a field access, and all of them live in a single file,
 
 ```dart
 extension type SelectLogin(AppState _state) {
-  /// Returns waiting value
-  bool get isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>();
-
   /// Returns email value
   String? get email => _state.login.email;
+
+  /// Returns password value
+  String? get password => _state.login.password;
 }
 ```
 
@@ -270,16 +270,19 @@ in the template ever called them — so adding a slice cost two parallel lists,
 one of which was unreachable.
 
 A value that spans slices belongs to `SelectComposites`, on the facade itself —
-not inside one of the slices:
+not inside one of the slices. The template's own member there is `isBusy`, the
+fold the modal barrier reads; one that read two slices would look like this:
 
 ```dart
 extension SelectComposites on Selectors {
-  bool get canEnterApp => session.isAvailable && !login.isWaiting;
+  bool get canSubmit => session.isAvailable && !login.isBusy;
 }
 ```
 
 That works because `Selectors` has every slice in scope. A `SelectX` does not
-reach its siblings, and in the whole template not one of them tried to.
+reach its siblings, and in the whole template not one of them tried to. Write
+one only for a reader that exists: `frx graph` lists a selector nothing reads
+under "nothing reaches", and the template shipped one there for months.
 
 `doctor` reports a selector declared anywhere but the facade
 (`selector-outside-facade`), so the file is the convention, not a habit.

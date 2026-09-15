@@ -46,6 +46,16 @@ class Console {
   /// Everything on standard input, as text.
   Future<String> stdinText() async =>
       input ?? await io.systemEncoding.decodeStream(io.stdin);
+
+  /// One line of standard input, without its line ending, or null at the end
+  /// of it.
+  ///
+  /// What the `frx new` wizard reads its answers through. It read
+  /// `stdin.readLineSync()` directly, which is why the wizard was the one
+  /// command with no test of its own: every other command's input arrives as
+  /// arguments, and this one's arrives as a conversation. A [CapturedConsole]
+  /// answers from [input], one line per call.
+  String? readLine() => io.stdin.readLineSync();
 }
 
 const _key = #frxConsole;
@@ -67,10 +77,24 @@ R withConsole<R>(Console replacement, R Function() body) =>
 class CapturedConsole extends Console {
   factory CapturedConsole({String? input}) =>
       CapturedConsole._(StringBuffer(), StringBuffer(), input: input);
-  CapturedConsole._(this._out, this._err, {super.input}) : super(_out, _err);
+  CapturedConsole._(this._out, this._err, {super.input})
+    : _lines = (input ?? '').split('\n').iterator,
+      super(_out, _err);
 
   final StringBuffer _out;
   final StringBuffer _err;
+
+  /// [input] as the wizard would read it from a pipe: a line per prompt, and
+  /// the end of the text is the end of the input.
+  final Iterator<String> _lines;
+
+  @override
+  String? readLine() {
+    if (input == null || !_lines.moveNext()) {
+      return null;
+    }
+    return _lines.current;
+  }
 
   /// Everything written to [out].
   String get output => _out.toString();

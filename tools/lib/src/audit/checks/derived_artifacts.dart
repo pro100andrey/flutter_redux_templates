@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 import '../../flow/flow_docs.dart';
 import '../../refusal.dart';
 import '../../skills/skill_gen.dart';
+import '../../upgrade/version_order.dart';
 import '../../workspace/frx_workspace.dart';
 import '../finding.dart';
 
@@ -33,6 +34,31 @@ void checkFlowDocs(FrxWorkspace repo, List<Finding> into) {
       ),
     );
   }
+}
+
+/// Which way the drift runs, and so which of the two commands closes it.
+///
+/// The finding used to say "written by 0.3.2" and stop, and for the case that
+/// actually happened it said nothing at all: the tree and the binary both said
+/// 0.3.4 and disagreed anyway, because one of them was a build between
+/// releases. Read cold, that was a contradiction. Three cases, three sentences,
+/// and each names the command that fits rather than leaving the reader to pick
+/// between `update-skills` and `upgrade` by guessing which side moved.
+String _remedy({required String writtenBy, required String running}) {
+  final order = compareVersions(writtenBy, running);
+  if (order < 0) {
+    return 'They were written by frx $writtenBy, and this is $running: '
+        '`frx update-skills` (or `frx doctor --fix`) rewrites them from the '
+        'frx that is here.';
+  }
+  if (order > 0) {
+    return 'They were written by frx $writtenBy, which is newer than this '
+        '$running: `frx upgrade` brings the binary up to them; '
+        '`frx update-skills` would write them back down to $running instead.';
+  }
+  return 'They were written by another build of $running, so one side is a '
+      'build between releases: `frx update-skills` if this frx is the one you '
+      'are keeping, `frx upgrade` if it is the stale one.';
 }
 
 /// `.claude/skills/` that a different frx wrote.
@@ -76,10 +102,9 @@ void checkSkills(FrxWorkspace repo, List<Finding> into) {
 
   into.add(
     Finding.warn(
-      '.claude/skills/ is not what frx ${SkillGen.version} generates'
-      '${owned.version == SkillGen.version ? '' : ' (it was written by '
-                '${owned.version})'}'
-      ' — an agent is reading a description of a CLI that is not here.',
+      '.claude/skills/ is not what frx ${SkillGen.version} generates — an '
+      'agent is reading a description of a CLI that is not here. '
+      '${_remedy(writtenBy: owned.version!, running: SkillGen.version)}',
       // The manifest, which is guaranteed to be there — it is the gate above.
       // A finding with no file has no document for a lightbulb to hang off, so
       // it reaches the editor as prose and the remedy is never offered.

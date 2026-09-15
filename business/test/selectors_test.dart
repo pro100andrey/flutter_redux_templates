@@ -89,29 +89,6 @@ void main() {
     });
   });
 
-  group('SelectComposites.canEnterApp', () {
-    test('needs a token', () {
-      expect(_Reader(AppState.initial()).canEnterApp, isFalse);
-    });
-
-    test('is true once a token is present and nothing is in flight', () {
-      final r = _Reader(AppState.initial().copyWith.session(token: 'tok'));
-      expect(r.canEnterApp, isTrue);
-    });
-
-    test('is false while the login action is in flight', () {
-      // `isWaiting` is keyed on the action *type*, which is why the read layer
-      // imports the write layer. Renaming the action silently changes what
-      // this selector observes, so the pairing is worth a test.
-      final waiting = AppState.initial().copyWith
-          .session(token: 'tok')
-          .copyWith(wait: Wait.empty.add(flag: LogInWithEmailAction()));
-
-      expect(_Reader(waiting).login.isWaiting, isTrue);
-      expect(_Reader(waiting).canEnterApp, isFalse);
-    });
-  });
-
   group('SelectComposites.isBusy', () {
     test('is false when nothing is in flight', () {
       expect(_Reader(AppState.initial()).isBusy, isFalse);

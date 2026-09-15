@@ -49,10 +49,16 @@ class AppRouter extends RootStackRouter {
 /// `redirect`. Reads the session straight from the store; combined with a
 /// `reevaluateListenable` on the session token, it re-runs whenever login
 /// state flips, so logging in/out bounces the user to the right area.
-class _AuthGuard extends AutoRouteGuard {
+class _AuthGuard extends AutoRouteGuard with Selectors {
   const _AuthGuard(this._store);
 
   final Store<AppState> _store;
+
+  /// The one member the facade asks for — read live, so every run of the
+  /// guard sees the store as it is at that moment, not as it was when the
+  /// guard was built.
+  @override
+  AppState get state => _store.state;
 
   /// Routes reachable while logged out. Everything else requires a session.
   static const Set<String> _authArea = {
@@ -64,7 +70,10 @@ class _AuthGuard extends AutoRouteGuard {
 
   @override
   void onNavigation(NavigationResolver resolver, StackRouter router) {
-    final loggedIn = _store.state.session.token != null;
+    // Through the selector, not `_store.state.session.token != null`: the
+    // facade is where "is there a session" is spelled, and spelling it again
+    // here left `SelectSession.isAvailable` with no reader at all.
+    final loggedIn = session.isAvailable;
     final name = resolver.routeName;
 
     // Splash is a pure gate: bounce straight to the right area.

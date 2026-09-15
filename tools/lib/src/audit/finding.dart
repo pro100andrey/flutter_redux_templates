@@ -76,13 +76,49 @@ class SkillsFix extends Fix {
 
 /// A single problem the audit found.
 class Finding {
-  const Finding(this.severity, this.message, {this.file, this.fix, this.rule});
+  const Finding(
+    this.severity,
+    this.message, {
+    this.file,
+    this.fix,
+    this.rule,
+    this.line,
+    this.column,
+  });
 
-  const Finding.error(String message, {String? file, Fix? fix, String? rule})
-    : this(Severity.error, message, file: file, fix: fix, rule: rule);
+  const Finding.error(
+    String message, {
+    String? file,
+    Fix? fix,
+    String? rule,
+    int? line,
+    int? column,
+  }) : this(
+         Severity.error,
+         message,
+         file: file,
+         fix: fix,
+         rule: rule,
+         line: line,
+         column: column,
+       );
 
-  const Finding.warn(String message, {String? file, Fix? fix, String? rule})
-    : this(Severity.warn, message, file: file, fix: fix, rule: rule);
+  const Finding.warn(
+    String message, {
+    String? file,
+    Fix? fix,
+    String? rule,
+    int? line,
+    int? column,
+  }) : this(
+         Severity.warn,
+         message,
+         file: file,
+         fix: fix,
+         rule: rule,
+         line: line,
+         column: column,
+       );
 
   final Severity severity;
   final String message;
@@ -100,10 +136,23 @@ class Finding {
   /// What `--fix` would do, or null for a report-only finding.
   final Fix? fix;
 
+  /// Where in [file] the finding is about, 1-based, when it is about a
+  /// declaration rather than the file — a route entry, a getter, a `with`
+  /// clause. Null for a finding about a file's absence or its whole.
+  ///
+  /// Every finding used to reach the editor on line 1, because the file was
+  /// all it carried; the trees the checks read had the offsets all along.
+  final int? line;
+  final int? column;
+
   Map<String, Object?> toJson() => {
     'severity': severity.name,
     'message': message,
     'file': file,
+    // Additive, and absent rather than null when unknown: a consumer that
+    // predates them reads the shape it always did.
+    if (line != null) 'line': line,
+    if (column != null) 'column': column,
     // The remedy `--fix` would apply, so the editor can offer a quick-fix;
     // null for report-only findings.
     'fix': fix?.id,

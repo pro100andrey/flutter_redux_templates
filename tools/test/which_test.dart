@@ -12,9 +12,9 @@ void main() {
   setUp(() => fx = Fixture.create());
   tearDown(() => fx.dispose());
 
-  Future<Map<String, dynamic>> which(String token) async {
+  Future<Map<String, dynamic>> which(String token, {int exitCode = 0}) async {
     final res = await runFrx(fx, ['which', token, '--json']);
-    expect(res.exitCode, 0, reason: res.stderr.toString());
+    expect(res.exitCode, exitCode, reason: res.stderr.toString());
     return jsonDecode(res.stdout as String) as Map<String, dynamic>;
   }
 
@@ -72,7 +72,23 @@ void main() {
     },
   );
 
-  test('an unknown identifier resolves to kind null', () async {
-    expect(await which('TotallyUnknownThing'), {'kind': null});
+  test('an unknown identifier resolves to kind null, and exits 1', () async {
+    // The JSON is still printed — the editor reads `kind: null` as "not
+    // renamable" — but the code says no, so a script or an agent that gates
+    // on it is not told yes. It was 0, and `frx which Nope && frx rename Nope`
+    // went straight on to the rename.
+    expect(await which('TotallyUnknownThing', exitCode: 1), {'kind': null});
+  });
+
+  test('a miss in the human mode exits 1 with the sentence', () async {
+    final res = await runFrx(fx, ['which', 'TotallyUnknownThing']);
+    expect(res.exitCode, 1);
+    expect(res.stdout, contains('is not a wired frx substate or page'));
+  });
+
+  test('a hit exits 0 in the human mode', () async {
+    final res = await runFrx(fx, ['which', 'HomeRoute']);
+    expect(res.exitCode, 0, reason: res.stderr.toString());
+    expect(res.stdout, contains('page  home'));
   });
 }

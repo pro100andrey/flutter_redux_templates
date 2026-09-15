@@ -434,6 +434,20 @@ class SelectorsSource extends FileSource {
 
   static final _whitespace = RegExp(r'\s+');
 
+  /// Where the getter [name] of [selectorType] is declared, or null when the
+  /// facade has no such getter — the anchor for a finding about it.
+  int? getterOffset(String selectorType, String name) {
+    for (final ext in unit.declarations.whereType<ExtensionTypeDeclaration>()) {
+      if (ext.namePart.typeName.lexeme != selectorType) {
+        continue;
+      }
+      for (final m in _getters(ext.body, name)) {
+        return m.name.offset;
+      }
+    }
+    return null;
+  }
+
   /// The members of [selectorType] that still read [getterName] and are not
   /// the derived accessors [removeSelector] takes with it.
   ///

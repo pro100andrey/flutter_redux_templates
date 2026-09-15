@@ -6,6 +6,7 @@ class RouteEntry {
     this._fullPath,
     this.initial = false,
     this.parent,
+    this.offset,
   });
 
   /// The generated route class referenced as `<Type>.page`, e.g. `HomeRoute`.
@@ -33,4 +34,8 @@ class RouteEntry {
   /// The shell route this one is nested under (`children:` of a tab shell), or
   /// null for a top-level route.
   final String? parent;
+
+  /// Where the `AutoRoute(…)` sits in `app_router.dart`, for a finding to
+  /// anchor on. Null for an entry built without a tree.
+  final int? offset;
 }

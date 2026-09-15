@@ -186,7 +186,7 @@ dart run bin/frx.dart <command>     # or `dart install .` to get `frx` on PATH
 | `list-mixins` | The action mixins, what each implies and what it excludes |
 | `which` | Resolve an identifier (class/route/field) to its artifact (powers the editor's F2 rename) |
 | `flow` | Diagram a page's use cases (`<page>`), the whole app's navigation (`--routes`), or export both to `docs/flows/` (`--md`) |
-| `graph` | The whole app as one graph — substates, actions, pages, selectors, services and the edges between them, plus what frx **could not** resolve (`--json`, `--focus <id>`) |
+| `graph` | The whole app as one graph — substates, actions, pages, selectors, services and the edges between them, plus what frx **could not** resolve (`--json`, `--focus <id>`, `--fail-on-orphans` as a CI gate) |
 | `watch` | Run `build_runner watch` from anywhere (whole workspace, or one `--package`) |
 | `upgrade` | Replace the installed binary with the newest release — `--check` reports without installing |
 | `completions` | Print a shell completion script for bash / zsh / fish — `source <(frx completions zsh)` (completes commands, flags & live substate/route names) |

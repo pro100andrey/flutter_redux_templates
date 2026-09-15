@@ -4,6 +4,7 @@ import 'package:async_redux/async_redux.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:business/dependencies.dart';
 import 'package:business/environment.dart';
+import 'package:business/redux/app_state.dart';
 import 'package:business/redux/store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -51,7 +52,10 @@ Future<void> runEnv(Environment env) async {
   // go_router's `refreshListenable`.
   final routerConfig = appRouter.config(
     reevaluateListenable: ReevaluateListenable.stream(
-      store.onChange.map((state) => state.session.token != null).distinct(),
+      // The same selector the guard decides on, so the two cannot drift.
+      store.onChange
+          .map((state) => SelectSession(state).isAvailable)
+          .distinct(),
     ),
   );
 

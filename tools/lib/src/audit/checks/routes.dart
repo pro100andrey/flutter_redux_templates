@@ -1,5 +1,7 @@
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
+import '../../ast/positions.dart';
 import '../../ast/source_index.dart';
 import '../../model/page_artifact.dart';
 import '../../refusal.dart';
@@ -17,21 +19,29 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
     return;
   }
 
-  final routedTypes = routes.readRoutes().map((r) => r.routeType).toSet();
+  final entries = routes.readRoutes();
+  final routedTypes = entries.map((r) => r.routeType).toSet();
 
   // route → connector file
-  for (final type in routedTypes) {
+  final reported = <String>{};
+  for (final entry in entries) {
+    final type = entry.routeType;
     final page = PageArtifact.fromRouteType(type);
-    if (page == null) {
+    if (page == null || !reported.add(type)) {
       continue;
     }
     final connector = page.connectorFile(routes.connectorsDir);
     if (!connector.existsSync()) {
+      final at = entry.offset == null
+          ? null
+          : positionIn(routes.unit, entry.offset!);
       into.add(
         Finding.error(
           'Route $type has no ${p.relative(connector.path)}.',
           // The connector is missing; anchor on the route registration.
           file: routes.file.path,
+          line: at?.line,
+          column: at?.column,
         ),
       );
     }
@@ -60,10 +70,21 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
     final base = fname.substring(0, fname.length - suffix.length);
     final type = PageArtifact.parse(base).routeType;
     if (!routedTypes.contains(type)) {
+      // The annotated class, so the squiggle lands on the connector and not on
+      // its imports.
+      final decl = unit.declarations
+          .whereType<ClassDeclaration>()
+          .where(PageArtifact.isRoutePage)
+          .firstOrNull;
+      final at = decl == null
+          ? null
+          : positionIn(unit, decl.namePart.typeName.offset);
       into.add(
         Finding.warn(
           'connectors/$fname — $type is not registered in AppRouter.',
           file: f.path,
+          line: at?.line,
+          column: at?.column,
         ),
       );
     }

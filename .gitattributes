@@ -1,0 +1,18 @@
+# Every text file is committed and checked out with LF, on every platform.
+#
+# The CLI's tests compare bytes: the embedded template against the tree it was
+# packed from, a rename against the file it rewrote, `docs/flows` against a
+# fresh export. A Windows checkout with `core.autocrlf=true` — the runner's
+# default — would rewrite every one of those to CRLF and fail all of them for
+# a reason that has nothing to do with frx. Stated here rather than in a
+# runner setting, because a contributor's own clone has the same default.
+* text=auto eol=lf
+
+# Binary by extension, so the heuristic never has to guess about one.
+*.png binary
+*.jpg binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.jar binary
+*.vsix binary

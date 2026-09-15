@@ -131,9 +131,14 @@ void main() {
     );
   });
 
-  test('the four selectors already in the live template are untouched', () {
-    // The work adds a default; it does not rewrite what is there. Read from the
-    // real monorepo, because that is where the four are.
+  test('the live template carries no per-slice isWaiting', () {
+    // It carried four, one per auth slice, and nothing read them: the modal
+    // barrier folds off `SelectComposites.isBusy`, and `frx graph` listed all
+    // four under "nothing reaches". They are gone, and CI gates the graph on
+    // that list — so this pins the other half: the scaffolder still writes one
+    // on `-k waiting` (the cases above), but the template does not ship any it
+    // does not read. Read from the real monorepo, because that is the file the
+    // claim is about.
     final live = File('../business/lib/redux/selectors.dart');
     if (!live.existsSync()) {
       return;
@@ -142,8 +147,13 @@ void main() {
     expect(
       RegExp(
         r'bool get isWaiting => _state\.wait\.isWaitingForType<\w+Action>\(\);',
-      ).allMatches(src).length,
-      4,
+      ).allMatches(src),
+      isEmpty,
+    );
+    expect(
+      src,
+      contains('bool get isBusy'),
+      reason: 'the fold that replaced them',
     );
   });
 

@@ -8,6 +8,34 @@ export interface FileAnchored {
   file: string | null;
 }
 
+/** Where inside its file a finding points, when the CLI could say. 1-based. */
+export interface LineAnchored {
+  line?: number;
+  column?: number;
+}
+
+/**
+ * The range a finding is squiggled on.
+ *
+ * The CLI's positions are 1-based, as the analyzer reports them and as a person
+ * reads them; the editor's are 0-based. A finding with a line but no column
+ * lands at the start of that line, and one with neither lands at the top of the
+ * file — which is where every doctor finding used to land, so a reader had to
+ * search the file for the declaration the message named.
+ *
+ * Zero-width on purpose: the CLI names a point, not an extent, and a squiggle
+ * stretched to a guessed end would claim more than was said.
+ */
+export function rangeFor(finding: LineAnchored): vscode.Range {
+  const line = finding.line !== undefined && finding.line > 0 ? finding.line - 1 : 0;
+  const column =
+    finding.line !== undefined && finding.column !== undefined && finding.column > 0
+      ? finding.column - 1
+      : 0;
+  const at = new vscode.Position(line, column);
+  return new vscode.Range(at, at);
+}
+
 /**
  * Replace `collection`'s contents with `findings`, grouped by file. For each
  * finding, `toDiagnostic(f)` returns a vscode.Diagnostic — or null to skip it

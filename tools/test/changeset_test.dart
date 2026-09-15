@@ -157,54 +157,160 @@ void main() {
     });
   });
 
-  group('apply is atomic', () {
-    // A write into a read-only *directory* is the injectable failure: it fails
-    // where the applier has already done work, which is the only interesting
-    // moment. Read-only is restored in `addTearDown` so the temp dir can be
-    // removed even when an expectation fails mid-test.
-    String sealed(String rel) {
-      final dir = Directory(at(rel))..createSync(recursive: true);
-      Process.runSync('chmod', ['a-w', dir.path]);
-      addTearDown(() => Process.runSync('chmod', ['u+w', dir.path]));
-      return p.join(dir.path, 'blocked.dart');
-    }
-
-    /// The tree as `relative path → contents`, with directories as null.
-    Map<String, List<int>?> snapshot() {
-      final out = <String, List<int>?>{};
-      for (final e in dir.listSync(recursive: true, followLinks: false)) {
-        out[p.relative(e.path, from: dir.path)] = e is File
-            ? e.readAsBytesSync()
-            : null;
+  group(
+    'apply is atomic',
+    () {
+      // A write into a read-only *directory* is the injectable failure: it
+      // fails where the applier has already done work, which is the only
+      // interesting moment. Read-only is restored in `addTearDown` so the temp
+      // dir can be removed even when an expectation fails mid-test.
+      String sealed(String rel) {
+        final dir = Directory(at(rel))..createSync(recursive: true);
+        Process.runSync('chmod', ['a-w', dir.path]);
+        addTearDown(() => Process.runSync('chmod', ['u+w', dir.path]));
+        return p.join(dir.path, 'blocked.dart');
       }
-      return out;
-    }
 
-    test(
-      'a failed write leaves nothing created, edited, moved or deleted',
-      () async {
-        file('edited.dart').writeAsStringSync('original\n');
-        file('moved.dart').writeAsStringSync('body\n');
-        file('doomed/keep.dart')
-          ..parent.createSync(recursive: true)
-          ..writeAsStringSync('still here\n');
-        file('gone.dart').writeAsStringSync('also here\n');
+      /// The tree as `relative path → contents`, with directories as null.
+      Map<String, List<int>?> snapshot() {
+        final out = <String, List<int>?>{};
+        for (final e in dir.listSync(recursive: true, followLinks: false)) {
+          out[p.relative(e.path, from: dir.path)] = e is File
+              ? e.readAsBytesSync()
+              : null;
+        }
+        return out;
+      }
+
+      test(
+        'a failed write leaves nothing created, edited, moved or deleted',
+        () async {
+          file('edited.dart').writeAsStringSync('original\n');
+          file('moved.dart').writeAsStringSync('body\n');
+          file('doomed/keep.dart')
+            ..parent.createSync(recursive: true)
+            ..writeAsStringSync('still here\n');
+          file('gone.dart').writeAsStringSync('also here\n');
+          final blocked = sealed('locked');
+
+          final before = snapshot();
+
+          final plan = Changeset([
+            DeleteFile(at('gone.dart')),
+            DeleteDirectory(at('doomed')),
+            EditFile(
+              at('edited.dart'),
+              before: 'original\n',
+              after: 'changed\n',
+            ),
+            MoveFile(from: at('moved.dart'), path: at('deep/moved.dart')),
+            WriteFile(at('deep/fresh.dart'), 'new\n'),
+            // Fails here, with every other change already carried out.
+            WriteFile(blocked, 'never\n'),
+          ]);
+
+          await expectLater(
+            apply(plan, format: false),
+            throwsA(
+              isA<ApplyFailure>().having(
+                (e) => e.rolledBack,
+                'rolledBack',
+                isTrue,
+              ),
+            ),
+          );
+
+          expect(snapshot(), before, reason: 'the tree is byte-identical');
+        },
+      );
+
+      test('a directory the write created is taken away with it', () async {
         final blocked = sealed('locked');
-
-        final before = snapshot();
-
         final plan = Changeset([
-          DeleteFile(at('gone.dart')),
-          DeleteDirectory(at('doomed')),
-          EditFile(at('edited.dart'), before: 'original\n', after: 'changed\n'),
-          MoveFile(from: at('moved.dart'), path: at('deep/moved.dart')),
-          WriteFile(at('deep/fresh.dart'), 'new\n'),
-          // Fails here, with every other change already carried out.
-          WriteFile(blocked, 'never\n'),
+          WriteFile(at('brand/new/tree/a.dart'), 'x'),
+          WriteFile(blocked, 'never'),
         ]);
-
         await expectLater(
           apply(plan, format: false),
+          throwsA(isA<ApplyFailure>()),
+        );
+        expect(
+          Directory(at('brand')).existsSync(),
+          isFalse,
+          reason: 'the whole created branch goes, not just the leaf file',
+        );
+      });
+
+      test('an overwrite is restored, not merely removed', () async {
+        file('there.dart').writeAsStringSync('mine\n');
+        final blocked = sealed('locked');
+        await expectLater(
+          apply(
+            Changeset([
+              WriteFile(at('there.dart'), 'theirs\n'),
+              WriteFile(blocked, 'never'),
+            ]),
+            format: false,
+          ),
+          throwsA(isA<ApplyFailure>()),
+        );
+        expect(file('there.dart').readAsStringSync(), 'mine\n');
+      });
+
+      test(
+        'a forced re-creation that clears and repopulates still works',
+        () async {
+          // The order deletes-before-writes exists for this case, and atomicity
+          // must not have quietly reordered it.
+          file('sub/stale.dart')
+            ..parent.createSync(recursive: true)
+            ..writeAsStringSync('old');
+          file('sub/empty/.keep').parent.createSync(recursive: true);
+          await apply(
+            Changeset([
+              WriteFile(at('sub/fresh.dart'), 'new'),
+              DeleteDirectory(at('sub')),
+            ]),
+            format: false,
+          );
+          expect(file('sub/fresh.dart').readAsStringSync(), 'new');
+          expect(file('sub/stale.dart').existsSync(), isFalse);
+        },
+      );
+
+      test(
+        'a cleared folder comes back whole, empty subdirectories included',
+        () async {
+          file('sub/stale.dart')
+            ..parent.createSync(recursive: true)
+            ..writeAsStringSync('old\n');
+          Directory(at('sub/nothing/inside')).createSync(recursive: true);
+          final blocked = sealed('locked');
+          final before = snapshot();
+
+          await expectLater(
+            apply(
+              Changeset([
+                DeleteDirectory(at('sub')),
+                WriteFile(at('sub/fresh.dart'), 'new\n'),
+                WriteFile(blocked, 'never'),
+              ]),
+              format: false,
+            ),
+            throwsA(isA<ApplyFailure>()),
+          );
+
+          expect(snapshot(), before);
+        },
+      );
+
+      test('a failure at the very first step is still a failure', () async {
+        // Nothing had been done yet, so there is nothing to unwind — the report
+        // must still say the write did not happen rather than succeed silently.
+        Process.runSync('chmod', ['a-w', dir.path]);
+        addTearDown(() => Process.runSync('chmod', ['u+w', dir.path]));
+        await expectLater(
+          apply(Changeset([WriteFile(at('a.dart'), 'x')]), format: false),
           throwsA(
             isA<ApplyFailure>().having(
               (e) => e.rolledBack,
@@ -213,126 +319,34 @@ void main() {
             ),
           ),
         );
+      });
 
-        expect(snapshot(), before, reason: 'the tree is byte-identical');
-      },
-    );
-
-    test('a directory the write created is taken away with it', () async {
-      final blocked = sealed('locked');
-      final plan = Changeset([
-        WriteFile(at('brand/new/tree/a.dart'), 'x'),
-        WriteFile(blocked, 'never'),
-      ]);
-      await expectLater(
-        apply(plan, format: false),
-        throwsA(isA<ApplyFailure>()),
-      );
-      expect(
-        Directory(at('brand')).existsSync(),
-        isFalse,
-        reason: 'the whole created branch goes, not just the leaf file',
-      );
-    });
-
-    test('an overwrite is restored, not merely removed', () async {
-      file('there.dart').writeAsStringSync('mine\n');
-      final blocked = sealed('locked');
-      await expectLater(
-        apply(
-          Changeset([
-            WriteFile(at('there.dart'), 'theirs\n'),
-            WriteFile(blocked, 'never'),
-          ]),
-          format: false,
-        ),
-        throwsA(isA<ApplyFailure>()),
-      );
-      expect(file('there.dart').readAsStringSync(), 'mine\n');
-    });
-
-    test(
-      'a forced re-creation that clears and repopulates still works',
-      () async {
-        // The order deletes-before-writes exists for this case, and atomicity
-        // must not have quietly reordered it.
-        file('sub/stale.dart')
-          ..parent.createSync(recursive: true)
-          ..writeAsStringSync('old');
-        file('sub/empty/.keep').parent.createSync(recursive: true);
-        await apply(
-          Changeset([
-            WriteFile(at('sub/fresh.dart'), 'new'),
-            DeleteDirectory(at('sub')),
-          ]),
-          format: false,
+      test('a rollback that could not finish is named, not swallowed', () {
+        // The one state that is neither applied nor untouched. Provoking it
+        // needs the filesystem to change between a step and its undo, which no
+        // test can arrange without racing the applier — so the reporting is
+        // pinned here and the unwinding is pinned by the cases above.
+        final partial = ApplyFailure(
+          const FileSystemException('write failed'),
+          StackTrace.empty,
+          restoreErrors: const ['could not restore /repo/a.dart: read-only'],
         );
-        expect(file('sub/fresh.dart').readAsStringSync(), 'new');
-        expect(file('sub/stale.dart').existsSync(), isFalse);
-      },
-    );
+        expect(partial.rolledBack, isFalse);
+        expect(partial.message, contains('rollback did not fully succeed'));
+        expect(partial.message, contains('/repo/a.dart'));
 
-    test(
-      'a cleared folder comes back whole, empty subdirectories included',
-      () async {
-        file('sub/stale.dart')
-          ..parent.createSync(recursive: true)
-          ..writeAsStringSync('old\n');
-        Directory(at('sub/nothing/inside')).createSync(recursive: true);
-        final blocked = sealed('locked');
-        final before = snapshot();
-
-        await expectLater(
-          apply(
-            Changeset([
-              DeleteDirectory(at('sub')),
-              WriteFile(at('sub/fresh.dart'), 'new\n'),
-              WriteFile(blocked, 'never'),
-            ]),
-            format: false,
-          ),
-          throwsA(isA<ApplyFailure>()),
+        final clean = ApplyFailure(
+          const FileSystemException('write failed'),
+          StackTrace.empty,
         );
-
-        expect(snapshot(), before);
-      },
-    );
-
-    test('a failure at the very first step is still a failure', () async {
-      // Nothing had been done yet, so there is nothing to unwind — the report
-      // must still say the write did not happen rather than succeed silently.
-      Process.runSync('chmod', ['a-w', dir.path]);
-      addTearDown(() => Process.runSync('chmod', ['u+w', dir.path]));
-      await expectLater(
-        apply(Changeset([WriteFile(at('a.dart'), 'x')]), format: false),
-        throwsA(
-          isA<ApplyFailure>().having((e) => e.rolledBack, 'rolledBack', isTrue),
-        ),
-      );
-    });
-
-    test('a rollback that could not finish is named, not swallowed', () {
-      // The one state that is neither applied nor untouched. Provoking it needs
-      // the filesystem to change between a step and its undo, which no test can
-      // arrange without racing the applier — so the reporting is pinned here
-      // and the unwinding is pinned by the cases above.
-      final partial = ApplyFailure(
-        const FileSystemException('write failed'),
-        StackTrace.empty,
-        restoreErrors: const ['could not restore /repo/a.dart: read-only'],
-      );
-      expect(partial.rolledBack, isFalse);
-      expect(partial.message, contains('rollback did not fully succeed'));
-      expect(partial.message, contains('/repo/a.dart'));
-
-      final clean = ApplyFailure(
-        const FileSystemException('write failed'),
-        StackTrace.empty,
-      );
-      expect(clean.rolledBack, isTrue);
-      expect(clean.message, contains('nothing was written'));
-    });
-  });
+        expect(clean.rolledBack, isTrue);
+        expect(clean.message, contains('nothing was written'));
+      });
+    },
+    skip: Platform.isWindows
+        ? 'a read-only directory is a POSIX file mode; Windows ignores it'
+        : null,
+  );
 
   group('building a set', () {
     test('addIf skips a no-op, which is how "already wired" is expressed', () {

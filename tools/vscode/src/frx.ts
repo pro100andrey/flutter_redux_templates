@@ -71,7 +71,10 @@ export async function resolveFrx(
     // proves it is really frx and not an unrelated tool of the same name.
     const version = await frxVersion(installed, []);
     if (version) {
-      return { cmd: installed, baseArgs: [], label: `frx ${version} (${installed})` };
+      const inv = { cmd: installed, baseArgs: [], label: `frx ${version} (${installed})` };
+      // Said, not awaited: a mismatch is worth a warning, never a wait.
+      void noteCompatibility(context, version, inv);
+      return inv;
     }
   }
 
@@ -90,6 +93,115 @@ export async function resolveFrx(
   }
 
   return null;
+}
+
+/** How the CLI's version stands to the extension's, by major.minor. */
+export type Compatibility = 'same' | 'cli-older' | 'cli-newer';
+
+/**
+ * Whether a CLI at [cliVersion] and an extension at [extVersion] are the pair
+ * that shipped together.
+ *
+ * Major.minor only. The two are released on one tag, so they agree exactly
+ * when installed together; what this catches is the other case — a Marketplace
+ * update landing on a machine whose binary was never re-installed, or the
+ * reverse — and there the patch digit is noise: the editor reads the CLI's
+ * contract out of generated constants, and that contract moves with the minor.
+ * A version neither side can parse is `same`, because a mismatch that cannot be
+ * shown should not be claimed.
+ */
+export function compatibility(cliVersion: string, extVersion: string): Compatibility {
+  const cli = majorMinor(cliVersion);
+  const ext = majorMinor(extVersion);
+  if (!cli || !ext) return 'same';
+  if (cli[0] === ext[0] && cli[1] === ext[1]) return 'same';
+  return cli[0] < ext[0] || (cli[0] === ext[0] && cli[1] < ext[1]) ? 'cli-older' : 'cli-newer';
+}
+
+function majorMinor(version: string): [number, number] | null {
+  const m = /^v?(\d+)\.(\d+)/.exec(version.trim());
+  return m ? [Number(m[1]), Number(m[2])] : null;
+}
+
+/** Whether the pair has been compared this session. */
+let _compatNoted = false;
+
+/**
+ * Warn, once per session, when the resolved CLI and this extension are not the
+ * pair that shipped together.
+ *
+ * The failure it names is quiet: an extension a minor ahead offers a `--kind`
+ * the binary rejects, and the user sees "FRX failed (exit 64)" with no hint
+ * that the two halves have parted. A CLI that is behind can be brought up from
+ * here, since `frx upgrade` is the CLI's own; an extension that is behind is
+ * the Marketplace's to update, so that direction only says so.
+ */
+async function noteCompatibility(
+  context: vscode.ExtensionContext,
+  cliVersion: string,
+  inv: Invocation,
+): Promise<void> {
+  if (_compatNoted) return;
+  _compatNoted = true;
+  const ext = extensionVersion(context);
+  if (!ext) return;
+  const how = compatibility(cliVersion, ext);
+  if (how === 'same') return;
+  if (how === 'cli-older') {
+    const pick = await vscode.window.showWarningMessage(
+      `FRX: the frx CLI is ${cliVersion} and this extension is ${ext}. They ship ` +
+        'together; the editor may offer options this binary does not have.',
+      'Upgrade frx',
+    );
+    if (pick === 'Upgrade frx') {
+      await upgradeFrx(inv);
+      // The binary changed under us: compare again on the next resolve rather
+      // than staying quiet about a pair that may still not match.
+      _compatNoted = false;
+    }
+    return;
+  }
+  vscode.window.showWarningMessage(
+    `FRX: the frx CLI is ${cliVersion}, newer than this extension (${ext}). ` +
+      'Update the FRX extension from the Marketplace to match it.',
+  );
+}
+
+/**
+ * This extension's own version, as the manifest states it.
+ *
+ * Read off the running extension first, and off the manifest beside it
+ * otherwise — never a constant in source, which would be a fourth statement of
+ * a fact three files already have to agree on.
+ */
+export function extensionVersion(context: vscode.ExtensionContext): string | null {
+  const own = context.extension?.packageJSON?.version;
+  if (typeof own === 'string') return own;
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(context.extensionPath, 'package.json'), 'utf8'));
+    return typeof manifest?.version === 'string' ? manifest.version : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Run `frx upgrade` on the resolved binary, with progress, and say how it went.
+ *
+ * `resolveFrx` holds no cache — every command re-resolves and re-reads
+ * `--version` — so the replaced binary is what the next command spawns, with
+ * nothing here to invalidate.
+ */
+export async function upgradeFrx(inv: Invocation): Promise<RunResult> {
+  const res = await runWithProgress('FRX: frx upgrade…', inv, ['upgrade'], os.homedir());
+  const last = (res.stdout.trim().split('\n').pop() ?? '').trim();
+  if (res.code === 0) {
+    vscode.window.showInformationMessage(`FRX: ${last || 'frx upgraded.'}`);
+  } else {
+    output().show(true);
+    vscode.window.showErrorMessage(`FRX: frx upgrade failed (exit ${res.code}) — see the FRX output.`);
+  }
+  return res;
 }
 
 /**

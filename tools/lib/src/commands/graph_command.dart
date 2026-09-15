@@ -64,6 +64,16 @@ class GraphCommand extends Command<int> {
             'With --focus: how many hops out to follow, or `all` for as far as '
             'the edges go.',
       )
+      ..addFlag(
+        'fail-on-orphans',
+        negatable: false,
+        help:
+            'Exit 1 when the "nothing reaches" list is not empty — a gate for '
+            'CI. Advice rather than drift, which is why doctor does not report '
+            'it: `add-action -k waiting` writes an isWaiting getter nothing '
+            "reads yet, and a check that fired on frx's own output would be "
+            'noise.',
+      )
       ..addOption('root', help: kRootHelp);
   }
 
@@ -140,10 +150,15 @@ class GraphCommand extends Command<int> {
 
     if (results.flag('json')) {
       console.out.writeln(jsonEncode(graph.toJson()));
-      return 0;
+    } else {
+      GraphReport(graph, workspace).print();
     }
 
-    GraphReport(graph, workspace).print();
+    // The gate reads the graph that was printed, so with `--focus` it answers
+    // for the subgraph on screen — what a reader would check by eye.
+    if (results.flag('fail-on-orphans') && graph.orphans.isNotEmpty) {
+      return 1;
+    }
     return 0;
   }
 

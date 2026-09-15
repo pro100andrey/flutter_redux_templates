@@ -109,6 +109,7 @@ void _collectRoutes(
         fullPath: full,
         initial: initial is BooleanLiteral && initial.value,
         parent: parent,
+        offset: element.offset,
       ),
     );
     final children = namedArgumentIn(args, 'children');

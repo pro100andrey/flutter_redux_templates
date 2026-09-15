@@ -7,6 +7,113 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## 0.3.5
+
+### Fixed
+
+- **`frx which <name>` exits 1 when nothing is wired under that name.** It
+  printed "is not a wired frx substate or page" and exited 0, which read as
+  success to anything that does not parse English — an agent gating a rename on
+  it, a script's `&&`. Now `grep`'s convention: 1 is "no", not "broken", and
+  `--json` still prints `{kind: null}` on it. The editor's rename provider reads
+  the JSON and ignores the code. *(CLI)*
+
+- **A doctor finding about a declaration lands on its line, not on line 1.**
+  Findings carried a file and nothing finer, so the Problems panel put every
+  squiggle at the top of the file — a route with no connector, a duplicate
+  getter, a `with` clause in the wrong order, all on line 1 of a router or a
+  facade hundreds of lines long. `--json` findings now carry 1-based `line` and
+  `column` when the check read a declaration (route entries, `AppState` fields,
+  change-log entries, getters, mixin clauses and hooks, misplaced declarations,
+  view-model fields, a NUL byte), and the extension anchors the diagnostic
+  there. Findings about a whole file — a missing part, a stale export — carry
+  neither, and the human report appends `path:line:column` only where there is
+  one. Additive: a consumer that predates the two fields reads the shape it
+  always did.
+
+- **The stale-skills finding names the command that fits.** It said "written by
+  0.3.2" and stopped, and for the case that actually happened — the tree and the
+  binary both said 0.3.4 and disagreed, because one was a build between
+  releases — it read as a contradiction. Three cases now, each with its remedy:
+  written by an older frx (`frx update-skills`), by a newer one (`frx upgrade`,
+  or `update-skills` to write them back down), or by another build of the same
+  version (one side is between releases; which command depends on which side
+  you are keeping). *(CLI)*
+
+- **The template shipped seven selectors nothing read, with doctor green.**
+  `frx graph` listed `canEnterApp`, `SelectSession.isAvailable`/`token` and four
+  per-slice `isWaiting` getters under "nothing reaches", and nothing gated on
+  that list. `canEnterApp` and the four `isWaiting` are gone — the barrier folds
+  off `isBusy`, which is why they had no reader — and the auth guard and
+  `run_env` now decide on `session.isAvailable` through the facade instead of
+  spelling `state.session.token != null` twice, so the session selectors have
+  the reader they were written for. The graph reports nothing unreached. *(template)*
+
+- **The README command map had drifted.** `add-package` and `update-skills`
+  had been on the CLI for releases and were not in the table. Both are, and
+  `readme_command_map_test` now reads the table against the runner the way
+  `skills_freshness_test` reads the skills. *(CLI)*
+
+### Added
+
+- **`frx graph --fail-on-orphans`** exits 1 when the "nothing reaches" list is
+  not empty — a gate for CI, and the template's own CI runs it. Kept out of
+  `doctor` on purpose: frx's own `add-action -k waiting` writes an `isWaiting`
+  nothing reads yet, and a check that fired on the tool's own output would be
+  noise. *(CLI)*
+
+- **The extension warns when it and the CLI are not the pair that shipped
+  together.** Compared by major.minor once per session on resolve; a CLI that
+  is behind gets an "Upgrade frx" action that runs `frx upgrade` from the
+  editor, one that is ahead is told to update the extension. The failure it
+  names was quiet: an extension a minor ahead offers a `--kind` the binary
+  rejects, and the user saw "FRX failed (exit 64)".
+
+- **The extension checks for a new frx release once a day.** `frx upgrade
+  --check --json` already answered the question with an exit code written for
+  gating; the editor is the one surface open every day that never asked it.
+  Installed binaries only, at most once per 24 hours, and never a word on
+  failure — offline, endpoint down and a binary too old to know `--check` all
+  look the same from here.
+
+- **A real-VS-Code integration suite** (`npm run test:integration`, on
+  `@vscode/test-electron`) — activation in the monorepo, every contributed
+  command registered in the running host, `frx.doctor` end to end. The unit
+  suite runs against a hand-written `vscode` stub and could not say any of
+  that; CI now runs both.
+
+- **The one-line installer wires shell completions in.** A `# frx completions`
+  line in the profile it also puts `PATH` into (zsh, bash), or
+  `~/.config/fish/completions/frx.fish`; `--no-modify-path` leaves both alone,
+  and a re-run adds nothing twice. `frx completions` existed; nothing sourced
+  it. *(CLI)*
+
+- **The CLI suite runs on Windows in CI**, informationally for now
+  (`continue-on-error` until a run comes back green), with a `.gitattributes`
+  that keeps every checkout LF so the byte-comparing tests compare bytes and
+  not line endings. The binary shipped for three platforms and the suite had
+  only ever run on one. *(CLI)*
+
+### Changed
+
+- **The FRX Map's page script and styles are files, not a template string.**
+  `media/map/map.js` and `map.css`, loaded by URI under the same nonce CSP; the
+  picture crosses as a JSON block. Eight hundred lines of JavaScript sat inside
+  a TypeScript string behind two levels of escaping that nothing checked — a
+  lone `\n` in it became a real newline in the emitted script and the page
+  stopped parsing, with nothing anywhere saying why. The unit suite now parses
+  the script as JavaScript.
+
+- **`frx new` reads its answers through the console**, so the wizard has tests:
+  a scripted conversation in, the echoed command line and its effect out. It
+  read `stdin.readLineSync()` directly and was the one command with none. *(CLI)*
+
+- **`discover.ts`'s installer directories are kept in step by a test**, which
+  reads `install.sh` and `install.ps1` for their defaults, rather than "by hand".
+
+- **Version bumped to 0.3.5 right after the 0.3.4 tag** — see the stale-skills
+  entry for what a working tree that still says 0.3.4 costs.
+
 ## 0.3.4
 
 ### Fixed

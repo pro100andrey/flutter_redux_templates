@@ -29,6 +29,7 @@ library;
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/positions.dart';
 import '../ast/source_index.dart';
 import '../workspace/frx_workspace.dart';
 import 'page_artifact.dart';
@@ -88,8 +89,15 @@ enum PlacementRule {
   }
 }
 
-/// One misplaced declaration: which rule, which file, and what to say.
-typedef PlacementFinding = ({PlacementRule rule, String file, String message});
+/// One misplaced declaration: which rule, which file, what to say — and where
+/// in the file, when the rule read a declaration rather than a filename.
+typedef PlacementFinding = ({
+  PlacementRule rule,
+  String file,
+  String message,
+  int? line,
+  int? column,
+});
 
 /// Every placement finding in [repo], minus the [silenced] rules.
 ///
@@ -131,6 +139,9 @@ List<PlacementFinding> placementFindings(
           message:
               '${rel(entity.path)} — an action belongs in '
               'redux/<substate>/actions/.',
+          // A rule about the filename, not about a line in it.
+          line: null,
+          column: null,
         ));
       }
 
@@ -154,6 +165,13 @@ List<PlacementFinding> placementFindings(
       final unit = sourceIndex.unitFor(entity);
 
       for (final decl in unit.declarations) {
+        // Past the doc comment and the annotations: the line a reader would
+        // call the declaration's.
+        final at = positionIn(
+          unit,
+          decl.firstTokenAfterCommentAndMetadata.offset,
+        );
+
         // --- a selector outside the facade --------------------------------
         final selector = wantsSelectors ? SelectorShape.of(decl) : null;
         if (selector != null) {
@@ -164,6 +182,8 @@ List<PlacementFinding> placementFindings(
                 '${rel(entity.path)} — ${selector.label} belongs in '
                 '${rel(repo.selectorsFile.path)}, the single home for '
                 'selectors.',
+            line: at.line,
+            column: at.column,
           ));
         }
 
@@ -178,6 +198,8 @@ List<PlacementFinding> placementFindings(
                 '${rel(entity.path)} — @RoutePage() '
                 '${decl.namePart.typeName.lexeme} '
                 'belongs in ${rel(repo.appConnectors.path)}.',
+            line: at.line,
+            column: at.column,
           ));
         }
       }

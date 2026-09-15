@@ -1,3 +1,8 @@
+// The guard is a bash script and is exercised by running it; a Windows runner
+// has no bash on PATH, and the hook is not registered there either.
+@TestOn('!windows')
+library;
+
 import 'dart:convert';
 import 'dart:io';
 

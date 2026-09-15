@@ -26,9 +26,17 @@ import 'source_index.dart';
 
 /// A class, the mixins it applies, and the hooks it overrides itself.
 class MixinApplication {
-  const MixinApplication(this.className, this.mixins, this.hooks);
+  const MixinApplication(
+    this.className,
+    this.mixins,
+    this.hooks, {
+    this.offset,
+  });
 
   final String className;
+
+  /// Where the class name sits, for a finding to anchor on.
+  final int? offset;
 
   /// Bare mixin names in written order — `Retry<AppState>` reads as `Retry`,
   /// because the chain is about which mixin, not how it is parameterised.
@@ -55,10 +63,13 @@ class MixinApplication {
 
 /// One `before()`/`after()` override, on a mixin or on a class.
 class HookOverride {
-  const HookOverride(this.name, {required this.chainsSuper});
+  const HookOverride(this.name, {required this.chainsSuper, this.offset});
 
   /// `before` or `after`.
   final String name;
+
+  /// Where the hook's name sits, for a finding to anchor on.
+  final int? offset;
 
   /// Whether the body calls `super.<name>()` anywhere — including
   /// `await super.before()` and an `=> super.after()` arrow body.
@@ -106,10 +117,15 @@ List<DeclaredMixin> declaredMixinsIn(File file) => [
 List<MixinApplication> mixinApplicationsIn(File file) => [
   for (final c in sourceIndex.unitFor(file).declarations)
     if (c is ClassDeclaration && c.withClause != null)
-      MixinApplication(c.namePart.typeName.lexeme, [
-        for (final m in c.withClause!.mixinTypes)
-          m.toSource().split('<').first.trim(),
-      ], _hookOverridesIn(c.body.members)),
+      MixinApplication(
+        c.namePart.typeName.lexeme,
+        [
+          for (final m in c.withClause!.mixinTypes)
+            m.toSource().split('<').first.trim(),
+        ],
+        _hookOverridesIn(c.body.members),
+        offset: c.namePart.typeName.offset,
+      ),
 ];
 
 /// The lifecycle hooks the mixin called [name] in [file] overrides, or an
@@ -136,6 +152,7 @@ List<HookOverride> _hookOverridesIn(Iterable<ClassMember> members) => [
         // as the call being present, which is the one direction of error
         // that hides the bug.
         chainsSuper: _CallsSuper(member.name.lexeme).found(member.body),
+        offset: member.name.offset,
       ),
 ];
 

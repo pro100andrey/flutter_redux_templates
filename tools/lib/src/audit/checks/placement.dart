@@ -1,5 +1,6 @@
 import 'package:path/path.dart' as p;
 
+import '../../ast/positions.dart';
 import '../../ast/source_index.dart';
 import '../../ast/vm_reader.dart';
 import '../../model/placement.dart';
@@ -20,7 +21,15 @@ import '../finding.dart';
 /// would "fix" somebody's decision.
 void checkPlacement(FrxWorkspace repo, List<Finding> into) {
   for (final f in placementFindings(repo, silenced: _silencedIn(repo))) {
-    into.add(Finding.warn(f.message, file: f.file, rule: f.rule.id));
+    into.add(
+      Finding.warn(
+        f.message,
+        file: f.file,
+        rule: f.rule.id,
+        line: f.line,
+        column: f.column,
+      ),
+    );
   }
 }
 
@@ -66,8 +75,12 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
       if (!source.contains('equals:') && !source.contains('get props')) {
         continue;
       }
+      final unit = sourceIndex.unitFor(file);
       for (final vm in viewModelsOfFile(file)) {
         for (final field in vm.fieldsOutsideEquality) {
+          final at = field.offset == null
+              ? null
+              : positionIn(unit, field.offset!);
           // Two ways to be uncompared, and telling a reader which one saves the
           // argument. A field absent from the list is an oversight; a field
           // present only as `ids.length` is a decision that does not do what it
@@ -86,6 +99,8 @@ void checkViewModels(FrxWorkspace repo, List<Finding> into) {
               '(${field.type}) $how',
               file: file.path,
               rule: rule.id,
+              line: at?.line,
+              column: at?.column,
             ),
           );
         }

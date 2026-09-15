@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'console.dart';
 
 /// Minimal stdin prompting for the `frx new` wizard. Works on a TTY and on
 /// piped input alike (EOF → [AbortException]), so wizard flows are testable
-/// with `echo -e '…' | frx new`.
+/// with `echo -e '…' | frx new` — and in-process, through a [CapturedConsole]
+/// whose `input` holds the answers one per line.
 class AbortException implements Exception {
   const AbortException();
 }
@@ -11,7 +11,7 @@ class AbortException implements Exception {
 /// Reads one line, trimmed. Throws [AbortException] on EOF (ctrl-D / end of
 /// piped input).
 String _readLine() {
-  final line = stdin.readLineSync();
+  final line = console.readLine();
   if (line == null) {
     throw const AbortException();
   }

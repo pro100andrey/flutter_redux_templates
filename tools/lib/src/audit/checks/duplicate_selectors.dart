@@ -1,5 +1,6 @@
 import 'package:path/path.dart' as p;
 
+import '../../ast/positions.dart';
 import '../../redux/selectors_source.dart';
 import '../../workspace/frx_workspace.dart';
 import '../finding.dart';
@@ -31,6 +32,9 @@ void checkDuplicateSelectors(FrxWorkspace repo, List<Finding> into) {
 
   for (final entry in selectors.duplicateGetters().entries) {
     for (final names in entry.value) {
+      // Anchored on the one the sentence says to remove.
+      final offset = selectors.getterOffset(entry.key, names.last);
+      final at = offset == null ? null : positionIn(selectors.unit, offset);
       into.add(
         Finding.warn(
           '$where — ${entry.key}: '
@@ -41,6 +45,8 @@ void checkDuplicateSelectors(FrxWorkspace repo, List<Finding> into) {
           'one the callers use and `frx remove ${entry.key}.${names.last} '
           '--kind selector`.',
           file: selectors.file.path,
+          line: at?.line,
+          column: at?.column,
         ),
       );
     }

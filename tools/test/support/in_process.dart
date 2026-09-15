@@ -25,8 +25,15 @@ typedef Ran = ({int exitCode, String stdout, String stderr});
 ///    that ends in one is asserted up to the point it spawns;
 ///  * `Directory.current`, which a zone cannot redirect. Commands that resolve
 ///    by cwd rather than `--root` (`__complete`) still need `runFrxIn`.
-Future<Ran> runInProcess(Fixture fixture, List<String> args) async {
-  final captured = CapturedConsole();
+///
+/// [input] stands in for standard input: what `frx batch -` reads whole, and
+/// what `frx new` reads a line at a time.
+Future<Ran> runInProcess(
+  Fixture fixture,
+  List<String> args, {
+  String? input,
+}) async {
+  final captured = CapturedConsole(input: input);
   final full = [
     ...args,
     if (!args.contains('--root')) ...['--root', fixture.root.path],

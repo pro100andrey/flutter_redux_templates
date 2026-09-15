@@ -13,10 +13,14 @@ import 'ast_edit.dart';
 
 /// One substate composed into the root `AppState`.
 class Substate {
-  const Substate({required this.field, required this.type});
+  const Substate({required this.field, required this.type, this.offset});
 
   /// The field name on `AppState`, e.g. `logIn`.
   final String field;
+
+  /// Where the field's name sits in `app_state.dart`, for a finding to anchor
+  /// on. Null only for a [Substate] built without a tree.
+  final int? offset;
 
   /// The declared type, e.g. `LogInState`.
   final String type;
@@ -100,6 +104,7 @@ class AppStateSource extends FileSource {
         Substate(
           field: param.name?.lexeme ?? '<unnamed>',
           type: param.type?.toSource() ?? 'dynamic',
+          offset: param.name?.offset ?? param.offset,
         ),
     ];
   }
