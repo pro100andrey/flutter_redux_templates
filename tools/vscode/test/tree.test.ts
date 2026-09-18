@@ -132,8 +132,10 @@ test('one CLI read backs the whole tree, and refresh() re-reads', async () => {
   assert.strictEqual(reads(), 1, 'the graph is read once per refresh cycle');
 
   p.refresh();
+  await new Promise((r) => setImmediate(r));
+  assert.strictEqual(reads(), 2, 'refresh() re-reads at once, before anything asks');
   await p.getChildren(g[0]);
-  assert.strictEqual(reads(), 2, 'refresh() drops the cache');
+  assert.strictEqual(reads(), 2, 'and that read is what the next getChildren serves');
 });
 
 test('a substate expands into its own actions and selectors — not another\'s', async () => {

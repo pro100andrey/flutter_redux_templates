@@ -157,29 +157,36 @@ function fill(id, list) {
  * block is as wide as its container whatever it holds, which is exactly
  * the number that says nothing. The insets on either side are what the
  * enclosing boxes take at that depth, read off the flow layout — with
- * every row unfolded, so a fold does not change the width.
+ * every row unfolded and every list of actions and selectors shown, so
+ * neither a fold nor an expand changes the width. The lists count: they
+ * start hidden, and a hidden name has no width to measure, so a column
+ * sized without them held its heads and spilled an action name past its
+ * edge the moment a reader expanded the row.
  */
 function fit() {
   const wasFolded = [...document.querySelectorAll('.node.folded')];
   for (const el of wasFolded) el.classList.remove('folded');
+  const wasHidden = [...document.querySelectorAll('.owned ul')].filter((ul) => ul.hidden);
+  for (const ul of wasHidden) ul.hidden = false;
   for (const id of ['actors', 'state']) {
     const col = document.getElementById(id);
     col.style.width = '';
     const rect = col.getBoundingClientRect();
     let widest = 0;
     const range = document.createRange();
-    for (const head of col.querySelectorAll('.head')) {
-      const box = head.getBoundingClientRect();
+    // Each line's own block gives its insets: a name in a list sits
+    // further in than the head above it, behind the list's rule.
+    for (const line of col.querySelectorAll('.t, .s, .count, .regions, .owned li')) {
+      const box = line.getBoundingClientRect();
       const insets = (box.left - rect.left) + (rect.right - box.right);
-      for (const line of head.querySelectorAll('.t, .s, .count, .regions')) {
-        range.selectNodeContents(line);
-        widest = Math.max(widest, insets + range.getBoundingClientRect().width);
-      }
+      range.selectNodeContents(line);
+      widest = Math.max(widest, insets + range.getBoundingClientRect().width);
     }
     // A little air after the longest line; bounded so one absurd name
     // cannot take the panel, and so an empty column still looks like one.
     col.style.width = Math.min(480, Math.max(160, Math.ceil(widest) + 6)) + 'px';
   }
+  for (const ul of wasHidden) ul.hidden = true;
   for (const el of wasFolded) el.classList.add('folded');
 }
 
@@ -226,7 +233,7 @@ function lines() {
  * cross itself. By the far end's height on the page rather than its row
  * number: the rows are placed, and a fold changes which rows there are.
  */
-function slotsOf(drawn) {
+function slotsOf(drawn, rectOf) {
   const ends = new Map();
   drawn.forEach((line, index) => {
     for (const node of [line.from, line.to]) {
@@ -236,7 +243,7 @@ function slotsOf(drawn) {
     }
   });
   const centre = (id) => {
-    const r = boxes.get(id).getBoundingClientRect();
+    const r = rectOf(id);
     return r.top + r.height / 2;
   };
   const slots = drawn.map(() => ({}));
@@ -372,19 +379,16 @@ function applyFocus() {
   if (!on) {
     board.classList.remove('focusing');
     for (const box of boxes.values()) box.classList.remove('lit');
-    for (const wire of document.querySelectorAll('path.wire')) {
-      wire.classList.remove('lit');
-    }
+    for (const wire of wires) wire.classList.remove('lit');
     describe(null);
     return;
   }
-  const lit = new Set([on]);
-  for (const wire of document.querySelectorAll('path.wire')) {
-    const touches = wire.dataset.from === on || wire.dataset.to === on;
-    wire.classList.toggle('lit', touches);
-    if (touches) lit.add(wire.dataset.from === on ? wire.dataset.to : wire.dataset.from);
-  }
-  for (const [id, box] of boxes) box.classList.toggle('lit', lit.has(id));
+  // What the row touches was written down when the wires were drawn; this
+  // runs on every row the pointer crosses, and used to ask the DOM for every
+  // wire each time to find the handful that matter.
+  const at = touching.get(on) || { wires: new Set(), rows: new Set() };
+  for (const wire of wires) wire.classList.toggle('lit', at.wires.has(wire));
+  for (const [id, box] of boxes) box.classList.toggle('lit', id === on || at.rows.has(id));
   board.classList.add('focusing');
   describe(on);
 }
@@ -528,7 +532,21 @@ function focusOnHover() {
   });
 }
 
-/** Redraw the wires against the current layout (expanding a node moves it). */
+/** The wires as drawn, in order, for the focus to light without asking the DOM. */
+let wires = [];
+/** By row id: the wires that touch the row, and the rows at their far ends. */
+let touching = new Map();
+
+/**
+ * Redraw the wires against the current layout (expanding a node moves it).
+ *
+ * Reads before writes, in that order and once. Every box's rect is taken a
+ * single time, and the paths are built off the document and attached in one
+ * append at the end: reading a rect after a write to the document makes the
+ * browser lay the page out again first, and the loop used to write a path
+ * and then read the next line's two rects — a layout per line, on every
+ * expand.
+ */
 function draw() {
   place();
   const svg = document.getElementById('wires');
@@ -537,9 +555,6 @@ function draw() {
   // How far a same-column line may bulge into the margin: the margin is
   // narrower on a narrow panel, and a line past it runs off the page.
   const channel = parseFloat(getComputedStyle(boardEl).paddingLeft) - 8;
-  svg.setAttribute('width', board.width);
-  svg.setAttribute('height', board.height);
-  while (svg.firstChild) svg.removeChild(svg.firstChild);
   // A line meets a column at the column's edge, not the row's: a nested row
   // is indented inside its builder's box, and a line into its own edge would
   // cut across the box that holds it.
@@ -547,11 +562,26 @@ function draw() {
   const actorsCol = colOf('actors'), stateCol = colOf('state');
   const edgeX = (id, side) =>
     (id.startsWith('substate:') ? stateCol : actorsCol)[side] - board.left;
+  const rects = new Map();
+  const rectOf = (id) => {
+    let r = rects.get(id);
+    if (!r) rects.set(id, (r = boxes.get(id).getBoundingClientRect()));
+    return r;
+  };
   const drawn = lines();
-  const slots = slotsOf(drawn);
+  const slots = slotsOf(drawn, rectOf);
+  const fragment = document.createDocumentFragment();
+  wires = [];
+  touching = new Map();
+  const touch = (id, wire, far) => {
+    let at = touching.get(id);
+    if (!at) touching.set(id, (at = { wires: new Set(), rows: new Set() }));
+    at.wires.add(wire);
+    at.rows.add(far);
+  };
   drawn.forEach((line, i) => {
-    const ra = boxes.get(line.from).getBoundingClientRect();
-    const rb = boxes.get(line.to).getBoundingClientRect();
+    const ra = rectOf(line.from);
+    const rb = rectOf(line.to);
     const y1 = anchorY(ra, slots[i].from, board.top);
     const y2 = anchorY(rb, slots[i].to, board.top);
 
@@ -602,8 +632,14 @@ function draw() {
         (r.via ? ' (' + r.via + ')' : '')))
       .join('\n');
     wire.appendChild(title);
-    svg.appendChild(wire);
+    fragment.appendChild(wire);
+    wires.push(wire);
+    touch(line.from, wire, line.to);
+    touch(line.to, wire, line.from);
   });
+  svg.setAttribute('width', board.width);
+  svg.setAttribute('height', board.height);
+  svg.replaceChildren(fragment);
   applyFocus();
 }
 

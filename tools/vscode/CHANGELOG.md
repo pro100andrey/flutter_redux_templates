@@ -7,6 +7,47 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## 0.3.6
+
+### Fixed
+
+- **The FRX tree has its rows when its section is opened.** The graph behind
+  it was read on the first `getChildren`, and a refresh only dropped the cache
+  for the next one — but VS Code asks only a section that is visible and
+  expanded, and holds a hidden section's refresh until it is opened. So a
+  section collapsed at startup, or collapsed while the last change landed,
+  ran `frx graph` on the click that opened it, and the rows arrived a CLI run
+  later — beside a Dependencies view that had them at once. A refresh now
+  reads immediately, and the activation refresh reads the tree along with the
+  first audit.
+
+- **A Map column is wide enough for the names it hides.** The column was
+  measured to its widest *visible* line — the titles, subtitles and counts —
+  while the actions and selectors under a substate start folded, and a folded
+  name has no width to measure. Expanding `boot` then ran
+  `SetEmbedderRendezvousAction` out past the box's edge. The measurement now
+  unfolds every list first, and takes each name's inset from its own line,
+  since a name in a list sits further in than the head above it.
+
+### Changed
+
+- **Less work on the paths that run all the time.** The code-lens provider
+  compiled its five path patterns from `LAYOUT` and copied the document's text
+  up to three times on every edit of every Dart file; the patterns are now
+  built once with the root, the text read once, and only when a lens needs it.
+  The Map's crossing count is an inversion count over a Fenwick tree instead
+  of a comparison of every pair — the same orderings, at 800 lines in a fifth
+  of the time and at 3000 in a thirteenth — and the sweep no longer flattens
+  every subtree on every pass. The Map page reads each row's rectangle once
+  per redraw and attaches its wires in one append (it re-laid the page out
+  once per line), and lights a hovered row from the adjacency it recorded
+  while drawing rather than by asking the DOM for every wire. The tree
+  computes what each substate owns once per read instead of once per row.
+  The installed binary's `--version` is remembered while the file is the same
+  one, so a refresh spawns two processes, not four. Process output is decoded
+  once, and a `--json` read logs its size to the channel rather than its
+  hundred kilobytes of payload.
+
 ## 0.3.5
 
 ### Fixed
@@ -116,16 +157,15 @@ changes are marked as such.
 
 ### Changed
 
-- **The FRX Map's page script and styles are files, not a template string.**
-  `media/map/map.js` and `map.css`, loaded by URI under the same nonce CSP; the
-  picture crosses as a JSON block. Eight hundred lines of JavaScript sat inside
-  a TypeScript string behind two levels of escaping that nothing checked — a
-  lone `\n` in it became a real newline in the emitted script and the page
-  stopped parsing, with nothing anywhere saying why. The unit suite now parses
-  the script as JavaScript.
-
-- **`frx new` reads its answers through the console**, so the wizard has tests:
-  a scripted conversation in, the echoed command line and its effect out. It
+- **Less work on the paths that run all the time.** The code-lens provider
+  compiled its five path patterns from `LAYOUT` and copied the document's text
+  up to three times on every edit of every Dart file; the patterns are now
+  built once with the root, the text read once, and only when a lens needs it.
+  The Map's crossing count is an inversion count over a Fenwick tree instead
+  of a comparison of every pair — the same orderings, at 800 lines in a fifth
+  of the time and at 3000 in a thirteenth — and the sweep no longer flattens
+  every subtree on every pass. The Map page reads each row's rectangle once
+  per red line and its effect out. It
   read `stdin.readLineSync()` directly and was the one command with none. *(CLI)*
 
 - **`discover.ts`'s installer directories are kept in step by a test**, which

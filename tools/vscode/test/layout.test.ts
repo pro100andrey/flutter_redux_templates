@@ -326,3 +326,46 @@ test('orderColumns: with nothing nested, the map changes nothing', () => {
     orderColumns(actors, state, edges),
   );
 });
+
+test('countCrossings: agrees with the pairwise definition on random pictures', () => {
+  // The count is an inversion count over a Fenwick tree; the definition is
+  // "pairs whose endpoints run in opposite directions". Checked against each
+  // other on pictures with shared endpoints (two edges leaving one row never
+  // cross, nor two landing on one), same-column edges and edges to nowhere —
+  // the cases where a strict-versus-loose slip would not show on a hand-drawn
+  // example.
+  let seed = 7;
+  const random = () => {
+    seed = (seed * 48271) % 2147483647;
+    return seed / 2147483647;
+  };
+  const pairwise = (actors: string[], state: string[], edges: LayoutEdge[]): number => {
+    const left = new Map(actors.map((id, i) => [id, i]));
+    const right = new Map(state.map((id, i) => [id, i]));
+    const spans: [number, number][] = [];
+    for (const { from, to } of edges) {
+      const a = left.get(from) ?? left.get(to);
+      const b = right.get(to) ?? right.get(from);
+      if (a !== undefined && b !== undefined && left.has(from) !== left.has(to)) spans.push([a, b]);
+    }
+    let crossings = 0;
+    for (let i = 0; i < spans.length; i++) {
+      for (let j = i + 1; j < spans.length; j++) {
+        if ((spans[i][0] - spans[j][0]) * (spans[i][1] - spans[j][1]) < 0) crossings++;
+      }
+    }
+    return crossings;
+  };
+  for (let round = 0; round < 200; round++) {
+    const actors = Array.from({ length: 1 + Math.floor(random() * 8) }, (_, i) => `a${i}`);
+    const state = Array.from({ length: 1 + Math.floor(random() * 8) }, (_, i) => `s${i}`);
+    const pool = [...actors, ...state, 'nowhere'];
+    const pick = () => pool[Math.floor(random() * pool.length)];
+    const edges = Array.from({ length: Math.floor(random() * 30) }, () => e(pick(), pick()));
+    assert.strictEqual(
+      countCrossings(actors, state, edges),
+      pairwise(actors, state, edges),
+      `round ${round}: ${JSON.stringify(edges)}`,
+    );
+  }
+});

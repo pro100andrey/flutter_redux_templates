@@ -96,7 +96,7 @@ path.wire { pointer-events: stroke; }
   white-space: nowrap; }
 .owned ul { list-style: none; margin: 4px 0 0; padding: 0 0 0 10px;
   border-left: 1px solid var(--vscode-panel-border); }
-.owned li { padding: 1px 0; cursor: pointer; }
+.owned li { padding: 1px 0; cursor: pointer; white-space: nowrap; }
 .owned li:hover { text-decoration: underline; }
 /* What a row builds sits inside it, indented: the composition reads as
    containment, which is what it is. The last built row keeps no bottom margin,

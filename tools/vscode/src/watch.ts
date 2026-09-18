@@ -228,12 +228,16 @@ export class FrxWatch {
     }
 
     this._child = child;
-    child.stdout?.on('data', (d) => {
-      ch.append(d.toString());
+    // Decoded once, by the stream: the channel and the parser each took the
+    // Buffer and each decoded it.
+    child.stdout?.setEncoding('utf8');
+    child.stderr?.setEncoding('utf8');
+    child.stdout?.on('data', (d: string) => {
+      ch.append(d);
       this._log.feed(d);
     });
-    child.stderr?.on('data', (d) => {
-      ch.append(d.toString());
+    child.stderr?.on('data', (d: string) => {
+      ch.append(d);
       this._log.feed(d);
     });
     child.on('exit', (code) => {

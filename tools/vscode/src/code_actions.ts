@@ -37,6 +37,9 @@ export class FrxCodeActionProvider implements vscode.CodeActionProvider {
     _range: vscode.Range | vscode.Selection,
     context: vscode.CodeActionContext,
   ): vscode.CodeAction[] {
+    // Registered on every file, and asked on every move of the cursor: the
+    // common answer is nothing, and it should cost nothing.
+    if (context.diagnostics.length === 0) return [];
     const actions: vscode.CodeAction[] = [];
     const seen = new Set<string>();
     for (const d of context.diagnostics) {

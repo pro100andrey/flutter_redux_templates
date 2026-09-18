@@ -405,7 +405,7 @@ test('a line end takes its own slot on the row, ordered by where the far end is'
       }),
     ),
   );
-  assert.match(html, /function slotsOf\(drawn\)/);
+  assert.match(html, /function slotsOf\(drawn, rectOf\)/);
   assert.match(html, /sort\(\(a, b\) => a\.y - b\.y \|\| a\.arrival - b\.arrival\)/, 'by far height, ties by arrival');
   assert.match(html, /slots\[index\]\[end\] = \{ slot, of: ordered\.length \}/);
   assert.match(html, /anchorY\(ra, slots\[i\]\.from, board\.top\)/, 'and the drawing uses them');

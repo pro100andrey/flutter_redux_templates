@@ -42,14 +42,18 @@ export class BuildLogParser {
     private readonly onCycle: (findings: BuildFinding[]) => void,
   ) {}
 
-  /** Feed a raw output chunk (stdout or stderr). */
+  /**
+   * Feed a raw output chunk (stdout or stderr).
+   *
+   * Split once per chunk, with the unterminated tail carried to the next: a
+   * full build cycle is thousands of lines, and cutting them off the front
+   * of the buffer one at a time re-sliced the rest for each.
+   */
   feed(chunk: string | Buffer): void {
-    this._buffer += chunk.toString();
-    let nl: number;
-    while ((nl = this._buffer.indexOf('\n')) >= 0) {
-      const line = this._buffer.slice(0, nl).replace(/\r$/, '');
-      this._buffer = this._buffer.slice(nl + 1);
-      this._line(line);
+    const lines = (this._buffer + chunk.toString()).split('\n');
+    this._buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      this._line(line.endsWith('\r') ? line.slice(0, -1) : line);
     }
   }
 

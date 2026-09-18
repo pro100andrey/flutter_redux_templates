@@ -75,6 +75,17 @@ const RESTARTS = 24;
  * starts above the other on the left and ends below it on the right. Edges whose
  * endpoints are not one per column are not part of a two-layer drawing and are
  * not counted.
+ *
+ * Counted as inversions, not by comparing every pair. This runs once per pass
+ * of every restart — a few hundred times per picture — and a pairwise count is
+ * quadratic in the edges, which is fine at twenty and not at a thousand. With
+ * the spans sorted by their left end, a crossing is an earlier span whose right
+ * end sits below this one's, and a Fenwick tree answers "how many inserted so
+ * far sit below" in logarithmic time. Spans that share a left end are queried
+ * together before any of them is inserted, since two edges leaving one row do
+ * not cross each other; a shared right end is excluded by the strict query.
+ * The spans travel as packed numbers in one typed array, so a count allocates
+ * two arrays however many edges there are.
  */
 export function countCrossings(
   actors: string[],
@@ -83,19 +94,40 @@ export function countCrossings(
 ): number {
   const left = indexOf(actors);
   const right = indexOf(state);
-  const spans: Array<[number, number]> = [];
+  const width = state.length;
+  const keys = new Float64Array(edges.length);
+  let count = 0;
   for (const edge of edges) {
-    const span = spanOf(edge, left, right);
-    if (span) spans.push(span);
+    const span = spanOf(edge, left, right, width);
+    if (span >= 0) keys[count++] = span;
   }
+  if (count < 2) return 0;
+  const sorted = keys.subarray(0, count).sort();
+
+  // 1-based Fenwick tree over right positions: `tree` holds partial counts of
+  // the spans inserted so far, by where they land on the right.
+  const tree = new Int32Array(width + 1);
+  const insertedBelowOrAt = (b: number): number => {
+    let sum = 0;
+    for (let i = b + 1; i > 0; i -= i & -i) sum += tree[i];
+    return sum;
+  };
+  const insert = (b: number): void => {
+    for (let i = b + 1; i <= width; i += i & -i) tree[i]++;
+  };
 
   let crossings = 0;
-  for (let i = 0; i < spans.length; i++) {
-    for (let j = i + 1; j < spans.length; j++) {
-      const [a1, b1] = spans[i];
-      const [a2, b2] = spans[j];
-      if ((a1 - a2) * (b1 - b2) < 0) crossings++;
+  let inserted = 0;
+  let i = 0;
+  while (i < count) {
+    const a = Math.floor(sorted[i] / width);
+    let j = i;
+    for (; j < count && Math.floor(sorted[j] / width) === a; j++) {
+      crossings += inserted - insertedBelowOrAt(sorted[j] - a * width);
     }
+    for (let k = i; k < j; k++) insert(sorted[k] - a * width);
+    inserted += j - i;
+    i = j;
   }
   return crossings;
 }
@@ -126,6 +158,7 @@ export function orderColumns(
 ): Ordering {
   const { across, along } = adjacency(actors, state, edges);
   const forest = forestOf(actors, builtBy);
+  const under = idsUnder(forest);
 
   let bestActors = rowsOf(forest);
   let bestState = [...state];
@@ -142,7 +175,7 @@ export function orderColumns(
     let currentState = restart === 0 ? [...state] : shuffled([...state], random);
 
     for (let pass = 0; pass < PASSES; pass++) {
-      currentForest = sortForest(currentForest, currentState, across, along);
+      currentForest = sortForest(currentForest, currentState, across, along, under);
       currentActors = rowsOf(currentForest);
       currentState = sortByBarycenter(currentState, currentActors, across, along);
       const crossings = countCrossings(currentActors, currentState, edges);
@@ -265,9 +298,25 @@ function rowsOf(forest: readonly Tree[]): string[] {
   return rows;
 }
 
-/** Every id in the tree, the root included. */
-function idsOf(tree: Tree): string[] {
-  return [tree.id, ...tree.built.flatMap(idsOf)];
+/**
+ * Every id in each tree, the root included, by the tree's id — for every tree
+ * at every depth of the forest.
+ *
+ * Computed once per ordering. The sweep rebuilds the forest on every pass, but
+ * only the order of siblings changes, never what sits under what — and the
+ * sort used to flatten each subtree again on every pass at every depth, which
+ * is the one allocation in the loop that grew with the depth of the nesting.
+ */
+function idsUnder(forest: readonly Tree[]): Map<string, string[]> {
+  const under = new Map<string, string[]>();
+  const walk = (tree: Tree): string[] => {
+    const ids = [tree.id];
+    for (const built of tree.built) ids.push(...walk(built));
+    under.set(tree.id, ids);
+    return ids;
+  };
+  forest.forEach(walk);
+  return under;
 }
 
 /**
@@ -284,27 +333,26 @@ function sortForest(
   against: readonly string[],
   across: Map<string, string[]>,
   along: Map<string, string[]>,
+  under: Map<string, string[]>,
 ): Tree[] {
   const facing = indexOf(against);
-  const neighbours = (tree: Tree, of: Map<string, string[]>) =>
-    idsOf(tree).flatMap((id) => of.get(id) ?? []);
 
   const key = new Map<string, number>();
   for (const tree of forest) {
-    const barycentre = mean(neighbours(tree, across), facing);
+    const barycentre = meanOverNeighbours(under.get(tree.id)!, across, facing, (id) => id);
     if (barycentre !== null) key.set(tree.id, barycentre);
   }
   // The borrowed key comes off rows, and rows inside a sibling tree are that
   // sibling's business: a row linked along the column to one is keyed by the
   // sibling that holds it.
   const holder = new Map<string, string>();
-  for (const tree of forest) for (const id of idsOf(tree)) holder.set(id, tree.id);
+  for (const tree of forest) for (const id of under.get(tree.id)!) holder.set(id, tree.id);
   for (const tree of forest) {
     if (key.has(tree.id)) continue;
-    const held = neighbours(tree, along)
-      .map((id) => holder.get(id))
-      .filter((id): id is string => id !== undefined && id !== tree.id);
-    const borrowed = mean(held, key);
+    const borrowed = meanOverNeighbours(under.get(tree.id)!, along, key, (id) => {
+      const held = holder.get(id);
+      return held === tree.id ? undefined : held;
+    });
     if (borrowed !== null) key.set(tree.id, borrowed);
   }
 
@@ -314,7 +362,42 @@ function sortForest(
         (key.get(a.id) ?? Number.POSITIVE_INFINITY) -
         (key.get(b.id) ?? Number.POSITIVE_INFINITY),
     )
-    .map((tree) => ({ id: tree.id, built: sortForest(tree.built, against, across, along) }));
+    .map((tree) => ({
+      id: tree.id,
+      built: sortForest(tree.built, against, across, along, under),
+    }));
+}
+
+/**
+ * The mean of `values` over the neighbours (in `of`) of every id in `ids`,
+ * each neighbour first passed through `as` — or null when none has a value.
+ *
+ * A neighbour `as` maps to undefined is skipped, which is how a tree keeps its
+ * own rows out of its borrowed key. Summed in place: this is the inner loop of
+ * the sweep, and it used to flatten the neighbours into a list, map that list,
+ * filter it, and reduce it — four arrays per tree per pass.
+ */
+function meanOverNeighbours(
+  ids: readonly string[],
+  of: Map<string, string[]>,
+  values: Map<string, number>,
+  as: (neighbour: string) => string | undefined,
+): number | null {
+  let sum = 0;
+  let known = 0;
+  for (const id of ids) {
+    const neighbours = of.get(id);
+    if (!neighbours) continue;
+    for (const neighbour of neighbours) {
+      const at = as(neighbour);
+      if (at === undefined) continue;
+      const value = values.get(at);
+      if (value === undefined) continue;
+      sum += value;
+      known++;
+    }
+  }
+  return known === 0 ? null : sum / known;
 }
 
 /**
@@ -398,28 +481,40 @@ function mean(
   of: readonly string[] | undefined,
   values: Map<string, number>,
 ): number | null {
-  const known = (of ?? []).filter((n) => values.has(n));
-  if (known.length === 0) return null;
-  return known.reduce((sum, n) => sum + values.get(n)!, 0) / known.length;
+  if (!of) return null;
+  let sum = 0;
+  let known = 0;
+  for (const n of of) {
+    const value = values.get(n);
+    if (value === undefined) continue;
+    sum += value;
+    known++;
+  }
+  return known === 0 ? null : sum / known;
 }
 
 function indexOf(column: readonly string[]): Map<string, number> {
   return new Map(column.map((id, i) => [id, i]));
 }
 
-/** An edge's `[left position, right position]`, or null when it is not one per column. */
+/**
+ * An edge's span, packed as `left position × width + right position` — or -1
+ * when the edge is not one per column. A number rather than a pair, so the
+ * count's inner loop allocates nothing per edge.
+ */
 function spanOf(
   edge: LayoutEdge,
   left: Map<string, number>,
   right: Map<string, number>,
-): [number, number] | null {
+  width: number,
+): number {
   const forward = left.get(edge.from);
   if (forward !== undefined) {
     const target = right.get(edge.to);
-    return target === undefined ? null : [forward, target];
+    return target === undefined ? -1 : forward * width + target;
   }
   const backward = left.get(edge.to);
-  if (backward === undefined) return null;
+  if (backward === undefined) return -1;
   const source = right.get(edge.from);
-  return source === undefined ? null : [backward, source];
+  return source === undefined ? -1 : backward * width + source;
 }

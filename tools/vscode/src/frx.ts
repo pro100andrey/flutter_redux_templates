@@ -69,7 +69,7 @@ export async function resolveFrx(
   if (installed) {
     // Verified even though the file is right there: the `--version` line is what
     // proves it is really frx and not an unrelated tool of the same name.
-    const version = await frxVersion(installed, []);
+    const version = await knownVersion(installed);
     if (version) {
       const inv = { cmd: installed, baseArgs: [], label: `frx ${version} (${installed})` };
       // Said, not awaited: a mismatch is worth a warning, never a wait.
@@ -188,9 +188,9 @@ export function extensionVersion(context: vscode.ExtensionContext): string | nul
 /**
  * Run `frx upgrade` on the resolved binary, with progress, and say how it went.
  *
- * `resolveFrx` holds no cache — every command re-resolves and re-reads
- * `--version` — so the replaced binary is what the next command spawns, with
- * nothing here to invalidate.
+ * `resolveFrx` re-resolves on every command, and what it remembers of the
+ * binary is keyed on the file itself (see `knownVersion`) — so the replaced
+ * binary is what the next command spawns, with nothing here to invalidate.
  */
 export async function upgradeFrx(inv: Invocation): Promise<RunResult> {
   const res = await runWithProgress('FRX: frx upgrade…', inv, ['upgrade'], os.homedir());
@@ -202,6 +202,36 @@ export async function upgradeFrx(inv: Invocation): Promise<RunResult> {
     vscode.window.showErrorMessage(`FRX: frx upgrade failed (exit ${res.code}) — see the FRX output.`);
   }
   return res;
+}
+
+/** The last binary `--version` was read from, and what the file was then. */
+let _known: { path: string; mtimeMs: number; size: number; version: string } | null = null;
+
+/**
+ * The installed binary's version — from `--version` the first time, and from
+ * memory while the file on disk is the same one.
+ *
+ * Every command resolves frx afresh, and the tree and the audit resolve it
+ * separately on every refresh, so this spawn ran twice per change for an
+ * answer that only changes when the binary does. The binary is what the answer
+ * is keyed on: its path, size and modification time, read with one `stat`. A
+ * replaced binary — `frx upgrade`, a reinstall — misses on all of them and is
+ * asked again, so nothing here needs invalidating by hand.
+ */
+async function knownVersion(cmd: string): Promise<string | null> {
+  let mtimeMs: number;
+  let size: number;
+  try {
+    ({ mtimeMs, size } = fs.statSync(cmd));
+  } catch {
+    return frxVersion(cmd, []); // let the spawn say what is wrong with it
+  }
+  if (_known && _known.path === cmd && _known.mtimeMs === mtimeMs && _known.size === size) {
+    return _known.version;
+  }
+  const version = await frxVersion(cmd, []);
+  _known = version ? { path: cmd, mtimeMs, size, version } : null;
+  return version;
 }
 
 /**
@@ -342,10 +372,17 @@ function findFrxDart(
 /**
  * Run `inv` with `args` in `cwd`, streaming output to the FRX channel and also
  * capturing it. Never rejects — a spawn error comes back as `{ code: -1 }`.
+ *
+ * A `--json` run's stdout is for a parser, and the channel gets its size
+ * instead: the graph behind the tree is a hundred kilobytes of JSON, read on
+ * every change, and the channel is where a person looks to see what frx said
+ * — not to scroll past the picture's serialised form to find it. Stderr is
+ * still shown whole; that is where the CLI explains a failure.
  */
 export function run(inv: Invocation, args: string[], cwd: string): Promise<RunResult> {
   const out = output();
   const full = [...inv.baseArgs, ...args];
+  const machine = args.includes('--json');
   out.appendLine(`$ ${inv.cmd} ${full.join(' ')}   (cwd: ${cwd})`);
   return new Promise((resolve) => {
     let child: cp.ChildProcessWithoutNullStreams;
@@ -355,18 +392,25 @@ export function run(inv: Invocation, args: string[], cwd: string): Promise<RunRe
       out.appendLine(String(err));
       return resolve({ code: -1, stdout: '', stderr: String(err) });
     }
+    // Decoded once, by the stream: a Buffer chunk was decoded to append to
+    // `stdout` and decoded again to append to the channel.
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     let stdout = '';
     let stderr = '';
-    child.stdout.on('data', (d) => {
+    child.stdout.on('data', (d: string) => {
       stdout += d;
-      out.append(d.toString());
+      if (!machine) out.append(d);
     });
-    child.stderr.on('data', (d) => {
+    child.stderr.on('data', (d: string) => {
       stderr += d;
-      out.append(d.toString());
+      out.append(d);
     });
     child.on('error', (err) => resolve({ code: -1, stdout, stderr: stderr || String(err) }));
-    child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }));
+    child.on('close', (code) => {
+      if (machine) out.appendLine(`→ exit ${code ?? -1}, ${stdout.length} chars of JSON`);
+      resolve({ code: code ?? -1, stdout, stderr });
+    });
   });
 }
 
