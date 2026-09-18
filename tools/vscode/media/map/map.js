@@ -19,6 +19,12 @@ const READS = new Set(['uses', 'reads']);
 /** A row with more of them than this starts folded — see fold(). */
 const FOLD_OVER = 3;
 const boxes = new Map();
+/** Append `value` to the list under `key`, starting the list if there is none. */
+function pushInto(into, key, value) {
+  const list = into.get(key);
+  if (list) list.push(value);
+  else into.set(key, [value]);
+}
 /** Every node by id — rows, and the actions and selectors a row owns. */
 const nodes = new Map();
 /** A row's builder, by the nesting drawn. */
@@ -39,8 +45,15 @@ const builderOf = new Map();
 const remembered = vscode.getState() || {};
 const folded = new Set(remembered.folded || []);
 let pinned = remembered.pinned && nodes.has(remembered.pinned) ? remembered.pinned : null;
+/**
+ * Which column the last draw placed — 0 actors, 1 state, -1 neither yet.
+ * Remembered with the folds: a refresh rebuilds the page, and the placement
+ * a fold was allowed to keep (see place()) would otherwise be re-decided
+ * from scratch on a refresh that changed nothing.
+ */
+let placed = remembered.placed ?? -1;
 function remember() {
-  vscode.setState({ folded: [...folded], pinned });
+  vscode.setState({ folded: [...folded], pinned, placed });
 }
 
 function open(n) {
@@ -153,39 +166,29 @@ function fill(id, list) {
  * content — the longest name at its own indent — so it is measured, once,
  * before the first draw. Expanding a row changes heights, not this.
  *
- * The text is measured as text (a Range around it), not as its block: a
- * block is as wide as its container whatever it holds, which is exactly
- * the number that says nothing. The insets on either side are what the
- * enclosing boxes take at that depth, read off the flow layout — with
- * every row unfolded and every list of actions and selectors shown, so
- * neither a fold nor an expand changes the width. The lists count: they
- * start hidden, and a hidden name has no width to measure, so a column
- * sized without them held its heads and spilled an action name past its
- * edge the moment a reader expanded the row.
+ * The layout engine does the measuring: with every line kept to one line,
+ * a column at `max-content` is exactly as wide as its widest line at its
+ * own indent, folds and lists included. Measured with every row unfolded
+ * and every list of actions and selectors shown, so neither a fold nor an
+ * expand changes the width — a hidden name has no width, and a column
+ * sized without the lists held its heads and spilled an action name past
+ * its edge the moment a reader expanded the row. This used to walk the
+ * lines itself, by a selector naming every element that can carry text,
+ * and that selector is what the lists were missing from.
  */
 function fit() {
   const wasFolded = [...document.querySelectorAll('.node.folded')];
   for (const el of wasFolded) el.classList.remove('folded');
   const wasHidden = [...document.querySelectorAll('.owned ul')].filter((ul) => ul.hidden);
   for (const ul of wasHidden) ul.hidden = false;
-  for (const id of ['actors', 'state']) {
-    const col = document.getElementById(id);
-    col.style.width = '';
-    const rect = col.getBoundingClientRect();
-    let widest = 0;
-    const range = document.createRange();
-    // Each line's own block gives its insets: a name in a list sits
-    // further in than the head above it, behind the list's rule.
-    for (const line of col.querySelectorAll('.t, .s, .count, .regions, .owned li')) {
-      const box = line.getBoundingClientRect();
-      const insets = (box.left - rect.left) + (rect.right - box.right);
-      range.selectNodeContents(line);
-      widest = Math.max(widest, insets + range.getBoundingClientRect().width);
-    }
+  const cols = ['actors', 'state'].map((id) => document.getElementById(id));
+  for (const col of cols) col.style.width = 'max-content';
+  const widths = cols.map((col) => col.getBoundingClientRect().width);
+  cols.forEach((col, i) => {
     // A little air after the longest line; bounded so one absurd name
     // cannot take the panel, and so an empty column still looks like one.
-    col.style.width = Math.min(480, Math.max(160, Math.ceil(widest) + 6)) + 'px';
-  }
+    col.style.width = Math.min(480, Math.max(160, Math.ceil(widths[i]) + 6)) + 'px';
+  });
   for (const ul of wasHidden) ul.hidden = true;
   for (const el of wasFolded) el.classList.add('folded');
 }
@@ -216,11 +219,15 @@ function lines() {
     const key = from < to ? from + '|' + to : to + '|' + from;
     let line = byPair.get(key);
     if (!line) {
-      line = { from, to, side: e.side, kinds: new Set(), edges: [] };
+      line = { from, to, side: e.side, kinds: new Set(), changes: false, edges: [] };
       byPair.set(key, line);
     }
     line.edges.push(e);
-    for (const r of e.relations) line.kinds.add(r.kind);
+    for (const r of e.relations) {
+      line.kinds.add(r.kind);
+      // Whether any of it changes state: the colour, and what is drawn last.
+      if (CHANGES.has(r.kind)) line.changes = true;
+    }
   }
   return [...byPair.values()];
 }
@@ -236,11 +243,8 @@ function lines() {
 function slotsOf(drawn, rectOf) {
   const ends = new Map();
   drawn.forEach((line, index) => {
-    for (const node of [line.from, line.to]) {
-      const of = ends.get(node);
-      if (of) of.push(index);
-      else ends.set(node, [index]);
-    }
+    pushInto(ends, line.from, index);
+    pushInto(ends, line.to, index);
   });
   const centre = (id) => {
     const r = rectOf(id);
@@ -288,12 +292,35 @@ function place() {
     rows: document.querySelector('#' + id + ' .rows'),
     nodes: DATA[id],
   }));
-  for (const c of cols) c.rows.classList.remove('placed');
+  // Back to flow before measuring — the class *and* the height the last
+  // placement set. The height stayed, so the column placed last time
+  // measured as the height it was stretched to rather than its own, and
+  // whichever column had been placed read as the taller one on the next
+  // draw: every expand, fold and resize handed the placement to the other
+  // column, and the picture jumped from one arrangement to the other.
+  for (const c of cols) {
+    c.rows.classList.remove('placed');
+    c.rows.style.height = '';
+  }
   const natural = cols.map((c) => c.rows.getBoundingClientRect().height);
-  // The shorter column moves. Neither, when the two are within a row of
-  // each other: then placing gains nothing and the picture stays a list.
-  const shorter = natural[0] < natural[1] ? 0 : natural[1] < natural[0] ? 1 : -1;
+  // The shorter column moves. Neither, when the two are the same height:
+  // then placing gains nothing and the picture stays a list.
+  let shorter = natural[0] < natural[1] ? 0 : natural[1] < natural[0] ? 1 : -1;
+  // And keeps moving, once it does. Expanding one row of the placed column
+  // made it the taller one by a few lines, and the rule alone then handed
+  // the placement across: the other column re-arranged itself and the one
+  // just expanded fell back into a stack — every row on the page moved for
+  // a click on one. The column placed last time stays placed until the
+  // other is shorter by half, which is a picture that really has changed
+  // shape, not a row that opened.
+  if (placed >= 0 && shorter !== placed && natural[placed] < natural[1 - placed] * 2) {
+    shorter = placed;
+  }
   if (shorter < 0 || !cols[shorter].nodes.length) return;
+  if (placed !== shorter) {
+    placed = shorter;
+    remember();
+  }
   const moving = cols[shorter];
   const facing = cols[1 - shorter].rows.getBoundingClientRect();
 
@@ -399,9 +426,9 @@ function applyFocus() {
  * The picture gives the shape; this gives the specifics a line cannot carry:
  * which action, through which callback, which selector. Grouped by what the
  * relation does and which way it runs — "changed by" is the first question
- * on arriving at a substate, and it heads the list. Every entry opens the
- * thing it names: the action or selector when the fold hid one, else the
- * row across.
+ * on arriving at a substate, and it heads the list. One entry per row
+ * across, opening that row; under it, the actions and selectors the fold
+ * hid, each opening its own, with the trigger beside it.
  */
 function describe(id) {
   const pane = document.getElementById('pane');
@@ -424,11 +451,7 @@ function describe(id) {
   pane.append(h, kind);
 
   const groups = new Map();
-  const add = (group, entry) => {
-    const list = groups.get(group) || [];
-    list.push(entry);
-    groups.set(group, list);
-  };
+  const add = (group, entry) => pushInto(groups, group, entry);
   for (const e of DATA.edges) {
     const far = e.from === id ? e.to : e.to === id ? e.from : null;
     if (far === null) continue;
@@ -454,22 +477,58 @@ function describe(id) {
     h4.textContent = group;
     if (group === 'Changes' || group === 'Changed by') h4.className = 'changes';
     const ul = document.createElement('ul');
-    for (const entry of groups.get(group)) {
+    // One entry per row across, and under it everything behind the line:
+    // a connector that dispatches twenty actions into a substate is one
+    // relation to read, not twenty lines that start with the same name.
+    const byFar = new Map();
+    for (const entry of groups.get(group)) pushInto(byFar, entry.far.id, entry);
+    for (const entries of byFar.values()) {
+      const far = entries[0].far;
       const li = document.createElement('li');
-      // The row across, then the action or selector behind the line when
-      // the fold hid one, then what triggers it.
-      li.textContent = entry.far.title + (entry.what ? ' · ' + entry.what.title : '');
-      if (entry.via) {
-        const via = document.createElement('span');
-        via.className = 'via';
-        via.textContent = ' ' + entry.via;
-        li.appendChild(via);
+      const name = document.createElement('span');
+      name.className = 'far';
+      name.textContent = far.title;
+      name.addEventListener('click', () => open(far));
+      li.appendChild(name);
+      // Under the row: the actions or selectors the fold hid, each with what
+      // triggers it, and the triggers of relations the fold did not touch —
+      // a page navigating to another says which callback. What triggers them
+      // is said once, beside the row, when it is the same for all of them: a
+      // page whose every dispatch runs through one callback.
+      const vias = new Set(entries.filter((e) => e.via).map((e) => e.via));
+      const shared = vias.size === 1 && entries.every((e) => e.via) ? entries[0].via : null;
+      if (shared) name.appendChild(viaEl(shared));
+      const items = entries.filter((e) => e.what || (e.via && !shared));
+      if (items.length) {
+        const list = document.createElement('div');
+        list.className = 'whats';
+        for (const entry of items) {
+          const item = document.createElement('span');
+          item.className = 'item';
+          if (entry.what) {
+            const what = document.createElement('span');
+            what.className = 'what';
+            what.textContent = entry.what.title;
+            what.addEventListener('click', () => open(entry.what));
+            item.appendChild(what);
+          }
+          if (entry.via && !shared) item.appendChild(viaEl(entry.via));
+          list.appendChild(item);
+        }
+        li.appendChild(list);
       }
-      li.addEventListener('click', () => open(entry.what || entry.far));
       ul.appendChild(li);
     }
     pane.append(h4, ul);
   }
+}
+
+/** A trigger's name, in the pane's monospace: the callback, the field list. */
+function viaEl(via) {
+  const el = document.createElement('span');
+  el.className = 'via';
+  el.textContent = ' ' + via;
+  return el;
 }
 
 function focusOnHover() {
@@ -569,6 +628,10 @@ function draw() {
     return r;
   };
   const drawn = lines();
+  // Lines that change state are drawn last, so they lie on top: where the
+  // bundle is dense a grey line over a blue one hid the answer to the
+  // first question the picture is for. The order is otherwise kept.
+  drawn.sort((a, b) => a.changes - b.changes);
   const slots = slotsOf(drawn, rectOf);
   const fragment = document.createDocumentFragment();
   wires = [];
@@ -617,11 +680,7 @@ function draw() {
     // Every kind the pair relates by, so a line that is navigation among
     // other things still draws dashed — and 'changes' when any of them
     // changes state, which is the colour.
-    const kinds = [...line.kinds];
-    const changes = kinds.some((k) => CHANGES.has(k));
-    wire.setAttribute('class', 'wire ' + kinds.join(' ') + (changes ? ' changes' : ''));
-    wire.dataset.from = line.from;
-    wire.dataset.to = line.to;
+    wire.setAttribute('class', 'wire ' + [...line.kinds].join(' ') + (line.changes ? ' changes' : ''));
     wire.setAttribute('d', d);
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
     // One relation per line, so a bundled line's tooltip reads as a list.
@@ -651,30 +710,37 @@ window.addEventListener('resize', draw);
 focusOnHover();
 
 // A diagram reads as exhaustive, so it says where its own edges stop.
+//
+// Grouped by the reason: the reasons are few and the edges many — seventeen
+// gaps here were two sentences, each said nine and eight times — so the
+// reason heads its group and the edges under it are one line apiece.
 if (DATA.gaps.length) {
   const box = document.createElement('div');
   box.className = 'gaps';
   const h = document.createElement('h2');
   h.textContent = '⚠ ' + DATA.gaps.length + ' unresolved edge(s)';
   box.appendChild(h);
-  for (const g of DATA.gaps) {
-    const what = document.createElement('div');
-    const code = document.createElement('code');
-    code.textContent = g.what;
-    what.appendChild(code);
-    box.appendChild(what);
-    if (g.at) {
-      const at = document.createElement('div');
-      at.className = 'at';
-      const file = document.createElement('code');
-      file.textContent = g.at;
-      at.appendChild(file);
-      box.appendChild(at);
+  const byWhy = new Map();
+  for (const g of DATA.gaps) pushInto(byWhy, g.why, g);
+  for (const [why, gaps] of byWhy) {
+    const p = document.createElement('p');
+    p.className = 'why';
+    p.textContent = why;
+    box.appendChild(p);
+    for (const g of gaps) {
+      const row = document.createElement('div');
+      row.className = 'gap';
+      const code = document.createElement('code');
+      code.textContent = g.what;
+      row.appendChild(code);
+      if (g.at) {
+        const at = document.createElement('code');
+        at.className = 'at';
+        at.textContent = g.at;
+        row.appendChild(at);
+      }
+      box.appendChild(row);
     }
-    const why = document.createElement('p');
-    why.className = 'why';
-    why.textContent = g.why;
-    box.appendChild(why);
   }
   document.getElementById('gaps').appendChild(box);
 }

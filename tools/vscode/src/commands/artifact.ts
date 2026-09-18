@@ -105,11 +105,13 @@ export async function removeArtifact(app: App, arg?: ArtifactArg): Promise<void>
   if (kind) base.push('--kind', kind);
 
   // Preview: `remove` without --apply writes nothing and emits the changeset.
+  // Quiet: the changeset is shown as a plan, not read off the channel.
   const preview = await frx.runWithProgress(
     `FRX: planning removal of ${name}…`,
     inv,
     [...base, '--json'],
     targetDir,
+    { quiet: true },
   );
 
   // Ambiguous — the name matches more than one kind. `remove` exits 64 for this,
@@ -215,6 +217,7 @@ export async function renameArtifact(app: App, arg?: ArtifactArg): Promise<void>
     inv,
     [...base, '--json'],
     targetDir,
+    { quiet: true },
   );
   if (preview.code !== 0) {
     frx.output().show(true);

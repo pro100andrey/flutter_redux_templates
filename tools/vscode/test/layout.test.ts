@@ -369,3 +369,14 @@ test('countCrossings: agrees with the pairwise definition on random pictures', (
     );
   }
 });
+
+test('nesting: a row whose builders go round a cycle it is not on keeps its builder', () => {
+  // `a` is built by `b`; `b` and `c` build each other. Walking `a`'s chain
+  // of builders never comes back to `a`, and used to never come back at all —
+  // the Map froze the extension host on the picture that has this shape.
+  // `a` stays under `b`; the cycle is cut at `b`, the first of its rows met.
+  const under = nesting(['a', 'b', 'c'], new Map([['a', 'b'], ['b', 'c'], ['c', 'b']]));
+  assert.deepStrictEqual([...under], [['a', 'b'], ['c', 'b']]);
+  const ordered = orderColumns(['a', 'b', 'c'], ['s'], [e('a', 's')], new Map([['a', 'b'], ['b', 'c'], ['c', 'b']]));
+  assert.deepStrictEqual([...ordered.actors].sort(), ['a', 'b', 'c'], 'and the ordering keeps every row');
+});

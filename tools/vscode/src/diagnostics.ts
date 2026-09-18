@@ -3,6 +3,8 @@
 // the same "group by file, clear, set" dance — this centralizes it.
 import * as vscode from 'vscode';
 
+import { pushInto } from './collections';
+
 /** The minimum a finding must carry to be squiggled: where it lives. */
 export interface FileAnchored {
   file: string | null;
@@ -60,9 +62,7 @@ export function publishByFile<T extends FileAnchored>(
     const d = toDiagnostic(f);
     const where = f.file ?? fallback;
     if (!d || !where) continue;
-    const list = byFile.get(where);
-    if (list) list.push(d);
-    else byFile.set(where, [d]);
+    pushInto(byFile, where, d);
   }
   for (const [file, list] of byFile) {
     collection.set(vscode.Uri.file(file), list);

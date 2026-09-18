@@ -79,7 +79,7 @@ export async function resolveFrx(
   }
 
   const frxDart = findFrxDart(context, targetDir);
-  if (frxDart && (await canSpawn('dart', ['--version']))) {
+  if (frxDart && (await dartSpawns())) {
     warnAboutDartRun();
     // Pass the script as an absolute path and let the run's cwd be the target
     // folder: Dart resolves the tools/ package config from the script's own
@@ -204,8 +204,9 @@ export async function upgradeFrx(inv: Invocation): Promise<RunResult> {
   return res;
 }
 
-/** The last binary `--version` was read from, and what the file was then. */
-let _known: { path: string; mtimeMs: number; size: number; version: string } | null = null;
+/** The last binary asked for `--version`, what the file was then, and the answer. */
+let _known: { path: string; mtimeMs: number; size: number; version: Promise<string | null> } | null =
+  null;
 
 /**
  * The installed binary's version — from `--version` the first time, and from
@@ -217,8 +218,14 @@ let _known: { path: string; mtimeMs: number; size: number; version: string } | n
  * is keyed on: its path, size and modification time, read with one `stat`. A
  * replaced binary — `frx upgrade`, a reinstall — misses on all of them and is
  * asked again, so nothing here needs invalidating by hand.
+ *
+ * What is kept is the probe, not its answer: the tree, the audit and the
+ * upgrade check all resolve at activation in the same tick, and remembering
+ * only a settled answer let all three spawn before the first had one. A probe
+ * that comes back empty is forgotten — unless a newer one has already taken
+ * its place, which a late failure must not evict.
  */
-async function knownVersion(cmd: string): Promise<string | null> {
+function knownVersion(cmd: string): Promise<string | null> {
   let mtimeMs: number;
   let size: number;
   try {
@@ -229,9 +236,12 @@ async function knownVersion(cmd: string): Promise<string | null> {
   if (_known && _known.path === cmd && _known.mtimeMs === mtimeMs && _known.size === size) {
     return _known.version;
   }
-  const version = await frxVersion(cmd, []);
-  _known = version ? { path: cmd, mtimeMs, size, version } : null;
-  return version;
+  const entry = { path: cmd, mtimeMs, size, version: frxVersion(cmd, []) };
+  _known = entry;
+  return entry.version.then((version) => {
+    if (!version && _known === entry) _known = null;
+    return version;
+  });
 }
 
 /**
@@ -309,7 +319,27 @@ function warnAboutDartRun(): void {
 
 /** `'dart'` if it can be spawned, else null (a Dock-launched VSCode may lack it). */
 export async function resolveDartCmd(): Promise<string | null> {
-  return (await canSpawn('dart', ['--version'])) ? 'dart' : null;
+  return (await dartSpawns()) ? 'dart' : null;
+}
+
+/** The probe that said `dart` spawns, once it has. */
+let _dart: Promise<boolean> | null = null;
+
+/**
+ * Whether `dart` can be spawned — asked once per session, once the answer is
+ * yes. A yes stays true (the SDK does not vanish under a window), and every
+ * resolve on the zero-install path asked again: three at activation in one
+ * tick, two per change after. A no is not kept: the user may be installing
+ * it right now, and the next command should find it.
+ */
+function dartSpawns(): Promise<boolean> {
+  if (_dart) return _dart;
+  const probe = canSpawn('dart', ['--version']);
+  _dart = probe;
+  return probe.then((ok) => {
+    if (!ok && _dart === probe) _dart = null;
+    return ok;
+  });
 }
 
 /** True if `cmd` can be spawned at all (i.e. it exists), regardless of exit code. */
@@ -369,20 +399,35 @@ function findFrxDart(
   return candidates.find((c) => fs.existsSync(c)) ?? null;
 }
 
+/** How a run's stdout reaches the FRX channel. */
+export interface RunOptions {
+  /**
+   * Log the size of stdout rather than stdout itself.
+   *
+   * For a read whose stdout is for a parser: the graph behind the tree is a
+   * hundred kilobytes of JSON, read on every change, and the channel is where
+   * a person looks to see what frx said — not to scroll past the picture's
+   * serialised form to find it. Asked for by the caller, never inferred from
+   * the arguments: a writing command also takes `--json`, and its stdout
+   * carries build_runner's own output — the one place a failed build is
+   * explained, and where "Show output" sends the user. Stderr is always shown
+   * whole.
+   */
+  quiet?: boolean;
+}
+
 /**
  * Run `inv` with `args` in `cwd`, streaming output to the FRX channel and also
  * capturing it. Never rejects — a spawn error comes back as `{ code: -1 }`.
- *
- * A `--json` run's stdout is for a parser, and the channel gets its size
- * instead: the graph behind the tree is a hundred kilobytes of JSON, read on
- * every change, and the channel is where a person looks to see what frx said
- * — not to scroll past the picture's serialised form to find it. Stderr is
- * still shown whole; that is where the CLI explains a failure.
  */
-export function run(inv: Invocation, args: string[], cwd: string): Promise<RunResult> {
+export function run(
+  inv: Invocation,
+  args: string[],
+  cwd: string,
+  { quiet = false }: RunOptions = {},
+): Promise<RunResult> {
   const out = output();
   const full = [...inv.baseArgs, ...args];
-  const machine = args.includes('--json');
   out.appendLine(`$ ${inv.cmd} ${full.join(' ')}   (cwd: ${cwd})`);
   return new Promise((resolve) => {
     let child: cp.ChildProcessWithoutNullStreams;
@@ -400,7 +445,7 @@ export function run(inv: Invocation, args: string[], cwd: string): Promise<RunRe
     let stderr = '';
     child.stdout.on('data', (d: string) => {
       stdout += d;
-      if (!machine) out.append(d);
+      if (!quiet) out.append(d);
     });
     child.stderr.on('data', (d: string) => {
       stderr += d;
@@ -408,7 +453,7 @@ export function run(inv: Invocation, args: string[], cwd: string): Promise<RunRe
     });
     child.on('error', (err) => resolve({ code: -1, stdout, stderr: stderr || String(err) }));
     child.on('close', (code) => {
-      if (machine) out.appendLine(`→ exit ${code ?? -1}, ${stdout.length} chars of JSON`);
+      if (quiet) out.appendLine(`→ exit ${code ?? -1}, ${stdout.length} chars of stdout`);
       resolve({ code: code ?? -1, stdout, stderr });
     });
   });
@@ -420,10 +465,11 @@ export function runWithProgress(
   inv: Invocation,
   args: string[],
   cwd: string,
+  options: RunOptions = {},
 ): Thenable<RunResult> {
   return vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title, cancellable: false },
-    () => run(inv, args, cwd),
+    () => run(inv, args, cwd, options),
   );
 }
 
@@ -435,6 +481,6 @@ export function runWithProgress(
  */
 export async function resolveDart(inv: Invocation): Promise<string | null> {
   if (inv.cmd === 'dart') return 'dart';
-  if (await canSpawn('dart', ['--version'])) return 'dart';
+  if (await dartSpawns()) return 'dart';
   return null;
 }

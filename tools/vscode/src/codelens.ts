@@ -92,9 +92,10 @@ export class FrxLensProvider implements vscode.CodeLensProvider {
 
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const file = document.uri.fsPath;
-    // The text, read once and only on a branch that needs it: `getText()` is
-    // a copy of the whole document, and a page connector used to take three —
-    // one per lens, and one more for its imports.
+    // The text, read once and only on a branch that needs it. The editor joins
+    // the document's lines on the first `getText()` of a version; a ui file
+    // with no connector — most of them — never asks, and a page connector
+    // asks once for its two lenses rather than once each.
     let text: string | undefined;
     const textOf = () => (text ??= document.getText());
 

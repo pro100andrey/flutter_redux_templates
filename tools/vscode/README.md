@@ -478,21 +478,28 @@ picture sits a pane that says in words what the focused row's lines mean:
 ```text
 logIn                        page · connectors/log_in_page_connector.dart
 CHANGES
-  logIn · LogInAction        onSubmit
-  session · SetTokenAction   onSubmit
+  logIn  onSubmit
+    LogInAction
+  session  onSubmit
+    SetTokenAction · ClearTokenAction
 READS
-  logIn · email
+  logIn
+    email
   session
 BUILDS
   StatusBarConnector
 ```
 
-The panel also carries what the graph could not resolve:
+One entry per row across, and under it the actions and selectors the fold hid —
+each opening its own file; a trigger they all share is said once beside the row.
+
+The panel also carries what the graph could not resolve, grouped by the reason:
 
 ```text
-⚠ 1 unresolved edge(s)
-  dispatch-target  SomeFactory()
-      dispatched, but no imported `*_action.dart` declares it
+⚠ 2 unresolved edge(s)
+dispatched, but no imported `*_action.dart` declares it
+  dispatch-target  SomeFactory()      business/lib/redux/log_in/actions/log_in_action.dart
+  dispatch-target  other.action()     business/lib/redux/log_in/actions/log_in_action.dart
 ```
 
 **Two rows are joined by one line, however many relations run between them.** A

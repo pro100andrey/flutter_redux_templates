@@ -26,27 +26,57 @@ changes are marked as such.
   while the actions and selectors under a substate start folded, and a folded
   name has no width to measure. Expanding `boot` then ran
   `SetEmbedderRendezvousAction` out past the box's edge. The measurement now
-  unfolds every list first, and takes each name's inset from its own line,
-  since a name in a list sits further in than the head above it.
+  unfolds every list first, and lets the layout engine size the column to its
+  content rather than walking the lines by a selector — which is what the
+  lists were missing from.
+
+- **The Map no longer hangs the window on a cycle of builders.** A connector
+  built by one of two connectors that build each other sent the nesting walk
+  round that cycle forever, on the picture's first draw, with the extension
+  host — and every other extension in it — stuck behind it. The walk is now
+  bounded by the column: the row keeps its builder, and the cycle is cut at
+  the first of its own rows, as before.
+
+- **The Map's columns stay where they are across a click.** The shorter
+  column is placed level with what it relates to, and which column that is
+  was decided on every redraw from a height the last placement had set —
+  so each expand, fold or resize handed the placement to the other column
+  and every row on the page moved. The height is cleared before measuring,
+  and the placed column now keeps the placement until the other is shorter
+  by half: a row that opens is not a picture that changed shape.
 
 ### Changed
 
+- **The Map's pane reads as relations, not as lines.** Hovering `memory`
+  listed fifty entries, twenty of them beginning `MemoryConnector ·`. Each
+  row across is now said once, with the actions and selectors behind its
+  line under it, and a trigger they all share — a page whose every dispatch
+  runs through one callback — said once beside the row. The unresolved edges
+  at the foot of the page are grouped the same way, by reason: seventeen
+  gaps were two sentences, each repeated. Lines that change state are drawn
+  over lines that only read it, so the answer to "who changes this" is never
+  under a grey line in the bundle.
+
 - **Less work on the paths that run all the time.** The code-lens provider
-  compiled its five path patterns from `LAYOUT` and copied the document's text
-  up to three times on every edit of every Dart file; the patterns are now
-  built once with the root, the text read once, and only when a lens needs it.
+  compiled its five path patterns from `LAYOUT` on every edit of every Dart
+  file, and searched the document's text twice for one class; the patterns are
+  now built once with the root, and the text is read once, and only when a
+  lens needs it.
   The Map's crossing count is an inversion count over a Fenwick tree instead
-  of a comparison of every pair — the same orderings, at 800 lines in a fifth
-  of the time and at 3000 in a thirteenth — and the sweep no longer flattens
-  every subtree on every pass. The Map page reads each row's rectangle once
+  of a comparison of every pair, the sweep no longer flattens every subtree
+  or re-indexes the facing column on every pass, and it stops at the pass that
+  changes nothing — the same orderings, in a sixth of the time on this
+  repository's shape and a fortieth at three thousand lines. (The facing
+  column is still indexed once per pass; what stopped is indexing it again
+  for every subtree.) The Map page reads each row's rectangle once
   per redraw and attaches its wires in one append (it re-laid the page out
   once per line), and lights a hovered row from the adjacency it recorded
   while drawing rather than by asking the DOM for every wire. The tree
   computes what each substate owns once per read instead of once per row.
   The installed binary's `--version` is remembered while the file is the same
   one, so a refresh spawns two processes, not four. Process output is decoded
-  once, and a `--json` read logs its size to the channel rather than its
-  hundred kilobytes of payload.
+  once, and a machine read — the graph, the audit, a plan preview — logs its
+  size to the channel rather than its hundred kilobytes of payload.
 
 ## 0.3.5
 
@@ -157,15 +187,16 @@ changes are marked as such.
 
 ### Changed
 
-- **Less work on the paths that run all the time.** The code-lens provider
-  compiled its five path patterns from `LAYOUT` and copied the document's text
-  up to three times on every edit of every Dart file; the patterns are now
-  built once with the root, the text read once, and only when a lens needs it.
-  The Map's crossing count is an inversion count over a Fenwick tree instead
-  of a comparison of every pair — the same orderings, at 800 lines in a fifth
-  of the time and at 3000 in a thirteenth — and the sweep no longer flattens
-  every subtree on every pass. The Map page reads each row's rectangle once
-  per red line and its effect out. It
+- **The FRX Map's page script and styles are files, not a template string.**
+  `media/map/map.js` and `map.css`, loaded by URI under the same nonce CSP; the
+  picture crosses as a JSON block. Eight hundred lines of JavaScript sat inside
+  a TypeScript string behind two levels of escaping that nothing checked — a
+  lone `\n` in it became a real newline in the emitted script and the page
+  stopped parsing, with nothing anywhere saying why. The unit suite now parses
+  the script as JavaScript.
+
+- **`frx new` reads its answers through the console**, so the wizard has tests:
+  a scripted conversation in, the echoed command line and its effect out. It
   read `stdin.readLineSync()` directly and was the one command with none. *(CLI)*
 
 - **`discover.ts`'s installer directories are kept in step by a test**, which

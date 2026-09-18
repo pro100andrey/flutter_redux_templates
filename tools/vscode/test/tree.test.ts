@@ -131,8 +131,7 @@ test('one CLI read backs the whole tree, and refresh() re-reads', async () => {
   await p.getChildren(subs[0]);
   assert.strictEqual(reads(), 1, 'the graph is read once per refresh cycle');
 
-  p.refresh();
-  await new Promise((r) => setImmediate(r));
+  await p.refresh();
   assert.strictEqual(reads(), 2, 'refresh() re-reads at once, before anything asks');
   await p.getChildren(g[0]);
   assert.strictEqual(reads(), 2, 'and that read is what the next getChildren serves');

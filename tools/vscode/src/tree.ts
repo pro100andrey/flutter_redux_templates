@@ -13,6 +13,7 @@
 import * as fs from 'fs';
 import * as vscode from 'vscode';
 
+import { pushInto } from './collections';
 import * as frx from './frx';
 import * as naming from './naming';
 import * as paths from './paths';
@@ -55,14 +56,7 @@ interface Read {
 }
 
 function read(graph: AppGraph): Read {
-  const owned = new Map<string, GraphNode[]>();
-  for (const n of graph.nodes) {
-    if ((n.kind !== 'action' && n.kind !== 'selector') || !n.substate) continue;
-    const list = owned.get(n.substate);
-    if (list) list.push(n);
-    else owned.set(n.substate, [n]);
-  }
-  return { graph, owned, why: orphanReasons(graph) };
+  return { graph, owned: ownedBySubstate(graph), why: orphanReasons(graph) };
 }
 
 export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
@@ -96,9 +90,11 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
    * it had its rows the moment it opened. Read at the change, the rows are
    * there when the section is.
    */
-  refresh(): void {
+  refresh(): Promise<void> {
     this._graph = this._load();
     this._emitter.fire(undefined);
+    // Settled when the rows are, so a caller can wait for them; never rejects.
+    return this._graph.then(() => undefined);
   }
 
   getTreeItem(element: FrxTreeItem): vscode.TreeItem {
@@ -145,15 +141,25 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
     return this._graph ?? (this._graph = this._load());
   }
 
-  /** One CLI read of the graph; null when there is no project, or no frx. */
-  private _load(): Promise<Read | null> {
+  /**
+   * One CLI read of the graph; null when there is no project, no frx, or the
+   * read threw. A throw would otherwise be an unhandled rejection while the
+   * section is collapsed and nothing awaits it; the null draws the "(frx
+   * unavailable — see FRX output)" leaf, so the output is where the throw is
+   * written, or the leaf would send the reader to a channel that says the
+   * run went fine.
+   */
+  private async _load(): Promise<Read | null> {
     const root = this.root;
-    if (!root) return Promise.resolve(null);
-    return (async () => {
+    if (!root) return null;
+    try {
       const inv = await frx.resolveFrx(this.context, root);
       const graph = inv ? await queries.graph(inv, root) : null;
       return graph ? read(graph) : null;
-    })();
+    } catch (err) {
+      frx.output().appendLine(`FRX: the tree could not read the graph — ${err}`);
+      return null;
+    }
   }
 
   /** Map rows to items, or a single "(none)" leaf when there are none. */
@@ -270,6 +276,27 @@ export function selectionAt(
   if (!n.line) return undefined;
   const at = new vscode.Position(n.line - 1, Math.max(0, (n.column ?? 1) - 1));
   return { selection: new vscode.Range(at, at) };
+}
+
+/**
+ * The node kinds a substate owns — the one statement of it. The tree lists
+ * them under the substate's row, and the map folds them into it (`picture`
+ * draws an edge into one as an edge into the substate); the two used to each
+ * spell the rule out, and a kind added to one alone either went unlisted or
+ * threw on the page.
+ */
+export const OWNED_KINDS: ReadonlySet<string> = new Set(['action', 'selector']);
+
+/**
+ * Each substate's actions and selectors, in the graph's order, by the
+ * substate's name.
+ */
+export function ownedBySubstate(graph: AppGraph): Map<string, GraphNode[]> {
+  const owned = new Map<string, GraphNode[]>();
+  for (const n of graph.nodes) {
+    if (OWNED_KINDS.has(n.kind) && n.substate) pushInto(owned, n.substate, n);
+  }
+  return owned;
 }
 
 /**
