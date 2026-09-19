@@ -1,4 +1,5 @@
 import 'package:async_redux/async_redux.dart';
+import 'package:flutter/foundation.dart' show mustCallSuper;
 
 import '../../dependencies.dart';
 import '../../environment.dart';
@@ -20,17 +21,24 @@ abstract class Action extends ReduxAction<AppState> with Selectors {
 /// load wants exactly this and nothing more.
 ///
 /// **Both hooks call `super`, and that is load-bearing.** Dart gives a class
-/// one `after()` — the last mixin's — and several async_redux mixins
-/// (`NonReentrant`, `Throttle`, `Fresh`) override it to release their own lock
-/// *without* calling `super.after()`. So in `with WaitingAction, NonReentrant`
-/// this mixin's `after()` is never reached: the barrier goes up and never comes
-/// down, and every widget reading `isWaitingForType<T>()` stays disabled for
-/// the rest of the session. Reversing the pair only moves the loss — then it is
-/// the reentrancy lock that is never released, and the action never runs twice.
+/// one `after()` — the last mixin's. Through async_redux 28.1, `NonReentrant`,
+/// `Throttle` and `Fresh` overrode it to release their own lock *without*
+/// calling `super.after()`, so in `with WaitingAction, NonReentrant` this
+/// mixin's `after()` was never reached: the barrier went up and never came
+/// down, and every widget reading `isWaitingForType<T>()` stayed disabled for
+/// the rest of the session. Reversing the pair only moved the loss — then it
+/// was the reentrancy lock that was never released.
 ///
-/// Neither order works while this mixin swallows the chain, so it does not: it
-/// cleans up and passes the baton, and `add-action` puts it **last** in the
-/// `with` clause so it is the one Dart calls. `frx doctor` checks both halves.
+/// Since 28.3.1 every mixin async_redux declares chains (this package requires
+/// ≥ 28.4), and this one always did: it cleans up and passes the baton, and
+/// `add-action` puts it **last** in the `with` clause so it is the one Dart
+/// calls — a rule that costs nothing and covers the next mixin that does not
+/// chain. `frx doctor` checks both halves.
+///
+/// Both hooks are `@mustCallSuper`, as async_redux's own are from 28.4: an
+/// action that writes its own `after()` and forgets `super` is the other way
+/// to end the chain, and this way the analyzer says so where it is written,
+/// before `doctor` does.
 ///
 /// `before()` returns `Future<void>` rather than `void` for a narrower reason:
 /// `CheckInternet` declares `Future<void> before()`, and a `void` override of
@@ -40,6 +48,7 @@ mixin WaitingAction on ReduxAction<AppState> {
   bool get notifyBefore => true;
   bool get notifyAfter => false;
 
+  @mustCallSuper
   @override
   Future<void> before() async {
     // Synchronous — the body runs to the first `await` before the store gets
@@ -48,6 +57,7 @@ mixin WaitingAction on ReduxAction<AppState> {
     await super.before();
   }
 
+  @mustCallSuper
   @override
   void after() {
     // Locks first, barrier second: whoever wakes on the barrier coming down

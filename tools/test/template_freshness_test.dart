@@ -34,7 +34,7 @@ void main() {
       base64Decode(kFrxTemplateBase64),
     );
 
-    const repack = 'Repack it: cd tools && make template';
+    const repack = 'Repack it: cd tools && dart run tool/xtask.dart template';
 
     // Named before compared, so a failure says *which* file rather than "some
     // 963 KB of bytes differ".

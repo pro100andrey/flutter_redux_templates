@@ -273,10 +273,16 @@ void main() {
 
   group('a WaitingAction whose cleanup never runs', () {
     // Measured on a real store before any of this was written: an action
-    // `with WaitingAction, NonReentrant` finishes and
-    // `isWaitingForType<T>()` stays true for the rest of the session — a
+    // `with WaitingAction, NonReentrant` finished and
+    // `isWaitingForType<T>()` stayed true for the rest of the session — a
     // permanently disabled button, from a clause the analyzer is happy with.
     // Nothing in Dart, in async_redux or in the audit said a word.
+    //
+    // async_redux 28.3.1 made every `after()` it declares chain to `super`,
+    // so no catalogue mixin ends the chain today and the first half of the
+    // check has nothing to report; what it reads is the catalogue, which the
+    // catalogue test keeps true to the package. The second half — an action's
+    // own hook without `super` — is as live as it was.
 
     /// A `common/action.dart` whose `WaitingAction` behaves as the template's
     /// does: cleans up, and passes the chain on.
@@ -311,22 +317,23 @@ mixin WaitingAction on ReduxAction<AppState> {
         );
     }
 
-    test('a mixin that ends the chain placed after it is reported', () async {
-      writeChainingBase();
-      writeAction('WaitingAction, NonReentrant');
-      final fs = await findings();
-      expect(
-        fs.any(
-          (f) =>
-              '${f['message']}'.contains(
-                'LoadThemeAction applies NonReentrant after WaitingAction',
-              ) &&
-              f['severity'] == 'error',
-        ),
-        isTrue,
-        reason: fs.toString(),
-      );
-    });
+    test(
+      'a mixin that chains after() placed after it is not reported',
+      () async {
+        // The very clause the group is named for. It was reported as an error
+        // while `NonReentrant.after()` returned without `super.after()`; since
+        // 28.3.1 it chains, the catalogue says so, and a finding here would be
+        // the audit asserting a hazard the package no longer has.
+        writeChainingBase();
+        writeAction('WaitingAction, NonReentrant');
+        final fs = await findings();
+        expect(
+          fs.where((f) => '${f['message']}'.contains('after WaitingAction')),
+          isEmpty,
+          reason: fs.toString(),
+        );
+      },
+    );
 
     test('the order add-action emits is not reported', () async {
       writeChainingBase();

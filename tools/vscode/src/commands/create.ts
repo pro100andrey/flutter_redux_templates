@@ -21,7 +21,7 @@ import * as ui from '../ui';
  * a test, so three could drift silently and the fourth was caught by a regex
  * over this file's text. Now `KINDS` is generated from each command's own
  * ArgParser and the blurbs are a `Record` over it: add a kind in Dart, run
- * `make contract`, and this stops compiling until somebody writes what it does.
+ * `xtask contract`, and this stops compiling until somebody writes what it does.
  * The order is the CLI's, so the picker lists them the way `--help` does.
  */
 const SUBSTATE_BLURBS: Record<Kind<'substate'>, string> = {

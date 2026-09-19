@@ -161,7 +161,7 @@ class RemoveCommand extends WritingCommand
         }
         refuse(notFound(kind, name, state));
       }
-      return removeFiles(found, apply: apply);
+      return removeFiles(found, apply: apply, repo: repo);
     }
 
     // The substates declaring a field of this name, asked at most once: the
@@ -218,7 +218,7 @@ class RemoveCommand extends WritingCommand
       }
 
       if (matched.length == 1) {
-        return removeFiles(matched.single, apply: apply);
+        return removeFiles(matched.single, apply: apply, repo: repo);
       }
     }
 

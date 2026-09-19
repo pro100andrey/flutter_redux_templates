@@ -12,7 +12,7 @@
 *.vsix
 node_modules/
 
-# `make dist` — a native frx binary for this machine. The released ones are built
+# `xtask dist` — a native frx binary for this machine. The released ones are built
 # by .github/workflows/release.yml, one runner per platform.
 /tools/dist/
 

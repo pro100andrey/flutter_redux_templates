@@ -45,26 +45,18 @@ changes are marked as such.
   and the placed column now keeps the placement until the other is shorter
   by half: a row that opens is not a picture that changed shape.
 
-### Added
+- **`remove <action>` takes a waiting action's getter with it.** The one
+  thing an action's `add-*` wires is the `isWaiting` getter keyed on its
+  type, and a removal deleted the file and left the getter and its import
+  behind — `selectors.dart` naming a type that was gone, with a note to go
+  run the audit. The facade is unwired in the same plan; a getter another
+  facade member still reads is kept and named in the preview. *(CLI)*
 
-- **A large page's flow is drawn in pieces.** `frx flow --md` and the Flow
-  view drew a page as one sequence diagram however many lanes it took, and
-  mermaid fits the drawing to the page: a screen composed of fifteen regions
-  came out at forty-five lanes with every label at three pixels. Past a dozen
-  lanes a page is now one diagram per interaction, each with only the lanes
-  it touches, under a heading naming it. `frx flow <page> --doc` prints that
-  document for one page, and the Flow view shows it — the interaction table
-  included — falling back to the bare diagram on a CLI without the flag.
-  *(CLI + editor)*
-
-- **The graph names an orphan folder's actions as a gap.** An action's
-  substate is the folder it sits in, and nothing checked that `AppState`
-  still composes it, so `frx graph --json` emitted actions of a substate no
-  consumer could find — the Map threw on its first draw. Such an action now
-  stands on its own and comes with an `orphan-substate` entry in
-  `unresolved` naming the folder and the two ways out. *(CLI)*
-
-### Changed
+- **`add-action -k waiting` imports the action into the facade.** The
+  `isWaiting` getter it writes names the action as a type argument, and
+  `selectors.dart` imports nothing that declares it; the getter was written
+  and the facade stopped compiling, on the first waiting action in a fresh
+  project. *(CLI)*
 
 - **A `--json` run keeps stdout to the one object.** Every apply printed
   `✓ docs/flows refreshed` on stdout ahead of the changeset, and a build
@@ -78,6 +70,63 @@ changes are marked as such.
   late with nothing to say why. It now also activates on the marker file
   the CLI keys on (`app/lib/navigation/app_router.dart`), and the manifest
   check refuses a glob that drifts from the generated marker path.
+
+### Added
+
+- **A large page's flow is drawn in pieces.** `frx flow --md` and the Flow
+  view drew a page as one sequence diagram however many lanes it took, and
+  mermaid fits the drawing to the page: a screen composed of fifteen regions
+  came out at forty-five lanes with every label at three pixels. Past a dozen
+  lanes a page is now one diagram per interaction, each with only the lanes
+  it touches, under a heading naming it. `frx flow <page> --doc` prints that
+  document for one page, and the Flow view shows it — the interaction table
+  included — falling back to the bare diagram on a CLI without the flag.
+  *(CLI + editor)*
+
+- **`add-action --mixin sequential`** — async_redux 28.3.1's `Sequential`,
+  a FIFO queue per key: actions run one at a time, in dispatch order. The
+  catalogue carries its knobs (`sequentialKeyParams`, `discardQueueOnError`)
+  and its incompatibilities (`Debounce`, `UnlimitedRetryCheckInternet`),
+  which the package asserts at runtime but the analyzer does not see — so
+  `add-action` refusing the pair up front is the only refusal a release
+  build gets. The catalogue test now reads those pairs off the package's
+  `_incompatible<A, B>` calls as well as its collision markers. *(CLI)*
+
+- **The graph names an orphan folder's actions as a gap.** An action's
+  substate is the folder it sits in, and nothing checked that `AppState`
+  still composes it, so `frx graph --json` emitted actions of a substate no
+  consumer could find — the Map threw on its first draw. Such an action now
+  stands on its own and comes with an `orphan-substate` entry in
+  `unresolved` naming the folder and the two ways out. *(CLI)*
+
+### Changed
+
+- **The template requires async_redux ≥ 28.4.** `business` and `app` pin
+  `^28.4.0`: the mixin catalogue, the skills and the audit now describe
+  28.4's behaviour — every hook chains, `Sequential` exists — and a project
+  resolving an older 28.x would be told things that were not true of it.
+  The template's own `WaitingAction` marks both hooks `@mustCallSuper`, as
+  async_redux's are from 28.4, so an action that writes its own `after()`
+  and forgets `super` hears it from the analyzer where it is written, not
+  only from `doctor`. Verified on a project created from the template:
+  build, analyze, tests, `doctor`, and an action scaffolded
+  `-k waiting -m sequential -m nonReentrant`. *(template)*
+
+- **No mixin frx offers ends the `after()` chain any more.** async_redux
+  28.3.1 made `NonReentrant`, `Throttle` and `Fresh` chain to `super.after()`,
+  and the catalogue test — which reads that off the package — said so.
+  `swallowsAfter` is false for every mixin; `WaitingAction` is still emitted
+  last, and the `action-mixin-order` audit still reads the flag, so both fire
+  again the day a mixin stops chaining. *(CLI, with async_redux ≥ 28.3.1)*
+
+- **The build tasks are a Dart program.** `tools/Makefile` is
+  `tools/tool/xtask.dart` — `dart run tool/xtask.dart install --profile
+  Flutter`, `… version 0.3.6`, `… check`, the same targets under the same
+  names. The Makefile bumped versions with perl (because `sed -i` differs
+  between BSD and GNU), listed VSCode profiles through python, and ran on
+  neither of the platforms the CI's Windows leg exists for; the tasks are in
+  the project's language now, with its `args` and its tests. `PROFILE` and
+  `CODE` in the environment still stand in for the options. *(repo)*
 
 - **The Map page has tests that run it.** `map.test.ts` pinned what the
   script says; a jsdom suite now pins what it does — the wires a picture

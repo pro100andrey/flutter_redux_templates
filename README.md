@@ -152,10 +152,10 @@ If you have not installed it yet, see [Install the `frx` CLI](#install-the-frx-c
 above. Working *on* the CLI, from this checkout, is a different loop:
 
 ```bash
-cd tools && make install PROFILE=Flutter   # `frx` on PATH + the VSIX in that profile
+cd tools && dart run tool/xtask.dart install --profile Flutter   # `frx` on PATH + the VSIX in that profile
 ```
 
-Or without the Makefile:
+Or by hand:
 
 ```bash
 cd tools && dart pub get

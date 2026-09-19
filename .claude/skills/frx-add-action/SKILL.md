@@ -90,13 +90,15 @@ plain `dispatch` for fire-and-forget.
   ground as a field's getter: a waiting action a page cannot ask about is
   half-wired.
 - The **order** of a `with` clause is load-bearing, and getting it wrong is
-  not a compile error. Dart runs one `after()` — the last mixin's — and
-  `NonReentrant`, `Throttle` and `Fresh` override it without calling
-  `super.after()`. `with WaitingAction, NonReentrant` therefore analyzes
-  clean and never lowers the wait barrier: the button reading `isWaiting`
-  stays dead for the session. `WaitingAction` goes **last**; `add-action`
-  writes it there, `frx list-mixins` says which mixins end the chain, and
-  `frx doctor` reports a clause that has it wrong.
+  not a compile error. Dart runs one `after()` — the last mixin's — so a
+  mixin that overrides it without `super.after()` ends the chain. Through
+  async_redux 28.1 `NonReentrant`, `Throttle` and `Fresh` did: `with
+  WaitingAction, NonReentrant` analyzed clean and never lowered the wait
+  barrier, and the button reading `isWaiting` stayed dead for the session.
+  Since 28.3.1 every mixin chains (this template requires ≥ 28.4), and the
+  rule stays for the next one that does not: `WaitingAction` goes **last**;
+  `add-action` writes it there, `frx list-mixins` says which mixins end the
+  chain, and `frx doctor` reports a clause that has it wrong.
 
 ## Flags
 
@@ -126,6 +128,7 @@ plain `dispatch` for fire-and-forget.
           [debounce]                       Run only after a pause in dispatches
           [throttle]                       Drop dispatches while a recent run is fresh
           [fresh]                          Skip the run while the last result is still fresh
+          [sequential]                     Run one at a time, in dispatch order (a queue per key)
           [unlimitedRetryCheckInternet]    Retry forever, treating offline as a failure to retry
 
     --[no-]selector                        For --kind waiting, also add the substate's `isWaiting` getter to its Select<Pascal> in selectors.dart.

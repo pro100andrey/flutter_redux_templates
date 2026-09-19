@@ -132,6 +132,10 @@ to go, carrying the same rows plus what each substate owns and the facts a flat
 list drops. It refreshes after every add/remove, on external edits to the
 redux / navigation / connectors sources (file-watcher, debounced), or via its
 title-bar ↻; the graph is cached per refresh, so expanding rows costs nothing.
+The read happens at the refresh, not when the section is next opened: VS Code
+asks only a visible, expanded section for its rows, so a section collapsed
+while the last change landed used to run `frx graph` on the click that opened
+it and show its rows a CLI run later.
 
 ### Picking an existing substate / page
 
@@ -586,14 +590,19 @@ the taller column; the order was right and the heights were not. Each row of the
 shorter column is set at the mean height of the rows across from it, kept in
 order and apart, so a line runs level to the row it names — a hub substate sits
 in the middle of the screen that reads it. The taller column stays a plain list,
-which is what the page scrolls by.
+which is what the page scrolls by. Which column that is holds across a click:
+expanding a row of the placed column makes it the taller one by a few lines,
+and handing the placement across on that would move every row on the page for
+a click on one — so the placed column keeps the placement until the other is
+shorter by half, and a refresh remembers the choice with the folds.
 
 **A column is as wide as its widest row, and no narrower.** Measured from the
-content — the longest name at its own indent, since a row three levels deep has
-lost 72px before it starts — so a name never breaks across two lines or runs out
-of its box, and a narrow panel gives up margin and gap before it gives up a
-column. Past that the page scrolls sideways rather than squeezing a count onto
-two lines.
+content by the layout engine, with every fold open and every list of actions
+and selectors shown — the longest name at its own indent, since a row three
+levels deep has lost 72px before it starts, and a name that starts folded still
+counts — so a name never breaks across two lines or runs out of its box, and a
+narrow panel gives up margin and gap before it gives up a column. Past that the
+page scrolls sideways rather than squeezing a count onto two lines.
 
 **Legibility comes from a skeleton, not from filtering.** Substates and pages are
 always visible and form the shape of "how it is built"; **actions and selectors
@@ -609,7 +618,9 @@ the crossings that remain stop mattering when a reader can isolate one row's
 relations instead of following a line through the ones that cross it. Attached
 means *directly* — the rows this one relates to and the wires between them, as
 drawn, so a folded row is attached to whatever its regions' lines now reach; the
-transitive reach is what `frx graph --focus X -d inbound` is for.
+transitive reach is what `frx graph --focus X -d inbound` is for. Lines that
+change state are drawn over lines that only read it, so the answer to "who
+changes this" is never under a grey line where the bundle is dense.
 
 **Every node opens its source** — a substate its state file, a page its connector,
 a selector the exact getter (every selector in the app shares one file, so the
@@ -1004,9 +1015,13 @@ renderers that turn a CLI read into a document or a picture (`plan_view`,
 so no `build_runner` runs), the tree and code-lens item building, `cursor`'s
 symbol→artifact mapping, the doctor quick-fixes, the overlay's rows, the
 `pickSubstate`/`pickArtifact`/`--dir` pickers, and a load-smoke over every module
-(catches a broken require path or circular-load break). `npm run validate` runs
-the manifest gate; the palette ↔ overlay contract is pinned on the CLI side by
-`tools/test/extension_contract_test.dart`.
+(catches a broken require path or circular-load break). The Map page itself runs
+under jsdom in `test/map_page.test.ts` — the wires a picture yields, the focus,
+the pane, the folds, the gaps, what a refresh remembers — because the text-only
+tests over `map.js` let two regressions through that a DOM would have caught;
+jsdom lays nothing out, so the column placement stays a browser's to check.
+`npm run validate` runs the manifest gate; the palette ↔ overlay contract is
+pinned on the CLI side by `tools/test/extension_contract_test.dart`.
 
 ### Integration tests in a real VS Code
 
@@ -1038,8 +1053,9 @@ npm run install:vsix                     # reads the version out of package.json
 ```
 
 You can also install a `.vsix` from the UI: **Extensions** view → `…` menu →
-**Install from VSIX…**. From the monorepo, `make ext PROFILE=<name>` does
-compile → package → install into a named VSCode profile in one step — which
+**Install from VSIX…**. From the monorepo, `dart run tool/xtask.dart ext
+--profile <name>` (in `tools/`) does compile → package → install into a named
+VSCode profile in one step — which
 matters, because a VSIX installed into the Default profile is invisible while you
 work in another one.
 

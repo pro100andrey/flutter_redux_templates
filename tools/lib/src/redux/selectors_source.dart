@@ -277,22 +277,24 @@ class SelectorsSource extends FileSource {
     required String selectorType,
     required String getterName,
     Map<String, ImportProbe> prune = const {},
+  }) => removeSelectors([
+    (selectorType: selectorType, getterName: getterName),
+  ], prune: prune);
+
+  /// [removeSelector] for several getters in one splice — one snapshot, one
+  /// import prune. Two removals against the file in turn would each read the
+  /// disk, and the second would not see the first; `remove <action>` takes
+  /// out every getter keyed on the action's type, which is usually one and
+  /// need not be.
+  Unwired removeSelectors(
+    List<({String selectorType, String getterName})> getters, {
+    Map<String, ImportProbe> prune = const {},
   }) {
     // Strict, like every other splice: see [StateSource.removeField].
     final (source: content, :unit) = snapshotToEdit;
 
-    final ext = extensionTypeNamed(unit, selectorType);
-    if (ext == null) {
-      return Unwired.absent(content);
-    }
-
-    final getter = _getters(ext.body, getterName).firstOrNull;
-    if (getter == null) {
-      return Unwired.absent(content);
-    }
-
-    final edits = <Edit>[removeDeclaration(content, getter)];
-    final changes = <String>['$selectorType.$getterName'];
+    final edits = <Edit>[];
+    final changes = <String>[];
     // What the removal takes away, read while it is still there: the imports
     // this file no longer needs are the ones whose only reason was one of these
     // names. [prune] answers for the types the caller knows about; this answers
@@ -300,18 +302,34 @@ class SelectorsSource extends FileSource {
     // is keyed on an action *type*, so the read layer imports one file of the
     // write layer per waiting getter, and taking the getter out left the
     // import.
-    final removed = {...namesIn(getter)};
+    final removed = <String>{};
+    for (final (:selectorType, :getterName) in getters) {
+      final ext = extensionTypeNamed(unit, selectorType);
+      if (ext == null) {
+        continue;
+      }
+      final getter = _getters(ext.body, getterName).firstOrNull;
+      if (getter == null) {
+        continue;
+      }
+      edits.add(removeDeclaration(content, getter));
+      changes.add('$selectorType.$getterName');
+      removed.addAll(namesIn(getter));
 
-    // The accessors derived from it go too:
-    // `Object byId(int id) => table[id]!;` does not compile once `table` is
-    // gone, and a facade left like that is the half-job this command exists to
-    // avoid. Same rule [accessorRetypeEdits] retypes by — a method qualifies
-    // by *indexing* the getter, so a `byId` that reads something else is
-    // somebody's own and stays.
-    for (final member in derivedAccessorsOf(ext, getterName)) {
-      edits.add(removeDeclaration(content, member));
-      changes.add('$selectorType.${member.name.lexeme}()');
-      removed.addAll(namesIn(member));
+      // The accessors derived from it go too:
+      // `Object byId(int id) => table[id]!;` does not compile once `table` is
+      // gone, and a facade left like that is the half-job this command exists
+      // to avoid. Same rule [accessorRetypeEdits] retypes by — a method
+      // qualifies by *indexing* the getter, so a `byId` that reads something
+      // else is somebody's own and stays.
+      for (final member in derivedAccessorsOf(ext, getterName)) {
+        edits.add(removeDeclaration(content, member));
+        changes.add('$selectorType.${member.name.lexeme}()');
+        removed.addAll(namesIn(member));
+      }
+    }
+    if (edits.isEmpty) {
+      return Unwired.absent(content);
     }
 
     final pruned = pruneImports(applyEdits(content, edits), prune);
@@ -457,6 +475,46 @@ class SelectorsSource extends FileSource {
     }
 
     return null;
+  }
+
+  /// The getters keyed on the action type [className] — every
+  /// `isWaitingForType<ClassName>()` on the facade, as `(selectorType,
+  /// getterName)` pairs, in declaration order.
+  ///
+  /// What `add-action -k waiting` wired, found again for `remove`: the getter
+  /// is named `isWaiting` by convention, but a second waiting action in the
+  /// same substate had to be read under a name of the author's choosing, so
+  /// it is the type argument that says which action a getter is about, not
+  /// the name. Read off the AST rather than matched as text, so a comment or
+  /// a string that mentions the class does not count.
+  List<({String selectorType, String getterName})> waitingReadersOf(
+    String className,
+  ) => [
+    for (final ext in unit.declarations.whereType<ExtensionTypeDeclaration>())
+      for (final m in ext.body.members.whereType<MethodDeclaration>())
+        if (m.isGetter && _keysWaitOn(m, className))
+          (
+            selectorType: ext.namePart.typeName.lexeme,
+            getterName: m.name.lexeme,
+          ),
+  ];
+
+  /// Whether [getter]'s body is an `isWaitingForType<className>()` call.
+  static bool _keysWaitOn(MethodDeclaration getter, String className) {
+    final body = getter.body;
+    if (body is! ExpressionFunctionBody) {
+      return false;
+    }
+    final expr = body.expression;
+    if (expr is! MethodInvocation ||
+        expr.methodName.name != 'isWaitingForType') {
+      return false;
+    }
+    final args = expr.typeArguments?.arguments;
+    return args != null &&
+        args.length == 1 &&
+        args.single is NamedType &&
+        (args.single as NamedType).name.lexeme == className;
   }
 
   /// The members of [selectorType] that still read [getterName] and are not

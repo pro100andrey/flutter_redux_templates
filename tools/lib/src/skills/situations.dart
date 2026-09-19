@@ -375,13 +375,15 @@ pair up front.''',
 as a field's getter: a waiting action a page cannot ask about is half-wired.''',
       '''
 The **order** of a `with` clause is load-bearing, and getting it wrong is not
-a compile error. Dart runs one `after()` — the last mixin's — and
-`NonReentrant`, `Throttle` and `Fresh` override it without calling
-`super.after()`. `with WaitingAction, NonReentrant` therefore analyzes clean
-and never lowers the wait barrier: the button reading `isWaiting` stays dead
-for the session. `WaitingAction` goes **last**; `add-action` writes it there,
-`frx list-mixins` says which mixins end the chain, and `frx doctor` reports a
-clause that has it wrong.''',
+a compile error. Dart runs one `after()` — the last mixin's — so a mixin that
+overrides it without `super.after()` ends the chain. Through async_redux 28.1
+`NonReentrant`, `Throttle` and `Fresh` did: `with WaitingAction, NonReentrant`
+analyzed clean and never lowered the wait barrier, and the button reading
+`isWaiting` stayed dead for the session. Since 28.3.1 every mixin chains (this
+template requires ≥ 28.4), and the rule stays for the next one that does not:
+`WaitingAction` goes **last**; `add-action` writes it there, `frx list-mixins`
+says which mixins end the chain, and `frx doctor` reports a clause that has
+it wrong.''',
     ],
   ),
   'add-page': Situation.wired(
