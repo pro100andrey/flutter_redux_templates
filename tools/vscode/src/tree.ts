@@ -238,7 +238,7 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
   }
 
   private _actionItem(n: GraphNode, orphan: boolean): FrxTreeItem {
-    const item = new FrxTreeItem(n.name, vscode.TreeItemCollapsibleState.None);
+    const item = new FrxTreeItem(actionLabel(n), vscode.TreeItemCollapsibleState.None);
     item.description = actionDescription(n, orphan);
     item.contextValue = 'frxAction';
     // A warning icon, not a squiggle: an action nothing dispatches is a fact
@@ -300,6 +300,18 @@ export function selectionAt(
   if (!n.line) return undefined;
   const at = new vscode.Position(n.line - 1, Math.max(0, (n.column ?? 1) - 1));
   return { selection: new vscode.Range(at, at) };
+}
+
+/**
+ * What an action row is titled: the name, with whatever its id carries past
+ * the substate. A private step is `InstallSkillsAction._AgentWorking`, because
+ * two files in one substate can each declare an `_AgentWorking`, and two rows
+ * titled alike under one substate read as one artifact listed twice. The Map
+ * titles its rows by the same rule.
+ */
+export function actionLabel(n: GraphNode): string {
+  const prefix = `action:${n.substate ?? ''}.`;
+  return n.substate && n.id.startsWith(prefix) ? n.id.slice(prefix.length) : n.name;
 }
 
 /**

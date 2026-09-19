@@ -44,7 +44,7 @@ import * as paths from './paths';
 import * as queries from './queries';
 import { nesting, orderColumns } from './layout';
 import type { AppGraph, GraphNode } from './queries';
-import { OWNED_KINDS, ownedBySubstate, selectionAt } from './tree';
+import { OWNED_KINDS, actionLabel, ownedBySubstate, selectionAt } from './tree';
 
 /** One drawable node: what it says, and what opening it reveals. */
 export interface PictureNode {
@@ -441,12 +441,11 @@ function sideOf(
  * artifact drawn twice.
  */
 function leaf(n: GraphNode, subtitle: string): PictureNode {
-  const actionPrefix = `action:${n.substate ?? ''}.`;
   const title =
     n.kind === 'selector'
       ? (n.name.split('.').pop() ?? n.name)
-      : n.kind === 'action' && n.substate && n.id.startsWith(actionPrefix)
-        ? n.id.slice(actionPrefix.length)
+      : n.kind === 'action'
+        ? actionLabel(n)
         : n.name;
   return {
     id: n.id,

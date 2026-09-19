@@ -85,9 +85,9 @@ item and no commands. `frx create <name>` writes a project that satisfies it.
 The Explorer gains an **FRX** view (monorepo only) with two groups:
 
 - **Substates** — every field composed into `AppState` (name + type), each
-  expanding into **what belongs to it**: its actions and its selectors. Click
-  any row to open its source. Inline on a substate: **Add action…** (pre-fills
-  it) and **Remove**.
+  expanding into **what belongs to it**: its actions, its selectors, and its
+  own fields. Click any row to open its source. Inline on a substate: **Add
+  action…** (pre-fills it) and **Remove**.
 - **Routes** — every route registered in `AppRouter`, with its path and what
   makes it special. Click → opens the page connector. Inline: **Remove**.
 
@@ -100,7 +100,9 @@ FRX
 │  │  └─ ƒ  isWaiting
 │  ├─ session                 SessionState
 │  │  ├─ ⚡ SetTokenAction         nothing dispatches
-│  │  └─ ƒ  token                  nothing reads it
+│  │  ├─ ƒ  token                  nothing reads it
+│  │  ├─ ▫  token
+│  │  └─ ▫  locale                 written, nothing reads it
 │  └─ wait                    Wait
 └─ Routes
    ├─ SplashRoute             /splash · initial
@@ -109,10 +111,22 @@ FRX
 ```
 
 An action row carries how it runs — `async`, its async_redux mixins, and
-whether it can throw a `UserException`. A selector sheds its `Select…` prefix,
-because the row above already says it. Clicking a selector lands **on the
-getter**, not at the top of `selectors.dart` — every selector in the app shares
-that one file, so the file alone answers "which file" and not "which one".
+whether it can throw a `UserException`. A private step declared beside the
+action that dispatches it is titled by that action — `InstallSkillsAction._AgentWorking`
+— because two files in one substate can each declare an `_AgentWorking`. A
+selector sheds its `Select…` prefix, because the row above already says it.
+Clicking a selector lands **on the getter**, not at the top of `selectors.dart`
+— every selector in the app shares that one file, so the file alone answers
+"which file" and not "which one". Clicking an action in a file that holds
+several lands on its class the same way.
+
+The slice's own fields come last — after what acts on them, so a fifty-field
+slice does not push its actions off the screen — and carry the one thing about
+a field the source cannot say: **`written, nothing reads it`** (or `nothing
+reads it`) when the graph finds no reducer, connector or live selector reading
+it. `SelectSession.token` marked dead beside a `token` field that is not means
+a dead getter over a live field — a reducer reads `state.session.token`
+directly; `locale` marked too is a field to remove with its selector.
 
 **`nothing dispatches`** and **`nothing reads it`** mark an action frx found no
 dispatcher for and a selector it found no reader for. Both are warning icons

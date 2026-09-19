@@ -185,6 +185,23 @@ test('a selector nothing reads is marked with why', async () => {
   assert.strictEqual((live.iconPath as any).id, 'symbol-property');
 });
 
+test('a private step is titled by its file, so two alike stay two rows', async () => {
+  const { p } = provider(graphOf({
+    nodes: [
+      SUB('setup', 'SetupState'),
+      ACTION('setup', 'InstallSkillsAction'),
+      { ...ACTION('setup', '_AgentWorking'), id: 'action:setup.InstallSkillsAction._AgentWorking' },
+      { ...ACTION('setup', '_AgentWorking'), id: 'action:setup.InstallMcpAction._AgentWorking' },
+    ],
+    orphans: [],
+  }));
+  const subs = await of(p, 0);
+  assert.deepStrictEqual(
+    (await p.getChildren(subs[0])).map((i) => i.label),
+    ['InstallSkillsAction', 'InstallSkillsAction._AgentWorking', 'InstallMcpAction._AgentWorking'],
+  );
+});
+
 test('a substate lists its fields after what acts on it, marking the dead', async () => {
   const { p } = provider(graphOf({
     nodes: [
