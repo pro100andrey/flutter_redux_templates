@@ -204,6 +204,41 @@ mixin MarksRowBusy on Action {
       expect(focus['node'], anyOf('page:logIn', 'substate:logIn'));
     });
 
+    test(
+      '--focus takes one field of a substate, however it is spelled',
+      () async {
+        // The last is how the orphan list names one.
+        for (final token in [
+          'logIn.value',
+          'log_in.value',
+          'field:logIn.value',
+        ]) {
+          final out = await json(['graph', '--json', '--focus', token]);
+          final focus = out['focus']! as Map<String, Object?>;
+          expect(focus['node'], 'substate:logIn', reason: token);
+          expect(focus['field'], 'value', reason: token);
+        }
+        final text = await runInProcess(fx, [
+          'graph',
+          '--focus',
+          'logIn.value',
+        ]);
+        expect(text.stdout, contains('substate:logIn .value'));
+      },
+    );
+
+    test(
+      '--focus on a field the slice does not have names the ones it has',
+      () async {
+        // Answered with whatever touches the whole slice, a typo reads as
+        // "only the persistor".
+        final r = await runInProcess(fx, ['graph', '--focus', 'logIn.valeu']);
+        expect(r.exitCode, isNot(0));
+        expect(r.stderr, contains('no field `valeu`'));
+        expect(r.stderr, contains('value'));
+      },
+    );
+
     test('the applied bound is stated in both modes', () async {
       final out = await json([
         'graph',

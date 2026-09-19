@@ -433,12 +433,25 @@ function sideOf(
   return 'across';
 }
 
-/** A graph node as a drawable leaf. A selector sheds its `Select…` qualifier. */
+/**
+ * A graph node as a drawable leaf. A selector sheds its `Select…` qualifier;
+ * an action keeps whatever its id carries past the substate — a private step
+ * is `InstallSkillsAction._AgentWorking`, because two files in one substate
+ * can each declare an `_AgentWorking`, and two rows titled alike read as one
+ * artifact drawn twice.
+ */
 function leaf(n: GraphNode, subtitle: string): PictureNode {
+  const actionPrefix = `action:${n.substate ?? ''}.`;
+  const title =
+    n.kind === 'selector'
+      ? (n.name.split('.').pop() ?? n.name)
+      : n.kind === 'action' && n.substate && n.id.startsWith(actionPrefix)
+        ? n.id.slice(actionPrefix.length)
+        : n.name;
   return {
     id: n.id,
     kind: n.kind,
-    title: n.kind === 'selector' ? (n.name.split('.').pop() ?? n.name) : n.name,
+    title,
     subtitle,
     file: n.file ?? null,
     line: n.line,

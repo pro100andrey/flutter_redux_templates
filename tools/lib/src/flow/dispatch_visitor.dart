@@ -353,6 +353,13 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
         // `RegistrationAction(...)` — a constructor, as far as we can tell.
         target = arg.methodName.name;
       }
+    } else if (arg is InstanceCreationExpression) {
+      // `const ResetAction()` — the one spelling the parser *knows* is a
+      // constructor. Read as source it carried the keyword, and
+      // `const ResetAction()` is not the name of anything.
+      final type = arg.constructorName.type.name.lexeme;
+      final named = arg.constructorName.name?.name;
+      target = named == null ? type : '$type.$named';
     }
 
     return DispatchStep(

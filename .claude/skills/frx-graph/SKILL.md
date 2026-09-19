@@ -27,13 +27,29 @@ frx graph [--json] [--focus <artifact>] [--direction inbound]
   itself needs — is reported as reached by nobody. Check where it is
   dispatched before deleting it; a substate's `Retrieve…Action` is the
   expected case.
+- **Every action class is a node**, including a private step declared
+  beside the action that dispatches it. Its id is qualified by the file's
+  main action — `action:setup.InstallSkillsAction._AgentWorking` — because
+  two files in one substate may each declare a `_Started`; `--focus` on the
+  bare name answers with both ids.
+- **Ask about a field, not a slice.** `--focus session.token -d inbound`
+  keeps only what touches that field — the setters writing it, the
+  selectors and reducers reading it, and the persistor, which restores all
+  of it — where `--focus substate:session` on a slice with fifty fields
+  returns the whole app. A `reads` edge is drawn for a direct
+  `state.session.token` in a reducer or a connector as much as for a
+  selector, so a selector on the "nothing reads it" list beside a reducer
+  reading the same field is a dead selector, not a dead field — and
+  `field:setup.agentErrorOn written, nothing reads it` on the same list is
+  a field to remove along with its selector and every write of it (`frx
+  remove agentErrorOn --kind field --state setup`).
 
 ## Flags
 
 ```
 -h, --help                    Print this usage information.
     --json                    Emit the graph as JSON (the machine-readable form).
-    --focus                   Only the subgraph around one artifact. Takes a node id (page:logIn), a symbol (LogInRoute, SetEmailAction) or a bare name (log_in).
+    --focus                   Only the subgraph around one artifact. Takes a node id (page:logIn), a symbol (LogInRoute, SetEmailAction), a bare name (log_in), or one field of a substate (session.token) — what touches that field, not the whole slice.
 -d, --direction               With --focus: which way to follow the edges.
 
           [inbound]           What depends on it — "what breaks if I touch this". Unbounded unless --depth says otherwise.

@@ -71,6 +71,7 @@ class FlowReader {
     final useCases = <UseCase>[];
     final actions = <String, ActionInfo>{};
     final regions = <String>[];
+    final regionFiles = <String, String>{};
     final untraced = <UntracedDispatch>[];
 
     // Keyed by canonical path: a region reachable through two slots is one
@@ -124,10 +125,13 @@ class FlowReader {
             continue;
           }
 
-          final actionFile = actionFiles[step.target];
+          // By the class the expression constructs, not by its spelling: a
+          // named constructor is still the class, and the file is keyed on
+          // the class.
+          final actionFile = actionFiles[step.className];
           actions[step.target] = actionFile == null
               ? ActionInfo(className: step.target)
-              : readAction(actionFile);
+              : readAction(actionFile, step.className);
         }
       }
 
@@ -138,6 +142,7 @@ class FlowReader {
           continue;
         }
         regions.add(nested.key);
+        regionFiles[nested.key] = nested.value.path;
         walk(nested.value, nested.key);
       }
     }
@@ -152,6 +157,7 @@ class FlowReader {
       actions: actions,
       connectorFile: connectorFile.path,
       regions: regions,
+      regionFiles: regionFiles,
       untraced: untraced,
     );
   }
@@ -199,7 +205,21 @@ class FlowReader {
 
   /// What a single action does: its mixins, whether it's async, the AppState
   /// field it writes, any cascading dispatches, and whether it can fail loudly.
-  ActionInfo readAction(File file) => readActionWithImports(file).info;
+  ///
+  /// [className] picks the class when the file declares more than one action
+  /// — `CloseTaskAction` beside `OpenTaskAction`. Left out, or naming none of
+  /// them, it is the file's main action.
+  ActionInfo readAction(File file, [String? className]) {
+    final read = readActionsWithImports(file);
+    if (className != null) {
+      for (final info in read.infos) {
+        if (info.className == className) {
+          return info;
+        }
+      }
+    }
+    return read.infos.first;
+  }
 
   /// [readAction] plus the action files this action's own imports resolve to,
   /// from one parse.
@@ -211,9 +231,17 @@ class FlowReader {
   ({ActionInfo info, Map<String, File> actionFiles}) readActionWithImports(
     File file,
   ) {
+    final read = readActionsWithImports(file);
+    return (info: read.infos.first, actionFiles: read.actionFiles);
+  }
+
+  /// [readActionWithImports] for every action class the file declares — see
+  /// [readActionsIn] for why a file is not one action.
+  ({List<ActionInfo> infos, Map<String, File> actionFiles})
+  readActionsWithImports(File file) {
     final unit = sourceIndex.unitFor(file);
     return (
-      info: readActionInfo(unit, file),
+      infos: readActionsIn(unit, file),
       actionFiles: _actionFilesFrom(unit, file.parent),
     );
   }
@@ -226,9 +254,28 @@ class FlowReader {
       cls: file,
   };
 
-  /// The class each import of [unit] ending in [suffix] declares, paired with
-  /// the file the import resolves to, in import order. Imports that resolve to
-  /// nothing on disk, or to a file declaring no class, are skipped.
+  /// Every file an import of [unit] resolves to on disk, by canonical path.
+  ///
+  /// For a reader that needs to know which files a file *can* see — the graph
+  /// following a `openSettings(context)` call to the file that declares it —
+  /// rather than which classes they declare.
+  Set<String> importedFilesOf(CompilationUnit unit, Directory from) => {
+    for (final directive in unit.directives.whereType<ImportDirective>())
+      if (directive.uri.stringValue case final uri?)
+        if (_resolveImport(uri, from) case final file? when file.existsSync())
+          p.canonicalize(file.path),
+  };
+
+  /// Every class each import of [unit] ending in [suffix] declares, paired
+  /// with the file the import resolves to, in import order. Imports that
+  /// resolve to nothing on disk, or to a file declaring no class, are skipped.
+  ///
+  /// **Every public class, not the first.** An action file holds its public
+  /// action and, often, a second one that belongs with it; a connector file
+  /// may hold two connectors. Mapped by its first class alone,
+  /// `CloseTaskAction` imported through `open_task_action.dart` resolved to
+  /// nothing, and a dispatch of it was reported as a class no import declares
+  /// — three lines under the import that does.
   ///
   /// [from] is the directory holding the source, needed for relative imports:
   /// a connector lives in `app` and reaches actions by package uri, but a
@@ -249,9 +296,13 @@ class FlowReader {
         continue;
       }
 
-      final cls = firstClassNameIn(sourceIndex.unitFor(file));
-      if (cls != null) {
-        yield (cls, file);
+      for (final cls in classesIn(sourceIndex.unitFor(file))) {
+        // A private class is the library's own: an import does not bring it
+        // in, so a `_Started` here is not the `_Started` the importer names.
+        final name = cls.namePart.typeName.lexeme;
+        if (!name.startsWith('_')) {
+          yield (name, file);
+        }
       }
     }
   }

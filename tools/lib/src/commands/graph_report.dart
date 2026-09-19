@@ -21,8 +21,9 @@ class GraphReport {
       ..writeln(
         focus == null
             ? 'frx graph  (${workspace.root.path})'
-            : 'frx graph  ${focus.node}  ${focus.direction.name}, '
-                  '$depth  (${workspace.root.path})',
+            : 'frx graph  ${focus.node}'
+                  '${focus.field == null ? '' : ' .${focus.field}'}  '
+                  '${focus.direction.name}, $depth  (${workspace.root.path})',
       )
       ..writeln();
 
@@ -90,11 +91,25 @@ class GraphReport {
       console.out.writeln('  ${kind.name} (${of.length})');
       for (final n in of) {
         console.out.writeln(
-          '    ${n.name}${n.resolved ? '' : '  (unresolved)'}'
+          '    ${_label(n)}${n.resolved ? '' : '  (unresolved)'}'
           '${n.substate == null ? '' : '  ← ${n.substate}'}',
         );
       }
     }
+  }
+
+  /// What to print a node as: its name, with whatever its id carries beyond
+  /// the substate in front of it. A private action is qualified by its file
+  /// — `InstallSkillsAction._AgentWorking` — because two files in one
+  /// substate can each declare an `_AgentWorking`, and two identical lines
+  /// would read as one artifact listed twice.
+  static String _label(GraphNode n) {
+    final substate = n.substate;
+    if (n.kind != NodeKind.action || substate == null) {
+      return n.name;
+    }
+    final prefix = 'action:$substate.';
+    return n.id.startsWith(prefix) ? n.id.substring(prefix.length) : n.name;
   }
 
   /// The edges, grouped by kind, each as `from → to` with what triggers it.

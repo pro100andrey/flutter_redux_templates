@@ -7,6 +7,83 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## Unreleased
+
+### Fixed
+
+- **`graph` reads every action class, not every action file.** A file under
+  `actions/` holds its public action and, often, what it dispatches on the
+  way — a private `_ProbeStarted` beside `ProbeEmbedSpeedAction`, a
+  `CloseTaskAction` beside `OpenTaskAction`, a `ReopenAndCheckAction` that
+  dispatches the `ReopenAction` its file is named for. Keyed on the file, the
+  graph had one node per file and reported every dispatch of the others as
+  unresolved — seventeen on one project, each a class three lines under the
+  import that declared it — and the main action itself as reached by nobody
+  when its dispatcher was the second class in its own file. Read as one file,
+  it also blended them: the last `reduce()` answered `isAsync` for all, so
+  `frx flow` drew an async action as a plain arrow. Each class is now its own
+  node, read on its own, resolved through the file's import or from the file
+  itself; a private one is `action:<substate>.<MainAction>.<_Step>`, since two
+  files in one substate may each declare a `_Started`, and carries its line.
+  A named constructor (`RefreshAction.forOperator()`) and a `const`
+  construction resolve to the class. *(CLI; the Map titles a private step by
+  its file's action.)*
+
+- **A connector opened through a function is built by its callers.** A
+  dialog's connector is constructed in one place — the `openSettings(context)`
+  its own file declares — and the screens that open it call that. The graph
+  counted constructions and reported the connector as one no file constructs,
+  and with it every action only it dispatches. A file that calls a function an
+  imported file declares, where that function constructs a connector, now
+  builds it; `HelpConnector.show(context)` the same way. *(CLI)*
+
+- **A gap in a region is reported against the region.** A dispatch the graph
+  could not resolve inside a region connector was listed under the page's own
+  file, where the line is not. *(CLI)*
+
+- **A connector file that puts `_Factory` first is still the connector.** A
+  consumer node was named by the file's first class, so the node was
+  `_Factory` — three files in a project all called that, one node. It is
+  named by the first public class, or the file. *(CLI)*
+
+### Added
+
+- **`graph --focus session.token` — one field, not the slice.** A slice with
+  fifty fields is a hub: every selector on it reads it, every setter writes
+  it, and an inbound walk from the slice was the whole app (106 of 234 nodes
+  for one `console`). Focused on a field, the edges at the slice are kept
+  when they name the field or the whole slice — a flat `copyWith` and the
+  persistor's restore change every field — and the walk goes on from what is
+  left: 26 nodes. Every `reads` edge now says which field (`via
+  session.token`), a substate node lists its `fields`, and a field the state
+  class does not have is refused with the ones it has. *(CLI)*
+
+- **`graph` records a direct read of the state.** `state.console.projectId`
+  in a reducer, `store.state.session` in an `onInit`, `state.memory.x` in a
+  connector callback that skipped the facade — the one reference no edge
+  recorded, so "what breaks if I touch `console.seq`" missed the reducer
+  reading it, and a selector on the dead list sat beside a reducer reading
+  the same field with no way to say *dead selector, live field*. A `reads`
+  edge from the action, page or connector, by field. *(CLI)*
+
+- **`graph` reports a service dispatcher nothing constructs**, by the rule
+  the connector verdict uses: it is built once, where the app wires its
+  services, and one nothing constructs is dead with every action only it
+  dispatches. `builds` edges reach `service:` nodes. *(CLI)*
+
+- **`graph` reports a field nothing reads.** The question a dead selector
+  could not settle: `SelectSetup.agentErrorOn` on the list says the getter is
+  unused, and whether the field behind it is depended on every reducer and
+  connector reading the state directly. Now that those reads are edges, by
+  field, the list says `field:setup.agentErrorOn  written, nothing reads it`
+  — four actions write it, nothing looks — and stays quiet about
+  `console.seq`, whose selector is dead and whose field a reducer reads. A
+  field is live when anything that is not a dead selector reads it, or when
+  anything live reads the whole slice; the persistor's reads do not count.
+  `--fail-on-orphans` gates on it. The FRX tree lists a slice's fields under
+  it, with the same mark; `--focus field:setup.agentErrorOn` is accepted as
+  the list spells it.
+
 ## 0.3.6
 
 ### Fixed

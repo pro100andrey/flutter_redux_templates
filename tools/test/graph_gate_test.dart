@@ -46,7 +46,32 @@ mixin Selectors {
   AppState get state;
 }
 ''');
+    // And something has to read the slices, or their fields are unread — a
+    // file handing each one on reads every field of it.
+    fx.file('app/lib/probe.dart').writeAsStringSync('''
+class Probe {
+  void run(Store<AppState> store) {
+    _use(store.state.connectivity);
+    _use(store.state.logIn);
+  }
+}
+''');
     final r = await runInProcess(fx, ['graph', '--fail-on-orphans']);
     expect(r.exitCode, 0, reason: r.stdout);
+  });
+
+  test('a field nothing reads is unreached too', () async {
+    // The e2e fixture's slices each carry a `value` nothing reads; with the
+    // facade emptied, the field is what is left on the list.
+    fx.file('business/lib/redux/selectors.dart').writeAsStringSync('''
+import 'app_state.dart';
+
+mixin Selectors {
+  AppState get state;
+}
+''');
+    final r = await runInProcess(fx, ['graph', '--fail-on-orphans']);
+    expect(r.exitCode, 1, reason: r.stdout);
+    expect(r.stdout, contains('field:logIn.value'));
   });
 }

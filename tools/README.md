@@ -1009,6 +1009,7 @@ frx graph                         # every node and edge + what frx could not res
 frx graph --json                  # {nodes, edges, unresolved, orphans, focus?}
 frx graph --focus substate:session --depth 2
 frx graph --focus SessionState -d inbound    # what breaks if I touch this
+frx graph --focus session.token -d inbound   # …if I touch this one field
 ```
 
 `frx flow` answers *what does this page do*, `--routes` answers *how do the
@@ -1033,6 +1034,8 @@ flowchart LR
     service -->|dispatches| action
     action -->|dispatches| action
     selector -->|reads| substate
+    action -->|reads| substate
+    consumer -->|reads| substate
     persistor -->|reads| substate
     persistor -->|restores| substate
     selector -->|waitsFor| action
@@ -1041,21 +1044,60 @@ flowchart LR
     action -->|uses| selector
     consumer -->|uses| selector
     page -->|navigates| page
+    consumer -->|builds| consumer
+    consumer -->|builds| service
 ```
 
 | edge | is |
 | --- | --- |
-| `writes` | an action's `copyWith` |
+| `writes` | an action's `copyWith` — `via` names the field, `session.token` |
 | `dispatches` | from a page, an action, or a service |
 | `navigates` | `GoAction.push`/`pop` |
-| `reads` | a selector or the persistor on a substate |
+| `reads` | a selector, an action, a connector or the persistor on a substate — `via` names the field read, or the slice when all of it is |
 | `waitsFor` | `isWaitingForType<X>()` |
 | `restores` | the persistor rebuilding a substate on boot |
 | `uses` | a connector, action or selector calling a selector |
+| `builds` | a file constructing a connector or a service dispatcher |
+
+**A `reads` edge is drawn for a direct read, too.** `state.console.projectId`
+in a reducer, `store.state.session` in an `onInit`, `state.memory.onlyAsserted`
+in a connector callback that never went through the facade: the reference no
+edge recorded. Without it "what breaks if I touch `console.seq`" missed the
+reducer reading it, and a selector on the dead list sat beside a reducer
+reading the same field with no way to say *dead selector, live field*. Found
+by shape — a receiver spelled `state` or `_state`, bare, as a property
+(`store.state`) or a call (`StoreProvider.state<AppState>(context)`), followed
+by something `AppState` composes — across `app/` and `business/`; `ui` has no
+store to reach.
 
 A node id is `<kind>:<name>`: `substate:session`,
 `action:logIn.SetEmailAction`, `page:logIn`, `selector:SelectLogIn.isWaiting`,
 `service:ConnectivityDispatcher`, `persistor:AppPersistor`, `consumer:AppConnector`.
+
+**Every action class is a node, not every action file.** A file under
+`actions/` holds its public action and, often, what it dispatches on the way —
+a private `_ProbeStarted` beside `ProbeEmbedSpeedAction`, or a `CloseTaskAction`
+beside `OpenTaskAction`. Each is read on its own (its own mixins, its own
+`isAsync`, its own writes and cascades) and resolved however it is dispatched:
+through the import of the file, from the file that declares it, by a named
+constructor (`RefreshAction.forOperator()` is `RefreshAction`) or a `const`
+one. A private step is library-private, so two files in one substate may each
+declare a `_Started`; its id is qualified by the file's main action —
+`action:setup.InstallSkillsAction._AgentWorking` — and the node carries the
+line it opens at. A class in an action file that extends nothing ending in
+`Action` and is not named `…Action` is a helper, not an action.
+
+**`builds` follows one function call.** A connector shown as a dialog is
+constructed in one place — the `openSettings(context)` its own file declares —
+and every screen that opens it calls that. A file that calls a function an
+imported file declares, and that function constructs a connector, builds the
+connector; so does `HelpConnector.show(context)`. A construction in one's own
+file is still not a builder of oneself.
+
+**A service dispatcher is built the same way, and judged the same way.** It is
+constructed once, where the app wires its services, and one nothing constructs
+is dead with every action only it dispatches — which the orphan list said one
+action at a time.
 
 `service`, `persistor` and `consumer` are there because none of them is a
 screen. A dispatcher holds the store and calls `_store.dispatch(...)`; the persistor
@@ -1067,10 +1109,24 @@ read by nobody — and answers *who can change `session.token`* with one action,
 confidently and incompletely.
 
 **`--focus` takes what you have in front of you** — a node id (`page:logIn`), a
-symbol (`LogInRoute`, `SessionState`, `SetTokenAction`) or a bare name
-(`log_in`). Substates and pages resolve through the same identifier resolver
-`frx which` and the editor's F2 use; everything else matches on its node name,
-and an ambiguous name is answered with the candidates rather than a guess.
+symbol (`LogInRoute`, `SessionState`, `SetTokenAction`), a bare name
+(`log_in`) or one field of a substate (`session.token`, `log_in.email`).
+Substates and pages resolve through the same identifier resolver `frx which`
+and the editor's F2 use; everything else matches on its node name, and an
+ambiguous name is answered with the candidates rather than a guess.
+
+#### `--focus session.token` — one field, not the slice
+
+A slice with fifty fields is a hub: every selector on it reads it, every setter
+writes it, and an inbound walk from the slice is the whole app — measured, 106
+of 234 nodes for one `console`. Focused on a field, the edges *at* the slice
+are kept when their `via` names the field, or names the whole slice (a flat
+`copyWith(console: …)` and the persistor's restore change every field), and
+the walk goes on from what is left: 26 nodes, among them the one reducer that
+reads `console.seq` directly and the selector nothing reads. A field the state
+class does not have is refused with the ones it has — answered with whatever
+touches the whole slice, a typo reads as "only the persistor". Each substate
+node carries its `fields` for this.
 
 #### `--direction inbound` — what breaks if I touch this
 
@@ -1133,7 +1189,20 @@ cleanup:
   action:session.SetTokenAction            no dispatcher found
   selector:SelectComposites.canEnterApp    nothing reads it
   selector:SelectSession.isAvailable       read only by selectors nothing reads
+  field:setup.agentErrorOn                 written, nothing reads it
 ```
+
+**A field, too.** A dead selector says the *getter* is unused; whether the
+field behind it is depends on every reducer and connector that reads the state
+directly — which the `reads` edges record, by field. A field is live when
+something reads it that is not itself a dead selector, or when anything live
+reads the whole slice (`state.session` handed on is a read of every field, and
+guessing otherwise would report a live field as dead); the persistor's reads do
+not count, since it saves the slice rather than uses it. So `SelectConsole.seq`
+on the list beside no `field:console.seq` is a dead selector over a live field
+— a reducer reads `state.console.seq` — and `field:setup.agentErrorOn` beside
+its selector is a field four actions write and nothing ever looks at. The
+editor's tree lists a slice's fields under it with the same mark.
 
 A selector call is a plain getter — no dispatch, no annotation to key on — so
 it is found by shape, in the AST, across **every** file of `app/`, `business/`

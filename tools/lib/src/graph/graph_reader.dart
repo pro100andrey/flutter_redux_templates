@@ -12,6 +12,7 @@ import '../flow/route_map.dart';
 import '../model/placement.dart';
 import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
+import '../redux/state_source.dart';
 import '../workspace/frx_workspace.dart';
 import 'action_index.dart';
 import 'graph_builder.dart';
@@ -19,6 +20,7 @@ import 'graph_model.dart';
 import 'persistor_reader.dart';
 import 'selector_reader.dart';
 import 'selector_uses.dart';
+import 'state_reads.dart';
 
 export 'selector_uses.dart' show facadesIn, selectorUsesIn;
 
@@ -79,6 +81,7 @@ class _GraphRead {
     _addPersistor();
     _addStrayDispatches();
     _addSelectors();
+    _addStateReads();
     _addComposition();
     _addMisplacedSelectors();
     _addUnparsed();
@@ -88,19 +91,26 @@ class _GraphRead {
   // ---- substates ----------------------------------------------------
   void _addSubstates() {
     for (final s in appState.readSubstates()) {
+      // Non-…State framework fields (async_redux's `wait`) have no folder
+      // of ours — same rule `list-substates` applies to its `file` column.
+      final file = s.isSubstate
+          ? SubstateArtifact.parse(s.field).stateFile(appState.reduxDir)
+          : null;
       graph.addNode(
         GraphNode(
           id: 'substate:${s.field}',
           kind: NodeKind.substate,
           name: s.field,
-          // Non-…State framework fields (async_redux's `wait`) have no folder
-          // of ours — same rule `list-substates` applies to its `file` column.
-          file: s.isSubstate
-              ? SubstateArtifact.parse(
-                  s.field,
-                ).stateFile(appState.reduxDir).path
-              : null,
-          fields: {'type': s.type},
+          file: file?.path,
+          fields: {
+            'type': s.type,
+            // The slice's own fields, off its state class, so a focus on
+            // `console.seq` can be refused when there is no such field —
+            // rather than answered with whatever touches the whole slice,
+            // which reads as "only the persistor" about a typo.
+            if (file != null && file.existsSync())
+              'fields': StateSource(file).fieldNames(className: s.type),
+          },
         ),
       );
     }
@@ -124,10 +134,11 @@ class _GraphRead {
               kind: NodeKind.action,
               name: a.info.className,
               file: a.file,
+              line: a.node.line,
+              column: a.node.column,
               fields: a.node.fields,
             ),
           )
-          ..own(a.file, a.id)
           ..unresolved.add(
             Unresolved(
               kind: 'orphan-substate',
@@ -140,11 +151,19 @@ class _GraphRead {
                   'it; `frx add-substate ${a.substate}` wires it in.',
             ),
           );
+        if (a.isMain) {
+          graph.own(a.file, a.id);
+        }
         continue;
       }
-      graph
-        ..addNode(a.node)
-        ..own(a.file, a.id);
+      graph.addNode(a.node);
+      // The file is owned by its main action alone. A file holding several
+      // is swept once for what it reads, and the sweep attributes by file —
+      // so the file's name is the owner, and the others are reached by class
+      // where a pass can tell classes apart.
+      if (a.isMain) {
+        graph.own(a.file, a.id);
+      }
       // One edge per substate touched, off the structured writes. This used to
       // split the display string back apart on the `', '` the renderer joined
       // it with.
@@ -164,18 +183,26 @@ class _GraphRead {
     }
   }
 
-  /// Resolves a dispatched class name to a node id, adding a placeholder node
-  /// plus an [Unresolved] note when it cannot be pinned to a file.
+  /// Resolves a dispatched action to a node id, adding a placeholder node
+  /// plus an [Unresolved] note when it cannot be pinned to a class in a file.
+  ///
+  /// [file] is where the dispatcher's imports say the class lives, when they
+  /// say. Failing that, the dispatcher's own file [at] is tried: an action
+  /// dispatching a step declared beside it, or a file's second action
+  /// dispatching its first, imports nothing to find it by.
   ///
   /// [owner] is the node whose reading hit the gap — what makes the note
   /// attributable to a subgraph rather than only to the whole project.
   String _dispatchTarget(
-    String className,
+    DispatchStep step,
     File? file,
     String at, {
     required String owner,
   }) {
-    final resolved = file == null ? null : actions.at(file);
+    final className = step.className;
+    final resolved =
+        (file == null ? null : actions.at(file, className)) ??
+        actions.at(File(at), className);
     if (resolved != null) {
       return resolved.id;
     }
@@ -194,16 +221,14 @@ class _GraphRead {
           kind: 'dispatch-target',
           owner: owner,
           at: at,
-          expr: className,
+          expr: step.target,
           why: _declaredIn(at, className)
-              // A private action beside the one the file is named for. The
-              // reason is real and the old wording was not: it said "no
-              // imported `*_action.dart` declares it" about a class declared
-              // three lines down. What frx cannot do is model it — an action
-              // node is keyed on its file, and this file already has one.
-              ? 'declared in this file beside its main action, so it has no '
-                    'node of its own — one action per file is what the graph '
-                    'can key on'
+              // Declared right here, and still not an action frx can model:
+              // every class in an action file is read, so what is left is a
+              // class the reader does not take for one.
+              ? 'declared in this file, but not read as an action — it '
+                    'extends nothing ending in `Action`, is not named '
+                    '`…Action`, or is abstract'
               : 'dispatched, but no imported `*_action.dart` declares it — a '
                     'factory, an alias, or an action outside business/lib/redux',
         ),
@@ -222,8 +247,8 @@ class _GraphRead {
           GraphEdge(
             from: a.id,
             to: _dispatchTarget(
-              step.target,
-              a.imports[step.target],
+              step,
+              a.imports[step.className],
               a.file,
               owner: a.id,
             ),
@@ -311,13 +336,18 @@ class _GraphRead {
           }
 
           final file = flow.actions[step.target]?.file;
+          // The gap is reported against the file that holds the dispatch: a
+          // use case on a region names the region, and the page's own file
+          // has no such line.
+          final at =
+              flow.regionFiles[useCase.owner] ?? flow.connectorFile ?? id;
           graph.addEdge(
             GraphEdge(
               from: id,
               to: _dispatchTarget(
-                step.target,
+                step,
                 file == null ? null : File(file),
-                flow.connectorFile ?? id,
+                at,
                 owner: id,
               ),
               kind: .dispatches,
@@ -359,8 +389,8 @@ class _GraphRead {
           GraphEdge(
             from: id,
             to: _dispatchTarget(
-              step.target,
-              read.actionFiles[step.target],
+              step,
+              read.actionFiles[step.className],
               file.path,
               owner: id,
             ),
@@ -463,6 +493,12 @@ class _GraphRead {
     // action frx *does* model from being called unreachable, so an edge it
     // cannot draw to a known action is an edge it has no business inventing.
     for (final consumer in consumers.values) {
+      // An action file's dispatches are the cascades, read class by class
+      // above. Swept here as a file, they would all land on the file's main
+      // action — the blend the per-class read exists to undo.
+      if (actions.inFile(consumer.file).isNotEmpty) {
+        continue;
+      }
       final read = consumer.dispatches;
       if (read.steps.isEmpty) {
         continue;
@@ -473,8 +509,8 @@ class _GraphRead {
         if (step.isNavigation) {
           continue;
         }
-        final file = read.actionFiles[step.target];
-        final known = file == null ? null : actions.at(file);
+        final file = read.actionFiles[step.className];
+        final known = file == null ? null : actions.at(file, step.className);
         if (known != null) {
           targets.add(known.id);
         }
@@ -567,16 +603,19 @@ class _GraphRead {
         ),
       );
 
-      for (final field in s.readsFields) {
-        if (!graph.hasSubstate(field)) {
+      // One edge per field read, labelled with it — `session.token` — so a
+      // focus on the field keeps this edge and drops the slice's other
+      // forty-nine. The getter is the `from` node; it need not be said twice.
+      for (final r in s.reads) {
+        if (!graph.hasSubstate(r.substate)) {
           continue;
         }
         graph.addEdge(
           GraphEdge(
             from: id,
-            to: 'substate:$field',
+            to: 'substate:${r.substate}',
             kind: EdgeKind.reads,
-            via: s.getter,
+            via: r.label,
           ),
         );
       }
@@ -679,15 +718,101 @@ class _GraphRead {
       if (consumer.path == facade) {
         continue; // the facade itself
       }
-      final unit = consumer.unit;
-      final used = selectorUsesIn(unit, selectorIds, facades: facadesIn(unit));
-      if (used.isEmpty) {
+      final facades = facadesIn(consumer.unit);
+      _attribute(
+        consumer,
+        (node) => selectorUsesIn(node, selectorIds, facades: facades),
+        (from, target) =>
+            graph.addEdge(GraphEdge(from: from, to: target, kind: .uses)),
+      );
+    }
+  }
+
+  /// Emits what [read] finds in [consumer]'s file, from the node each part
+  /// of the file belongs to.
+  ///
+  /// A file holding several actions is read class by class, so a read inside
+  /// `CloseTaskAction` is its own and not `OpenTaskAction`'s. Whatever sits
+  /// outside every action class — a helper function — stays with the file's
+  /// main action, which owns the file; a file with no action is read whole,
+  /// from the node that owns it or the consumer node made for it.
+  void _attribute<T>(
+    _Consumer consumer,
+    Set<T> Function(AstNode) read,
+    void Function(String from, T found) emit,
+  ) {
+    final unit = consumer.unit;
+    final whole = read(unit);
+    if (whole.isEmpty) {
+      return;
+    }
+
+    final inFile = actions.inFile(consumer.file);
+    final attributed = <T>{};
+    if (inFile.length > 1) {
+      for (final a in inFile) {
+        final decl = classNamed(unit, a.className);
+        if (decl == null) {
+          continue;
+        }
+        for (final found in read(decl)) {
+          attributed.add(found);
+          emit(a.id, found);
+        }
+      }
+    }
+
+    final rest = whole.difference(attributed);
+    if (rest.isEmpty) {
+      return;
+    }
+    final from = graph.nodeFor(consumer.file, unit);
+    for (final found in rest) {
+      emit(from, found);
+    }
+  }
+
+  // ---- direct reads of the state ---------------------------------------
+  // `state.console.projectId` in a reducer, `store.state.session` in an
+  // `onInit`. The one reference no edge recorded: the selector reader saw
+  // `_state.<substate>` in a facade body, and nothing looked at the same
+  // shape anywhere else. So "what breaks if I touch `console.seq`" missed the
+  // reducer reading it, and a selector on the dead list sat beside a reducer
+  // reading the same field with no way to say "dead selector, live field".
+  //
+  // `app/` and `business/` only: `ui` has no store to reach. The facade is
+  // skipped because its reads are the selectors' own, drawn above. By name —
+  // a receiver spelled `state` — and by whether `AppState` composes what
+  // follows it; a local called `state` with a field that happens to share a
+  // substate's name would be counted, and has not been met.
+  //
+  // A selector declared outside the facade reads state the same way, and is
+  // skipped: it is a blind spot the pass below declares, and an edge from it
+  // would make the misplacement look like ordinary wiring.
+  void _addStateReads() {
+    final facade = p.canonicalize(workspace.selectorsFile.path);
+    final ui = p.canonicalize(workspace.uiLib.path);
+    for (final consumer in consumers.values) {
+      if (consumer.path == facade ||
+          p.isWithin(ui, consumer.path) ||
+          misplacedSelectorFiles.contains(consumer.path)) {
         continue;
       }
-      final from = graph.nodeFor(consumer.file, unit);
-      for (final target in used) {
-        graph.addEdge(GraphEdge(from: from, to: target, kind: EdgeKind.uses));
-      }
+      _attribute(
+        consumer,
+        (node) => {
+          for (final r in stateReadsIn(node))
+            if (graph.hasSubstate(r.substate)) r,
+        },
+        (from, r) => graph.addEdge(
+          GraphEdge(
+            from: from,
+            to: 'substate:${r.substate}',
+            kind: .reads,
+            via: r.label,
+          ),
+        ),
+      );
     }
   }
 
@@ -706,13 +831,41 @@ class _GraphRead {
   // Runs after everything that makes a node, and matches on the class name
   // rather than on a resolved import: a builder is any file at all, and the
   // one that constructs the app's root widget is not itself a connector.
+  //
+  // **A construction behind a function call counts, one hop away.** A
+  // connector shown as a dialog is constructed in one place — the
+  // `openSettings(context)` its own file declares — and every screen that
+  // opens it calls that function. Read as constructions alone, the connector's
+  // one builder was its own file, which is not a builder of it, and the
+  // verdict was "no file constructs it" about a screen three regions open.
+  // So a file that calls a function some file it imports declares, and that
+  // function constructs a connector, builds the connector. One hop, by name,
+  // through an import: enough for the dialog idiom, and no guess about what
+  // an unresolved name might be.
+  //
+  // Services alongside connectors, for the same reason and by the same rule:
+  // a dispatcher is constructed where the app wires its services, and one
+  // nothing constructs is dead with every action only it dispatches.
   void _addComposition() {
     final connectorNodes = <String, String>{
       for (final n in graph.nodes)
-        if (n.kind == NodeKind.consumer) n.name: n.id,
+        if (n.kind == NodeKind.consumer || n.kind == NodeKind.service)
+          n.name: n.id,
     };
     for (final consumer in consumers.values) {
-      final built = consumer.builds;
+      final built = {...consumer.builds};
+      for (final path in consumer.imports) {
+        final imported = consumers[path];
+        if (imported == null) {
+          continue;
+        }
+        for (final MapEntry(key: fn, value: names)
+            in imported.builders.entries) {
+          if (consumer.calls.contains(fn)) {
+            built.addAll(names);
+          }
+        }
+      }
       if (built.isEmpty) {
         continue;
       }
@@ -757,14 +910,20 @@ class _GraphRead {
   // a selector is or where it may live — but *not* honouring `.frxrc`: a
   // project silencing the placement rule has said the file may stay there,
   // not that frx can now follow it.
+  late final List<PlacementFinding> misplacedSelectors = placementFindings(
+    workspace,
+    silenced: const {
+      PlacementRule.actionOutsideActionsDir,
+      PlacementRule.connectorOutsideConnectors,
+    },
+  ).toList();
+
+  late final Set<String> misplacedSelectorFiles = {
+    for (final f in misplacedSelectors) p.canonicalize(f.file),
+  };
+
   void _addMisplacedSelectors() {
-    for (final finding in placementFindings(
-      workspace,
-      silenced: const {
-        PlacementRule.actionOutsideActionsDir,
-        PlacementRule.connectorOutsideConnectors,
-      },
-    )) {
+    for (final finding in misplacedSelectors) {
       final rel = p.relative(finding.file, from: workspace.root.path);
       graph.unresolved.add(
         Unresolved(
@@ -833,7 +992,19 @@ class _Consumer {
   late final String path = p.canonicalize(file.path);
   late final CompilationUnit unit = sourceIndex.unitFor(file);
   late final DispatchRead dispatches = _reader.dispatchesIn(unit, file.parent);
-  late final Set<String> builds = connectorNamesIn(unit);
+  late final Set<String> builds = constructedNamesIn(
+    unit,
+    suffixes: const {'Connector', 'Dispatcher'},
+  );
+
+  /// The functions this file declares that construct a connector, and the
+  /// names this file calls — the two halves of a construction reached through
+  /// a call, see `_addComposition`.
+  late final Map<String, Set<String>> builders = connectorBuildersIn(unit);
+  late final Set<String> calls = callNamesIn(unit);
+
+  /// The files this one imports, by canonical path, for the files frx read.
+  late final Set<String> imports = _reader.importedFilesOf(unit, file.parent);
 }
 
 /// Whether the file at [path] declares a class called [className].
