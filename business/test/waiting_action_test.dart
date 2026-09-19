@@ -11,16 +11,18 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 ///     class SendVoiceAction extends Action with WaitingAction, NonReentrant
 ///
-/// runs to completion and leaves `isWaitingForType<SendVoiceAction>()` true for
-/// the rest of the session — a button that never re-enables. Dart runs one
-/// `after()`, the last mixin's, and `NonReentrant.after()` releases its own
-/// lock and returns without `super.after()`. `Throttle` and `Fresh` do the
-/// same.
+/// ran to completion and left `isWaitingForType<SendVoiceAction>()` true for
+/// the rest of the session — a button that never re-enabled. Dart runs one
+/// `after()`, the last mixin's, and through async_redux 28.1
+/// `NonReentrant.after()` released its own lock and returned without
+/// `super.after()`; `Throttle` and `Fresh` did the same. Since 28.3.1 all three
+/// chain, and 28.4 marks the hooks `@mustCallSuper`.
 ///
 /// So the fix has two halves and this file pins both: `WaitingAction` chains
 /// `super` in `before()` and `after()`, and it is mixed in **last** so it is
-/// the one Dart calls. Reversing either half is a silent regression — which is
-/// what shipped.
+/// the one Dart calls. Reversing either half was a silent regression — which
+/// is what shipped — and the probes below would say so again if a mixin
+/// stopped chaining.
 Store<AppState> _store() => Store<AppState>(initialState: AppState.initial());
 
 /// The reduce body every probe shares: async, so `Wait` is observable.
@@ -63,6 +65,9 @@ class BlockingProbe extends Action with WaitingAction, BlockingAction, _Probe {}
 /// tree can see it: the doctor rule and this test are the two things that can.
 class _OwnAfter extends Action with NonReentrant, WaitingAction, _Probe {
   @override
+  // The defect on purpose; since 28.4 the analyzer names it too, which is the
+  // point of the annotation on both `WaitingAction`'s hooks and async_redux's.
+  // ignore: must_call_super
   void after() {}
 }
 
@@ -70,6 +75,8 @@ class _OwnAfter extends Action with NonReentrant, WaitingAction, _Probe {
 /// barrier at all, so the indicator simply never appears.
 class _OwnBefore extends Action with NonReentrant, WaitingAction, _Probe {
   @override
+  // The same defect in the other hook, on purpose.
+  // ignore: must_call_super
   Future<void> before() async {}
 }
 

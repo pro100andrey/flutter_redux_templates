@@ -270,6 +270,13 @@ test('parseWritePlan: reads the changeset, and rejects anything else', () => {
   assert.strictEqual(parseWritePlan('Files:\n  move a → b\n'), null);
   assert.strictEqual(parseWritePlan('{}'), null);
   assert.strictEqual(parseWritePlan(''), null);
+  // An apply says what it did on the way, on the same stream, before the
+  // changeset; the changeset is the last line.
+  const applied = JSON.stringify({ ...plan, applied: true });
+  assert.strictEqual(
+    parseWritePlan(`  ✓ docs/flows refreshed (3 file(s))\n${applied}\n`)?.applied,
+    true,
+  );
 });
 
 test('parseWritePlan: an unknown field is carried, not rejected', () => {

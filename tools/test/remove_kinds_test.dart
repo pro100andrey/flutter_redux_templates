@@ -106,6 +106,89 @@ void main() {
     },
   );
 
+  test(
+    'a waiting action takes its isWaiting getter and import with it',
+    () async {
+      // The one thing an action's `add-*` wires: `-k waiting` puts a getter
+      // keyed on the action's type into the facade, with the import the type
+      // needs. A removal that deleted the file and left both behind left
+      // `selectors.dart` naming a type that was gone — frx's own wiring, broken
+      // by frx's own command, with a note to go run the audit.
+      await ok([
+        'add-action',
+        'SaveProfile',
+        '--state',
+        'log_in',
+        '-k',
+        'waiting',
+      ]);
+      final facade = fx.file('business/lib/redux/selectors.dart');
+      expect(facade.readAsStringSync(), contains('SaveProfileAction'));
+
+      final preview = await runFrx(fx, ['remove', 'SaveProfile']);
+      expect(preview.exitCode, 0, reason: preview.stderr.toString());
+      expect(preview.stdout.toString(), contains('SelectLogIn.isWaiting'));
+      expect(
+        facade.readAsStringSync(),
+        contains('SaveProfileAction'),
+        reason: 'a preview writes nothing',
+      );
+
+      await ok(['remove', 'SaveProfile', '--apply']);
+      final after = facade.readAsStringSync();
+      expect(after, isNot(contains('SaveProfileAction')));
+      expect(
+        after,
+        isNot(contains('save_profile_action.dart')),
+        reason: 'the import went with it',
+      );
+      expect(
+        fx
+            .file('business/lib/redux/log_in/actions/save_profile_action.dart')
+            .existsSync(),
+        isFalse,
+      );
+    },
+  );
+
+  test('a getter another facade member reads is kept and named', () async {
+    await ok([
+      'add-action',
+      'SaveProfile',
+      '--state',
+      'log_in',
+      '-k',
+      'waiting',
+    ]);
+    // A sibling written by hand, as the facade allows.
+    final facade = fx.file('business/lib/redux/selectors.dart');
+    const getter =
+        'bool get isWaiting => '
+        '_state.wait.isWaitingForType<SaveProfileAction>();';
+    facade.writeAsStringSync(
+      facade.readAsStringSync().replaceFirst(
+        getter,
+        '$getter\n  bool get isBusyHere => isWaiting;',
+      ),
+    );
+
+    final res = await runFrx(fx, ['remove', 'SaveProfile', '--apply']);
+    expect(res.exitCode, 0, reason: res.stderr.toString());
+    expect(res.stdout.toString(), contains('left in place'));
+    expect(
+      facade.readAsStringSync(),
+      contains('isWaitingForType<SaveProfileAction>'),
+      reason: "the reader is somebody's own code; the getter it reads stays",
+    );
+    expect(
+      fx
+          .file('business/lib/redux/log_in/actions/save_profile_action.dart')
+          .existsSync(),
+      isFalse,
+      reason: 'the action was what was asked for',
+    );
+  });
+
   test('one action name under two substates is refused, not guessed', () async {
     for (final s in const ['log_in', 'connectivity']) {
       await ok(['add-action', 'Reset', '--state', s, '--no-format']);

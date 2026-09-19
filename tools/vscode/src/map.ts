@@ -44,7 +44,7 @@ import * as paths from './paths';
 import * as queries from './queries';
 import { nesting, orderColumns } from './layout';
 import type { AppGraph, GraphNode } from './queries';
-import { selectionAt } from './tree';
+import { OWNED_KINDS, ownedBySubstate, selectionAt } from './tree';
 
 /** One drawable node: what it says, and what opening it reveals. */
 export interface PictureNode {
@@ -134,9 +134,6 @@ export interface Picture {
 /** Node kinds that act on state rather than being state. */
 const ACTOR_KINDS = new Set(['page', 'service', 'persistor', 'consumer']);
 
-/** Node kinds that belong to a substate and collapse into it. */
-const OWNED_KINDS = new Set(['action', 'selector']);
-
 let panel: vscode.WebviewPanel | null = null;
 
 /** Open (or reveal) the FRX Map and draw the current structure. */
@@ -213,20 +210,16 @@ export function picture(graph: AppGraph | null, root = ''): Picture {
     return id;
   };
 
-  const owned = new Map<string, PictureNode[]>();
-  for (const n of graph.nodes) {
-    if (!OWNED_KINDS.has(n.kind) || !n.substate) continue;
-    const key = `substate:${n.substate}`;
-    const list = owned.get(key) ?? [];
-    list.push(leaf(n, n.kind));
-    owned.set(key, list);
-  }
+  const owned = ownedBySubstate(graph);
 
   const state: PictureNode[] = [];
   const actors: PictureNode[] = [];
   for (const n of graph.nodes) {
     if (n.kind === 'substate') {
-      state.push({ ...leaf(n, n.type ?? ''), owned: owned.get(n.id) ?? [] });
+      state.push({
+        ...leaf(n, n.type ?? ''),
+        owned: (owned.get(n.name) ?? []).map((c) => leaf(c, c.kind)),
+      });
     } else if (ACTOR_KINDS.has(n.kind)) {
       actors.push(leaf(n, n.kind === 'page' ? (n.path ?? 'page') : n.kind));
     }
@@ -245,10 +238,26 @@ export function picture(graph: AppGraph | null, root = ''): Picture {
   const under = nesting(actors.map((n) => n.id), builders(graph.edges, actors));
   // One line per pair, carrying every relation between them.
   const edges = new Map<string, PictureEdge>();
+  // Where a fold pointed at a row that is not drawn. An action's substate is
+  // the folder it sits in, and the CLI does not check that `AppState` still
+  // composes it — the doctor reports that as an orphan — so an edge into an
+  // orphan folds to a substate no column has. Drawn, it was a line to nowhere
+  // that threw on the page's first draw and took the hover, the refresh and
+  // the gaps box with it. It is a gap, and goes where the gaps go.
+  const dangling: Picture['gaps'] = [];
   for (const e of graph.edges) {
     const from = drawnAs(e.from);
     const to = drawnAs(e.to);
     if (!from || !to || from === to) continue;
+    const missing = [from, to].find((id) => !inState.has(id) && !inActors.has(id));
+    if (missing) {
+      dangling.push({
+        what: `${e.kind}  ${e.from} → ${e.to}`,
+        at: '',
+        why: `folds onto ${missing}, which the picture does not draw — a substate AppState no longer composes?`,
+      });
+      continue;
+    }
     // The one relation the nesting says: a row sits under the row that builds
     // it, so the line would say it twice. A second builder keeps its line —
     // the row can only sit under one.
@@ -267,8 +276,11 @@ export function picture(graph: AppGraph | null, root = ''): Picture {
       edges.set(key, line);
     }
     // The end the fold moved, if either: an edge into an action or a selector
-    // is drawn to the substate, and the pane says which one it was.
-    const folded = [e.from, e.to].find((id) => id !== from && id !== to);
+    // is drawn to the substate, and the pane says which one it was. The target
+    // first, when both moved — an action that dispatches another substate's
+    // action is a line between two substates, and what it names is the action
+    // dispatched, not the one dispatching.
+    const folded = e.to !== to ? e.to : e.from !== from ? e.from : undefined;
     const relation: Relation = {
       kind: e.kind,
       via: e.via ?? '',
@@ -311,11 +323,14 @@ export function picture(graph: AppGraph | null, root = ''): Picture {
     actors: nested(inOrder(actors, ordering.actors), under),
     state: inOrder(state, ordering.state),
     edges: drawn,
-    gaps: graph.unresolved.map((u) => ({
-      what: [u.kind, u.expr].filter(Boolean).join('  '),
-      at: u.at ? relativeTo(root, u.at) : '',
-      why: u.why,
-    })),
+    gaps: [
+      ...graph.unresolved.map((u) => ({
+        what: [u.kind, u.expr].filter(Boolean).join('  '),
+        at: u.at ? relativeTo(root, u.at) : '',
+        why: u.why,
+      })),
+      ...dangling,
+    ],
     crossings: ordering.crossings,
   };
 }

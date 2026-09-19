@@ -6,9 +6,13 @@ import 'route_map.dart';
 /// The arrows follow this architecture's actual path — dumb widget → connector
 /// (the view-model) → ReduxAction → AppState — so the diagram doubles as an
 /// explanation of how a use case travels through the layers.
-String renderSequence(PageFlow flow) {
+///
+/// [only] restricts the drawing to those use cases, with only the lanes they
+/// touch — see [renderSequences] for why a page is sometimes drawn in pieces.
+String renderSequence(PageFlow flow, {Iterable<UseCase>? only}) {
   final b = StringBuffer();
-  final ids = _ParticipantIds(flow);
+  final useCases = only?.toList() ?? flow.useCases;
+  final ids = _ParticipantIds(flow, useCases);
 
   b
     ..writeln('sequenceDiagram')
@@ -35,7 +39,7 @@ String renderSequence(PageFlow flow) {
     b.writeln('    participant NAV as Router');
   }
 
-  for (final useCase in flow.useCases) {
+  for (final useCase in useCases) {
     final from = ids.laneOf(useCase);
     b
       ..writeln()
@@ -56,7 +60,7 @@ String renderSequence(PageFlow flow) {
   // `onInit: (store) => store.dispatch(…)` fires on open and belongs to no
   // interaction. Both are missing from the diagram, which is what the reader
   // needs told; neither is evidence that tracing failed.
-  if (flow.untraced.isNotEmpty) {
+  if (only == null && flow.untraced.isNotEmpty) {
     b.writeln();
     for (final gap in flow.untraced) {
       b.writeln(
@@ -67,6 +71,39 @@ String renderSequence(PageFlow flow) {
   }
 
   return b.toString().trimRight();
+}
+
+/// How many lanes a sequence diagram stays readable at.
+///
+/// Mermaid fits the drawing to the page's width, so lanes past a dozen are
+/// paid for in font size: a composed screen with fifteen regions and
+/// twenty-seven actions came out at forty-five lanes, and every label in it
+/// at three pixels. Twelve is where the template's own busiest page — nine
+/// lanes — still reads as one picture, with room over it.
+const readableLanes = 12;
+
+/// How many lanes [renderSequence] would draw for [flow].
+int laneCount(PageFlow flow) => _ParticipantIds(flow, flow.useCases).count;
+
+/// One diagram of every use case, or one per use case — each titled.
+///
+/// A page draws as one sequence while its lanes fit ([readableLanes]); past
+/// that, each interaction is its own drawing with only the lanes it touches,
+/// which is what a reader was doing by eye on the wide one — following one
+/// arrow chain across forty lanes of nothing. The untraced dispatches belong
+/// to the page rather than to any interaction, so a split leaves them to the
+/// document to list.
+List<({String title, String diagram})> renderSequences(PageFlow flow) {
+  if (laneCount(flow) <= readableLanes) {
+    return [(title: '', diagram: renderSequence(flow))];
+  }
+  return [
+    for (final useCase in flow.useCases)
+      (
+        title: useCase.qualifiedLabel,
+        diagram: renderSequence(flow, only: [useCase]),
+      ),
+  ];
 }
 
 void _writeSteps(
@@ -158,9 +195,9 @@ String? _notesFor(ActionInfo? action) {
   return parts.isEmpty ? null : parts.join(' · ');
 }
 
-/// Stable, mermaid-safe participant ids.
+/// Stable, mermaid-safe participant ids, over the use cases being drawn.
 class _ParticipantIds {
-  _ParticipantIds(PageFlow flow) {
+  _ParticipantIds(PageFlow flow, List<UseCase> useCases) {
     // The route connector keeps the id `VM` it has always had, so a page with
     // no regions renders byte-for-byte as before. Only a composed page gains
     // lanes, and only for the regions that dispatch something — a region that
@@ -168,14 +205,14 @@ class _ParticipantIds {
     _routeConnector = flow.connectorClass;
     connectors[flow.connectorClass] = 'VM';
     var lane = 0;
-    for (final useCase in flow.useCases) {
+    for (final useCase in useCases) {
       final owner = useCase.owner;
       if (owner != null) {
         connectors.putIfAbsent(owner, () => 'R${++lane}');
       }
     }
 
-    if (connectors.length > 1 && !flow.useCases.any((u) => u.owner == null)) {
+    if (connectors.length > 1 && !useCases.any((u) => u.owner == null)) {
       // The frame holds no view-model of its own — the composition case. Its
       // lane would be an empty column captioned with the one class in the
       // drawing that does nothing.
@@ -183,7 +220,7 @@ class _ParticipantIds {
     }
 
     var n = 0;
-    for (final useCase in flow.useCases) {
+    for (final useCase in useCases) {
       for (final step in useCase.steps) {
         if (step.isNavigation) {
           usesRouter = true;
@@ -218,6 +255,14 @@ class _ParticipantIds {
   /// The lane [useCase] is dispatched from.
   String laneOf(UseCase useCase) =>
       connectors[useCase.owner ?? _routeConnector] ?? connectors.values.first;
+
+  /// Every lane the diagram draws: the user, the page, and these.
+  int get count =>
+      2 +
+      connectors.length +
+      actions.length +
+      (usesState ? 1 : 0) +
+      (usesRouter ? 1 : 0);
 }
 
 /// Mermaid message text is newline- and semicolon-delimited; keep it on one

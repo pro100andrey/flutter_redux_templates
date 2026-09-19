@@ -69,7 +69,7 @@ export async function resolveFrx(
   if (installed) {
     // Verified even though the file is right there: the `--version` line is what
     // proves it is really frx and not an unrelated tool of the same name.
-    const version = await frxVersion(installed, []);
+    const version = await knownVersion(installed);
     if (version) {
       const inv = { cmd: installed, baseArgs: [], label: `frx ${version} (${installed})` };
       // Said, not awaited: a mismatch is worth a warning, never a wait.
@@ -79,7 +79,7 @@ export async function resolveFrx(
   }
 
   const frxDart = findFrxDart(context, targetDir);
-  if (frxDart && (await canSpawn('dart', ['--version']))) {
+  if (frxDart && (await dartSpawns())) {
     warnAboutDartRun();
     // Pass the script as an absolute path and let the run's cwd be the target
     // folder: Dart resolves the tools/ package config from the script's own
@@ -188,9 +188,9 @@ export function extensionVersion(context: vscode.ExtensionContext): string | nul
 /**
  * Run `frx upgrade` on the resolved binary, with progress, and say how it went.
  *
- * `resolveFrx` holds no cache — every command re-resolves and re-reads
- * `--version` — so the replaced binary is what the next command spawns, with
- * nothing here to invalidate.
+ * `resolveFrx` re-resolves on every command, and what it remembers of the
+ * binary is keyed on the file itself (see `knownVersion`) — so the replaced
+ * binary is what the next command spawns, with nothing here to invalidate.
  */
 export async function upgradeFrx(inv: Invocation): Promise<RunResult> {
   const res = await runWithProgress('FRX: frx upgrade…', inv, ['upgrade'], os.homedir());
@@ -202,6 +202,46 @@ export async function upgradeFrx(inv: Invocation): Promise<RunResult> {
     vscode.window.showErrorMessage(`FRX: frx upgrade failed (exit ${res.code}) — see the FRX output.`);
   }
   return res;
+}
+
+/** The last binary asked for `--version`, what the file was then, and the answer. */
+let _known: { path: string; mtimeMs: number; size: number; version: Promise<string | null> } | null =
+  null;
+
+/**
+ * The installed binary's version — from `--version` the first time, and from
+ * memory while the file on disk is the same one.
+ *
+ * Every command resolves frx afresh, and the tree and the audit resolve it
+ * separately on every refresh, so this spawn ran twice per change for an
+ * answer that only changes when the binary does. The binary is what the answer
+ * is keyed on: its path, size and modification time, read with one `stat`. A
+ * replaced binary — `frx upgrade`, a reinstall — misses on all of them and is
+ * asked again, so nothing here needs invalidating by hand.
+ *
+ * What is kept is the probe, not its answer: the tree, the audit and the
+ * upgrade check all resolve at activation in the same tick, and remembering
+ * only a settled answer let all three spawn before the first had one. A probe
+ * that comes back empty is forgotten — unless a newer one has already taken
+ * its place, which a late failure must not evict.
+ */
+function knownVersion(cmd: string): Promise<string | null> {
+  let mtimeMs: number;
+  let size: number;
+  try {
+    ({ mtimeMs, size } = fs.statSync(cmd));
+  } catch {
+    return frxVersion(cmd, []); // let the spawn say what is wrong with it
+  }
+  if (_known && _known.path === cmd && _known.mtimeMs === mtimeMs && _known.size === size) {
+    return _known.version;
+  }
+  const entry = { path: cmd, mtimeMs, size, version: frxVersion(cmd, []) };
+  _known = entry;
+  return entry.version.then((version) => {
+    if (!version && _known === entry) _known = null;
+    return version;
+  });
 }
 
 /**
@@ -279,7 +319,27 @@ function warnAboutDartRun(): void {
 
 /** `'dart'` if it can be spawned, else null (a Dock-launched VSCode may lack it). */
 export async function resolveDartCmd(): Promise<string | null> {
-  return (await canSpawn('dart', ['--version'])) ? 'dart' : null;
+  return (await dartSpawns()) ? 'dart' : null;
+}
+
+/** The probe that said `dart` spawns, once it has. */
+let _dart: Promise<boolean> | null = null;
+
+/**
+ * Whether `dart` can be spawned — asked once per session, once the answer is
+ * yes. A yes stays true (the SDK does not vanish under a window), and every
+ * resolve on the zero-install path asked again: three at activation in one
+ * tick, two per change after. A no is not kept: the user may be installing
+ * it right now, and the next command should find it.
+ */
+function dartSpawns(): Promise<boolean> {
+  if (_dart) return _dart;
+  const probe = canSpawn('dart', ['--version']);
+  _dart = probe;
+  return probe.then((ok) => {
+    if (!ok && _dart === probe) _dart = null;
+    return ok;
+  });
 }
 
 /** True if `cmd` can be spawned at all (i.e. it exists), regardless of exit code. */
@@ -339,11 +399,33 @@ function findFrxDart(
   return candidates.find((c) => fs.existsSync(c)) ?? null;
 }
 
+/** How a run's stdout reaches the FRX channel. */
+export interface RunOptions {
+  /**
+   * Log the size of stdout rather than stdout itself.
+   *
+   * For a read whose stdout is for a parser: the graph behind the tree is a
+   * hundred kilobytes of JSON, read on every change, and the channel is where
+   * a person looks to see what frx said — not to scroll past the picture's
+   * serialised form to find it. Asked for by the caller, never inferred from
+   * the arguments: a writing command also takes `--json`, and its stdout
+   * carries build_runner's own output — the one place a failed build is
+   * explained, and where "Show output" sends the user. Stderr is always shown
+   * whole.
+   */
+  quiet?: boolean;
+}
+
 /**
  * Run `inv` with `args` in `cwd`, streaming output to the FRX channel and also
  * capturing it. Never rejects — a spawn error comes back as `{ code: -1 }`.
  */
-export function run(inv: Invocation, args: string[], cwd: string): Promise<RunResult> {
+export function run(
+  inv: Invocation,
+  args: string[],
+  cwd: string,
+  { quiet = false }: RunOptions = {},
+): Promise<RunResult> {
   const out = output();
   const full = [...inv.baseArgs, ...args];
   out.appendLine(`$ ${inv.cmd} ${full.join(' ')}   (cwd: ${cwd})`);
@@ -355,18 +437,25 @@ export function run(inv: Invocation, args: string[], cwd: string): Promise<RunRe
       out.appendLine(String(err));
       return resolve({ code: -1, stdout: '', stderr: String(err) });
     }
+    // Decoded once, by the stream: a Buffer chunk was decoded to append to
+    // `stdout` and decoded again to append to the channel.
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     let stdout = '';
     let stderr = '';
-    child.stdout.on('data', (d) => {
+    child.stdout.on('data', (d: string) => {
       stdout += d;
-      out.append(d.toString());
+      if (!quiet) out.append(d);
     });
-    child.stderr.on('data', (d) => {
+    child.stderr.on('data', (d: string) => {
       stderr += d;
-      out.append(d.toString());
+      out.append(d);
     });
     child.on('error', (err) => resolve({ code: -1, stdout, stderr: stderr || String(err) }));
-    child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }));
+    child.on('close', (code) => {
+      if (quiet) out.appendLine(`→ exit ${code ?? -1}, ${stdout.length} chars of stdout`);
+      resolve({ code: code ?? -1, stdout, stderr });
+    });
   });
 }
 
@@ -376,10 +465,11 @@ export function runWithProgress(
   inv: Invocation,
   args: string[],
   cwd: string,
+  options: RunOptions = {},
 ): Thenable<RunResult> {
   return vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title, cancellable: false },
-    () => run(inv, args, cwd),
+    () => run(inv, args, cwd, options),
   );
 }
 
@@ -391,6 +481,6 @@ export function runWithProgress(
  */
 export async function resolveDart(inv: Invocation): Promise<string | null> {
   if (inv.cmd === 'dart') return 'dart';
-  if (await canSpawn('dart', ['--version'])) return 'dart';
+  if (await dartSpawns()) return 'dart';
   return null;
 }

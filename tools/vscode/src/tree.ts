@@ -9,9 +9,11 @@
 // substate owns, whether a route is `initial`/`public`, which actions nothing
 // dispatches). The result is cached per refresh — VSCode calls getChildren once
 // per group and again per expanded node, and that is one process either way.
+// The read happens at the refresh, not at the first question (see refresh()).
 import * as fs from 'fs';
 import * as vscode from 'vscode';
 
+import { pushInto } from './collections';
 import * as frx from './frx';
 import * as naming from './naming';
 import * as paths from './paths';
@@ -37,6 +39,26 @@ export class FrxTreeItem extends vscode.TreeItem {
   substateOf?: string;
 }
 
+/**
+ * A graph as read, with the two lookups every row asks computed once.
+ *
+ * The rows used to ask the graph directly — every substate row scanned all
+ * the nodes to learn whether anything was under it, and every expansion
+ * scanned them again for what, and rebuilt the orphan map. Small graphs never
+ * noticed; the shape was quadratic in the nodes all the same.
+ */
+interface Read {
+  graph: AppGraph;
+  /** A substate's actions and selectors, in the graph's order, by its name. */
+  owned: Map<string, GraphNode[]>;
+  /** Why frx found nothing reaching a node, by node id. */
+  why: Map<string, string>;
+}
+
+function read(graph: AppGraph): Read {
+  return { graph, owned: ownedBySubstate(graph), why: orphanReasons(graph) };
+}
+
 export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
   private readonly _emitter = new vscode.EventEmitter<FrxTreeItem | undefined>();
 
@@ -46,19 +68,33 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
   private readonly root: string | null;
 
   /**
-   * The in-flight or resolved graph for this refresh cycle, or null when a
-   * fresh read is due. Holding the promise (not the value) means the several
+   * The in-flight or resolved graph for this refresh cycle, or null until the
+   * first refresh. Holding the promise (not the value) means the several
    * getChildren calls one expansion triggers share a single CLI run.
    */
-  private _graph: Promise<AppGraph | null> | null = null;
+  private _graph: Promise<Read | null> | null = null;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.root = paths.findWorkspaceRoot();
   }
 
-  refresh(): void {
-    this._graph = null;
+  /**
+   * Re-read the graph now, and tell VSCode the tree has changed.
+   *
+   * Now, not when VSCode next asks. Dropping the cache and leaving the read to
+   * the next getChildren looked the same and was not: VSCode only asks a
+   * section that is visible and expanded, and holds a hidden one's refresh
+   * until it is opened. So a section collapsed at startup, or collapsed while
+   * the last change landed, read the whole graph on the click that opened it
+   * — a CLI run, then the rows — where the Dart extension's Dependencies beside
+   * it had its rows the moment it opened. Read at the change, the rows are
+   * there when the section is.
+   */
+  refresh(): Promise<void> {
+    this._graph = this._load();
     this._emitter.fire(undefined);
+    // Settled when the rows are, so a caller can wait for them; never rejects.
+    return this._graph.then(() => undefined);
   }
 
   getTreeItem(element: FrxTreeItem): vscode.TreeItem {
@@ -74,13 +110,14 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
       ];
     }
 
-    const graph = await this._read();
-    if (!graph) return [leaf('(frx unavailable — see FRX output)', 'warning')];
+    const read = await this._read();
+    if (!read) return [leaf('(frx unavailable — see FRX output)', 'warning')];
+    const { graph, owned, why } = read;
 
     if (element.groupKind === 'substates') {
       return this._rows(
         graph.nodes.filter((n) => n.kind === 'substate'),
-        (n) => this._substateItem(n, graph),
+        (n) => this._substateItem(n, owned.has(n.name)),
       );
     }
     if (element.groupKind === 'routes') {
@@ -90,31 +127,39 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
       );
     }
     if (element.substateOf) {
-      const owner = element.substateOf;
-      const why = orphanReasons(graph);
-      return this._rows(
-        graph.nodes.filter(
-          (n) => (n.kind === 'action' || n.kind === 'selector') && n.substate === owner,
-        ),
-        (n) =>
-          n.kind === 'action'
-            ? this._actionItem(n, why.has(n.id))
-            : this._selectorItem(n, why.get(n.id)),
+      return this._rows(owned.get(element.substateOf) ?? [], (n) =>
+        n.kind === 'action'
+          ? this._actionItem(n, why.has(n.id))
+          : this._selectorItem(n, why.get(n.id)),
       );
     }
     return [];
   }
 
   /** The graph for this refresh cycle, read once and shared. */
-  private _read(): Promise<AppGraph | null> {
-    if (this._graph) return this._graph;
+  private _read(): Promise<Read | null> {
+    return this._graph ?? (this._graph = this._load());
+  }
+
+  /**
+   * One CLI read of the graph; null when there is no project, no frx, or the
+   * read threw. A throw would otherwise be an unhandled rejection while the
+   * section is collapsed and nothing awaits it; the null draws the "(frx
+   * unavailable — see FRX output)" leaf, so the output is where the throw is
+   * written, or the leaf would send the reader to a channel that says the
+   * run went fine.
+   */
+  private async _load(): Promise<Read | null> {
     const root = this.root;
-    if (!root) return Promise.resolve(null);
-    this._graph = (async () => {
+    if (!root) return null;
+    try {
       const inv = await frx.resolveFrx(this.context, root);
-      return inv ? queries.graph(inv, root) : null;
-    })();
-    return this._graph;
+      const graph = inv ? await queries.graph(inv, root) : null;
+      return graph ? read(graph) : null;
+    } catch (err) {
+      frx.output().appendLine(`FRX: the tree could not read the graph — ${err}`);
+      return null;
+    }
   }
 
   /** Map rows to items, or a single "(none)" leaf when there are none. */
@@ -135,13 +180,11 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
     return item;
   }
 
-  private _substateItem(n: GraphNode, graph: AppGraph): FrxTreeItem {
+  /** @param owns whether anything is under it — see `Read.owned` */
+  private _substateItem(n: GraphNode, owns: boolean): FrxTreeItem {
     // Collapsible only when something is actually under it — an expand arrow
     // that opens onto "(none)" is a promise the row cannot keep. async_redux's
     // `wait` field owns nothing of ours and stays a leaf.
-    const owns = graph.nodes.some(
-      (c) => (c.kind === 'action' || c.kind === 'selector') && c.substate === n.name,
-    );
     const item = new FrxTreeItem(
       n.name,
       owns
@@ -233,6 +276,27 @@ export function selectionAt(
   if (!n.line) return undefined;
   const at = new vscode.Position(n.line - 1, Math.max(0, (n.column ?? 1) - 1));
   return { selection: new vscode.Range(at, at) };
+}
+
+/**
+ * The node kinds a substate owns — the one statement of it. The tree lists
+ * them under the substate's row, and the map folds them into it (`picture`
+ * draws an edge into one as an edge into the substate); the two used to each
+ * spell the rule out, and a kind added to one alone either went unlisted or
+ * threw on the page.
+ */
+export const OWNED_KINDS: ReadonlySet<string> = new Set(['action', 'selector']);
+
+/**
+ * Each substate's actions and selectors, in the graph's order, by the
+ * substate's name.
+ */
+export function ownedBySubstate(graph: AppGraph): Map<string, GraphNode[]> {
+  const owned = new Map<string, GraphNode[]>();
+  for (const n of graph.nodes) {
+    if (OWNED_KINDS.has(n.kind) && n.substate) pushInto(owned, n.substate, n);
+  }
+  return owned;
 }
 
 /**

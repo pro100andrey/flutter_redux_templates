@@ -13,15 +13,18 @@ import '../finding.dart';
 /// sync or in the wrong folder,** and it is here because nothing else can see
 /// it. Dart calls one `after()` per class — the last mixin's — and
 /// [ActionMixin.swallowsAfter] marks the async_redux mixins that override it
-/// without calling `super.after()`. So
+/// without calling `super.after()`. Through async_redux 28.1,
 ///
 ///     class SendVoiceAction extends Action with WaitingAction, NonReentrant
 ///
-/// parses, analyzes clean, passes its tests, and leaves the wait barrier raised
-/// forever: `NonReentrant.after()` releases its own lock and returns, so
-/// `WaitingAction.after()` is never reached and every widget reading
-/// `isWaitingForType<T>()` stays disabled for the rest of the session. That is
+/// parsed, analyzed clean, passed its tests, and left the wait barrier raised
+/// forever: `NonReentrant.after()` released its own lock and returned, so
+/// `WaitingAction.after()` was never reached and every widget reading
+/// `isWaitingForType<T>()` stayed disabled for the rest of the session. That is
 /// a dead button, from a `with` clause the analyzer has no opinion about.
+/// 28.3.1 made every `after()` chain, so no mixin frx offers is marked today
+/// and the first half of this check finds nothing; it reads the catalogue, and
+/// fires again the day one stops chaining.
 ///
 /// `add-action` now emits `WaitingAction` last, so frx cannot write this shape
 /// again. This check is for the other ways to get it: a hand-edited clause, a

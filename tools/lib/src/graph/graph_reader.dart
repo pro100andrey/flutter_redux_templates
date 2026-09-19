@@ -109,6 +109,39 @@ class _GraphRead {
   // ---- actions ------------------------------------------------------
   void _addActions() {
     for (final a in actions.all) {
+      // An action's substate is the folder it sits in, and nothing about the
+      // folder says `AppState` still composes it. Emitted as it was, the node
+      // named a substate no consumer could find — the Map folded its edges
+      // onto a row that was not there and threw on its first draw — and the
+      // graph said nothing about why. The node stays, since the file is real
+      // and something may dispatch it, but it belongs to no substate, and the
+      // gap says what happened: the doctor's own orphan finding, in the graph.
+      if (!graph.hasSubstate(a.substate)) {
+        graph
+          ..addNode(
+            GraphNode(
+              id: a.id,
+              kind: NodeKind.action,
+              name: a.info.className,
+              file: a.file,
+              fields: a.node.fields,
+            ),
+          )
+          ..own(a.file, a.id)
+          ..unresolved.add(
+            Unresolved(
+              kind: 'orphan-substate',
+              owner: a.id,
+              at: a.file,
+              expr: a.info.className,
+              why:
+                  'declared under redux/${a.substate}/, which AppState does '
+                  'not compose — an orphan folder. `frx doctor --fix` removes '
+                  'it; `frx add-substate ${a.substate}` wires it in.',
+            ),
+          );
+        continue;
+      }
       graph
         ..addNode(a.node)
         ..own(a.file, a.id);

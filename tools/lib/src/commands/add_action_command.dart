@@ -204,6 +204,21 @@ class AddActionCommand extends WritingCommand {
         returnType: 'bool',
         // The idiom already in the template, four times over.
         expr: '_state.wait.isWaitingForType<${action.pascal}Action>()',
+        // The type argument names the action, and the facade imports
+        // `app_state.dart` and `common/action.dart` — neither of which
+        // declares it. Without this the getter was written and the facade
+        // stopped compiling, on the first `-k waiting` in a fresh project.
+        // Relative, like the facade's own imports, and from its folder.
+        imports: [
+          p.posix.joinAll(
+            p.split(
+              p.relative(
+                artifact.actionFile(repo.businessRedux, action.snake).path,
+                from: repo.selectorsFile.parent.path,
+              ),
+            ),
+          ),
+        ],
       );
     } on FrxRefusal {
       // The substate is not in the facade, so there is no block to add to.

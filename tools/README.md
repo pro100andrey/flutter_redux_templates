@@ -43,15 +43,17 @@ release assets. The rest of this section is for working **on** frx.
 
 ```bash
 cd tools
-make                       # what you can run
-make install PROFILE=Flutter   # the CLI on PATH + the extension in that profile
+dart run tool/xtask.dart                            # what you can run
+dart run tool/xtask.dart install --profile Flutter  # the CLI on PATH + the extension in that profile
 ```
 
-`make install` is the whole loop: `dart install` for the binary, then compile →
-package → install the VSIX. **`PROFILE` matters** — VSCode installs extensions
-per profile, so a VSIX put in the Default profile is invisible while you work in
-another one. `make profiles` lists them and shows which frx build each holds.
-Set it once (`export PROFILE=Flutter`) and forget it.
+The tasks are a Dart program, `tool/xtask.dart` — the Rust `xtask` convention:
+no Makefile, no shell, so they run the same on Windows. `install` is the whole
+loop: `dart install` for the binary, then compile → package → install the VSIX.
+**The profile matters** — VSCode installs extensions per profile, so a VSIX put
+in the Default profile is invisible while you work in another one. `profiles`
+lists them and shows which frx build each holds. `--profile` reads `$PROFILE`
+when omitted, so set it once (`export PROFILE=Flutter`) and forget it.
 
 Doing it by hand instead:
 
@@ -313,7 +315,7 @@ The archive is a derived artifact, so it goes stale the moment the repository
 moves — including a change to a test or a doc, because those are in it too.
 
 ```bash
-cd tools && make template
+cd tools && dart run tool/xtask.dart template
 ```
 
 Base64 rather than a byte list because the payload stays one string literal:
@@ -469,6 +471,7 @@ are added automatically (`noDialog` → `checkInternet`, `unlimitedRetries` →
 | `debounce` | Run only after a pause in dispatches |
 | `throttle` | Drop dispatches while a recent run is fresh |
 | `fresh` | Skip the run entirely while the last result is still fresh |
+| `sequential` | Run one at a time, in dispatch order — a FIFO queue per key |
 
 **Some combinations do not pass the gate.** async_redux makes groups of these
 mutually exclusive by having them collide on a private member, so `dart analyze`
@@ -478,25 +481,34 @@ will reject. The *compiler* is more permissive than the analyzer here — the pa
 builds, so `flutter test` on it runs and async_redux's own `assert` throws on
 the first dispatch, in a debug build only. The exclusive groups are
 `fresh`/`throttle`/`nonReentrant`, `checkInternet`/`abortWhenNoInternet`,
-`debounce`/`retry` — with `unlimitedRetryCheckInternet` excluded from all of them.
+`debounce`/`retry` — with `unlimitedRetryCheckInternet` excluded from all of
+them — and `sequential`/`debounce`, `sequential`/`unlimitedRetryCheckInternet`.
+`sequential` is the pair only the runtime refuses: its marker in async_redux
+names no partner, so the analyzer lets `with Sequential, Debounce` through and
+the first dispatch asserts. `add-action` refusing it up front is the one
+refusal a release build gets.
 
 **And one combination is a matter of order, not of pairing.** Dart runs one
-`after()` per class — the last mixin's — and `nonReentrant`, `throttle` and
-`fresh` override it without calling `super.after()`. Anything mixed in before one
-of those never cleans up, and none of it is a compile error, an assert or an
-analyzer hint:
+`after()` per class — the last mixin's — so a mixin that overrides it without
+calling `super.after()` ends the chain, and anything mixed in before it never
+cleans up; none of that is a compile error, an assert or an analyzer hint.
+Through async_redux 28.1, `nonReentrant`, `throttle` and `fresh` did exactly
+that:
 
 ```dart
-class SendVoiceAction extends Action with WaitingAction, NonReentrant {}  // dead
+class SendVoiceAction extends Action with WaitingAction, NonReentrant {}  // dead under 28.1
 class SendVoiceAction extends Action with NonReentrant, WaitingAction {}  // right
 ```
 
-The first finishes and leaves `isWaitingForType<SendVoiceAction>()` true for the
-rest of the session — a button that never re-enables. `add-action` emits
-`WaitingAction` last; `list-mixins` marks the three that end the chain; `doctor`
-reports a clause that has it wrong. It works only because the template's own
-`WaitingAction` calls `super` in both hooks, which `doctor` also checks — that
-file belongs to the project, not to frx.
+The first finished and left `isWaitingForType<SendVoiceAction>()` true for the
+rest of the session — a button that never re-enabled. Since 28.3.1 every mixin
+async_redux declares chains to `super.after()` (the template requires ≥ 28.4),
+so nothing is marked today; the rule stays, because it costs nothing and covers
+the next mixin that does not. `add-action` emits `WaitingAction` last;
+`list-mixins` marks any mixin that ends the chain; `doctor` reports a clause
+that has it wrong. It works only because the template's own `WaitingAction`
+calls `super` in both hooks, which `doctor` also checks — that file belongs to
+the project, not to frx.
 
 ```bash
 frx list-mixins            # each one, what it implies, excludes, and whether
@@ -699,7 +711,8 @@ frx remove my_profile                            # preview only
 frx remove my_profile --apply -b                 # delete files + unwire
 frx remove intro --kind page --apply
 
-frx remove ArchiveTask --apply                   # an action; the kind is auto-detected
+frx remove ArchiveTask --apply                   # an action; the kind is auto-detected — a waiting
+                                                 # one takes its isWaiting getter and import with it
 frx remove Reset --state tasks --apply           # ...unless the name is used under two substates
 frx remove TaskTile --kind widget --apply        # the widget file
 frx remove Task --kind model --apply             # model/enum + its .freezed.dart and .g.dart
@@ -711,7 +724,10 @@ frx remove value --kind field --state boot --apply   # a field, its getter and i
 are found by what the project declares — an `AppState` field, an `AppRouter`
 route — and removing one is mostly unwiring. An **action**, **model** (or enum),
 **widget**, **connector** and **service** are file sets found on disk, because
-the `add-*` that wrote them wired nothing central.
+the `add-*` that wrote them wired nothing central — with one exception: a
+waiting action's `isWaiting` getter on the facade, which `remove` takes out
+along with the import it needed. A getter another facade member still reads
+is kept and named; the sibling is somebody's own code.
 
 For those five the point is the *set*, which is what `rm` gets wrong: a
 service's dispatcher sits beside it, and a model leaves `.freezed.dart` /
@@ -872,7 +888,8 @@ reading, so type-relationship rules stay with the analyzer.
 
 ```bash
 frx flow log_in                   # mermaid sequenceDiagram on stdout
-frx flow log_in --json            # the raw model (the VSCode Flow view reads it)
+frx flow log_in --doc             # the page's markdown document (the VSCode Flow view shows it)
+frx flow log_in --json            # the raw model
 ```
 
 `flow` answers *"what actually happens when the user taps this?"* by reading the
@@ -964,7 +981,10 @@ frx flow --md --check             # verify it's current; exit 1 if not (CI)
 
 `--md` writes an index with the navigation map and a table of every screen, plus
 one file per page holding its sequence diagram and use-case table — all in
-mermaid, which GitHub renders natively.
+mermaid, which GitHub renders natively. A page with more lanes than one
+picture can hold — a screen composed of a dozen regions — is drawn as one
+diagram per interaction, each with only the lanes it touches, under a heading
+naming it; `--doc` prints the same document for one page.
 
 Once `docs/flows/` exists, **frx keeps it fresh itself**: `add-page`, `add-tabs`,
 `remove` and `rename` regenerate it as part of their post-write stage, the same
@@ -1409,10 +1429,10 @@ tail, which is why the machine result is assembled from the same
 ## Testing
 
 ```bash
-make test                    # dart test + the extension suite
-make check                   # everything CI runs
+dart run tool/xtask.dart test    # dart test + the extension suite
+dart run tool/xtask.dart check   # everything CI runs
 
-dart test                    # unit + command + E2E + reality (632 tests, ~20s)
+dart test                    # unit + command + E2E + reality (960 tests, ~45s)
 ```
 
 Four tiers, each answering something the others cannot:

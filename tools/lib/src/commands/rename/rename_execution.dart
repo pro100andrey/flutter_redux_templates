@@ -166,6 +166,7 @@ Future<int> executeRename(
     changes,
     format: results['format'] as bool,
     repoRoot: Directory(repoRoot),
+    report: !asJson,
   );
 
   // Pruning an emptied directory stays here: whether a folder left behind by

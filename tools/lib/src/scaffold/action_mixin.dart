@@ -46,7 +46,6 @@ enum ActionMixin {
   nonReentrant(
     'NonReentrant',
     'Ignore a dispatch while already running',
-    swallowsAfter: true,
     hooks: {'after'},
     knobs: {'nonReentrantKeyParams'},
     overrideBlock:
@@ -90,7 +89,6 @@ enum ActionMixin {
   throttle(
     'Throttle',
     'Drop dispatches while a recent run is fresh',
-    swallowsAfter: true,
     hooks: {'after'},
     knobs: {'throttle', 'lockBuilder'},
     overrideBlock:
@@ -108,7 +106,6 @@ enum ActionMixin {
     // `int get freshFor => 1000; // Milliseconds`. This used to emit
     // `60; // seconds`, so a scaffolded action stayed fresh for 60ms while its
     // own comment promised a minute, and `Fresh` silently did nothing.
-    swallowsAfter: true,
     hooks: {'after'},
     knobs: {'freshFor', 'freshKeyParams'},
     overrideBlock:
@@ -118,6 +115,23 @@ enum ActionMixin {
         '  // The fresh-key is the action TYPE, so LoadX(a) and LoadX(b) share\n'
         '  // one window and the second is skipped. Override to split them:\n'
         '  // Object? freshKeyParams() => someId;\n\n',
+  ),
+
+  /// Run one at a time, in dispatch order — a FIFO queue, shared by every
+  /// `Sequential` action unless the key says otherwise.
+  sequential(
+    'Sequential',
+    'Run one at a time, in dispatch order (a queue per key)',
+    hooks: {'before', 'after'},
+    knobs: {'sequentialKeyParams', 'discardQueueOnError'},
+    overrideBlock:
+        '  // One queue for every Sequential action: they run in dispatch order,\n'
+        '  // one at a time, whatever their type. Override to queue per key:\n'
+        '  // Object? sequentialKeyParams() => someId;\n\n'
+        '  // Whether a failure aborts what is queued behind it (default: no).\n'
+        '  // Do not `await dispatchAndWait` another action of the same queue\n'
+        '  // from here — it would wait for its own turn, forever.\n'
+        '  // bool discardQueueOnError(Object error) => true;\n\n',
   ),
 
   /// Retry forever, treating "offline" as just another failure to retry —
@@ -136,6 +150,10 @@ enum ActionMixin {
     this.implies,
     this.overrideBlock = '',
     this.knobs = const {},
+    // Given by no entry since async_redux 28.3.1 — see the field. Kept for
+    // the next mixin that does not chain, which is a one-word change here
+    // rather than the parameter, the field, the audit and `list-mixins` back.
+    // ignore: unused_element_parameter
     this.swallowsAfter = false,
     this.hooks = const {},
   });
@@ -174,9 +192,9 @@ enum ActionMixin {
   ///
   /// Dart calls one `after()` per class — the last mixin's. One of these placed
   /// last therefore ends the chain, and every earlier mixin's cleanup is simply
-  /// never run. That is not a hazard the analyzer can see:
-  /// `with WaitingAction, NonReentrant` compiles, analyzes clean, and leaves
-  /// the wait barrier raised for the rest of the session.
+  /// never run. That is not a hazard the analyzer can see: through async_redux
+  /// 28.1, `with WaitingAction, NonReentrant` compiled, analyzed clean, and
+  /// left the wait barrier raised for the rest of the session.
   ///
   /// So it is data, in the catalogue, next to [implies] and [exclusiveGroups] —
   /// the two other facts frx transcribes from async_redux. It is why `action`
@@ -188,6 +206,9 @@ enum ActionMixin {
   /// `action_template_test` derives the set from the package source and checks
   /// the emitted clause against it, so a mixin that gains or loses its
   /// `super.after()` upstream cannot leave either this flag or the order stale.
+  /// Which is how it went to false everywhere: async_redux 28.3.1 made every
+  /// `after()` it declares chain to `super`, and the test said so. The flag
+  /// stays, because the next mixin may not.
   final bool swallowsAfter;
 
   /// The async_redux members [overrideBlock] names — as data, not prose.
@@ -206,6 +227,12 @@ enum ActionMixin {
   /// refuses it up front instead of scaffolding a file the gate will reject —
   /// which is what it used to do for, say, `-m debounce -m retry`.
   ///
+  /// `Sequential` is the exception that has only the runtime half: its marker
+  /// names no partner, so the analyzer lets `with Sequential, Debounce`
+  /// through and the first dispatch asserts (in debug). The pairs below are
+  /// what `_incompatible<Sequential, …>` in its `before()` names, and the
+  /// refusal up front is the only one a release build gets.
+  ///
   /// **The analyzer refuses it; the compiler does not.** Measured, because a
   /// first pass at this comment claimed the opposite in both directions: the
   /// CFE builds `with NonReentrant, Throttle` happily, so `flutter test` on
@@ -220,6 +247,8 @@ enum ActionMixin {
     {fresh, throttle, nonReentrant, unlimitedRetryCheckInternet},
     {checkInternet, abortWhenNoInternet, unlimitedRetryCheckInternet},
     {debounce, retry, unlimitedRetryCheckInternet},
+    {sequential, debounce},
+    {sequential, unlimitedRetryCheckInternet},
   ];
 
   /// Every mixin this one cannot be combined with, implications included.

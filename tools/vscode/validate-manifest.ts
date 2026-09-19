@@ -104,6 +104,22 @@ if (unknownViews.length) {
   process.exit(1);
 }
 
+// The early activation event names the marker file `paths.ts` keys on — as a
+// glob literal, which the generated constant cannot reach. Checked here so the
+// two cannot part: a marker renamed in the CLI would otherwise leave the
+// extension activating late (`onStartupFinished` still fires) with nothing to
+// say why the panel takes eight seconds to appear.
+const contract = fs.readFileSync(path.join('src', 'generated', 'contract.ts'), 'utf8');
+const marker = /MARKER_PATH = '([^']+)'/.exec(contract)?.[1];
+const early = (pkg.activationEvents as string[]).find((e) => e.startsWith('workspaceContains:'));
+if (!marker || early !== `workspaceContains:**/${marker}`) {
+  console.error(
+    `✗ activationEvents must contain "workspaceContains:**/${marker}" (the marker path the ` +
+      `CLI keys on); found ${early ? `"${early}"` : 'none'}`,
+  );
+  process.exit(1);
+}
+
 console.log(
   `✓ manifest ok — ${declared.length} commands, ${menuRefs.length} menu refs, ` +
     `${invoked.size} invoked, ${viewIds.length} view(s), v${pkg.version}`,

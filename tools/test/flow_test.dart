@@ -557,6 +557,63 @@ void main() {
       expect(out, contains('UI->>R2: onPick()'));
     });
 
+    test(
+      'a page with more lanes than a picture holds is drawn per interaction',
+      () {
+        // Two regions and a handful of actions fit in one sequence. Widen the
+        // same page to a lane count past the readable dozen — every interaction
+        // dispatching its own action — and the drawing becomes one per
+        // interaction, each with only the lanes it touches.
+        final small = _readComposed();
+        expect(laneCount(small), lessThanOrEqualTo(readableLanes));
+        expect(renderSequences(small), hasLength(1));
+        expect(renderSequences(small).single.title, isEmpty);
+
+        final wide = PageFlow(
+          page: small.page,
+          connectorClass: small.connectorClass,
+          pageClass: small.pageClass,
+          useCases: [
+            for (var i = 0; i < readableLanes; i++)
+              UseCase(
+                name: 'onTap$i',
+                owner: 'Region${i}Connector',
+                steps: [
+                  DispatchStep(
+                    kind: DispatchKind.dispatch,
+                    target: 'Act${i}Action',
+                  ),
+                ],
+              ),
+          ],
+          actions: {
+            for (var i = 0; i < readableLanes; i++)
+              'Act${i}Action': ActionInfo(className: 'Act${i}Action'),
+          },
+          untraced: small.untraced,
+        );
+        expect(laneCount(wide), greaterThan(readableLanes));
+        final pieces = renderSequences(wide);
+        expect(pieces, hasLength(readableLanes));
+        expect(pieces.first.title, 'Region0 ▸ onTap0');
+        final first = pieces.first.diagram;
+        expect(first, contains('participant R1 as Region0Connector'));
+        expect(first, contains('participant A1 as Act0Action'));
+        expect(
+          first,
+          isNot(contains('Region1Connector')),
+          reason: 'only its own lanes',
+        );
+        expect(first, isNot(contains('Act1Action')));
+        expect(first, contains('User->>UI: Region0 ▸ onTap0'));
+        // The whole is still one diagram on request: `frx flow <page>`.
+        expect(
+          renderSequence(wide),
+          contains('participant R12 as Region11Connector'),
+        );
+      },
+    );
+
     test('names the region above the lane, not only in it', () {
       // Eight regions with an `onOpen` each rendered eight identical user
       // lines, told apart only by which lane the next arrow landed in.

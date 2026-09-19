@@ -37,6 +37,12 @@ void main() {
         '_state.wait.isWaitingForType<SaveProfileAction>();',
       ),
     );
+    // And the import the type argument needs: the facade does not otherwise
+    // see the action, and the getter alone left it uncompilable.
+    expect(
+      selectors(),
+      contains("import 'log_in/actions/save_profile_action.dart';"),
+    );
     expect(
       fx
           .file('business/lib/redux/log_in/actions/save_profile_action.dart')

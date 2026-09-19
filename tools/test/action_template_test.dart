@@ -105,12 +105,17 @@ void main() {
       //
       //     class ProbeAction extends Action with WaitingAction, NonReentrant
       //
-      // and `NonReentrant.after()` does not call `super.after()`, so the
-      // barrier `WaitingAction.after()` lowers was never lowered. Measured on
-      // a real store: the action finished and `isWaitingForType<T>()` stayed
-      // true for the rest of the session, which is a permanently disabled
-      // button. Every existing test passed — the file parses, analyzes clean,
-      // and only misbehaves at runtime.
+      // and through async_redux 28.1 `NonReentrant.after()` did not call
+      // `super.after()`, so the barrier `WaitingAction.after()` lowers was
+      // never lowered. Measured on a real store: the action finished and
+      // `isWaitingForType<T>()` stayed true for the rest of the session, which
+      // is a permanently disabled button. Every existing test passed — the
+      // file parses, analyzes clean, and only misbehaves at runtime.
+      //
+      // 28.3.1 made every `after()` chain, so today no mixin is flagged and
+      // this loop is empty; the rule it checks is unconditional (see the next
+      // test), and the loop is what checks it again the day a mixin stops
+      // chaining.
       for (final m in ActionMixin.values.where((m) => m.swallowsAfter)) {
         expect(
           _withClause(render(ActionKind.waiting, mixins: [m.name])),
@@ -405,10 +410,14 @@ void main() {
                     'swallowsAfter must be false',
         );
       }
+      // No swallower is the expected answer since async_redux 28.3.1 made
+      // every `after()` chain — so the scan's sanity check is the hooks: a
+      // scan that finds no `after()` override at all is the broken one.
+      expect(swallowers, 0, reason: 'a mixin stopped chaining after() again');
       expect(
-        swallowers,
-        greaterThan(0),
-        reason: 'the scan found no swallowers at all; it is broken',
+        ActionMixin.values.where((m) => m.hooks.contains('after')),
+        isNotEmpty,
+        reason: 'the scan found no after() overrides at all; it is broken',
       );
     });
 
@@ -429,11 +438,23 @@ void main() {
         return;
       }
 
+      // Two spellings of the same fact in the package. The marker's *name*
+      // lists the group whose members collide in the analyzer; the
+      // `_incompatible<A, B>(this)` calls inside it are the pairs the runtime
+      // asserts on. They agreed until `Sequential`, whose marker names no
+      // partner — the analyzer lets the combination through and only the
+      // assert refuses it — so both are read, and a pair either names is a
+      // pair frx must refuse.
       final marker = RegExp('_cannot_combine_mixins_([A-Za-z_]+)');
+      final pair = RegExp(r'_incompatible<(\w+),\s*(\w+)>');
       final groups = <Set<String>>{};
       for (final file in packageDartFiles(lib)) {
-        for (final m in marker.allMatches(file.readAsStringSync())) {
+        final text = file.readAsStringSync();
+        for (final m in marker.allMatches(text)) {
           groups.add(m.group(1)!.split('_').where((s) => s.isNotEmpty).toSet());
+        }
+        for (final m in pair.allMatches(text)) {
+          groups.add({m.group(1)!, m.group(2)!});
         }
       }
       expect(groups, isNotEmpty, reason: 'found no collision markers at all');

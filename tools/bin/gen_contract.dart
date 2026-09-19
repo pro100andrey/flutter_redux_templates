@@ -6,9 +6,9 @@ import 'package:tools/src/contract/contract_gen.dart';
 /// Writes the extension's generated constants from the CLI's own contract.
 ///
 /// A derived artifact, like `.claude/skills` and the embedded template:
-/// regenerate it with `make contract`, and `contract_freshness_test.dart` fails
-/// when it is stale, so `make check` and CI catch a `--kind` added on one side
-/// only.
+/// regenerate it with `dart run tool/xtask.dart contract`, and
+/// `contract_freshness_test.dart` fails when it is stale, so `xtask check` and
+/// CI catch a `--kind` added on one side only.
 void main(List<String> args) {
   final root = args.isNotEmpty
       ? args.first

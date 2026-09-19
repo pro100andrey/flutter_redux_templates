@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -52,7 +53,12 @@ Future<void> formatFiles(
 /// Silent no-op when the repo has not opted in (no `docs/flows/` directory) or
 /// when nothing changed. A failure here is a warning, not an error: the command
 /// itself already succeeded, and doctor will report the stale docs.
-Future<void> refreshFlowDocs(Directory repoRoot) async {
+///
+/// [report] off — a `--json` run — moves the ✓ line to stderr: stdout is the
+/// changeset a consumer parses, and this line printed ahead of it made every
+/// apply in a repo with `docs/flows/` unparseable. Stderr, not silence: the
+/// line is true, and the editor shows stderr whatever it does with stdout.
+Future<void> refreshFlowDocs(Directory repoRoot, {bool report = true}) async {
   final docs = FlowDocs(FrxWorkspace(repoRoot));
   if (!docs.enabled) {
     return;
@@ -64,7 +70,9 @@ Future<void> refreshFlowDocs(Directory repoRoot) async {
       return;
     }
 
-    console.out.writeln('  ✓ docs/flows refreshed (${changed.length} file(s))');
+    (report ? console.out : console.err).writeln(
+      '  ✓ docs/flows refreshed (${changed.length} file(s))',
+    );
   } on Object catch (e) {
     // e.g. no AppRouter to read — doctor reports that on its own.
     console.err.writeln('⚠ could not refresh docs/flows: $e');
@@ -149,8 +157,10 @@ typedef Built = ({int code, bool ran, bool handedToWatch, int? watchPid});
 /// watch can be wedged, and frx cannot tell a working one from a stuck one.
 /// [watching] overrides the detection for tests.
 ///
-/// [report] off suppresses every line: `--json` consumers parse stdout, and the
-/// same facts are in the result they get instead.
+/// [report] off suppresses every line of frx's own — `--json` consumers parse
+/// stdout, and the same facts are in the result they get instead — and sends
+/// build_runner's output to stderr, where it stays readable without landing in
+/// the parse.
 Future<Built> runBuild(
   BuildStep step, {
   required bool enabled,
@@ -190,7 +200,12 @@ Future<Built> runBuild(
     }
 
     for (final args in step.commands) {
-      final code = await streamProcess('dart', args, step.packageRoot);
+      final code = await streamProcess(
+        'dart',
+        args,
+        step.packageRoot,
+        toStderr: !report,
+      );
       if (code != 0) {
         return (code: code, ran: true, handedToWatch: false, watchPid: null);
       }
@@ -214,12 +229,32 @@ String buildCommandLine(BuildStep step) =>
     '${step.commands.map((c) => 'dart ${c.join(' ')}').join(' && ')}';
 
 /// Runs a process inheriting stdio; returns its exit code.
-Future<int> streamProcess(String exe, List<String> args, String cwd) async {
-  final proc = await Process.start(
-    exe,
-    args,
-    workingDirectory: cwd,
-    mode: .inheritStdio,
-  );
-  return proc.exitCode;
+///
+/// [toStderr] pipes both of the child's streams to this process's stderr —
+/// for a `--json` run, whose stdout is the one object a consumer parses. The
+/// child gets no stdin then; a build asked for by a machine has nobody to
+/// answer a prompt.
+Future<int> streamProcess(
+  String exe,
+  List<String> args,
+  String cwd, {
+  bool toStderr = false,
+}) async {
+  if (!toStderr) {
+    final proc = await Process.start(
+      exe,
+      args,
+      workingDirectory: cwd,
+      mode: .inheritStdio,
+    );
+    return proc.exitCode;
+  }
+  final proc = await Process.start(exe, args, workingDirectory: cwd);
+  final forwarded = Future.wait([
+    proc.stdout.transform(utf8.decoder).forEach(console.err.write),
+    proc.stderr.transform(utf8.decoder).forEach(console.err.write),
+  ]);
+  final code = await proc.exitCode;
+  await forwarded;
+  return code;
 }

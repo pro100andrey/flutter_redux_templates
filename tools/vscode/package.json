@@ -2,7 +2,7 @@
   "name": "frx",
   "displayName": "FRX — Flutter Redux Scaffolder",
   "description": "Scaffold AsyncRedux substates and auto_route pages via the frx CLI, with a build_runner watch toggle.",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "publisher": "pro100dev",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -45,6 +45,7 @@
     }
   },
   "activationEvents": [
+    "workspaceContains:**/app/lib/navigation/app_router.dart",
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
@@ -453,11 +454,13 @@
     "install:vsix": "node -e \"const v=require('./package.json').version;require('child_process').execFileSync('code',['--install-extension','frx-'+v+'.vsix','--force'],{stdio:'inherit'})\""
   },
   "devDependencies": {
+    "@types/jsdom": "^30.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.1.1",
     "@types/vscode": "1.120.0",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",
+    "jsdom": "^30.1.0",
     "mocha": "^12.0.1",
     "typescript": "^7.0.2"
   }

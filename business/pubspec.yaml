@@ -9,7 +9,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  async_redux: ^28.0.0
+  async_redux: ^28.4.0
   connectivity_plus: ^7.1.1
   fast_immutable_collections: ^11.2.0
   flutter:

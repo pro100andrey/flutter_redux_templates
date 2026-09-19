@@ -179,7 +179,9 @@ class Unresolved {
     this.expr,
   });
 
-  /// `dispatch-target`, `pop-destination`, `route-connector`.
+  /// `dispatch-target`, `pop-destination`, `route-connector`,
+  /// `orphan-substate`, `selector-action`, `selector-body`,
+  /// `misplaced-selector`, `unparsed-file`.
   final String kind;
 
   /// Why frx stopped, in a sentence a human or an agent can act on.

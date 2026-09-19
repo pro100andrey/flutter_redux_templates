@@ -54,16 +54,19 @@ bool get isWaiting => _state.wait.isWaitingForType<LogInWithEmailAction>();
 `frx add-action -k waiting` writes both. Never reduce `wait` yourself.
 
 **`WaitingAction` goes last in the `with` clause.** Dart runs one `after()` —
-the last mixin's — and `NonReentrant`, `Throttle` and `Fresh` override it
-without calling `super.after()`. Anything before one of those never cleans up,
-and none of it is a compile error or an analyzer hint:
+the last mixin's — so a mixin that overrides it without calling `super.after()`
+ends the chain, and anything before it never cleans up; none of that is a
+compile error or an analyzer hint. Through async_redux 28.1 `NonReentrant`,
+`Throttle` and `Fresh` did exactly that; since 28.3.1 every mixin chains, and
+this template requires ≥ 28.4. The rule stays because it costs nothing and
+covers the next mixin that does not:
 
 ```dart
-class SendVoiceAction extends Action with WaitingAction, NonReentrant {}  // dead
+class SendVoiceAction extends Action with WaitingAction, NonReentrant {}  // fragile
 class SendVoiceAction extends Action with NonReentrant, WaitingAction {}  // right
 ```
 
-The first one finishes and leaves `isWaitingForType<SendVoiceAction>()` true
+Under 28.1 the first one finished and left `isWaitingForType<SendVoiceAction>()` true
 forever. `frx add-action` writes the second; `frx doctor` reports the first.
 `BlockingAction` is the one exception, and Dart enforces it — it is declared
 `on WaitingAction`, so it follows it and overrides nothing.

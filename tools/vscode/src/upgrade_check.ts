@@ -76,7 +76,7 @@ export async function maybeCheckForUpgrade(
     if (!isDue(context.globalState.get<number>(LAST_CHECK_KEY), nowMs)) return;
     await context.globalState.update(LAST_CHECK_KEY, nowMs);
 
-    const res = await frx.run(inv, ['upgrade', '--check', '--json'], os.homedir());
+    const res = await frx.run(inv, ['upgrade', '--check', '--json'], os.homedir(), { quiet: true });
     const check = parseCheck(res.stdout);
     if (!check || check.status !== 'available') return;
 

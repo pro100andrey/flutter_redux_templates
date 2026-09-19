@@ -7,6 +7,164 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## 0.3.6
+
+### Fixed
+
+- **The FRX tree has its rows when its section is opened.** The graph behind
+  it was read on the first `getChildren`, and a refresh only dropped the cache
+  for the next one — but VS Code asks only a section that is visible and
+  expanded, and holds a hidden section's refresh until it is opened. So a
+  section collapsed at startup, or collapsed while the last change landed,
+  ran `frx graph` on the click that opened it, and the rows arrived a CLI run
+  later — beside a Dependencies view that had them at once. A refresh now
+  reads immediately, and the activation refresh reads the tree along with the
+  first audit.
+
+- **A Map column is wide enough for the names it hides.** The column was
+  measured to its widest *visible* line — the titles, subtitles and counts —
+  while the actions and selectors under a substate start folded, and a folded
+  name has no width to measure. Expanding `boot` then ran
+  `SetEmbedderRendezvousAction` out past the box's edge. The measurement now
+  unfolds every list first, and lets the layout engine size the column to its
+  content rather than walking the lines by a selector — which is what the
+  lists were missing from.
+
+- **The Map no longer hangs the window on a cycle of builders.** A connector
+  built by one of two connectors that build each other sent the nesting walk
+  round that cycle forever, on the picture's first draw, with the extension
+  host — and every other extension in it — stuck behind it. The walk is now
+  bounded by the column: the row keeps its builder, and the cycle is cut at
+  the first of its own rows, as before.
+
+- **The Map's columns stay where they are across a click.** The shorter
+  column is placed level with what it relates to, and which column that is
+  was decided on every redraw from a height the last placement had set —
+  so each expand, fold or resize handed the placement to the other column
+  and every row on the page moved. The height is cleared before measuring,
+  and the placed column now keeps the placement until the other is shorter
+  by half: a row that opens is not a picture that changed shape.
+
+- **`remove <action>` takes a waiting action's getter with it.** The one
+  thing an action's `add-*` wires is the `isWaiting` getter keyed on its
+  type, and a removal deleted the file and left the getter and its import
+  behind — `selectors.dart` naming a type that was gone, with a note to go
+  run the audit. The facade is unwired in the same plan; a getter another
+  facade member still reads is kept and named in the preview. *(CLI)*
+
+- **`add-action -k waiting` imports the action into the facade.** The
+  `isWaiting` getter it writes names the action as a type argument, and
+  `selectors.dart` imports nothing that declares it; the getter was written
+  and the facade stopped compiling, on the first waiting action in a fresh
+  project. *(CLI)*
+
+- **A `--json` run keeps stdout to the one object.** Every apply printed
+  `✓ docs/flows refreshed` on stdout ahead of the changeset, and a build
+  asked for with `-b` inherited build_runner's output there too — in a
+  repository with `docs/flows/` no `--apply --json` parsed. Both go to stderr
+  in a machine run, where they are still said. *(CLI)*
+
+- **The FRX panel is there when the window is.** The extension activated on
+  `onStartupFinished` alone — after every other extension, which with the
+  Dart tooling was eight seconds into the window — so the panel appeared
+  late with nothing to say why. It now also activates on the marker file
+  the CLI keys on (`app/lib/navigation/app_router.dart`), and the manifest
+  check refuses a glob that drifts from the generated marker path.
+
+### Added
+
+- **A large page's flow is drawn in pieces.** `frx flow --md` and the Flow
+  view drew a page as one sequence diagram however many lanes it took, and
+  mermaid fits the drawing to the page: a screen composed of fifteen regions
+  came out at forty-five lanes with every label at three pixels. Past a dozen
+  lanes a page is now one diagram per interaction, each with only the lanes
+  it touches, under a heading naming it. `frx flow <page> --doc` prints that
+  document for one page, and the Flow view shows it — the interaction table
+  included — falling back to the bare diagram on a CLI without the flag.
+  *(CLI + editor)*
+
+- **`add-action --mixin sequential`** — async_redux 28.3.1's `Sequential`,
+  a FIFO queue per key: actions run one at a time, in dispatch order. The
+  catalogue carries its knobs (`sequentialKeyParams`, `discardQueueOnError`)
+  and its incompatibilities (`Debounce`, `UnlimitedRetryCheckInternet`),
+  which the package asserts at runtime but the analyzer does not see — so
+  `add-action` refusing the pair up front is the only refusal a release
+  build gets. The catalogue test now reads those pairs off the package's
+  `_incompatible<A, B>` calls as well as its collision markers. *(CLI)*
+
+- **The graph names an orphan folder's actions as a gap.** An action's
+  substate is the folder it sits in, and nothing checked that `AppState`
+  still composes it, so `frx graph --json` emitted actions of a substate no
+  consumer could find — the Map threw on its first draw. Such an action now
+  stands on its own and comes with an `orphan-substate` entry in
+  `unresolved` naming the folder and the two ways out. *(CLI)*
+
+### Changed
+
+- **The template requires async_redux ≥ 28.4.** `business` and `app` pin
+  `^28.4.0`: the mixin catalogue, the skills and the audit now describe
+  28.4's behaviour — every hook chains, `Sequential` exists — and a project
+  resolving an older 28.x would be told things that were not true of it.
+  The template's own `WaitingAction` marks both hooks `@mustCallSuper`, as
+  async_redux's are from 28.4, so an action that writes its own `after()`
+  and forgets `super` hears it from the analyzer where it is written, not
+  only from `doctor`. Verified on a project created from the template:
+  build, analyze, tests, `doctor`, and an action scaffolded
+  `-k waiting -m sequential -m nonReentrant`. *(template)*
+
+- **No mixin frx offers ends the `after()` chain any more.** async_redux
+  28.3.1 made `NonReentrant`, `Throttle` and `Fresh` chain to `super.after()`,
+  and the catalogue test — which reads that off the package — said so.
+  `swallowsAfter` is false for every mixin; `WaitingAction` is still emitted
+  last, and the `action-mixin-order` audit still reads the flag, so both fire
+  again the day a mixin stops chaining. *(CLI, with async_redux ≥ 28.3.1)*
+
+- **The build tasks are a Dart program.** `tools/Makefile` is
+  `tools/tool/xtask.dart` — `dart run tool/xtask.dart install --profile
+  Flutter`, `… version 0.3.6`, `… check`, the same targets under the same
+  names. The Makefile bumped versions with perl (because `sed -i` differs
+  between BSD and GNU), listed VSCode profiles through python, and ran on
+  neither of the platforms the CI's Windows leg exists for; the tasks are in
+  the project's language now, with its `args` and its tests. `PROFILE` and
+  `CODE` in the environment still stand in for the options. *(repo)*
+
+- **The Map page has tests that run it.** `map.test.ts` pinned what the
+  script says; a jsdom suite now pins what it does — the wires a picture
+  yields, the focus, the pane, the folds, the gaps and what a refresh
+  remembers. Two regressions that the text tests let through were caught by
+  hand in a browser; these would have caught them.
+
+- **The Map's pane reads as relations, not as lines.** Hovering `memory`
+  listed fifty entries, twenty of them beginning `MemoryConnector ·`. Each
+  row across is now said once, with the actions and selectors behind its
+  line under it, and a trigger they all share — a page whose every dispatch
+  runs through one callback — said once beside the row. The unresolved edges
+  at the foot of the page are grouped the same way, by reason: seventeen
+  gaps were two sentences, each repeated. Lines that change state are drawn
+  over lines that only read it, so the answer to "who changes this" is never
+  under a grey line in the bundle.
+
+- **Less work on the paths that run all the time.** The code-lens provider
+  compiled its five path patterns from `LAYOUT` on every edit of every Dart
+  file, and searched the document's text twice for one class; the patterns are
+  now built once with the root, and the text is read once, and only when a
+  lens needs it.
+  The Map's crossing count is an inversion count over a Fenwick tree instead
+  of a comparison of every pair, the sweep no longer flattens every subtree
+  or re-indexes the facing column on every pass, and it stops at the pass that
+  changes nothing — the same orderings, in a sixth of the time on this
+  repository's shape and a fortieth at three thousand lines. (The facing
+  column is still indexed once per pass; what stopped is indexing it again
+  for every subtree.) The Map page reads each row's rectangle once
+  per redraw and attaches its wires in one append (it re-laid the page out
+  once per line), and lights a hovered row from the adjacency it recorded
+  while drawing rather than by asking the DOM for every wire. The tree
+  computes what each substate owns once per read instead of once per row.
+  The installed binary's `--version` is remembered while the file is the same
+  one, so a refresh spawns two processes, not four. Process output is decoded
+  once, and a machine read — the graph, the audit, a plan preview — logs its
+  size to the channel rather than its hundred kilobytes of payload.
+
 ## 0.3.5
 
 ### Fixed

@@ -53,8 +53,19 @@ button { font: inherit; color: var(--vscode-button-foreground);
   letter-spacing: .05em; opacity: .7; }
 #pane h4.changes { color: var(--changes); opacity: 1; }
 #pane ul { list-style: none; margin: 0; padding: 0; }
-#pane li { padding: 2px 0; cursor: pointer; }
-#pane li:hover { text-decoration: underline; }
+#pane li { padding: 2px 0; }
+/* The row across, and under it what the line carries: each name opens its
+   own thing, so each is its own hover. */
+#pane li .far { cursor: pointer; }
+/* Each item wraps as one while it fits the pane, and breaks inside itself
+   only when it is wider than the pane. It carries its own separator, so a
+   line breaks after a dot and never opens with one. */
+#pane li .whats { padding-left: 10px; opacity: .85; line-height: 1.5;
+  display: flex; flex-wrap: wrap; column-gap: .35em; }
+#pane li .item { min-width: 0; overflow-wrap: anywhere; }
+#pane li .item:not(:last-child)::after { content: ' ·'; opacity: .5; }
+#pane li .what { cursor: pointer; }
+#pane li .far:hover, #pane li .what:hover { text-decoration: underline; }
 #pane li .via { opacity: .6; font-family: var(--vscode-editor-font-family); }
 /* The side padding is the channel: an edge joining two nodes of one column
    leaves and re-enters on that column's outer side, and needs room to do it.
@@ -96,7 +107,7 @@ path.wire { pointer-events: stroke; }
   white-space: nowrap; }
 .owned ul { list-style: none; margin: 4px 0 0; padding: 0 0 0 10px;
   border-left: 1px solid var(--vscode-panel-border); }
-.owned li { padding: 1px 0; cursor: pointer; }
+.owned li { padding: 1px 0; cursor: pointer; white-space: nowrap; }
 .owned li:hover { text-decoration: underline; }
 /* What a row builds sits inside it, indented: the composition reads as
    containment, which is what it is. The last built row keeps no bottom margin,
@@ -120,12 +131,17 @@ path.wire { pointer-events: stroke; }
 .node.pinned > .head { outline: 1px solid var(--changes); outline-offset: 3px;
   border-radius: 3px; }
 .gaps { margin-top: 20px; border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px; padding: 8px 12px; max-width: min(700px, 100%);
+  border-radius: 6px; padding: 8px 12px; max-width: min(960px, 100%);
   box-sizing: border-box; }
-.gaps .at, .gaps .why { opacity: .7; font-size: 12px; margin: 0 0 0 14px; }
-.gaps .why { margin-bottom: 8px; }
+/* The reason heads its group; each gap under it is the expression, then
+   where it was met, on one line while the panel allows. */
+.gaps .why { margin: 10px 0 4px; }
+.gaps .why:first-of-type { margin-top: 0; }
+.gaps .gap { margin-left: 14px; padding: 1px 0; }
+.gaps .gap > code:first-child { white-space: nowrap; }
 /* A path has no space to break at; without this it runs out of the box. */
-.gaps code { font-family: var(--vscode-editor-font-family); overflow-wrap: anywhere; }
+.gaps .at { opacity: .6; font-size: 12px; margin-left: 10px; overflow-wrap: anywhere; }
+.gaps code { font-family: var(--vscode-editor-font-family); }
 /* A line's colour is what it does to state: a line that changes it, and a
    line that only reads it. The first question on arriving anywhere is "who
    can change this", and it used to take a hover per line to answer. */

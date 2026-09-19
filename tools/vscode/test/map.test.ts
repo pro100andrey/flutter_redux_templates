@@ -405,7 +405,7 @@ test('a line end takes its own slot on the row, ordered by where the far end is'
       }),
     ),
   );
-  assert.match(html, /function slotsOf\(drawn\)/);
+  assert.match(html, /function slotsOf\(drawn, rectOf\)/);
   assert.match(html, /sort\(\(a, b\) => a\.y - b\.y \|\| a\.arrival - b\.arrival\)/, 'by far height, ties by arrival');
   assert.match(html, /slots\[index\]\[end\] = \{ slot, of: ordered\.length \}/);
   assert.match(html, /anchorY\(ra, slots\[i\]\.from, board\.top\)/, 'and the drawing uses them');
@@ -459,6 +459,41 @@ test('a folded relation remembers the action or selector it ended on', () => {
   );
 });
 
+test('an edge between two substates\' actions names the action dispatched', () => {
+  // Both ends fold. The one the pane names is the target — what got
+  // dispatched — not the action doing the dispatching, which used to win by
+  // being first in the pair; and two targets are two relations.
+  const p = picture(
+    graphOf({
+      nodes: [SUB('logIn', 'L'), SUB('session', 'S'), ACTION('logIn', 'LogInAction'), ACTION('session', 'SetTokenAction'), ACTION('session', 'ClearTokenAction')],
+      edges: [
+        edge('action:logIn.LogInAction', 'action:session.SetTokenAction', 'dispatches'),
+        edge('action:logIn.LogInAction', 'action:session.ClearTokenAction', 'dispatches'),
+      ],
+    }),
+  );
+  assert.strictEqual(p.edges.length, 1);
+  assert.deepStrictEqual(
+    p.edges[0].relations.map((r) => r.through),
+    ['action:session.SetTokenAction', 'action:session.ClearTokenAction'],
+  );
+});
+
+test('an edge that folds onto a substate the picture does not draw is a gap, not a line', () => {
+  // An action's substate is its folder; nothing checks AppState still
+  // composes it. Drawn, the line had no row to end on and the page threw.
+  const p = picture(
+    graphOf({
+      nodes: [PAGE('logIn', '/login'), ACTION('theme', 'SetThemeModeAction')],
+      edges: [edge('page:logIn', 'action:theme.SetThemeModeAction', 'dispatches', 'onToggle')],
+    }),
+  );
+  assert.deepStrictEqual(p.edges, []);
+  assert.strictEqual(p.gaps.length, 1);
+  assert.match(p.gaps[0].what, /action:theme\.SetThemeModeAction/);
+  assert.match(p.gaps[0].why, /substate:theme/);
+});
+
 test('a line is coloured by what it does to state', () => {
   const html = buildHtml(
     picture(
@@ -469,7 +504,8 @@ test('a line is coloured by what it does to state', () => {
     ),
   );
   assert.match(html, /const CHANGES = new Set\(\['dispatches', 'writes', 'restores'\]\)/);
-  assert.match(html, /\(changes \? ' changes' : ''\)/, 'a line that changes among other things is still a changing line');
+  assert.match(html, /if \(CHANGES\.has\(r\.kind\)\) line\.changes = true;/, 'a line that changes among other things is still a changing line');
+  assert.match(html, /\(line\.changes \? ' changes' : ''\)/, 'and is coloured as one');
   assert.match(html, /path\.wire\.changes \{ stroke: var\(--changes\)/);
   assert.match(html, /path\.wire \{ pointer-events: stroke; \}/, 'and its tooltip can be reached');
 });
@@ -486,7 +522,7 @@ test('a row pins on click, holds the focus, and lets go on Escape', () => {
   assert.match(html, /pinned = pinned === id \? null : id;/);
   assert.match(html, /const current = \(\) => focused \|\| pinned;/, 'the hovered row wins while the pointer is on one');
   assert.match(html, /event\.key !== 'Escape'/);
-  assert.match(html, /vscode\.setState\(\{ folded: \[\.\.\.folded\], pinned \}\)/, 'and a refresh keeps it');
+  assert.match(html, /vscode\.setState\(\{ folded: \[\.\.\.folded\], pinned, placed \}\)/, 'and a refresh keeps it');
 });
 
 test('the pane says in words what the focused row\'s lines mean', () => {
@@ -502,8 +538,12 @@ test('the pane says in words what the focused row\'s lines mean', () => {
   for (const group of ['Changed by', 'Changes', 'Read by', 'Reads', 'Built by', 'Builds']) {
     assert.ok(html.includes(`'${group}'`), `the pane groups by "${group}"`);
   }
-  assert.match(html, /entry\.far\.title \+ \(entry\.what \? ' · ' \+ entry\.what\.title : ''\)/, 'and names the action behind the line');
-  assert.match(html, /open\(entry\.what \|\| entry\.far\)/, 'which is what an entry opens');
+  // One entry per row across, the actions and selectors behind the line
+  // under it — each opening its own thing.
+  assert.match(html, /pushInto\(byFar, entry\.far\.id, entry\)/, 'grouped by the row across');
+  assert.match(html, /what\.textContent = entry\.what\.title/, 'and names the action behind the line');
+  assert.match(html, /name\.addEventListener\('click', \(\) => open\(far\)\)/, 'the row opens the row');
+  assert.match(html, /what\.addEventListener\('click', \(\) => open\(entry\.what\)\)/, 'and the action opens the action');
 });
 
 test('a row with many regions starts folded, and folded lines land on it', () => {
@@ -562,9 +602,10 @@ test('hovering a row dims what it is not attached to', () => {
   // Dimmed by the row's own head, not the box: opacity on the box would dim a
   // lit row nested inside an unlit one.
   assert.match(html, /\.node:not\(\.lit\) > \.head/);
-  // The wires carry their endpoints, which is what lets a wire be lit without
-  // re-deriving the picture in the DOM.
-  assert.match(html, /wire\.dataset\.from/);
+  // What each row touches is written down as the wires are drawn, which is
+  // what lets a row be lit without re-deriving the picture in the DOM.
+  assert.match(html, /touch\(line\.from, wire, line\.to\)/);
+  assert.match(html, /touching\.get\(on\)/);
 });
 
 test('a redraw restores the focus instead of half-dimming the picture', () => {

@@ -18,8 +18,9 @@ import { FrxWatch, SpawnFn } from '../src/watch';
 
 /** A child process that never runs anything but can be made to exit. */
 class FakeChild extends EventEmitter {
-  readonly stdout = new EventEmitter();
-  readonly stderr = new EventEmitter();
+  // A stream as far as the watch reads one: events, and the encoding it sets.
+  readonly stdout = Object.assign(new EventEmitter(), { setEncoding: () => {} });
+  readonly stderr = Object.assign(new EventEmitter(), { setEncoding: () => {} });
   readonly pid = 4242;
   killed = false;
   /** Which signal `_kill` chose — the thing build_runner is picky about. */

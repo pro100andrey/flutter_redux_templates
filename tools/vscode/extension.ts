@@ -152,7 +152,10 @@ function activateMonorepo(context: vscode.ExtensionContext, app: App): void {
     // watches. `dispose()` never ran for that first one, and nothing else in the
     // extension can reach it.
     void theWatch.reapStaleWatch().catch(() => {}).then(() => theWatch.resume());
-    theDoctor.refresh(); // initial audit into the Problems panel
+    // The initial audit into the Problems panel, and the tree's first read —
+    // here, so the rows are there when the section is opened rather than read
+    // on the click (see FrxTreeProvider.refresh).
+    afterChange();
     // Once a day, ask the installed binary whether a newer release exists.
     // After the audit rather than before it: the audit is what the window
     // opened for, and this is news that can arrive a moment later.

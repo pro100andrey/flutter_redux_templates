@@ -174,6 +174,7 @@ Future<int> runChangeset(
     plan,
     format: _flag(results, 'format', orElse: true),
     repoRoot: repoRoot,
+    report: !asJson,
   );
 
   // [closing] replaces the count when the command has something more useful to

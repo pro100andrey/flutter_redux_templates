@@ -47,8 +47,14 @@ export interface WritePlan {
  * emit one. The caller falls back to reporting the CLI's own message.
  */
 export function parseWritePlan(stdout: string): WritePlan | null {
+  // The changeset is the last line. An apply prints what it did on the way —
+  // `✓ docs/flows refreshed`, build_runner's own log with `-b` — on the same
+  // stream, before the JSON; parsing the whole of stdout returned null for
+  // every apply in a repository with docs/flows, and the drift warning that
+  // compares the applied changeset with the plan could never fire.
+  const last = stdout.trimEnd().split('\n').pop() ?? '';
   try {
-    const data = JSON.parse(stdout) as WritePlan;
+    const data = JSON.parse(last) as WritePlan;
     return Array.isArray(data?.changes) ? data : null;
   } catch {
     return null;
@@ -194,7 +200,7 @@ async function _json(
   ignoreCode = false,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
-  const res = await frx.run(inv, [...args, '--json', '--root', root], root);
+  const res = await frx.run(inv, [...args, '--json', '--root', root], root, { quiet: true });
   if (!ignoreCode && res.code !== 0) return null;
   try {
     return JSON.parse(res.stdout);
@@ -276,6 +282,24 @@ export async function which(
  */
 export async function flow(inv: Invocation, page: string, root: string): Promise<string | null> {
   const res = await frx.run(inv, ['flow', page, '--root', root], root);
+  return res.code === 0 ? res.stdout.trim() : null;
+}
+
+/**
+ * The page's flow as the markdown document `frx flow --md` exports for it
+ * (`frx flow <page> --doc`): the diagram — in one piece, or one per
+ * interaction once a page has more lanes than a picture can hold — and the
+ * interaction table. Undefined when this frx has no `--doc` (it exits 64 on a
+ * flag it does not know), so the caller can fall back to the bare diagram;
+ * null when the page could not be read at all.
+ */
+export async function flowDoc(
+  inv: Invocation,
+  page: string,
+  root: string,
+): Promise<string | null | undefined> {
+  const res = await frx.run(inv, ['flow', page, '--doc', '--root', root], root, { quiet: true });
+  if (res.code === 64) return undefined;
   return res.code === 0 ? res.stdout.trim() : null;
 }
 
