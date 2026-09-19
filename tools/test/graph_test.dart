@@ -516,6 +516,40 @@ class LogInPage extends StatelessWidget {
   });
 
   group('node identity', () {
+    test('an action under a folder AppState does not compose is a gap', () {
+      // The substate is the folder, and nothing about the folder says
+      // AppState still composes it — the doctor calls that an orphan. Emitted
+      // with the folder as its substate, the node sent every consumer looking
+      // for a `substate:ghost` that is not there; the Map threw on it. Now the
+      // node stands on its own, and the gap says what happened.
+      final ws = _workspace();
+      File(
+          p.join(
+            ws.root.path,
+            'business/lib/redux/ghost/actions/haunt_action.dart',
+          ),
+        )
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('''
+class HauntAction extends Action {
+  @override
+  AppState reduce() => state;
+}
+''');
+      final g = GraphReader(ws).read();
+      final node = g.node('action:ghost.HauntAction');
+      expect(node, isNotNull);
+      expect(node!.substate, isNull, reason: 'it belongs to no substate drawn');
+      final gap = g.unresolved.firstWhere(
+        (u) =>
+            u.kind == 'orphan-substate' &&
+            u.owner == 'action:ghost.HauntAction',
+        orElse: () => throw StateError('no gap: ${g.unresolved}'),
+      );
+      expect(gap.why, contains('redux/ghost/'));
+      expect(gap.why, contains('doctor --fix'));
+    });
+
     test('qualifies an action with its substate', () {
       final g = _read();
       final ids = g.nodes

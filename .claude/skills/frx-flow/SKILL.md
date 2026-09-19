@@ -11,7 +11,7 @@ description: >-
 Diagram use cases and navigation (mermaid) from the AST.
 
 ```
-frx flow <page> | frx flow --routes | --md
+frx flow <page> [--doc] | frx flow --routes | --md
 ```
 
 ## Before you run it
@@ -27,6 +27,7 @@ frx flow <page> | frx flow --routes | --md
     --md        Export every diagram to docs/flows/ as markdown.
     --check     With --md: verify the export is up to date instead of writing it. Exits 1 when it is not (for CI).
     --json      Emit the raw flow model as JSON (the VSCode viewer consumes it).
+    --doc       Print the page as the markdown document --md would export — the diagram in readable pieces when the page is large, and the interaction table (the VSCode viewer shows it).
     --root      Repo root to search from.
 ```
 

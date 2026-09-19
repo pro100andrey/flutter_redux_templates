@@ -50,6 +50,14 @@ class FlowCommand extends Command<int> with NameArg {
         help:
             'Emit the raw flow model as JSON (the VSCode viewer consumes it).',
       )
+      ..addFlag(
+        'doc',
+        negatable: false,
+        help:
+            'Print the page as the markdown document --md would export — the '
+            'diagram in readable pieces when the page is large, and the '
+            'interaction table (the VSCode viewer shows it).',
+      )
       ..addOption('root', help: kRootHelp);
   }
 
@@ -61,7 +69,7 @@ class FlowCommand extends Command<int> with NameArg {
       'Diagram use cases and navigation (mermaid) from the AST.';
 
   @override
-  String get invocation => 'frx flow <page> | frx flow --routes | --md';
+  String get invocation => 'frx flow <page> [--doc] | frx flow --routes | --md';
 
   @override
   List<String> get positionals => const ['page'];
@@ -81,6 +89,10 @@ class FlowCommand extends Command<int> with NameArg {
 
     if (argResults!.flag('check') && !md) {
       usageException('--check only applies to --md.');
+    }
+
+    if (argResults!.flag('doc') && (routes || md || json)) {
+      usageException('--doc prints one page; it takes no other mode.');
     }
 
     if ((routes || md) && argResults!.rest.isNotEmpty) {
@@ -105,13 +117,17 @@ class FlowCommand extends Command<int> with NameArg {
       return _routeMap(workspace, json: json);
     }
 
-    return _pageFlow(workspace, json: json);
+    return _pageFlow(workspace, json: json, doc: argResults!.flag('doc'));
   }
 
   // --- one page
   // ---------------------------------------------------------------
 
-  int _pageFlow(FrxWorkspace workspace, {required bool json}) {
+  int _pageFlow(
+    FrxWorkspace workspace, {
+    required bool json,
+    bool doc = false,
+  }) {
     final input = requireName();
     final artifact = PageArtifact(input);
     final connector = artifact.connectorFile(workspace.appConnectors);
@@ -132,6 +148,25 @@ class FlowCommand extends Command<int> with NameArg {
 
     if (json) {
       console.out.writeln(jsonEncode(flow.toJson()));
+      return 0;
+    }
+
+    if (doc) {
+      // The same document `--md` writes for the page, through the same
+      // renderer, so what the editor shows and what the repo commits cannot
+      // say different things — and the empty and untraced cases below are
+      // already its business to word.
+      final map = RouteMapReader(workspace).read();
+      final node = map.pages.firstWhere(
+        (n) => n.page == artifact.name.camel,
+        orElse: () => PageNode(
+          page: artifact.name.camel,
+          routeType: '${artifact.name.pascal}Route',
+          pageClass: artifact.pageClass,
+          connectorFile: connector.path,
+        ),
+      );
+      console.out.write(FlowDocs(workspace).pageDocument(node, flow));
       return 0;
     }
 

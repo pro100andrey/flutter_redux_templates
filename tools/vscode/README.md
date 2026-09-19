@@ -403,8 +403,12 @@ view-model callback, what it dispatches and how (`dispatchSync` vs an awaited
 `copyWith` field it writes, a `UserException` it can throw, guarded steps as
 `alt` blocks, and where the flow navigates.
 
-The diagram comes from `frx flow <page>`, which reads it out of the source AST —
-so it always describes the code as written rather than a stale drawing.
+The document comes from `frx flow <page> --doc` — the same page `frx flow --md`
+exports to `docs/flows/`, read out of the source AST, so it always describes
+the code as written rather than a stale drawing. A page with more lanes than
+one picture can hold is drawn as one diagram per interaction, each with only
+the lanes it touches; a screen of fifteen regions used to come out as one
+forty-five-lane drawing with every label at three pixels.
 
 **Rendering is VSCode's own.** Since 1.121 the built-in
 `mermaid-markdown-features` draws mermaid in the markdown preview, so the view

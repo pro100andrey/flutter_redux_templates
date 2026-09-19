@@ -286,6 +286,24 @@ export async function flow(inv: Invocation, page: string, root: string): Promise
 }
 
 /**
+ * The page's flow as the markdown document `frx flow --md` exports for it
+ * (`frx flow <page> --doc`): the diagram — in one piece, or one per
+ * interaction once a page has more lanes than a picture can hold — and the
+ * interaction table. Undefined when this frx has no `--doc` (it exits 64 on a
+ * flag it does not know), so the caller can fall back to the bare diagram;
+ * null when the page could not be read at all.
+ */
+export async function flowDoc(
+  inv: Invocation,
+  page: string,
+  root: string,
+): Promise<string | null | undefined> {
+  const res = await frx.run(inv, ['flow', page, '--doc', '--root', root], root, { quiet: true });
+  if (res.code === 64) return undefined;
+  return res.code === 0 ? res.stdout.trim() : null;
+}
+
+/**
  * The mermaid `flowchart` of the whole app — every registered screen and the
  * navigation between them (`frx flow --routes`). Null when frx failed.
  */

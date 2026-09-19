@@ -872,7 +872,8 @@ reading, so type-relationship rules stay with the analyzer.
 
 ```bash
 frx flow log_in                   # mermaid sequenceDiagram on stdout
-frx flow log_in --json            # the raw model (the VSCode Flow view reads it)
+frx flow log_in --doc             # the page's markdown document (the VSCode Flow view shows it)
+frx flow log_in --json            # the raw model
 ```
 
 `flow` answers *"what actually happens when the user taps this?"* by reading the
@@ -964,7 +965,10 @@ frx flow --md --check             # verify it's current; exit 1 if not (CI)
 
 `--md` writes an index with the navigation map and a table of every screen, plus
 one file per page holding its sequence diagram and use-case table — all in
-mermaid, which GitHub renders natively.
+mermaid, which GitHub renders natively. A page with more lanes than one
+picture can hold — a screen composed of a dozen regions — is drawn as one
+diagram per interaction, each with only the lanes it touches, under a heading
+naming it; `--doc` prints the same document for one page.
 
 Once `docs/flows/` exists, **frx keeps it fresh itself**: `add-page`, `add-tabs`,
 `remove` and `rename` regenerate it as part of their post-write stage, the same

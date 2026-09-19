@@ -178,6 +178,7 @@ class BatchCommand extends Command<int> {
       transaction,
       format: results.flag('format'),
       repoRoot: repo.root,
+      report: !asJson,
     );
     final built = await _runBuilds(
       transaction,

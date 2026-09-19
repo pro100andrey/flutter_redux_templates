@@ -200,14 +200,24 @@ class FlowDocs {
     return b.toString();
   }
 
-  String _page(PageNode node, PageFlow flow) {
-    final b = StringBuffer()
-      ..writeln(marker)
-      ..writeln()
+  /// The page's document as the editor shows it: no export marker, and no
+  /// link to an index that is not there.
+  String pageDocument(PageNode node, PageFlow flow) =>
+      _page(node, flow, standalone: true);
+
+  String _page(PageNode node, PageFlow flow, {bool standalone = false}) {
+    final b = StringBuffer();
+    if (!standalone) {
+      b
+        ..writeln(marker)
+        ..writeln();
+    }
+    b
       ..writeln('# ${node.pageClass}')
       ..writeln()
       ..writeln('`${_rel(node.connectorFile ?? '')}`')
       ..writeln();
+    final index = standalone ? '' : '\n[← all flows](README.md)\n';
 
     if (flow.isEmpty) {
       // The same distinction the CLI draws, in the artifact that outlives the
@@ -220,8 +230,7 @@ class FlowDocs {
           ..writeln(
             '_${flow.connectorClass} exposes no dispatching callbacks yet._',
           )
-          ..writeln()
-          ..writeln('[← all flows](README.md)');
+          ..write(index);
         return b.toString();
       }
       b
@@ -241,16 +250,36 @@ class FlowDocs {
           'functions the file declares. One held in a field, or reached any '
           'other way, is outside that._',
         )
-        ..writeln()
-        ..writeln('[← all flows](README.md)');
+        ..write(index);
       return b.toString();
     }
 
+    // One picture while it fits, else one per interaction — see
+    // [renderSequences]. A split diagram cannot carry the page's untraced
+    // dispatches as notes the way the whole one does, so they are listed.
+    final diagrams = renderSequences(flow);
+    for (final d in diagrams) {
+      if (d.title.isNotEmpty) {
+        b
+          ..writeln('## ${d.title}')
+          ..writeln();
+      }
+      b
+        ..writeln('```mermaid')
+        ..writeln(d.diagram)
+        ..writeln('```')
+        ..writeln();
+    }
+    if (diagrams.length > 1 && flow.untraced.isNotEmpty) {
+      b
+        ..writeln('_Not drawn — these files dispatch outside any interaction:_')
+        ..writeln();
+      for (final gap in flow.untraced) {
+        b.writeln('- `${gap.connectorClass}` — ${gap.calls}');
+      }
+      b.writeln();
+    }
     b
-      ..writeln('```mermaid')
-      ..writeln(renderSequence(flow))
-      ..writeln('```')
-      ..writeln()
       ..writeln('| Interaction | Dispatches | Writes |')
       ..writeln('| --- | --- | --- |');
 
@@ -274,8 +303,7 @@ class FlowDocs {
     b
       ..writeln()
       ..writeln('`?` marks a dispatch that only runs under a condition.')
-      ..writeln()
-      ..writeln('[← all flows](README.md)');
+      ..write(index);
     return b.toString();
   }
 

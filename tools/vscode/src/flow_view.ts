@@ -45,6 +45,13 @@ export async function showFlow(
   const target = page ?? (await ui.pickPage(ready.inv, ready.root, 'Flow — page'));
   if (!target) return;
 
+  // The CLI's own document for the page, which draws a large page in pieces
+  // and adds the interaction table; the bare diagram when the CLI is too old
+  // to have it.
+  const doc = await queries.flowDoc(ready.inv, target, ready.root);
+  if (doc === null) return _explain(`could not diagram "${target}"`);
+  if (doc !== undefined) return _preview(context, doc);
+
   const diagram = await queries.flow(ready.inv, target, ready.root);
   if (diagram === null) return _explain(`could not diagram "${target}"`);
 

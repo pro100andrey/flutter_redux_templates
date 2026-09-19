@@ -292,10 +292,14 @@ class ApplyFailure implements Exception {
 /// When [currentTransaction] is set, the changeset is staged into it: the post
 /// steps are the batch's to run once at the end, and a failure unwinds *the
 /// whole batch* rather than this one changeset. See [WriteTransaction].
+///
+/// [report] off is a `--json` run: what the post steps have to say goes to
+/// stderr, and stdout stays the one object the consumer parses.
 Future<Applied> apply(
   Changeset plan, {
   required bool format,
   Directory? repoRoot,
+  bool report = true,
 }) async {
   if (currentTransaction case final joined?) {
     final before = joined.written.length;
@@ -316,7 +320,12 @@ Future<Applied> apply(
     throw ApplyFailure(error, stack, restoreErrors: transaction.rollback());
   }
 
-  await settle(transaction, format: format, repoRoot: repoRoot);
+  await settle(
+    transaction,
+    format: format,
+    repoRoot: repoRoot,
+    report: report,
+  );
 
   return (written: transaction.written, removed: transaction.removed);
 }
@@ -334,10 +343,11 @@ Future<void> settle(
   WriteTransaction transaction, {
   required bool format,
   Directory? repoRoot,
+  bool report = true,
 }) async {
   await formatFiles(transaction.written, enabled: format);
   if (repoRoot != null) {
-    await refreshFlowDocs(repoRoot);
+    await refreshFlowDocs(repoRoot, report: report);
   }
 }
 

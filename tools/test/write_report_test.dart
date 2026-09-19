@@ -133,6 +133,30 @@ void main() {
       expect(ops, contains('delete-directory'));
       expect(ops, contains('edit'), reason: 'the unwiring edits come with it');
     });
+
+    test(
+      'an apply in a repo with docs/flows keeps stdout to the one object',
+      () async {
+        // The docs refresh runs after every apply and used to say so on stdout,
+        // ahead of the changeset — which made every `--apply --json` in a repo
+        // that had opted into docs/flows unparseable. What it says now goes to
+        // stderr, where it is still said.
+        Directory(
+          p.join(fx.root.path, 'docs', 'flows'),
+        ).createSync(recursive: true);
+        expect((await runInProcess(fx, ['add-page', 'settings'])).exitCode, 0);
+        final r = await runInProcess(fx, [
+          'remove',
+          'settings',
+          '--apply',
+          '--json',
+        ]);
+        expect(r.exitCode, 0, reason: r.stderr);
+        expect(r.stdout.trim().split('\n'), hasLength(1), reason: r.stdout);
+        expect(jsonDecode(r.stdout), isA<Map<String, Object?>>());
+        expect(r.stderr, contains('docs/flows refreshed'));
+      },
+    );
   });
 
   group('the result reports the process facts of its own command', () {

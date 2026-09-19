@@ -96,6 +96,17 @@ test('createdFile: resolves a create/overwrite plan line by suffix', () => {
   assert.strictEqual(queries.createdFile('nothing here', '/repo', '_state.dart'), null);
 });
 
+test('flowDoc: the document on success, undefined on a CLI without --doc, null on failure', async () => {
+  stubRun({ code: 0, stdout: '# LogInPage\n\n```mermaid\nsequenceDiagram\n```\n', stderr: '' });
+  assert.strictEqual(await queries.flowDoc({} as any, 'logIn', '/r'), '# LogInPage\n\n```mermaid\nsequenceDiagram\n```');
+  // An older frx rejects the flag as a usage error; that is "no document",
+  // not "no page", and the view falls back to the diagram alone.
+  stubRun({ code: 64, stdout: '', stderr: 'Could not find an option named "--doc".' });
+  assert.strictEqual(await queries.flowDoc({} as any, 'logIn', '/r'), undefined);
+  stubRun({ code: 70, stdout: '', stderr: 'frx: no page "logIn"' });
+  assert.strictEqual(await queries.flowDoc({} as any, 'logIn', '/r'), null);
+});
+
 test('routeMap: the trimmed flowchart on success', async () => {
   stubRun({ code: 0, stdout: 'flowchart LR\n  a --> b\n\n', stderr: '' });
   assert.strictEqual(await queries.routeMap({} as any, '/r'), 'flowchart LR\n  a --> b');

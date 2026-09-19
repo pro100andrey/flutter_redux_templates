@@ -45,7 +45,45 @@ changes are marked as such.
   and the placed column now keeps the placement until the other is shorter
   by half: a row that opens is not a picture that changed shape.
 
+### Added
+
+- **A large page's flow is drawn in pieces.** `frx flow --md` and the Flow
+  view drew a page as one sequence diagram however many lanes it took, and
+  mermaid fits the drawing to the page: a screen composed of fifteen regions
+  came out at forty-five lanes with every label at three pixels. Past a dozen
+  lanes a page is now one diagram per interaction, each with only the lanes
+  it touches, under a heading naming it. `frx flow <page> --doc` prints that
+  document for one page, and the Flow view shows it — the interaction table
+  included — falling back to the bare diagram on a CLI without the flag.
+  *(CLI + editor)*
+
+- **The graph names an orphan folder's actions as a gap.** An action's
+  substate is the folder it sits in, and nothing checked that `AppState`
+  still composes it, so `frx graph --json` emitted actions of a substate no
+  consumer could find — the Map threw on its first draw. Such an action now
+  stands on its own and comes with an `orphan-substate` entry in
+  `unresolved` naming the folder and the two ways out. *(CLI)*
+
 ### Changed
+
+- **A `--json` run keeps stdout to the one object.** Every apply printed
+  `✓ docs/flows refreshed` on stdout ahead of the changeset, and a build
+  asked for with `-b` inherited build_runner's output there too — in a
+  repository with `docs/flows/` no `--apply --json` parsed. Both go to stderr
+  in a machine run, where they are still said. *(CLI)*
+
+- **The FRX panel is there when the window is.** The extension activated on
+  `onStartupFinished` alone — after every other extension, which with the
+  Dart tooling was eight seconds into the window — so the panel appeared
+  late with nothing to say why. It now also activates on the marker file
+  the CLI keys on (`app/lib/navigation/app_router.dart`), and the manifest
+  check refuses a glob that drifts from the generated marker path.
+
+- **The Map page has tests that run it.** `map.test.ts` pinned what the
+  script says; a jsdom suite now pins what it does — the wires a picture
+  yields, the focus, the pane, the folds, the gaps and what a refresh
+  remembers. Two regressions that the text tests let through were caught by
+  hand in a browser; these would have caught them.
 
 - **The Map's pane reads as relations, not as lines.** Hovering `memory`
   listed fifty entries, twenty of them beginning `MemoryConnector ·`. Each
