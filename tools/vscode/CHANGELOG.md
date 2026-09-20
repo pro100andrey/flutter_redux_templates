@@ -63,6 +63,14 @@ changes are marked as such.
   directives that referred to a linter this project never ran are gone —
   typescript-eslint does not yet support the TypeScript this builds with.
 
+- **Dev dependencies:** `@vscode/vsce` 4 — what CI and `xtask package` were
+  already running through `npx --yes`, so a local `npm run package` builds
+  the same VSIX; `@types/node` and `mocha` to their current patches; the
+  lock's transitive advisories (`brace-expansion`, `fast-uri`, `js-yaml`,
+  `qs`, `undici`) resolved — none of them ship, the extension has no
+  runtime dependencies. `@types/vscode` stays at 1.120.0: the highest
+  published at or under `engines.vscode`, which is where vsce requires it.
+
 ### Added
 
 - **`graph --focus session.token` — one field, not the slice.** A slice with
