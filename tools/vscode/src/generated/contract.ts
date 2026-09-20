@@ -1,11 +1,11 @@
 // AUTO-GENERATED — DO NOT EDIT.
-// Produced by `cd tools && dart run tool/xtask.dart contract`.
+// Produced by `cd tools && dart run :xtask contract`.
 //
 // The CLI is the author of everything here: the `--kind` sets
 // come off each command's own ArgParser, the marker off
 // FrxWorkspace, the fix ids off the sealed Fix hierarchy. Edit
 // the Dart and re-run; contract_freshness_test.dart fails on a
-// stale copy, so `xtask check` and CI catch it.
+// stale copy, so `dart run :xtask check` and CI catch it.
 
 /**
  * The file `frx` keys on to decide where a project begins.

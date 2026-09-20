@@ -17,7 +17,7 @@ import 'package:tools/src/contract/contract_gen.dart';
 /// Four more `--kind` sets had no test at all.
 void main() {
   final repoRoot = p.dirname(Directory.current.absolute.path);
-  const regen = 'Regenerate it: cd tools && dart run tool/xtask.dart contract';
+  const regen = 'Regenerate it: cd tools && dart run :xtask contract';
 
   test('the generated contract is not stale', () {
     for (final entry in ContractGen.generate().entries) {

@@ -449,6 +449,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
+  xtask:
+    dependency: "direct main"
+    description:
+      name: xtask
+      sha256: "7318f4021252f394bc33300c8502cc48c2cdd6b05c98edf9c9a97cf59810d373"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
   yaml:
     dependency: "direct main"
     description:

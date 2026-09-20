@@ -43,17 +43,26 @@ release assets. The rest of this section is for working **on** frx.
 
 ```bash
 cd tools
-dart run tool/xtask.dart                            # what you can run
-dart run tool/xtask.dart install --profile Flutter  # the CLI on PATH + the extension in that profile
+dart run :xtask --list                     # what you can run, grouped by who runs it
+PROFILE=Flutter dart run :xtask install    # the CLI on PATH + the extension in that profile
+dart run :xtask check                      # everything CI runs, locally
+dart run :xtask --dry-run install          # what that would do, without doing it
 ```
 
-The tasks are a Dart program, `tool/xtask.dart` — the Rust `xtask` convention:
-no Makefile, no shell, so they run the same on Windows. `install` is the whole
-loop: `dart install` for the binary, then compile → package → install the VSIX.
-**The profile matters** — VSCode installs extensions per profile, so a VSIX put
-in the Default profile is invisible while you work in another one. `profiles`
-lists them and shows which frx build each holds. `--profile` reads `$PROFILE`
-when omitted, so set it once (`export PROFILE=Flutter`) and forget it.
+The tasks are **data**, in [`xtask.yaml`](../xtask.yaml) at the repository
+root, run by [`package:xtask`](https://pub.dev/packages/xtask): a body is argv,
+no shell sees it, so a task is the same command on Windows; `--dry-run` says
+what would run and `--why` says what put it in the plan. The handful with real
+logic in them — the version bump across three files, the VS Code profile check
+— are **verbs**, Dart functions in `bin/xtask.dart` that the file names by
+`do:`; that is why the command is spelled from `tools/`, the package whose
+entry point carries them. `install` is a gate set — the whole loop: `dart
+install` for the binary, then package → install the VSIX. **The profile
+matters** — VSCode installs extensions per profile, so a VSIX put in the Default
+profile is invisible while you work in another one. `profiles` lists them and
+shows which frx build each holds. A verb reads `$PROFILE` and `$CODE`, so set
+the profile once (`export PROFILE=Flutter`) and forget it; `-- --profile
+<name>` after a single task's name overrides it.
 
 Doing it by hand instead:
 
@@ -315,7 +324,7 @@ The archive is a derived artifact, so it goes stale the moment the repository
 moves — including a change to a test or a doc, because those are in it too.
 
 ```bash
-cd tools && dart run tool/xtask.dart template
+cd tools && dart run :xtask template
 ```
 
 Base64 rather than a byte list because the payload stays one string literal:
@@ -1498,8 +1507,8 @@ tail, which is why the machine result is assembled from the same
 ## Testing
 
 ```bash
-dart run tool/xtask.dart test    # dart test + the extension suite
-dart run tool/xtask.dart check   # everything CI runs
+dart run :xtask test    # dart test + the extension suite
+dart run :xtask check   # everything CI runs
 
 dart test                    # unit + command + E2E + reality (960 tests, ~45s)
 ```

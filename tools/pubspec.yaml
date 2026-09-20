@@ -39,6 +39,12 @@ dependencies:
   # than a re-serialise, so comments and formatting in a file nobody asked us to
   # touch survive.
   yaml_edit: ^2.2.4
+  # The task runner behind `dart run :xtask` — the repository's build, install
+  # and release tasks are data in ../xtask.yaml, and bin/xtask.dart hands it
+  # this project's verbs. A regular dependency because bin/ is where pub looks
+  # for executables and lints an import of a dev dependency there; it reaches
+  # no user — `executables:` puts `frx` on PATH and nothing else.
+  xtask: ^0.2.0
 
 dev_dependencies:
   pro_lints: ^6.2.0

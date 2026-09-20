@@ -48,6 +48,20 @@ changes are marked as such.
 
 ### Changed
 
+- **The repository's tasks are data.** `tools/tool/xtask.dart` — a
+  CommandRunner that had replaced the Makefile — is gone; the tasks are
+  `xtask.yaml` at the repository root, run by
+  [`package:xtask`](https://pub.dev/packages/xtask), and the seven with real
+  logic in them (the version bump, the profile check, the VSIX install, the
+  native build, the template pack, `profiles`, `uninstall`) are verbs in
+  `tools/bin/xtask.dart`. `cd tools && dart run :xtask check` is what CI's
+  `tools` and `extension` jobs run, `install` puts `frx` on PATH and the
+  extension into `$PROFILE`, `--dry-run` says what either would do first,
+  and `--list` groups every task by who runs it. Options a task took
+  (`--profile`, `--names`) come after `--`; the environment (`PROFILE`,
+  `CODE`) stands in for them as before. The schema beside the file
+  (`xtask.schema.json`) completes it in an editor. *(repository)*
+
 - **The Map's page script is TypeScript.** It was the one untyped file in the
   extension: the picture's shape was declared on the side that builds it
   (`map.ts`) and taken on trust on the side that draws it (`media/map/map.js`),

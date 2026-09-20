@@ -1,0 +1,233 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "xtask.yaml",
+  "description": "A task runner whose tasks are data. This schema describes the SHAPE of the file. Whether it is coherent — no cycle, no name pointing at nothing, no set matching nothing — is what `xtask --validate` answers, and it is not answerable here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Required. The only version this engine reads; an unknown one is refused rather than read as best it can."
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Every gate set this file has, in the order a report groups by. Names only — a gate set is not a task and has nothing to describe. A gate set is run by being named — `xtask check`. Declaring them is what makes a misspelled `gate:` a refusal rather than a new gate set nobody runs."
+    },
+    "sets": {
+      "type": "object",
+      "description": "Named lists and globs, referenced by a task's `each:` or `all:`. A set that expands to nothing is an error: a task given no files checked nothing.",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "The members, written out."
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "include"
+            ],
+            "properties": {
+              "include": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "description": "Patterns, relative to the repository root. `**/` means NONE or more directories, as bash and git read it — so `packages/**/x` finds `packages/x` too."
+              },
+              "exclude": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Patterns removed from what `include:` matched."
+              },
+              "produced-by": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The task that makes this set's members. A set is read when the task naming it is about to run, so `--validate` and `--dry-run` see a different moment; naming the producer buys exactly one thing — the emptiness of this set is not judged before that task has run. Every task reading the set has to reach the producer through `needs:`, and a run still refuses the set empty."
+              }
+            },
+            "description": "Globs, expanded by the engine rather than by a shell, in a deterministic order."
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "values"
+            ],
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "description": "The members, written out. Whatever they name, it is not a path."
+              }
+            },
+            "description": "Members that are not paths — flavours, platforms, SDK versions. Not checked against the repository root and never matched on disk."
+          }
+        ]
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "description": "The graph. Declaration order is meaningful: a gate set runs its tasks in the order they appear here, except where a `needs:` or a `then:` puts one of them after another.",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "desc"
+        ],
+        "not": {
+          "required": [
+            "run",
+            "do"
+          ],
+          "$comment": "a task has one body or none, never two"
+        },
+        "properties": {
+          "desc": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$",
+            "description": "Required, one line, and what `--list` prints — so that a task cannot be added without saying what it is for."
+          },
+          "run": {
+            "type": "array",
+            "items": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            ],
+            "additionalItems": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "An external program as argv: the program, then its arguments, each its own entry. Never a command line — nothing splits a string here, and no shell sees it."
+          },
+          "do": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A verb: `remove`, or one this project registered in its own `bin/xtask.dart`. The engine ships no project verbs."
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Extra arguments appended to the body."
+          },
+          "all": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$",
+            "description": "A set whose members replace the `$all` marker in `run:` or `args:`, in one invocation. The marker is a whole argument and appears once."
+          },
+          "each": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$",
+            "description": "A set whose members the body runs once per, with `$each` standing for the member — a whole argument, or the end of one: `packages/$each`. Nothing may follow it. A failure names the member; without `--keep-going` no further member is STARTED, so at `-j 1` it stops the rest and above that it stops what had not begun."
+          },
+          "in": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Where the body runs, relative to the repository root. May end with `$each`, which stands for the current member of `each:` — as the whole value, or composed: `packages/$each`."
+          },
+          "env": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\r\\n=]*\\S[^\\r\\n=]*$"
+            },
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Environment for this task only. A key rather than syntax, because `FOO=bar cmd` is shell on POSIX and something else on Windows."
+          },
+          "env-required": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Variables that must already be set. Checked before the body runs; the engine installs nothing, it only says which one is missing."
+          },
+          "needs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Direct requirements, run before this task. Each runs once per invocation however many tasks need it."
+          },
+          "then": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Continuations, run after this task's body rather than before it. A body that succeeded and a continuation that failed is its own outcome, with its own exit code."
+          },
+          "gate": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The gate sets this task belongs to. A gate set is named after who runs it: one person's command, or one CI job's."
+          },
+          "serial": {
+            "type": "boolean",
+            "description": "Whether this task's `each:` members must not overlap. `-j` says how much may happen at once; this says whether these particular members may happen together at all — one shared `pub` cache, one git index. Getting it wrong makes a run flaky rather than slow, which is why it is in the file and the number is not."
+          },
+          "interruptible": {
+            "type": "boolean",
+            "description": "Whether a failure elsewhere may stop this task where it stands. A run does not reach into what is already running, because a build killed half-way leaves whatever it was doing in whatever state that half is — this is the author saying a read-only check leaves nothing. A `do:` cannot carry it: stopping a Dart function from outside is not something Dart can do."
+          },
+          "exclusive": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tokens this task holds alone while it runs. Two tasks the graph calls independent may still share a port or a browser; naming what they share is what keeps them apart."
+          },
+          "timeout": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Seconds a `run:` body may take before it is killed. A `do:` cannot carry one: a verb is a Dart function and nothing outside it can stop one, so the limit would pass while the verb kept running. Under `each:` it is a limit per member."
+          }
+        }
+      }
+    }
+  }
+}

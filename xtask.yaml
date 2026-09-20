@@ -1,0 +1,166 @@
+# The repository's build, install and release tasks — data, run by
+# `package:xtask` (https://pub.dev/packages/xtask).
+#
+#   cd tools && dart run :xtask                    what you can run
+#   cd tools && dart run :xtask check              everything CI runs, locally
+#   cd tools && dart run :xtask install            frx on PATH + the extension
+#   cd tools && dart run :xtask version -- 0.3.7   bump the three declarations
+#
+# From `tools/`, because that is the package whose bin/xtask.dart carries the
+# verbs — the tasks below with real logic in them (a version bump across three
+# files, a VS Code profile check). The file itself is found from there upwards,
+# and every `in:` is relative to where it lives: the repository root.
+#
+# These lived in a Makefile, then in a Dart program of their own
+# (tools/tool/xtask.dart, a CommandRunner). Both kept the same list a second
+# time — the Makefile in shell, the program in Dart — and neither could say
+# what would run without running it. Here `--dry-run` says, `--list` groups by
+# who runs what, and a body is argv: no shell sees it, so it is the same
+# command on Windows.
+#
+# Editor support: the schema beside this file is generated and committed —
+#   cd tools && dart run :xtask --emit-schema > ../xtask.schema.json
+# yaml-language-server: $schema=./xtask.schema.json
+version: 1
+
+# Named after who runs them. `check` is a person before calling work done —
+# and what CI's `tools` and `extension` jobs run between them. `test` is the
+# quick half of it. `install` is the everyday one: the CLI on PATH, then the
+# extension into the VS Code profile `$PROFILE` names.
+gates: [check, test, install]
+
+tasks:
+  # ---- the frx CLI, in tools/ --------------------------------------------
+
+  pub-get:
+    desc: resolve the tools package
+    in: tools
+    run: [dart, pub, get]
+
+  # Cheapest first, the way CI runs them: an unformatted file is one command
+  # to fix, and finding that out after the tests is two minutes spent.
+  cli-format:
+    desc: fail if any Dart file in tools/ is unformatted
+    gate: [check]
+    in: tools
+    run: [dart, format, --output=none, --set-exit-if-changed, .]
+
+  cli-analyze:
+    desc: refuse anything the analyzer objects to in tools/
+    gate: [check]
+    in: tools
+    run: [dart, analyze]
+
+  cli-test:
+    desc: the frx suite — unit, and the E2E round trips against a fixture repo
+    gate: [check, test]
+    in: tools
+    run: [dart, test]
+
+  cli:
+    desc: dart install the frx binary onto PATH
+    gate: [install]
+    needs: [pub-get]
+    # `dart install <dir>` — the descriptor forms in `dart install --help` are
+    # for hosted/git packages; a local checkout installs by path.
+    in: tools
+    run: [dart, install, .]
+    then: [cli-verify]
+
+  cli-verify:
+    desc: say which frx is on PATH now, or that none is
+    do: cli-verify
+
+  dist:
+    desc: compile a native frx into tools/dist/ — the binary a release attaches, for this machine only
+    needs: [pub-get]
+    in: tools
+    do: dist
+
+  version:
+    desc: "bump the three version declarations at once: `version -- 0.3.7`"
+    do: version
+
+  # ---- derived artifacts, each with a freshness test in `cli-test` ----------
+
+  docs:
+    desc: regenerate docs/flows from the connectors
+    in: tools
+    run: [dart, run, bin/frx.dart, flow, --md, --root, ..]
+
+  skills:
+    desc: regenerate .claude/skills from the commands themselves
+    in: tools
+    run: [dart, run, bin/frx.dart, update-skills, --root, ..]
+
+  contract:
+    desc: regenerate the extension's constants from the CLI's own ArgParsers
+    in: tools
+    run: [dart, run, bin/gen_contract.dart]
+
+  template:
+    desc: repack the template `frx create` unpacks
+    in: tools
+    do: pack-template
+
+  # ---- the VS Code extension, in tools/vscode/ ----------------------------
+
+  npm-install:
+    desc: install the extension's dev dependencies
+    in: tools/vscode
+    run: [npm, install, --silent]
+
+  ext-typecheck:
+    desc: type-check the extension and the Map page
+    gate: [check]
+    needs: [npm-install]
+    in: tools/vscode
+    run: [npm, run, typecheck]
+
+  ext-validate:
+    desc: "the manifest gate: declared ↔ registered ↔ invoked ↔ menus"
+    gate: [check]
+    needs: [npm-install]
+    in: tools/vscode
+    run: [npm, run, validate]
+
+  ext-test:
+    desc: the extension suite, against the compiled output
+    gate: [check, test]
+    needs: [npm-install]
+    in: tools/vscode
+    run: [npm, test]
+
+  package:
+    desc: build the VSIX (vsce compiles first, through `vscode:prepublish`)
+    needs: [npm-install]
+    in: tools/vscode
+    run: [npx, --yes, "@vscode/vsce", package]
+
+  ext:
+    desc: package the extension and install it into the VS Code profile
+    gate: [install]
+    needs: [package]
+    in: tools/vscode
+    do: install-ext
+
+  ext-install:
+    desc: "install the VSIX already built: `ext-install -- --profile Flutter`"
+    in: tools/vscode
+    do: install-ext
+
+  profiles:
+    desc: "the VS Code profiles on this machine and the frx build in each (`-- --names` for a bare list)"
+    do: profiles
+
+  # ---- teardown -------------------------------------------------------------
+
+  uninstall:
+    desc: remove the extension from the profile, and the binary from PATH
+    in: tools/vscode
+    do: uninstall
+
+  clean:
+    desc: drop build output
+    do: remove
+    args: [tools/vscode/out, tools/vscode/media/map/map.js, tools/dist, "tools/vscode/*.vsix"]

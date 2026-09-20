@@ -1077,11 +1077,11 @@ npm run install:vsix                     # reads the version out of package.json
 ```
 
 You can also install a `.vsix` from the UI: **Extensions** view → `…` menu →
-**Install from VSIX…**. From the monorepo, `dart run tool/xtask.dart ext
---profile <name>` (in `tools/`) does compile → package → install into a named
-VSCode profile in one step — which
-matters, because a VSIX installed into the Default profile is invisible while you
-work in another one.
+**Install from VSIX…**. From the monorepo, `dart run :xtask ext -- --profile
+<name>` (in `tools/`) does compile → package → install into a named VSCode
+profile in one step — which matters, because a VSIX installed into the Default
+profile is invisible while you work in another one. `$PROFILE` stands in for
+the flag, so `PROFILE=<name> dart run :xtask install` is the everyday spelling.
 
 ## Releasing
 
