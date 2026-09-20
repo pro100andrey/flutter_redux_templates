@@ -13,8 +13,6 @@
 // so claiming that type would be a lie.
 import Module = require('module');
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const noop = () => {};
 const disposable = { dispose: noop };
 
@@ -323,7 +321,6 @@ export const vscode: VscodeStub = {
 const orig = (Module as any)._load;
 (Module as any)._load = function (request: string) {
   if (request === 'vscode') return vscode;
-  // eslint-disable-next-line prefer-rest-params
   return orig.apply(this, arguments);
 };
 

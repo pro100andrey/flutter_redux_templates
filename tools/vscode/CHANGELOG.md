@@ -46,6 +46,23 @@ changes are marked as such.
   `_Factory` — three files in a project all called that, one node. It is
   named by the first public class, or the file. *(CLI)*
 
+### Changed
+
+- **The Map's page script is TypeScript.** It was the one untyped file in the
+  extension: the picture's shape was declared on the side that builds it
+  (`map.ts`) and taken on trust on the side that draws it (`media/map/map.js`),
+  so a field renamed in one place broke the other only where a jsdom test
+  happened to look. It is `src/page/map.ts` now, compiled by
+  `tsconfig.page.json` into the same `media/map/map.js` the webview loads,
+  against the same `picture.d.ts` the extension reads — the webview boundary
+  is a type-checked contract. The tests that grepped the script's source for
+  a line of code are gone with it (they would have been reading compiler
+  output); what they claimed is pinned in jsdom where a DOM can see it, and
+  the placement math, which needs a layout engine, stays a browser's to
+  check. `noUnusedLocals`/`noUnusedParameters` are on, and the `eslint`
+  directives that referred to a linter this project never ran are gone —
+  typescript-eslint does not yet support the TypeScript this builds with.
+
 ### Added
 
 - **`graph --focus session.token` — one field, not the slice.** A slice with

@@ -4,8 +4,6 @@ import { test } from 'node:test';
 import * as assert from 'node:assert';
 import menu = require('../src/commands/menu');
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /// The overlay is a rendering of the command inventory, not a second list.
 ///
 /// The defect these pin is drift nobody noticed: the overlay and the palette had

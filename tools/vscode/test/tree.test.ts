@@ -7,8 +7,6 @@ import queries = require('../src/queries');
 import tree = require('../src/tree');
 import type { AppGraph, GraphNode } from '../src/queries';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const SUB = (name: string, type: string, file?: string): GraphNode => ({
   id: `substate:${name}`,
   kind: 'substate',

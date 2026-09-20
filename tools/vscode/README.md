@@ -1006,6 +1006,10 @@ tools/vscode/
 │   ├── cursor.ts           # what artifact the cursor is on (F2 + the editor entry)
 │   ├── rename_provider.ts  # F2 → frx rename        code_actions.ts # doctor quick-fixes
 │   ├── map.ts              # FRX Map: the graph folded into a structural picture
+│   ├── page/               # the Map's page — the one code here that runs in a browser
+│   │   ├── map.ts          #   the page script → media/map/map.js (tsconfig.page.json)
+│   │   ├── picture.d.ts    #   the picture's shape, read by src/map.ts and the page alike
+│   │   └── webview.d.ts    #   acquireVsCodeApi, as the page sees it
 │   ├── flow_view.ts        # FRX Flow: diagram → markdown → the built-in preview
 │   ├── plan_view.ts        # a rename/removal plan → markdown → the same preview
 │   └── commands/           # command handlers on the shared `app` context
@@ -1013,9 +1017,11 @@ tools/vscode/
 │       ├── artifact.ts     # rename / remove
 │       └── menu.ts         # the FRX action overlay
 ├── test/                   # node --test suite (see below)
+├── media/map/              # the Map page's stylesheet, and its compiled script (gitignored)
 ├── out/                    # compiled output — what the VSIX ships (gitignored)
 ├── validate-manifest.ts    # CI gate: declared ↔ registered ↔ invoked ↔ menus
-├── tsconfig.json
+├── tsconfig.json           # the extension (Node, CommonJS)
+├── tsconfig.page.json      # the Map page (browser, a plain script)
 ├── package.json
 └── README.md
 ```
@@ -1033,7 +1039,11 @@ symbol→artifact mapping, the doctor quick-fixes, the overlay's rows, the
 under jsdom in `test/map_page.test.ts` — the wires a picture yields, the focus,
 the pane, the folds, the gaps, what a refresh remembers — because the text-only
 tests over `map.js` let two regressions through that a DOM would have caught;
-jsdom lays nothing out, so the column placement stays a browser's to check.
+jsdom lays nothing out, so the column placement stays a browser's to check. The
+page is TypeScript (`src/page/map.ts`), checked against the same `Picture`
+types `src/map.ts` builds, so a field renamed on one side of the webview
+boundary fails to compile on the other; `map.test.ts` parses the compiled
+script, the one thing a type check of the source cannot say about its output.
 `npm run validate` runs the manifest gate; the palette ↔ overlay contract is
 pinned on the CLI side by `tools/test/extension_contract_test.dart`.
 

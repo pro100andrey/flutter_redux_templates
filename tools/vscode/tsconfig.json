@@ -12,10 +12,19 @@
     "rootDir": ".",
     "outDir": "out",
     "strict": true,
+    // No linter runs here — typescript-eslint does not yet support the
+    // TypeScript this builds with — so what a lint would catch cheaply is
+    // asked of the compiler: an import or a parameter nothing reads.
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "sourceMap": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node", "vscode"]
   },
-  "include": ["extension.ts", "validate-manifest.ts", "src/**/*.ts", "test/**/*.ts"]
+  "include": ["extension.ts", "validate-manifest.ts", "src/**/*.ts", "test/**/*.ts"],
+  // The FRX Map's page script runs in a browser, not in Node, and is its own
+  // project (tsconfig.page.json). `src/page/picture.d.ts` still enters here
+  // through `src/map.ts`'s import — the one contract, read from both sides.
+  "exclude": ["src/page"]
 }

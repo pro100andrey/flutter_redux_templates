@@ -6,8 +6,6 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { FrxLensProvider } from '../src/codelens';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /// The lenses on the monorepo's conventional files.
 ///
 /// A lens is the one entry point neither the manifest nor the command

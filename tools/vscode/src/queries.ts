@@ -203,7 +203,6 @@ async function _json(
   args: string[],
   root: string,
   ignoreCode = false,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const res = await frx.run(inv, [...args, '--json', '--root', root], root, { quiet: true });
   if (!ignoreCode && res.code !== 0) return null;

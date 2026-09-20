@@ -78,7 +78,6 @@ test('an operation the format grows later is named, not mangled', () => {
   // Compatibility is additive-only: a consumer must not choke on a field — or an
   // operation — it does not recognise.
   assert.strictEqual(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     summarize([{ op: 'transmute' as any, path: '/a' }]),
     '**1 transmute**',
   );
@@ -115,7 +114,6 @@ test('the document points at the buttons that answer it', () => {
 });
 
 /** A fake extension context pointing at a scratch directory. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const context = { storageUri: vscode.Uri.file('/store') } as any;
 
 /** Let the best-effort tidy-up after an answered plan run to completion. */
