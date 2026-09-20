@@ -7,7 +7,7 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
-## Unreleased
+## 0.3.7
 
 ### Fixed
 
