@@ -1,8 +1,8 @@
 # The repository's build, install and release tasks — data, run by
 # `package:xtask` (https://pub.dev/packages/xtask).
 #
-#   cd tools && dart run :xtask                    what you can run
-#   cd tools && dart run :xtask check              everything CI runs, locally
+#   cd tools && dart run :xtask --list             what you can run, by who runs it
+#   cd tools && dart run :xtask check              what a person runs before calling work done
 #   cd tools && dart run :xtask install            frx on PATH + the extension
 #   cd tools && dart run :xtask version -- 0.3.7   bump the three declarations
 #
@@ -23,11 +23,22 @@
 # yaml-language-server: $schema=./xtask.schema.json
 version: 1
 
-# Named after who runs them. `check` is a person before calling work done —
-# and what CI's `tools` and `extension` jobs run between them. `test` is the
-# quick half of it. `install` is the everyday one: the CLI on PATH, then the
-# extension into the VS Code profile `$PROFILE` names.
-gates: [check, test, install]
+# Named after who runs them. `check` is a person before calling work done:
+# what needs nothing beyond Dart and Node. `test` is the quick half of it.
+# `install` is the everyday one: the CLI on PATH, then the extension into the
+# VS Code profile `$PROFILE` names. The rest are CI's, one per job, and a job
+# runs exactly one of them — `--check-ci` refuses a workflow that names a
+# command of its own, which is how the list would grow back a second copy.
+gates:
+  - check
+  - test
+  - install
+  - ci-workspace
+  - ci-tools
+  - ci-installers
+  - ci-extension
+  - release-cli
+  - release-vsix
 
 tasks:
   # ---- the frx CLI, in tools/ --------------------------------------------
@@ -41,21 +52,27 @@ tasks:
   # to fix, and finding that out after the tests is two minutes spent.
   cli-format:
     desc: fail if any Dart file in tools/ is unformatted
-    gate: [check]
+    gate: [check, ci-tools]
     in: tools
     run: [dart, format, --output=none, --set-exit-if-changed, .]
 
   cli-analyze:
     desc: refuse anything the analyzer objects to in tools/
-    gate: [check]
+    gate: [check, ci-tools]
     in: tools
     run: [dart, analyze]
 
   cli-test:
     desc: the frx suite — unit, and the E2E round trips against a fixture repo
-    gate: [check, test]
+    gate: [check, test, ci-tools]
     in: tools
     run: [dart, test]
+
+  ci-drift:
+    desc: does every CI job still run one gate set, and nothing of its own?
+    gate: [check, ci-tools]
+    in: tools
+    run: [dart, run, ":xtask", --check-ci]
 
   cli:
     desc: dart install the frx binary onto PATH
@@ -72,7 +89,8 @@ tasks:
     do: cli-verify
 
   dist:
-    desc: compile a native frx into tools/dist/ — the binary a release attaches, for this machine only
+    desc: compile a native frx into tools/dist/ and smoke-test it — the binary a release attaches
+    gate: [release-cli]
     needs: [pub-get]
     in: tools
     do: dist
@@ -80,6 +98,97 @@ tasks:
   version:
     desc: "bump the three version declarations at once: `version -- 0.3.7`"
     do: version
+
+  # ---- the workspace: the template itself, in the root ---------------------
+  # Needs the Flutter SDK and the workspace resolved (`flutter pub get`), which
+  # is the CI job's to provide before this runs — see .github/workflows/ci.yml.
+
+  format-workspace:
+    desc: fail if any hand-written Dart file of the workspace is unformatted
+    gate: [ci-workspace]
+    do: format-workspace
+
+  analyze-workspace:
+    # The members by name. A bare `dart analyze` from the root descends into
+    # tools/ too — a standalone package that is not resolved here — and floods
+    # false errors; tools/ is analyzed by `cli-analyze`.
+    desc: refuse anything the analyzer objects to in the workspace members
+    gate: [ci-workspace]
+    run: [dart, analyze, models, storage, localization, http_client, ui, business, app]
+
+  # `models` and `http_client` have a pure-Dart closure and run under the bare
+  # `test` runner; the rest pull in Flutter and need `flutter test`. Split for
+  # that reason only — one `flutter test` over all of them would work but boot
+  # a Flutter test host for two packages that do not need one.
+  test-models:
+    desc: the models suite
+    gate: [ci-workspace]
+    in: models
+    run: [dart, test]
+
+  test-http-client:
+    desc: the http_client suite
+    gate: [ci-workspace]
+    in: http_client
+    run: [dart, test]
+
+  test-flutter:
+    desc: the business, ui and app suites
+    gate: [ci-workspace]
+    run: [flutter, test, business, ui, app]
+
+  codegen-drift:
+    desc: the committed generated code is what its sources generate
+    gate: [ci-workspace]
+    do: codegen-drift
+
+  doctor:
+    # Also the docs gate: docs/flows/ is a pure function of the connectors, so
+    # doctor fails when a page's behaviour changed without `docs` being re-run.
+    desc: frx doctor on the template
+    gate: [ci-workspace]
+    needs: [pub-get]
+    in: tools
+    run: [dart, run, bin/frx.dart, doctor, --root, ..]
+
+  graph-gate:
+    # The "nothing reaches" list is advice, not drift, so doctor does not
+    # report it — frx's own `add-action -k waiting` writes a selector nothing
+    # reads yet. For the template it is a gate all the same: this repository
+    # shipped seven dead selectors for months with doctor green.
+    desc: frx graph — nothing in the template is unreached
+    gate: [ci-workspace]
+    needs: [pub-get]
+    in: tools
+    run: [dart, run, bin/frx.dart, graph, --fail-on-orphans, --root, ..]
+
+  reality-test:
+    # Here rather than in `ci-tools` because it needs the Flutter packages
+    # resolved: it compares frx's page nodes against the route classes
+    # auto_route actually generated. Without a resolved monorepo it skips
+    # itself, which reads like a pass.
+    desc: frx against the real monorepo
+    gate: [ci-workspace]
+    needs: [pub-get]
+    in: tools
+    run: [dart, test, test/reality_test.dart]
+
+  # ---- the install scripts -------------------------------------------------
+  # The two scripts nobody runs from a checkout: they are fetched over curl and
+  # executed on a machine that has never seen this repository, so a typo in
+  # them is discovered by a stranger during their first minute with the tool.
+
+  installer-sh:
+    # `-s sh`, matching the shebang: the script must run under dash, ash and
+    # whatever else is /bin/sh, so bashisms are the defect being looked for.
+    desc: shellcheck install.sh as POSIX sh
+    gate: [ci-installers]
+    run: [shellcheck, -s, sh, tools/scripts/install.sh]
+
+  installer-ps1:
+    desc: parse and analyse install.ps1 with PSScriptAnalyzer
+    gate: [ci-installers]
+    run: [pwsh, -NoProfile, -File, tools/scripts/check-install.ps1]
 
   # ---- derived artifacts, each with a freshness test in `cli-test` ----------
 
@@ -112,27 +221,42 @@ tasks:
 
   ext-typecheck:
     desc: type-check the extension and the Map page
-    gate: [check]
+    gate: [check, ci-extension, release-vsix]
     needs: [npm-install]
     in: tools/vscode
     run: [npm, run, typecheck]
 
   ext-validate:
     desc: "the manifest gate: declared ↔ registered ↔ invoked ↔ menus"
-    gate: [check]
+    gate: [check, ci-extension, release-vsix]
     needs: [npm-install]
     in: tools/vscode
     run: [npm, run, validate]
 
   ext-test:
     desc: the extension suite, against the compiled output
-    gate: [check, test]
+    gate: [check, test, ci-extension, release-vsix]
     needs: [npm-install]
     in: tools/vscode
     run: [npm, test]
 
+  ext-integration:
+    # The unit suite runs against a hand-written `vscode` stub; this is the one
+    # run against the host itself — activation, command registration, the
+    # doctor command end to end. `@vscode/test-electron` downloads a VS Code
+    # into .vscode-test/ and needs a display, hence xvfb — which is why this is
+    # CI's and not `check`'s.
+    desc: the integration suite, in a real VS Code under xvfb
+    gate: [ci-extension]
+    needs: [npm-install]
+    in: tools/vscode
+    run: [xvfb-run, -a, npm, run, "test:integration"]
+
   package:
+    # Named `frx-<version>.vsix` from package.json, which a release's `verify`
+    # job has already checked against the tag.
     desc: build the VSIX (vsce compiles first, through `vscode:prepublish`)
+    gate: [ci-extension, release-vsix]
     needs: [npm-install]
     in: tools/vscode
     run: [npx, --yes, "@vscode/vsce", package]

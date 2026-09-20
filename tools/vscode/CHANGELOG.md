@@ -60,7 +60,17 @@ changes are marked as such.
   and `--list` groups every task by who runs it. Options a task took
   (`--profile`, `--names`) come after `--`; the environment (`PROFILE`,
   `CODE`) stands in for them as before. The schema beside the file
-  (`xtask.schema.json`) completes it in an editor. *(repository)*
+  (`xtask.schema.json`) completes it in an editor.
+
+  CI names no command of its own any more: each job runs one gate set —
+  `ci-workspace`, `ci-tools`, `ci-installers`, `ci-extension`, and in the
+  release workflow `release-cli` and `release-vsix` — and what a job
+  provides (the checkout, the toolchain, `flutter pub get`, `npm ci`) is
+  marked as not a gate, with the reason. `xtask --check-ci` reads both
+  workflows and refuses a step that names a command without one; it runs
+  as the `ci-drift` task, in `check` and in CI's own `tools` job. The
+  release's smoke test of the compiled binary is the `dist` task now, so a
+  developer's `dist` and the release's build are one thing. *(repository)*
 
 - **The Map's page script is TypeScript.** It was the one untyped file in the
   extension: the picture's shape was declared on the side that builds it

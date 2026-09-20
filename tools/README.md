@@ -56,8 +56,12 @@ what would run and `--why` says what put it in the plan. The handful with real
 logic in them — the version bump across three files, the VS Code profile check
 — are **verbs**, Dart functions in `bin/xtask.dart` that the file names by
 `do:`; that is why the command is spelled from `tools/`, the package whose
-entry point carries them. `install` is a gate set — the whole loop: `dart
-install` for the binary, then package → install the VSIX. **The profile
+entry point carries them. CI names no command of its own: each job runs one
+gate set (`ci-workspace`, `ci-tools`, `ci-installers`, `ci-extension`; the
+release workflow `release-cli` and `release-vsix`), and the `ci-drift` task in
+`check` refuses a workflow step that drifts from that. `install` is a gate set
+too — the whole loop: `dart install` for the binary, then package → install
+the VSIX. **The profile
 matters** — VSCode installs extensions per profile, so a VSIX put in the Default
 profile is invisible while you work in another one. `profiles` lists them and
 shows which frx build each holds. A verb reads `$PROFILE` and `$CODE`, so set

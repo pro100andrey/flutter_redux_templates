@@ -48,6 +48,8 @@ Future<void> main(List<String> args) async {
       'install-ext': installExt,
       'profiles': profiles,
       'uninstall': uninstall,
+      'format-workspace': formatWorkspace,
+      'codegen-drift': codegenDrift,
     },
   );
 }
@@ -159,7 +161,17 @@ Future<int> cliVerify(VerbContext context) async {
 /// `dart compile exe` builds for the host and does not cross-compile. Worth
 /// having locally to check what an install actually gets: `dart install` and
 /// `dart run` both take different paths through the SDK than an AOT snapshot
-/// does.
+/// does — and it is the binary a release attaches, built on each platform's
+/// own runner.
+///
+/// The CLI is self-contained: the template `frx create` unpacks is a
+/// generated Dart source, and the skills and contract it writes are string
+/// constants, so the binary needs no files beside it. Three things are then
+/// asked of it, each a different way an AOT build can be broken while still
+/// linking: it runs at all, it parses a real project (the analyzer front end
+/// works), and `create --dry-run` decodes the embedded template archive — the
+/// one artifact that is a data blob rather than code, and so the one a compile
+/// could plausibly mangle. All three cost about a second and need no network.
 Future<int> dist(VerbContext context) async {
   final tools = toolsOf(context);
   Directory(p.join(tools, 'dist')).createSync(recursive: true);
@@ -175,11 +187,23 @@ Future<int> dist(VerbContext context) async {
   if (compiled != ExitCode.success) {
     return compiled;
   }
-  final ran = await context.run([p.join(tools, out), '--version']);
-  if (ran != ExitCode.success) {
-    return ran;
+  final frx = p.join(tools, out);
+  final smoke = Directory.systemTemp.createTempSync('frx_smoke_');
+  try {
+    for (final args in [
+      ['--version'],
+      ['list-substates', '--root', '..'],
+      ['create', 'smoke_app', '--dry-run', '--target', smoke.path],
+    ]) {
+      final ran = await context.run([frx, ...args]);
+      if (ran != ExitCode.success) {
+        return ran;
+      }
+    }
+  } finally {
+    smoke.deleteSync(recursive: true);
   }
-  context.log(sizeOf(File(p.join(tools, out))));
+  context.log('${sizeOf(File(frx))}  $out');
   return ExitCode.success;
 }
 
@@ -278,6 +302,89 @@ Future<int> packTemplate(VerbContext context) async {
     "'dart test test/template_freshness_test.dart' to confirm",
   );
   return ExitCode.success;
+}
+
+// --- the workspace ----------------------------------------------------------
+
+/// Every hand-written Dart file of the workspace is formatted.
+///
+/// Generated files are committed but formatted by their builders, so they are
+/// left out — which is a question for git, not for a glob: `git ls-files` with
+/// the three exclusions is exactly the set, and a glob would have to restate
+/// it.
+Future<int> formatWorkspace(VerbContext context) async {
+  final listed = await Process.run('git', [
+    'ls-files',
+    '*.dart',
+    ':!*.g.dart',
+    ':!*.freezed.dart',
+    ':!*.gr.dart',
+  ], workingDirectory: context.workingDirectory);
+  if (listed.exitCode != 0) {
+    context.log('git ls-files failed: ${listed.stderr}');
+    return ExitCode.taskFailed;
+  }
+  final files = (listed.stdout as String)
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+  if (files.isEmpty) {
+    context.log('git ls-files named no Dart file — nothing was checked');
+    return ExitCode.taskFailed;
+  }
+  return context.run([
+    'dart',
+    'format',
+    '--output=none',
+    '--set-exit-if-changed',
+    ...files,
+  ]);
+}
+
+/// The committed generated code is what its sources generate.
+///
+/// Regenerates everything and fails if the committed output moved — a change
+/// that edits a source and forgets to commit the regenerated part is caught
+/// here. `--workspace` builds every member from the `app` package. Asked of
+/// `git status --porcelain` rather than `git diff`, so a NEW generated file
+/// that was never committed fails too, not only a modified one.
+Future<int> codegenDrift(VerbContext context) async {
+  final built = await context.run([
+    'dart',
+    'run',
+    'build_runner',
+    'build',
+    '--delete-conflicting-outputs',
+    '--workspace',
+  ], workingDirectory: 'app');
+  if (built != ExitCode.success) {
+    return built;
+  }
+  final status = await Process.run('git', [
+    'status',
+    '--porcelain',
+    '--',
+    '*.g.dart',
+    '*.freezed.dart',
+    '*.gr.dart',
+  ], workingDirectory: context.workingDirectory);
+  if (status.exitCode != 0) {
+    context.log('git status failed: ${status.stderr}');
+    return ExitCode.taskFailed;
+  }
+  final drift = (status.stdout as String).trim();
+  if (drift.isEmpty) {
+    return ExitCode.success;
+  }
+  context
+    ..log('Committed generated code is stale — regenerate and commit:')
+    ..log(
+      '  (cd app && dart run build_runner build --delete-conflicting-outputs '
+      '--workspace)',
+    )
+    ..log(drift);
+  return ExitCode.taskFailed;
 }
 
 // --- the extension ----------------------------------------------------------
