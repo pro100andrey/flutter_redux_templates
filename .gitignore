@@ -27,6 +27,9 @@ node_modules/
 
 # Compiled output of the VSCode extension (built by `npm run compile`).
 tools/vscode/out/
+# The FRX Map's page script, compiled from tools/vscode/src/page/map.ts by the
+# same command (tsconfig.page.json).
+tools/vscode/media/map/map.js
 
 # `npm run test:integration` downloads a VS Code here (tools/vscode).
 .vscode-test/

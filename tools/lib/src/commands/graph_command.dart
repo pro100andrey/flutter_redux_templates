@@ -39,9 +39,9 @@ class GraphCommand extends Command<int> {
         'focus',
         help:
             'Only the subgraph around one artifact. Takes a node id '
-            '(page:logIn), a symbol (LogInRoute, SetEmailAction) or a bare '
-            'name '
-            '(log_in).',
+            '(page:logIn), a symbol (LogInRoute, SetEmailAction), a bare '
+            'name (log_in), or one field of a substate (session.token) — '
+            'what touches that field, not the whole slice.',
       )
       ..addOption(
         'direction',
@@ -146,7 +146,12 @@ class GraphCommand extends Command<int> {
         console.err.writeln('frx: ${resolved.error}');
         return 70;
       }
-      graph = whole.focusOn(resolved.id!, depth: depth, direction: direction);
+      graph = whole.focusOn(
+        resolved.id!,
+        depth: depth,
+        direction: direction,
+        field: resolved.field,
+      );
     }
 
     if (results.flag('json')) {
@@ -166,18 +171,50 @@ class GraphCommand extends Command<int> {
 
   /// The node id [token] names, or the reason it names none.
   ///
-  /// Three spellings, most specific first: a node id, then whatever the
-  /// identifier resolver makes of a substate/page symbol, then a bare node
-  /// name. The resolver is the one `frx which` and the editor's F2 already use
-  /// — a second implementation of "what does `LogInRoute` mean" is how the
-  /// conventions fork.
-  ({String? id, String? error}) _resolveFocus(
+  /// Four spellings, most specific first: a node id, then a substate's field
+  /// (`session.token`), then whatever the identifier resolver makes of a
+  /// substate/page symbol, then a bare node name. The resolver is the one
+  /// `frx which` and the editor's F2 already use — a second implementation of
+  /// "what does `LogInRoute` mean" is how the conventions fork.
+  ({String? id, String? field, String? error}) _resolveFocus(
     String token,
     AppGraph graph,
     ArgResults results,
   ) {
     if (graph.node(token) != null) {
-      return (id: token, error: null);
+      return (id: token, field: null, error: null);
+    }
+
+    // `session.token` — two lower-case identifiers, the first a substate.
+    // Checked against the slice's own fields: a focus on a field that is not
+    // there would be answered with whatever touches the whole slice, which
+    // reads as "only the persistor" about a typo.
+    final field = _fieldSpelling.firstMatch(token);
+    if (field != null) {
+      final id = 'substate:${Casing.parse(field[1]!).camel}';
+      final node = graph.node(id);
+      if (node != null) {
+        final fields = node.fields['fields'];
+        if (fields is! List) {
+          return (
+            id: null,
+            field: null,
+            error:
+                '${field[1]} is not a slice of ours — it has no state class '
+                'to list the fields of.',
+          );
+        }
+        if (!fields.contains(field[2])) {
+          return (
+            id: null,
+            field: null,
+            error:
+                '${field[1]} has no field `${field[2]}`. It has: '
+                '${fields.join(', ')}.',
+          );
+        }
+        return (id: id, field: field[2], error: null);
+      }
     }
 
     final resolver = TargetResolver.locate(results['root'] as String?);
@@ -192,7 +229,7 @@ class GraphCommand extends Command<int> {
           ? 'substate:$camel'
           : 'page:$camel';
       if (graph.node(id) != null) {
-        return (id: id, error: null);
+        return (id: id, field: null, error: null);
       }
     }
 
@@ -204,12 +241,13 @@ class GraphCommand extends Command<int> {
         if (n.name == token) n,
     ];
     if (byName.length == 1) {
-      return (id: byName.single.id, error: null);
+      return (id: byName.single.id, field: null, error: null);
     }
 
     if (byName.length > 1) {
       return (
         id: null,
+        field: null,
         error:
             '"$token" names ${byName.length} nodes — '
             '${byName.map((n) => n.id).join(', ')}. Pass one of those ids.',
@@ -218,12 +256,20 @@ class GraphCommand extends Command<int> {
 
     return (
       id: null,
+      field: null,
       error:
           'nothing in the graph is called "$token".\n'
           'Takes a node id (page:logIn, substate:session, '
-          'action:logIn.SetEmailAction), a symbol (LogInRoute, LogInState) or '
-          'a '
-          'bare name (log_in). Run `frx graph` to list them.',
+          'action:logIn.SetEmailAction), a symbol (LogInRoute, LogInState), '
+          'a bare name (log_in) or a field (session.token). Run `frx graph` '
+          'to list them.',
     );
   }
+
+  /// `session.token`, or `log_in.email` — the substate however the caller
+  /// spells it, since `--focus log_in` already takes the snake form — and
+  /// `field:session.token`, which is how the orphan list names one.
+  static final _fieldSpelling = RegExp(
+    r'^(?:field:)?([a-z][A-Za-z0-9_]*)\.([a-z][A-Za-z0-9]*)$',
+  );
 }

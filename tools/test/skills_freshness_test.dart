@@ -29,8 +29,7 @@ void main() {
     final repoRoot = p.dirname(Directory.current.absolute.path);
     final fresh = SkillGen().generate();
 
-    const regen =
-        'Regenerate them: cd tools && dart run tool/xtask.dart skills';
+    const regen = 'Regenerate them: cd tools && dart run :xtask skills';
 
     // Named before compared, so a failure says which skill rather than "some
     // file differs".

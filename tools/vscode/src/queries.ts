@@ -96,6 +96,8 @@ export interface GraphNode {
   resolved?: boolean;
   /** substates */
   type?: string;
+  /** The slice's own fields, off its state class — absent for a framework slice. */
+  fields?: string[];
   /** actions */
   mixins?: string[];
   isAsync?: boolean;
@@ -127,7 +129,10 @@ export interface GraphEdge {
     | 'builds'
     | 'waitsFor'
     | 'uses';
-  /** What triggers it — a callback, a `copyWith` field list, a getter name. */
+  /**
+   * What triggers it — a callback, or for an edge into a substate the place
+   * touched: `session.token`, or `session` for the whole slice.
+   */
   via?: string;
   condition?: string;
   inferred?: boolean;
@@ -198,7 +203,6 @@ async function _json(
   args: string[],
   root: string,
   ignoreCode = false,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const res = await frx.run(inv, [...args, '--json', '--root', root], root, { quiet: true });
   if (!ignoreCode && res.code !== 0) return null;

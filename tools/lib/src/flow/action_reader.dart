@@ -1,5 +1,5 @@
-/// Reading one action class off its file: name, mixins, async-ness, the fields
-/// it writes, cascading dispatches, and whether it throws a `UserException`.
+/// Reading the action classes off a file: name, mixins, async-ness, the fields
+/// each writes, cascading dispatches, and whether it throws a `UserException`.
 library;
 
 import 'dart:io';
@@ -8,47 +8,131 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/declarations.dart' show classesIn;
 import 'dispatch_visitor.dart';
 import 'flow_model.dart';
 
-/// What the action declared in [unit] does.
+/// What the *main* action declared in [unit] does — the first one, which by
+/// the naming convention is the one the file is named for.
 ///
 /// [file] names the class when the unit declares none, and is carried for
 /// click-to-open in the viewer.
-ActionInfo readActionInfo(CompilationUnit unit, File file) {
+ActionInfo readActionInfo(CompilationUnit unit, File file) =>
+    readActionsIn(unit, file).first;
+
+/// Every action class declared in [unit], in source order, each read on its
+/// own.
+///
+/// **One entry per class, not one per file.** A file under `actions/` holds
+/// its public action and, often enough, the private steps it dispatches on the
+/// way — `_ProbeStarted` beside `ProbeEmbedSpeedAction` — or a second public
+/// one that belongs with it, `CloseTaskAction` beside `OpenTaskAction`. Read
+/// as one, the file blended them: one class's `with` clause overwrote the
+/// other's, every `reduce()` contributed to one `isAsync`, and the dispatches
+/// of all of them were credited to the first. Read as one *and keyed on the
+/// file*, the graph could not give the second class a node at all, so a
+/// dispatch of it was a gap and the class itself was invisible.
+///
+/// Which classes are actions is decided by shape, not by position: a class is
+/// one when it extends something ending in `Action` (`Action`,
+/// `ReduxAction<AppState>`) or is itself named `…Action`, and is not abstract.
+/// A helper class in the same file is neither, and is left alone. A file where
+/// nothing matches falls back to its first class, which is what every reader
+/// assumed before, and a file with no class at all — the template's own
+/// `mixin … on Action` idiom — yields one entry with [ActionInfo.declaresClass]
+/// false so a caller can skip it.
+///
+/// The list is never empty.
+List<ActionInfo> readActionsIn(CompilationUnit unit, File file) {
+  final classes = classesIn(unit).toList();
+  var actions = [
+    for (final c in classes)
+      if (_isActionClass(c)) c,
+  ];
+  if (actions.isEmpty && classes.isNotEmpty) {
+    actions = [classes.first];
+  }
+
+  if (actions.isEmpty) {
+    return [
+      ActionInfo(
+        className: p.basenameWithoutExtension(file.path),
+        declaresClass: false,
+        file: file.path,
+      ),
+    ];
+  }
+
+  final actionSet = actions.toSet();
+  return [for (final c in actions) _readClass(c, actionSet, unit, file)];
+}
+
+/// Whether [c] is an action by shape — see [readActionsIn].
+bool _isActionClass(ClassDeclaration c) {
+  if (c.abstractKeyword != null) {
+    return false;
+  }
+  final name = c.namePart.typeName.lexeme;
+  if (name.endsWith('Action')) {
+    return true;
+  }
+  final base = c.extendsClause?.superclass.name.lexeme;
+  return base != null && base.endsWith('Action');
+}
+
+/// Reads [c] together with the rest of its file, minus the other actions.
+///
+/// The file is the unit of reading, not the class: a reducer that calls a
+/// top-level `_signUp()` three lines down throws whatever that throws, and a
+/// mixin declared beside the class carries its shared `reduce()`. What is
+/// left out is exactly the other action classes, whose members are theirs,
+/// and a mixin this class does not apply.
+ActionInfo _readClass(
+  ClassDeclaration c,
+  Set<ClassDeclaration> actions,
+  CompilationUnit unit,
+  File file,
+) {
+  // Off the declaration, not the visitor: a helper class read along with
+  // this one has a `with` clause of its own, and it is not this action's.
+  final mixins = [
+    for (final m in c.withClause?.mixinTypes ?? const <NamedType>[])
+      m.toSource(),
+  ];
+
   final v = _ActionVisitor();
-  unit.accept(v);
+  c.accept(v);
+  for (final d in unit.declarations) {
+    if (d == c || actions.contains(d)) {
+      continue;
+    }
+    if (d is MixinDeclaration && !mixins.contains(d.name.lexeme)) {
+      continue;
+    }
+    d.accept(v);
+  }
+
+  final at = unit.lineInfo.getLocation(c.namePart.typeName.offset);
   return ActionInfo(
-    className: v.className ?? p.basenameWithoutExtension(file.path),
-    declaresClass: v.className != null,
-    mixins: v.mixins,
+    className: c.namePart.typeName.lexeme,
+    mixins: mixins,
     isAsync: v.isAsync,
     writes: v.writes,
     dispatches: v.dispatches,
     throwsUserException: v.throwsUserException,
     file: file.path,
+    line: at.lineNumber,
+    column: at.columnNumber,
   );
 }
 
-/// Reads one action class: name, mixins, async-ness, the field it writes,
-/// cascading dispatches, and whether it throws a `UserException`.
+/// Reads one action class: async-ness, the field it writes, cascading
+/// dispatches, and whether it throws a `UserException`.
 class _ActionVisitor extends RecursiveAstVisitor<void> {
-  String? className;
-  List<String> mixins = const [];
   var isAsync = false;
   List<StateWrite> writes = const [];
   List<DispatchStep> dispatches = const [];
   var throwsUserException = false;
-
-  @override
-  void visitClassDeclaration(ClassDeclaration node) {
-    className ??= node.namePart.typeName.lexeme;
-    final withClause = node.withClause;
-    if (withClause != null) {
-      mixins = [for (final m in withClause.mixinTypes) m.toSource()];
-    }
-    super.visitClassDeclaration(node);
-  }
 
   @override
   void visitMethodDeclaration(MethodDeclaration node) {

@@ -55,7 +55,7 @@ jobs:
         # what the marketplace publishes. `dart test` already gates the first two
         # against each other; this gates all three against the *tag*, which no
         # test can see.
-        run: |
+        run: | # xtask: not a gate — the tag's version against the three declarations, and the tag is the workflow's to know
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             version="${{ inputs.version }}"
           else
@@ -124,32 +124,12 @@ jobs:
         # it would only add a download.
         if: matrix.os != 'linux'
 
-      - name: Resolve
-        run: dart pub get
-
-      - name: Compile
-        # The CLI is self-contained: the template `frx create` unpacks is a
-        # generated Dart source (lib/src/template/template.g.dart), and the skills
-        # and contract it writes are string constants. Nothing is read relative
-        # to the script, so an AOT binary needs no files beside it.
-        shell: bash
-        run: |
-          mkdir -p dist
-          dart compile exe bin/frx.dart -o "dist/frx${{ matrix.os == 'windows' && '.exe' || '' }}"
-
-      - name: Smoke-test the binary
-        shell: bash
-        # Three things, each a different way an AOT build can be broken while
-        # still linking: it runs at all, it parses a real project (the analyzer
-        # front end works), and `create --dry-run` decodes the embedded template
-        # archive — the one artifact that is a data blob rather than code, and so
-        # the one a compile could plausibly mangle. All three cost ~1s together
-        # and need no network.
-        run: |
-          frx="./dist/frx${{ matrix.os == 'windows' && '.exe' || '' }}"
-          "$frx" --version
-          "$frx" list-substates --root ..
-          "$frx" create smoke_app --dry-run --target "$RUNNER_TEMP/smoke"
+      - name: release-cli
+        # The `dist` task: compile for this runner, then smoke-test the binary
+        # three ways — it runs, it parses a real project, `create --dry-run`
+        # decodes the embedded template — the same task a developer runs to see
+        # what an install actually gets.
+        run: dart run :xtask release-cli
 
       - name: Archive
         id: archive
@@ -157,7 +137,7 @@ jobs:
         # tar.gz everywhere but Windows, where a zip is what a user can open with
         # no extra tool. The archive holds the bare executable at its root, so
         # install.sh/install.ps1 extract and move one file.
-        run: |
+        run: | # xtask: not a gate — names the archive after the tag and the runner, which only the workflow knows
           name="frx-${{ needs.verify.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}"
           cd dist
           if [ "${{ matrix.os }}" = "windows" ]; then
@@ -193,9 +173,6 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: tools/vscode
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -203,21 +180,19 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: tools/vscode/package-lock.json
+      - uses: dart-lang/setup-dart@v1
 
       - name: Install
-        run: npm ci
+        working-directory: tools/vscode
+        run: npm ci # xtask: not a gate — the committed lock, installed exactly, before any task runs
 
-      # The same gate CI runs, repeated here rather than assumed: a tag can be
-      # pushed at a commit CI never finished, and this one publishes.
-      - name: Type-check
-        run: npm run typecheck
-      - name: Validate manifest
-        run: npm run validate
-      - name: Test
-        run: npm test
-
-      - name: Package
-        run: npx --yes @vscode/vsce package --out "frx-${{ needs.verify.outputs.version }}.vsix"
+      - name: release-vsix
+        # The gate CI runs, repeated here rather than assumed: a tag can be
+        # pushed at a commit CI never finished, and this one publishes. Then
+        # the package, named `frx-<version>.vsix` from package.json — which
+        # `verify` has already held to the tag.
+        working-directory: tools
+        run: dart run :xtask release-vsix
 
       - uses: actions/upload-artifact@v4
         with:
@@ -247,7 +222,7 @@ jobs:
         # install.sh fetches: it downloads a single archive and verifies it
         # against the one line that names it, rather than fetching a second
         # per-asset file it would have to construct a URL for.
-        run: |
+        run: | # xtask: not a gate — gathers what the matrix uploaded into one release, on a runner that built nothing
           mkdir -p assets
           find staging -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.vsix' \) \
             -exec mv {} assets/ \;

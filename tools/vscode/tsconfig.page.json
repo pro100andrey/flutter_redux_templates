@@ -1,0 +1,21 @@
+{
+  // The FRX Map's page script: a plain browser script, compiled from
+  // `src/page/map.ts` to `media/map/map.js`, which the webview loads by URI.
+  // Its own project because it is the one file in the extension that runs in a
+  // browser and not in Node: `lib` is the DOM, `types` is nothing, and the
+  // output is a script — no `require`, no `exports`. The `.d.ts` files beside
+  // it are read and never emitted, so the page's build leaves exactly one file.
+  "compilerOptions": {
+    "target": "ES2021",
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "rootDir": "src/page",
+    "outDir": "media/map",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": []
+  },
+  "include": ["src/page/**/*.ts"]
+}

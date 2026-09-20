@@ -7,8 +7,6 @@ import queries = require('../src/queries');
 import tree = require('../src/tree');
 import type { AppGraph, GraphNode } from '../src/queries';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const SUB = (name: string, type: string, file?: string): GraphNode => ({
   id: `substate:${name}`,
   kind: 'substate',
@@ -183,6 +181,57 @@ test('a selector nothing reads is marked with why', async () => {
   assert.strictEqual((dead.iconPath as any).id, 'warning');
   assert.strictEqual(live.description, '');
   assert.strictEqual((live.iconPath as any).id, 'symbol-property');
+});
+
+test('a private step is titled by its file, so two alike stay two rows', async () => {
+  const { p } = provider(graphOf({
+    nodes: [
+      SUB('setup', 'SetupState'),
+      ACTION('setup', 'InstallSkillsAction'),
+      { ...ACTION('setup', '_AgentWorking'), id: 'action:setup.InstallSkillsAction._AgentWorking' },
+      { ...ACTION('setup', '_AgentWorking'), id: 'action:setup.InstallMcpAction._AgentWorking' },
+    ],
+    orphans: [],
+  }));
+  const subs = await of(p, 0);
+  assert.deepStrictEqual(
+    (await p.getChildren(subs[0])).map((i) => i.label),
+    ['InstallSkillsAction', 'InstallSkillsAction._AgentWorking', 'InstallMcpAction._AgentWorking'],
+  );
+});
+
+test('a substate lists its fields after what acts on it, marking the dead', async () => {
+  const { p } = provider(graphOf({
+    nodes: [
+      { ...SUB('setup', 'SetupState', '/repo/setup_state.dart'), fields: ['step', 'agentErrorOn'] },
+      ACTION('setup', 'CheckSetupAction'),
+    ],
+    orphans: [{ node: 'field:setup.agentErrorOn', why: 'written, nothing reads it' }],
+  }));
+  const subs = await of(p, 0);
+  const rows = await p.getChildren(subs[0]);
+  assert.deepStrictEqual(
+    rows.map((i) => [i.label, i.description]),
+    [
+      ['CheckSetupAction', ''],
+      ['step', ''],
+      ['agentErrorOn', 'written, nothing reads it'],
+    ],
+  );
+  assert.strictEqual((rows[2].iconPath as any).id, 'warning');
+  assert.strictEqual((rows[1].iconPath as any).id, 'symbol-variable');
+  assert.strictEqual(rows[2].frxKind, 'field');
+});
+
+test('a substate with fields and nothing else still expands', async () => {
+  const { p } = provider(graphOf({
+    nodes: [{ ...SUB('theme', 'ThemeState'), fields: ['mode'] }, SUB('wait', 'Wait')],
+    orphans: [],
+  }));
+  const [theme, wait] = await of(p, 0);
+  assert.strictEqual(theme.collapsibleState, 1, 'Collapsed — its fields are under it');
+  assert.strictEqual(wait.collapsibleState, 0, 'a framework slice lists no fields');
+  assert.deepStrictEqual((await p.getChildren(theme)).map((i) => i.label), ['mode']);
 });
 
 test('an action nothing dispatches is marked, not hidden', async () => {

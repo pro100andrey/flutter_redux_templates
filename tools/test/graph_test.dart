@@ -4,9 +4,11 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/ast/source_index.dart';
+import 'package:tools/src/flow/flow_model.dart' show StateFieldLabel;
 import 'package:tools/src/flow/route_map.dart';
 import 'package:tools/src/graph/graph_model.dart';
 import 'package:tools/src/graph/graph_reader.dart';
+import 'package:tools/src/graph/state_reads.dart';
 import 'package:tools/src/workspace/frx_workspace.dart';
 
 /// A workspace built around the things that only break once the readers are
@@ -44,12 +46,44 @@ extension type SelectLogIn(AppState _state) implements Selector {
 extension type SelectSession(AppState _state) implements Selector {
   String? get token => _state.session.token;
   bool get isAvailable => token != null;
+  String get locale => _state.session.locale;
+  // The whole slice, not a field of it.
+  SessionState get whole => _state.session;
 }
 
 // A composite: reads other selectors rather than the state. Nothing reads it,
 // which is what makes everything it alone reads dead too.
 extension SelectComposites on Select {
   bool get canEnterApp => session.isAvailable && !logIn.isWaiting;
+}
+''');
+
+  // The state classes, so a substate node can list its fields.
+  put('business/lib/redux/session/models/session_state.dart', r'''
+@freezed
+abstract class SessionState with _$SessionState {
+  const factory SessionState({String? token, @Default('en') String locale}) =
+      _SessionState;
+}
+''');
+  put('business/lib/redux/log_in/models/log_in_state.dart', r'''
+@freezed
+abstract class LogInState with _$LogInState {
+  // `attempts`: nothing names it — but `LogInAction`'s flat
+  // `copyWith(logIn: …)` replaces the slice, which writes every field.
+  const factory LogInState({
+    String? email,
+    String? password,
+    @Default(0) int attempts,
+  }) = _LogInState;
+}
+''');
+  put('business/lib/redux/registration/models/registration_state.dart', r'''
+@freezed
+abstract class RegistrationState with _$RegistrationState {
+  // `draft`: nothing writes it and nothing reads it.
+  const factory RegistrationState({String? email, String? draft}) =
+      _RegistrationState;
 }
 ''');
 
@@ -72,6 +106,10 @@ import '../../session/actions/set_token_action.dart';
 class LogInAction extends Action with WaitingAction {
   @override
   Future<AppState> reduce() async {
+    // A direct read of the state on the way to the write — no selector.
+    if (state.logIn.email == null || state.logIn.password == null) {
+      return state;
+    }
     dispatch(SetTokenAction(value: 'x'));
     return state.copyWith(logIn: const LogInState());
   }
@@ -85,6 +123,17 @@ class SetTokenAction extends Action {
   final String value;
   @override
   AppState reduce() => state.copyWith.session(token: value);
+}
+''');
+
+  // Writes the *other* field of the session — what a focus on
+  // `session.token` must leave out, and a focus on `session.locale` must be.
+  put('business/lib/redux/session/actions/set_locale_action.dart', '''
+class SetLocaleAction extends Action {
+  SetLocaleAction(this.value);
+  final String value;
+  @override
+  AppState reduce() => state.copyWith.session(locale: value);
 }
 ''');
 
@@ -108,12 +157,14 @@ class ResetFormAction extends Action {
   // relative uri because it lives inside `business` itself.
   put('business/lib/redux/services/session/session_dispatcher.dart', '''
 import '../../session/actions/expire_action.dart';
+import '../../session/actions/set_actor_action.dart';
 
 class SessionDispatcher {
   SessionDispatcher({required this.store});
   final Store<AppState> store;
 
   void onExpired() => store.dispatchSync(ExpireAction());
+  void onActor() => store.dispatch(SetActorAction());
 }
 ''');
 
@@ -152,13 +203,21 @@ class StorageNotes {
   // so the last class's dispatches replaced the first's, and the cascade
   // vanished. Nothing about it involves a page or a mixin, which is why it
   // survived every test here.
+  //
+  // The second is a private step the first dispatches — imported from
+  // nowhere, since it is three lines down — and it carries a named
+  // constructor, which is the class spelled with a suffix.
   put('business/lib/redux/session/actions/refresh_action.dart', '''
 import 'expire_action.dart';
 import 'stamp_action.dart';
 
 class RefreshAction extends Action {
+  RefreshAction();
+  RefreshAction.forOperator();
+
   @override
   Future<AppState?> reduce() async {
+    dispatchSync(_RefreshStarted());
     dispatch(StampAction());
     return null;
   }
@@ -167,6 +226,59 @@ class RefreshAction extends Action {
 class _RefreshStarted extends Action {
   @override
   AppState reduce() => state;
+}
+''');
+
+  // Dispatches the named constructor: the class is `RefreshAction`, and the
+  // spelling is not.
+  put('business/lib/redux/session/actions/set_actor_action.dart', '''
+import 'refresh_action.dart';
+
+class SetActorAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.session(token: 'actor');
+
+  @override
+  void after() => dispatch(RefreshAction.forOperator());
+}
+''');
+
+  // A file whose *second* class dispatches its first — the one the file is
+  // named for. There is no import to find it by, and the first is the
+  // file's main action, not a private step beside one.
+  put('business/lib/redux/log_in/actions/reopen_action.dart', '''
+class ReopenAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.logIn(email: null);
+}
+
+class ReopenAndCheckAction extends Action {
+  @override
+  Future<AppState?> reduce() async {
+    dispatchSync(ReopenAction());
+    return null;
+  }
+}
+''');
+
+  // Two public actions in one file, the second reached from a region through
+  // the import of the file — which declares it three lines under the class
+  // the file is named for.
+  put('business/lib/redux/log_in/actions/open_panel_action.dart', '''
+class OpenPanelAction extends Action {
+  const OpenPanelAction();
+  @override
+  AppState reduce() => state.copyWith.logIn(password: 'open');
+}
+
+class ClosePanelAction extends Action {
+  @override
+  AppState reduce() => state.copyWith.logIn(password: null);
+}
+
+/// Not an action: a helper the file keeps beside them.
+class _PanelResult {
+  const _PanelResult();
 }
 ''');
 
@@ -184,17 +296,36 @@ import 'sweep_action.dart';
 
 class AuditAction extends Action {
   @override
-  AppState reduce() => state;
+  AppState reduce() {
+    dispatchSync(_Started());
+    return state;
+  }
 
   @override
   void after() => dispatch(SweepAction());
 }
+
+class _Started extends Action {
+  @override
+  AppState reduce() => state;
+}
 ''');
 
+  // The same private name as the one beside `AuditAction`: library-private,
+  // so two files in one substate may each declare it, and one node for both
+  // would credit one file's step to the other.
   put('business/lib/redux/session/actions/sweep_action.dart', '''
 class SweepAction extends Action {
   @override
-  AppState reduce() => state.copyWith.session(token: null);
+  AppState reduce() {
+    dispatchSync(_Started());
+    return state.copyWith.session(token: null);
+  }
+}
+
+class _Started extends Action {
+  @override
+  Future<AppState?> reduce() async => null;
 }
 ''');
 
@@ -207,7 +338,11 @@ import 'package:business/redux/session/actions/audit_action.dart';
 class _Factory extends VmFactory<AppState, BootOverlayConnector, _Vm>
     with Selectors {
   @override
-  _Vm fromStore() => _Vm(onDismiss: () => dispatch(AuditAction()));
+  _Vm fromStore() => _Vm(
+    onDismiss: () => dispatch(AuditAction()),
+    // Bypasses the facade: `state.session.token`, not `session.token`.
+    stale: state.session.token == null,
+  );
 }
 ''');
 
@@ -229,6 +364,70 @@ class _Factory extends VmFactory<AppState, OrphanPanelConnector, _Vm>
   @override
   _Vm fromStore() => _Vm(onDiscard: () => dispatch(DiscardDraftAction()));
 }
+
+/// Constructs it — and nothing calls this, so the file still builds only
+/// itself.
+void openOrphanPanel(BuildContext context) =>
+    showDialog(context, content: const OrphanPanelConnector());
+''');
+
+  // Constructed in one place: the function its own file declares, which
+  // other files call. The dialog idiom.
+  put('app/lib/connectors/settings_connector.dart', '''
+import 'package:business/redux/log_in/actions/set_email_action.dart';
+
+class SettingsConnector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    vm: () => _Factory(this),
+    builder: (context, vm) => const Placeholder(),
+  );
+}
+
+class _Factory extends VmFactory<AppState, SettingsConnector, _Vm>
+    with Selectors {
+  @override
+  _Vm fromStore() => _Vm(onClear: () => dispatch(SetEmailAction(null)));
+}
+
+Future<void> openSettings(BuildContext context) =>
+    showDialog(context, content: const SettingsConnector());
+''');
+
+  // The same, as a static method on the connector itself.
+  put('app/lib/connectors/help_connector.dart', '''
+class HelpConnector extends StatelessWidget {
+  static Future<void> show(BuildContext context) =>
+      showDialog(context, builder: (_) => const HelpConnector());
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(context.state.select.session.token ?? '');
+}
+''');
+
+  // A region of the log-in page. Dispatches the second action of a file
+  // through its import, and one thing nothing declares — which must be
+  // reported against *this* file, not the page's.
+  put('app/lib/connectors/log_in_panel_connector.dart', '''
+import 'package:business/redux/log_in/actions/open_panel_action.dart';
+
+class LogInPanelConnector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => StoreConnector<AppState, _Vm>(
+    vm: () => _Factory(this),
+    builder: (context, vm) => const Placeholder(),
+  );
+}
+
+class _Factory extends VmFactory<AppState, LogInPanelConnector, _Vm>
+    with Selectors {
+  @override
+  _Vm fromStore() => _Vm(
+    onClose: () => dispatch(ClosePanelAction()),
+    onMystery: () => dispatch(PanelMystery()),
+  );
+}
 ''');
 
   // Dispatched only from the connector nothing builds. It is *not* an orphan:
@@ -244,8 +443,23 @@ class DiscardDraftAction extends Action {
   // Builds the root widget, and is not a connector itself — so composition
   // read through `*_connector.dart` imports cannot see it.
   put('app/lib/run_env.dart', '''
-Widget runEnv(RouterConfig<Object> routerConfig) =>
-    Provider(child: AppConnector(routerConfig: routerConfig));
+Widget runEnv(RouterConfig<Object> routerConfig) {
+  final dispatcher = SessionDispatcher(store: store);
+  return Provider(child: AppConnector(routerConfig: routerConfig));
+}
+''');
+
+  // A dispatcher nothing constructs: dead, and the action only it dispatches
+  // dead with it — the connector verdict, one suffix over.
+  put('business/lib/redux/services/audit/audit_dispatcher.dart', '''
+import '../../session/actions/sweep_action.dart';
+
+class AuditDispatcher {
+  AuditDispatcher({required this.store});
+  final Store<AppState> store;
+
+  void onTick() => store.dispatch(SweepAction());
+}
 ''');
 
   put('app/lib/navigation/app_router.dart', '''
@@ -259,9 +473,16 @@ class AppRouter extends RootStackRouter {
 
   put('app/lib/connectors/log_in_page_connector.dart', '''
 import 'package:business/redux/log_in/actions/log_in_action.dart';
+import 'package:business/redux/log_in/actions/open_panel_action.dart';
+import 'package:business/redux/log_in/actions/reopen_action.dart';
 import 'package:business/redux/log_in/actions/set_email_action.dart';
 import 'package:business/redux/session/actions/refresh_action.dart';
+import 'package:business/redux/session/actions/set_locale_action.dart';
 import 'package:business/redux/session/actions/stamp_action.dart';
+
+import 'help_connector.dart';
+import 'log_in_panel_connector.dart';
+import 'settings_connector.dart';
 
 class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
     with Selectors {
@@ -270,6 +491,14 @@ class _Factory extends VmFactory<AppState, LogInPageConnector, _Vm>
     email: FieldVm(value: logIn.email, onChanged: (v) => dispatchSync(SetEmailAction(v))),
     onPressedLogIn: () => dispatchAndWait(LogInAction()),
     onPressedMystery: () => dispatch(SomethingElse()),
+    onLocale: (v) => dispatch(SetLocaleAction(v)),
+    // The file's second class, reached through the import of the file.
+    onReopen: () => dispatch(ReopenAndCheckAction()),
+    // A `const` construction is not a `MethodInvocation`, and read as source
+    // it carried the keyword.
+    onPanic: () => dispatch(const OpenPanelAction()),
+    // A named constructor: the class, spelled with a suffix.
+    onRefresh: () => dispatch(RefreshAction.forOperator()),
   );
 }
 
@@ -279,12 +508,22 @@ class LogInPageConnector extends StatelessWidget {
     vm: () => _Factory(this),
     // Belongs to no interaction, so to no view-model field — and a dispatch
     // read only out of `_Vm(...)` arguments is a dispatch this never was.
-    onInit: (store) => store.dispatch(RefreshAction()),
+    onInit: (store) {
+      // The state reached through the store handed in, not through a getter.
+      if (store.state.session.token == null) {
+        store.dispatch(RefreshAction());
+      }
+    },
     builder: (context, vm) => LogInPage(
       // The store-ful form: the action is the *second* argument, and reading
       // the first named `context` as the thing dispatched.
       onEscape: () => StoreProvider.dispatch<AppState>(context, StampAction()),
       overlay: const BootOverlayConnector(),
+      panel: const LogInPanelConnector(),
+      // Neither constructs a connector here: each opens one through the
+      // function its file declares.
+      onSettings: () => openSettings(context),
+      onHelp: () => HelpConnector.show(context),
     ),
   );
 }
@@ -305,6 +544,14 @@ class AppConnector extends StatelessWidget {
 }
 
 AppGraph _read() => GraphReader(_workspace()).read();
+
+/// A router registering nothing, for a workspace built around one file.
+const _emptyRouter = '''
+class AppRouter extends RootStackRouter {
+  @override
+  List<AutoRoute> get routes => [];
+}
+''';
 
 Iterable<GraphEdge> _edges(
   AppGraph g, {
@@ -639,7 +886,7 @@ class HauntAction extends Action {
           from: 'service:SessionDispatcher',
           kind: EdgeKind.dispatches,
         ).map((e) => e.to),
-        ['action:session.ExpireAction'],
+        ['action:session.ExpireAction', 'action:session.SetActorAction'],
       );
     });
 
@@ -737,6 +984,8 @@ class HauntAction extends Action {
         [
           'restores persistor:AppPersistor',
           'writes action:session.ExpireAction',
+          'writes action:session.SetActorAction',
+          'writes action:session.SetLocaleAction',
           'writes action:session.SetTokenAction',
           'writes action:session.StampAction',
           'writes action:session.SweepAction',
@@ -858,12 +1107,49 @@ class HauntAction extends Action {
       // eleven reported orphan actions were dispatched only from a connector
       // nothing builds: the answer "nothing reaches these six" was right and
       // the reason — one dead connector, not six dead actions — was missing.
+      //
+      // Its own file declares `openOrphanPanel`, which constructs it and
+      // which nothing calls: a builder function is a builder only through
+      // the file that calls it.
       final g = _read();
       expect(
         g.orphans
             .where((o) => o.node.kind == NodeKind.consumer)
             .map((o) => '${o.node.id} ${o.why}'),
         ['consumer:OrphanPanelConnector no file constructs it'],
+      );
+    });
+
+    test('a connector opened through a function its file declares is built '
+        'by the caller', () {
+      // The dialog idiom: the only construction of `SettingsConnector` is
+      // inside `openSettings(context)` in its own file, and a construction
+      // in one's own file is not a builder. Read as constructions alone the
+      // graph called a screen three regions open "constructed by no file".
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          kind: EdgeKind.builds,
+          to: 'consumer:SettingsConnector',
+        ).map((e) => e.from),
+        ['page:logIn'],
+      );
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('consumer:SettingsConnector')),
+      );
+    });
+
+    test('the same, through a static method on the connector', () {
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          kind: EdgeKind.builds,
+          to: 'consumer:HelpConnector',
+        ).map((e) => e.from),
+        ['page:logIn'],
       );
     });
 
@@ -983,6 +1269,663 @@ class HauntAction extends Action {
     });
   });
 
+  group('a file holding several actions', () {
+    // Measured on a real project: seventeen unresolved dispatches, every one
+    // a class the graph had read past — a private step beside the action
+    // that dispatches it, a second public action in the file, a file's
+    // second class dispatching its first, a named constructor. And one
+    // action reported as reached by nobody, whose dispatcher was three lines
+    // down in its own file.
+
+    test('every action class is a node, not only the first', () {
+      final g = _read();
+      expect(g.node('action:logIn.OpenPanelAction'), isNotNull);
+      expect(g.node('action:logIn.ClosePanelAction'), isNotNull);
+      expect(g.node('action:logIn.ReopenAndCheckAction'), isNotNull);
+    });
+
+    test('a helper class beside them is not one', () {
+      final g = _read();
+      expect(
+        g.nodes.where((n) => n.name == '_PanelResult'),
+        isEmpty,
+        reason: 'it extends nothing ending in Action and is not named so',
+      );
+    });
+
+    test('each is read on its own, not blended with the file', () {
+      final g = _read();
+      // `RefreshAction.reduce()` is async; `_RefreshStarted.reduce()` is not.
+      // Read as one file, whichever `reduce()` came last answered for both.
+      expect(
+        g.node('action:session.RefreshAction')!.fields['isAsync'],
+        isTrue,
+      );
+      expect(
+        g
+            .node('action:session.RefreshAction._RefreshStarted')!
+            .fields['isAsync'],
+        isFalse,
+      );
+    });
+
+    test('a private step is qualified by its file', () {
+      // Library-private: two files in one substate may each declare a
+      // `_Started`, and one node for both would credit one file's step to
+      // the other.
+      final g = _read();
+      expect(g.node('action:session.AuditAction._Started'), isNotNull);
+      expect(g.node('action:session.SweepAction._Started'), isNotNull);
+      expect(
+        _edges(
+          g,
+          from: 'action:session.AuditAction',
+          kind: .dispatches,
+        ).map((e) => e.to),
+        contains('action:session.AuditAction._Started'),
+      );
+      expect(
+        _edges(
+          g,
+          from: 'action:session.SweepAction',
+          kind: .dispatches,
+        ).map((e) => e.to),
+        contains('action:session.SweepAction._Started'),
+      );
+    });
+
+    test('a private step is not resolved through an import', () {
+      // `audit_action.dart` imports `sweep_action.dart`, and both declare a
+      // `_Started`. Resolved through the import, the audit's step landed on
+      // the sweep's, and the audit's own was an orphan.
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          from: 'action:session.AuditAction',
+          kind: .dispatches,
+        ).map((e) => e.to),
+        isNot(contains('action:session.SweepAction._Started')),
+      );
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('action:session.AuditAction._Started')),
+      );
+    });
+
+    test('a node in a shared file carries its line', () {
+      final g = _read();
+      final second = g.node('action:logIn.ClosePanelAction')!;
+      expect(second.line, greaterThan(1));
+      expect(second.file, endsWith('open_panel_action.dart'));
+      // One action to a file opens at the top, as it always did.
+      expect(g.node('action:session.SetTokenAction')!.line, isNull);
+    });
+
+    test("a file's second class dispatching its first is a cascade", () {
+      // `ReopenAndCheckAction` dispatches `ReopenAction`, three lines up. No
+      // import to find it by — and the message said it was "declared beside
+      // its main action", about the main action itself.
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          from: 'action:logIn.ReopenAndCheckAction',
+          kind: .dispatches,
+        ).map((e) => e.to),
+        ['action:logIn.ReopenAction'],
+      );
+      expect(
+        g.orphans.map((o) => o.node.id),
+        isNot(contains('action:logIn.ReopenAction')),
+      );
+      expect(
+        g.unresolved.map((u) => u.expr),
+        isNot(contains('ReopenAction')),
+      );
+    });
+
+    test('the second public action is reached through the import of the '
+        'file', () {
+      // A region imports `open_panel_action.dart` and dispatches
+      // `ClosePanelAction`. Mapped by the file's first class alone, the
+      // import declared `OpenPanelAction` and nothing else.
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          to: 'action:logIn.ClosePanelAction',
+          kind: .dispatches,
+        ).map((e) => e.from),
+        containsAll(['page:logIn', 'consumer:LogInPanelConnector']),
+      );
+      expect(
+        _edges(
+          g,
+          to: 'action:logIn.ReopenAndCheckAction',
+          kind: .dispatches,
+        ).map((e) => e.from),
+        contains('page:logIn'),
+      );
+    });
+
+    test('a named constructor is the class, spelled with a suffix', () {
+      final g = _read();
+      // From an action's `after()`, and from a page's view-model.
+      expect(
+        _edges(
+          g,
+          from: 'action:session.SetActorAction',
+          kind: .dispatches,
+        ).map((e) => e.to),
+        ['action:session.RefreshAction'],
+      );
+      expect(
+        _edges(
+          g,
+          from: 'page:logIn',
+          to: 'action:session.RefreshAction',
+        ).map((e) => e.via),
+        contains('onRefresh'),
+      );
+      expect(
+        g.unresolved.map((u) => u.expr),
+        isNot(contains('RefreshAction.forOperator')),
+      );
+    });
+
+    test('a const construction is the class too', () {
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          from: 'page:logIn',
+          to: 'action:logIn.OpenPanelAction',
+        ).map((e) => e.via),
+        ['onPanic'],
+      );
+    });
+
+    test('a selector read inside the second class is its own', () {
+      // Only the graph fixture's selectors: none of the several-action files
+      // read one, so this pins the rule on a file built for it.
+      final root = Directory.systemTemp.createTempSync('frx_graph_cls_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      void put(String rel, String content) {
+        File(p.join(root.path, rel))
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content);
+      }
+
+      put('app/lib/navigation/app_router.dart', _emptyRouter);
+      put('business/lib/redux/app_state.dart', r'''
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({required SessionState session}) = _AppState;
+}
+''');
+      put('business/lib/redux/selectors.dart', '''
+extension type SelectSession(AppState _state) implements Selector {
+  String? get token => _state.session.token;
+  bool get isAvailable => token != null;
+  String get locale => _state.session.locale;
+  // The whole slice, not a field of it.
+  SessionState get whole => _state.session;
+}
+''');
+      put('business/lib/redux/session/actions/open_action.dart', '''
+class OpenAction extends Action with Selectors {
+  @override
+  AppState reduce() => state.copyWith.session(token: session.token);
+}
+
+class CloseAction extends Action with Selectors {
+  @override
+  AppState? reduce() => session.isAvailable ? null : state;
+}
+''');
+      final g = GraphReader(FrxWorkspace.locate(startDir: root.path)).read();
+      expect(
+        _edges(
+          g,
+          from: 'action:session.OpenAction',
+          kind: .uses,
+        ).map((e) => e.to),
+        ['selector:SelectSession.token'],
+      );
+      expect(
+        _edges(
+          g,
+          from: 'action:session.CloseAction',
+          kind: .uses,
+        ).map((e) => e.to),
+        ['selector:SelectSession.isAvailable'],
+      );
+    });
+
+    test('a gap in a region is reported against the region', () {
+      // `PanelMystery` is dispatched in `log_in_panel_connector.dart`. The
+      // page walk attributed every use case to the page's own file, where
+      // the dispatch is not.
+      final g = _read();
+      final gap = g.unresolved.singleWhere((u) => u.expr == 'PanelMystery');
+      expect(gap.at, endsWith('log_in_panel_connector.dart'));
+      expect(gap.owner, 'page:logIn');
+    });
+
+    test('a class declared in the file that is not an action says so', () {
+      final root = Directory.systemTemp.createTempSync('frx_graph_helper_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      void put(String rel, String content) {
+        File(p.join(root.path, rel))
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content);
+      }
+
+      put('app/lib/navigation/app_router.dart', _emptyRouter);
+      put('business/lib/redux/app_state.dart', r'''
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({required SessionState session}) = _AppState;
+}
+''');
+      put('business/lib/redux/session/actions/ping_action.dart', '''
+class PingAction extends Action {
+  @override
+  AppState? reduce() {
+    dispatch(_Pong());
+    return null;
+  }
+}
+
+class _Pong {}
+''');
+      final g = GraphReader(FrxWorkspace.locate(startDir: root.path)).read();
+      final gap = g.unresolved.singleWhere((u) => u.expr == '_Pong');
+      expect(gap.why, contains('not read as an action'));
+    });
+  });
+
+  group('reading the state directly', () {
+    Set<String> reads(String body) => {
+      for (final r in stateReadsIn(
+        parseString(
+          content: 'void f() { $body }',
+          throwIfDiagnostics: false,
+        ).unit,
+      ))
+        r.label,
+    };
+
+    test('a field off a bare receiver', () {
+      expect(reads('final x = state.session.token;'), {'session.token'});
+      expect(reads('final x = _state.session.token;'), {'session.token'});
+    });
+
+    test('the whole substate, handed on as it is', () {
+      expect(reads('f(state.session);'), {'session'});
+    });
+
+    test('the state reached as a property, or by a call', () {
+      expect(reads('store.state.session.token;'), {'session.token'});
+      expect(reads('context.state.session;'), {'session'});
+      expect(reads('StoreProvider.state<AppState>(context).session.token;'), {
+        'session.token',
+      });
+    });
+
+    test('a method on the substate reads the whole of it', () {
+      // `wait` is a framework slice reached through a method, and the edge
+      // to it is what draws the modal barrier's dependency.
+      expect(reads('state.wait.isWaitingForType<X>();'), {'wait'});
+    });
+
+    test('the nested write is not a read', () {
+      expect(reads('state.session.copyWith(token: t);'), isEmpty);
+    });
+
+    test('the deep write is not one either, once the caller filters', () {
+      // `copyWith` arrives as a substate name; nothing composes one.
+      expect(reads('state.copyWith.session(token: t);'), {'copyWith'});
+    });
+
+    test('only the field directly on the substate', () {
+      expect(reads('state.session.user.name;'), {'session.user'});
+    });
+
+    test('a receiver by another name is not the state', () {
+      expect(reads('newState.session.token; vm.session.token;'), isEmpty);
+    });
+
+    test('an action reading state draws a reads edge to the field', () {
+      // The one reference no edge recorded. "What breaks if I touch
+      // `logIn.email`" missed the reducer reading it.
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          from: 'action:logIn.LogInAction',
+          kind: .reads,
+        ).map((e) => '${e.to} via ${e.via}'),
+        ['substate:logIn via logIn.email', 'substate:logIn via logIn.password'],
+      );
+    });
+
+    test('a connector reading state past the facade draws one too', () {
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          from: 'consumer:BootOverlayConnector',
+          kind: .reads,
+        ).map((e) => '${e.to} via ${e.via}'),
+        ['substate:session via session.token'],
+      );
+    });
+
+    test('a page reading through the store it was handed', () {
+      final g = _read();
+      expect(
+        _edges(g, from: 'page:logIn', kind: .reads).map((e) => e.via),
+        contains('session.token'),
+      );
+    });
+
+    test('a selector read is labelled with the field', () {
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          from: 'selector:SelectSession.token',
+          kind: .reads,
+        ).map((e) => '${e.to} via ${e.via}'),
+        ['substate:session via session.token'],
+      );
+      expect(
+        _edges(
+          g,
+          from: 'selector:SelectSession.whole',
+          kind: .reads,
+        ).map((e) => e.via),
+        ['session'],
+      );
+    });
+
+    test('a sibling read inherits the field, not only the slice', () {
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          from: 'selector:SelectSession.isAvailable',
+          kind: .reads,
+        ).map((e) => e.via),
+        ['session.token'],
+      );
+    });
+
+    test('a substate node lists its fields', () {
+      final g = _read();
+      expect(
+        g.node('substate:session')!.fields['fields'],
+        containsAll(['token', 'locale']),
+      );
+      expect(
+        g.node('substate:wait')!.fields.containsKey('fields'),
+        isFalse,
+        reason: 'a framework slice has no state class of ours',
+      );
+    });
+  });
+
+  group('focus on one field', () {
+    // A fifty-field slice is a hub: every selector on it reads it, every
+    // setter writes it, and an inbound walk from the slice is the whole app.
+    test('keeps what touches the field and drops the rest of the slice', () {
+      final g = _read().focusOn(
+        'substate:session',
+        field: 'token',
+        direction: GraphDirection.inbound,
+        depth: null,
+      );
+      final ids = g.nodes.map((n) => n.id);
+      expect(ids, contains('action:session.SetTokenAction'));
+      expect(ids, contains('selector:SelectSession.token'));
+      expect(ids, contains('selector:SelectSession.isAvailable'));
+      expect(
+        ids,
+        isNot(contains('action:session.SetLocaleAction')),
+        reason: 'writes the other field',
+      );
+      expect(
+        ids,
+        isNot(contains('selector:SelectSession.locale')),
+        reason: 'reads the other field',
+      );
+    });
+
+    test('the other field is the other answer', () {
+      final g = _read().focusOn(
+        'substate:session',
+        field: 'locale',
+        direction: GraphDirection.inbound,
+        depth: null,
+      );
+      final ids = g.nodes.map((n) => n.id);
+      expect(ids, contains('action:session.SetLocaleAction'));
+      expect(ids, contains('selector:SelectSession.locale'));
+      expect(ids, isNot(contains('action:session.SetTokenAction')));
+    });
+
+    test('whatever touches the whole slice touches every field', () {
+      // A flat `copyWith(session: …)`, the persistor's restore, a getter
+      // handing the slice on: none names a field, and all of them change or
+      // carry `locale`.
+      final g = _read().focusOn(
+        'substate:session',
+        field: 'locale',
+        direction: GraphDirection.inbound,
+        depth: null,
+      );
+      final ids = g.nodes.map((n) => n.id);
+      expect(ids, contains('persistor:AppPersistor'));
+      expect(ids, contains('selector:SelectSession.whole'));
+    });
+
+    test('the walk continues past the kept edges', () {
+      // Through `SelectSession.token` to what reads it, and through
+      // `SetTokenAction` to what dispatches it.
+      final g = _read().focusOn(
+        'substate:session',
+        field: 'token',
+        direction: GraphDirection.inbound,
+        depth: null,
+      );
+      final ids = g.nodes.map((n) => n.id);
+      expect(ids, contains('consumer:AppConnector'));
+      expect(ids, contains('action:logIn.LogInAction'));
+    });
+
+    test('edges elsewhere are untouched', () {
+      final g = _read().focusOn('substate:session', field: 'token');
+      expect(
+        _edges(g, from: 'action:logIn.LogInAction', kind: .dispatches),
+        isEmpty,
+        reason: 'one hop: LogInAction is not reached at depth 1',
+      );
+      final whole = _read().focusOn(
+        'substate:session',
+        field: 'token',
+        depth: null,
+      );
+      expect(
+        _edges(
+          whole,
+          from: 'action:logIn.LogInAction',
+          kind: .dispatches,
+        ).map((e) => e.to),
+        contains('action:session.SetTokenAction'),
+      );
+    });
+
+    test('is described in the focus', () {
+      final g = _read().focusOn('substate:session', field: 'token');
+      expect(g.focus!.field, 'token');
+      expect(g.toJson()['focus'], containsPair('field', 'token'));
+      expect(
+        _read().focusOn('substate:session').toJson()['focus'],
+        isNot(contains('field')),
+      );
+    });
+  });
+
+  group('a field nothing reads', () {
+    // The question a dead selector could not settle: `SelectSetup.agentErrorOn`
+    // on the dead list says the getter is unused, and whether the field behind
+    // it is depends on every reducer and connector reading the state directly.
+
+    test('is reported, written or not', () {
+      final g = _read();
+      expect(
+        g.deadFields.map((o) => '${o.node.id} ${o.why}').toList()..sort(),
+        [
+          // Named by no write, but the flat `copyWith(logIn: …)` replaces
+          // the slice — that writes every field.
+          'field:logIn.attempts written, nothing reads it',
+          'field:registration.draft nothing reads it',
+          'field:registration.email written, nothing reads it',
+          'field:session.locale written, nothing reads it',
+        ],
+      );
+    });
+
+    test('a read by a dead selector alone does not keep it alive', () {
+      // `SelectSession.locale` reads it and nothing reads the selector.
+      final g = _read();
+      expect(
+        g.deadSelectors.map((o) => o.node.id),
+        contains('selector:SelectSession.locale'),
+      );
+      expect(
+        g.deadFields.map((o) => o.node.id),
+        contains('field:session.locale'),
+      );
+    });
+
+    test("the persistor's read does not count", () {
+      // It compares the whole session to save it; that is not a use.
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          from: 'persistor:AppPersistor',
+          to: 'substate:session',
+        ).map((e) => e.kind),
+        contains(EdgeKind.reads),
+      );
+      expect(
+        g.deadFields.map((o) => o.node.id),
+        contains('field:session.locale'),
+      );
+    });
+
+    test('a reducer reading it directly keeps it alive past its dead '
+        'selector', () {
+      // Dead selector, live field — the distinction the whole check is for.
+      final g = _read();
+      expect(
+        g.deadSelectors.map((o) => o.node.id),
+        contains('selector:SelectLogIn.password'),
+      );
+      expect(
+        g.deadFields.map((o) => o.node.id),
+        isNot(contains('field:logIn.password')),
+      );
+    });
+
+    test('a live read of the whole slice keeps every field alive', () {
+      // `state.session` handed on is a read of every field; guessing
+      // otherwise would report a live field as dead.
+      final root = Directory.systemTemp.createTempSync('frx_graph_whole_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      void put(String rel, String content) {
+        File(p.join(root.path, rel))
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content);
+      }
+
+      put('app/lib/navigation/app_router.dart', _emptyRouter);
+      put('business/lib/redux/app_state.dart', r'''
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({required SessionState session}) = _AppState;
+}
+''');
+      put('business/lib/redux/session/models/session_state.dart', r'''
+@freezed
+abstract class SessionState with _$SessionState {
+  const factory SessionState({String? token, String? locale}) = _SessionState;
+}
+''');
+      put('business/lib/redux/session/actions/snapshot_action.dart', '''
+class SnapshotAction extends Action {
+  @override
+  AppState? reduce() {
+    _log(state.session);
+    return null;
+  }
+}
+''');
+      final g = GraphReader(FrxWorkspace.locate(startDir: root.path)).read();
+      expect(g.deadFields, isEmpty);
+    });
+
+    test('a slice with no state class lists nothing', () {
+      final g = _read();
+      expect(
+        g.deadFields.map((o) => o.node.substate),
+        isNot(contains('wait')),
+      );
+    });
+
+    test('is in the orphan list, with the state file to open', () {
+      final g = _read();
+      final dead = g.orphans.singleWhere(
+        (o) => o.node.id == 'field:session.locale',
+      );
+      expect(dead.node.kind, NodeKind.field);
+      expect(dead.node.file, endsWith('session_state.dart'));
+      expect(
+        g.nodes.where((n) => n.kind == NodeKind.field),
+        isEmpty,
+        reason: 'a field is a via, not a node',
+      );
+    });
+  });
+
+  group('a service nothing constructs', () {
+    test("is reported, with the connector's own reason", () {
+      final g = _read();
+      expect(
+        g.orphans
+            .where((o) => o.node.kind == NodeKind.service)
+            .map((o) => '${o.node.id} ${o.why}'),
+        ['service:AuditDispatcher no file constructs it'],
+      );
+    });
+
+    test('one the app wires is built by the file that does', () {
+      final g = _read();
+      expect(
+        _edges(
+          g,
+          kind: .builds,
+          to: 'service:SessionDispatcher',
+        ).map((e) => e.from),
+        ['consumer:RunEnv'],
+      );
+    });
+  });
+
   group('focus', () {
     test('keeps the neighbourhood and drops the rest', () {
       final g = _read().focusOn('substate:session');
@@ -1010,7 +1953,9 @@ class HauntAction extends Action {
 
     test('the blind spots are scoped to the subgraph', () {
       final whole = _read();
-      final focused = whole.focusOn('substate:session');
+      // `registration`: one hop from it reaches no page, and every gap the
+      // fixture has belongs to one.
+      final focused = whole.focusOn('substate:registration');
       // Kept whole, a gap belonging to an unrelated page was reported against
       // whatever you focused — which misattributes it, and misattribution is
       // worse than silence from a list whose only job is to say where the
@@ -1421,7 +2366,7 @@ extension type SelectStray(AppState _state) implements Selector {
           .filesUnder(ws.businessLib)
           .where((f) => f.path.endsWith('_action.dart'))
           .toList();
-      expect(actions, hasLength(11));
+      expect(actions, hasLength(15));
       for (final f in actions) {
         expect(ix.parsesOf(f), 1, reason: p.basename(f.path));
       }

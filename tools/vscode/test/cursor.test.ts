@@ -7,8 +7,6 @@ import paths = require('../src/paths');
 import queries = require('../src/queries');
 import cursor = require('../src/cursor');
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /// What artifact the cursor is on — the one resolution F2 and the editor
 /// context-menu entry share.
 ///

@@ -459,7 +459,7 @@ export function run(
   });
 }
 
-/** Wrap `run` in a cancellable progress notification. */
+/** Wrap `run` in a progress notification. Not cancellable: the CLI's writes are atomic, and a run interrupted halfway would still finish. */
 export function runWithProgress(
   title: string,
   inv: Invocation,

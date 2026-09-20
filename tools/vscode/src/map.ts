@@ -44,92 +44,12 @@ import * as paths from './paths';
 import * as queries from './queries';
 import { nesting, orderColumns } from './layout';
 import type { AppGraph, GraphNode } from './queries';
-import { OWNED_KINDS, ownedBySubstate, selectionAt } from './tree';
+// The picture's types live in `page/picture.d.ts`, which the page script reads
+// too: one contract, checked on both sides of the webview boundary.
+import type { Picture, PictureEdge, PictureNode, Relation, Side } from './page/picture';
+import { OWNED_KINDS, actionLabel, ownedBySubstate, selectionAt } from './tree';
 
-/** One drawable node: what it says, and what opening it reveals. */
-export interface PictureNode {
-  id: string;
-  /** The graph's kind — `page`, `consumer`, `service`, `persistor`, `substate`, `action`, `selector`. */
-  kind: string;
-  title: string;
-  subtitle: string;
-  file: string | null;
-  line?: number;
-  column?: number;
-  /** What it owns, collapsed — shown as a count, expanded on demand. */
-  owned: PictureNode[];
-  /** What it builds — drawn nested under it, in place of a `builds` wire. */
-  built: PictureNode[];
-}
-
-/** Which way an edge is routed. */
-type Side = 'across' | 'left' | 'right';
-
-/** One relation between two nodes: what kind, what triggers it, which way it runs. */
-interface Relation {
-  kind: string;
-  /** A view-model callback, a `copyWith` field list, a getter name — or ''. */
-  via: string;
-  /** True when it runs against the direction the line is drawn in. */
-  reversed: boolean;
-  /**
-   * The action or selector the relation actually ends on, when the fold moved
-   * the end to its substate — the id of a node in that substate's `owned`. The
-   * line does not need it; the pane does: "dispatches into logIn" is the shape,
-   * "dispatches LogInAction (onSubmit)" is what a reader came to find out.
-   */
-  through?: string;
-}
-
-/**
- * A line between two drawn nodes, carrying every relation between them.
- *
- * **One line per pair, not per relation.** A page that both dispatches into a
- * substate and reads it is two relations with the same two endpoints; drawn
- * separately they lie exactly on top of each other — indistinguishable anywhere,
- * and doubling every crossing they take part in. Direction is folded in too: the
- * picture draws no arrowheads, so two pages that navigate to each other are one
- * stroke, and saying it twice says nothing twice.
- */
-interface PictureEdge {
-  from: string;
-  to: string;
-  relations: Relation[];
-  /**
-   * `across` the middle, or out into the margin on its own side.
-   *
-   * Decided here rather than in the webview so it can be tested, and so the
-   * drawing stays a drawing. An edge joining two nodes of one column has no
-   * business crossing the middle: drawn straight it leaves a node's right edge
-   * and enters a neighbour's left edge in the *same* column, looping across the
-   * whole canvas and crossing everything in between.
-   */
-  side: Side;
-}
-
-/** What the webview draws. */
-export interface Picture {
-  /**
-   * Everything that acts on state: pages, services, the persistor, consumers.
-   *
-   * The roots only — a connector something here builds is under its builder's
-   * `built`, however deep, and appears nowhere else.
-   */
-  actors: PictureNode[];
-  /** The state itself: the substates. */
-  state: PictureNode[];
-  edges: PictureEdge[];
-  /** Where the picture's own edges are incomplete. */
-  gaps: {
-    /** The kind of gap and the expression that hit it. */
-    what: string;
-    /** The file, relative to the repo when the root is known — or ''. */
-    at: string;
-    why: string;
-  }[];
-  /** How many pairs of edges cross the middle, after ordering. */
-  crossings: number;
-}
+export type { Picture, PictureNode } from './page/picture';
 
 /** Node kinds that act on state rather than being state. */
 const ACTOR_KINDS = new Set(['page', 'service', 'persistor', 'consumer']);
@@ -433,12 +353,24 @@ function sideOf(
   return 'across';
 }
 
-/** A graph node as a drawable leaf. A selector sheds its `Select…` qualifier. */
+/**
+ * A graph node as a drawable leaf. A selector sheds its `Select…` qualifier;
+ * an action keeps whatever its id carries past the substate — a private step
+ * is `InstallSkillsAction._AgentWorking`, because two files in one substate
+ * can each declare an `_AgentWorking`, and two rows titled alike read as one
+ * artifact drawn twice.
+ */
 function leaf(n: GraphNode, subtitle: string): PictureNode {
+  const title =
+    n.kind === 'selector'
+      ? (n.name.split('.').pop() ?? n.name)
+      : n.kind === 'action'
+        ? actionLabel(n)
+        : n.name;
   return {
     id: n.id,
     kind: n.kind,
-    title: n.kind === 'selector' ? (n.name.split('.').pop() ?? n.name) : n.name,
+    title,
     subtitle,
     file: n.file ?? null,
     line: n.line,

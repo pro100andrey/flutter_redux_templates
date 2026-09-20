@@ -21,8 +21,6 @@ const CLIENT_JS = fs.readFileSync(path.join(MEDIA, 'map.js'), 'utf8');
 /** The whole page as text: the skeleton `buildHtml` builds plus the two files it loads. */
 const buildHtml = (p: Picture): string => htmlOf(p) + '\n' + CLIENT_CSS + '\n' + CLIENT_JS;
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /// The structural picture, folded out of the wiring graph.
 ///
 /// The fold is the whole design: substates and pages are the skeleton, actions and
@@ -390,27 +388,6 @@ test('a pair related both ways is still one line', () => {
   );
 });
 
-test('a line end takes its own slot on the row, ordered by where the far end is', () => {
-  // Without slots, a page that both dispatches into a substate and reads it
-  // drew one line twice, and its relations to different substates left from
-  // one point. The slots live in the page, not the picture: which lines exist
-  // is the drawing's business once a row can fold and take over the lines of
-  // everything under it — so what is pinned here is that the page assigns
-  // them, per line end, by the far end's height, and draws with them.
-  const html = buildHtml(
-    picture(
-      graphOf({
-        nodes: [PAGE('logIn', '/login'), SUB('a', 'A'), SUB('b', 'B')],
-        edges: [edge('page:logIn', 'substate:a', 'dispatches'), edge('page:logIn', 'substate:b', 'reads')],
-      }),
-    ),
-  );
-  assert.match(html, /function slotsOf\(drawn, rectOf\)/);
-  assert.match(html, /sort\(\(a, b\) => a\.y - b\.y \|\| a\.arrival - b\.arrival\)/, 'by far height, ties by arrival');
-  assert.match(html, /slots\[index\]\[end\] = \{ slot, of: ordered\.length \}/);
-  assert.match(html, /anchorY\(ra, slots\[i\]\.from, board\.top\)/, 'and the drawing uses them');
-});
-
 test('every row says its kind, so the page can colour it', () => {
   const p = picture(
     graphOf({
@@ -503,82 +480,10 @@ test('a line is coloured by what it does to state', () => {
       }),
     ),
   );
-  assert.match(html, /const CHANGES = new Set\(\['dispatches', 'writes', 'restores'\]\)/);
-  assert.match(html, /if \(CHANGES\.has\(r\.kind\)\) line\.changes = true;/, 'a line that changes among other things is still a changing line');
-  assert.match(html, /\(line\.changes \? ' changes' : ''\)/, 'and is coloured as one');
+  // Which lines carry the class is the page's business, pinned in
+  // map_page.test.ts; the colour the class means is the stylesheet's.
   assert.match(html, /path\.wire\.changes \{ stroke: var\(--changes\)/);
   assert.match(html, /path\.wire \{ pointer-events: stroke; \}/, 'and its tooltip can be reached');
-});
-
-test('a row pins on click, holds the focus, and lets go on Escape', () => {
-  const html = buildHtml(
-    picture(
-      graphOf({
-        nodes: [PAGE('logIn', '/login'), SUB('a', 'A')],
-        edges: [edge('page:logIn', 'substate:a', 'reads')],
-      }),
-    ),
-  );
-  assert.match(html, /pinned = pinned === id \? null : id;/);
-  assert.match(html, /const current = \(\) => focused \|\| pinned;/, 'the hovered row wins while the pointer is on one');
-  assert.match(html, /event\.key !== 'Escape'/);
-  assert.match(html, /vscode\.setState\(\{ folded: \[\.\.\.folded\], pinned, placed \}\)/, 'and a refresh keeps it');
-});
-
-test('the pane says in words what the focused row\'s lines mean', () => {
-  const html = buildHtml(
-    picture(
-      graphOf({
-        nodes: [PAGE('logIn', '/login'), SUB('a', 'A'), ACTION('a', 'SetA')],
-        edges: [edge('page:logIn', 'action:a.SetA', 'dispatches', 'onSubmit')],
-      }),
-    ),
-  );
-  assert.match(html, /function describe\(id\)/);
-  for (const group of ['Changed by', 'Changes', 'Read by', 'Reads', 'Built by', 'Builds']) {
-    assert.ok(html.includes(`'${group}'`), `the pane groups by "${group}"`);
-  }
-  // One entry per row across, the actions and selectors behind the line
-  // under it — each opening its own thing.
-  assert.match(html, /pushInto\(byFar, entry\.far\.id, entry\)/, 'grouped by the row across');
-  assert.match(html, /what\.textContent = entry\.what\.title/, 'and names the action behind the line');
-  assert.match(html, /name\.addEventListener\('click', \(\) => open\(far\)\)/, 'the row opens the row');
-  assert.match(html, /what\.addEventListener\('click', \(\) => open\(entry\.what\)\)/, 'and the action opens the action');
-});
-
-test('a row with many regions starts folded, and folded lines land on it', () => {
-  const html = buildHtml(
-    picture(
-      graphOf({
-        nodes: [PAGE('home', '/home'), CONSUMER('R1'), CONSUMER('R2'), CONSUMER('R3'), CONSUMER('R4'), SUB('a', 'A')],
-        edges: [
-          ...['R1', 'R2', 'R3', 'R4'].map((r) => edge('page:home', `consumer:${r}`, 'builds')),
-          edge('consumer:R1', 'substate:a', 'uses'),
-        ],
-      }),
-    ),
-  );
-  assert.match(html, /const FOLD_OVER = 3;/);
-  assert.match(html, /n\.built\.length > FOLD_OVER\) folded\.add\(n\.id\)/);
-  assert.match(html, /function shownAs\(id\)/, 'a hidden row is drawn as the folded row above it');
-  assert.match(html, /const from = shownAs\(e\.from\), to = shownAs\(e\.to\);/);
-  assert.match(html, /if \(from === to\) continue;/, 'a region relating to its own builder is folded away');
-});
-
-test('a same-column edge is not drawn as a straight chord', () => {
-  // The rendering half: `across` stays a straight segment, a side-channel edge
-  // becomes a curve that leaves and re-enters on one side.
-  const html = buildHtml(
-    picture(
-      graphOf({
-        nodes: [PAGE('logIn', '/login'), PAGE('home', '/home')],
-        edges: [edge('page:logIn', 'page:home', 'navigates', 'onDone')],
-      }),
-    ),
-  );
-  assert.match(html, /e\.side === 'across'/, 'the drawing branches on the side');
-  assert.match(html, /' C '/, 'a side-channel edge is a curve');
-  assert.ok(!/createElementNS\([^)]*'line'\)/.test(html), 'no straight-chord lines remain');
 });
 
 test('hovering a row dims what it is not attached to', () => {
@@ -591,45 +496,12 @@ test('hovering a row dims what it is not attached to', () => {
     ),
   );
   // The rule is in the stylesheet, so it applies to rows and wires alike and
-  // needs no per-element bookkeeping beyond one class.
+  // needs no per-element bookkeeping beyond one class. Which rows and wires
+  // get the class, and when, is the page's: map_page.test.ts.
   assert.match(html, /#board\.focusing[^{]*:not\(\.lit\)/);
-  // Resolved from the pointer to the innermost row, on one listener: a row
-  // nested in another is inside its builder's box, and per-row enter/leave
-  // would light the builder on the way in and let go of both on the way out.
-  assert.match(html, /mouseover/);
-  assert.match(html, /closest\('\.node'\)/);
-  assert.match(html, /focused = id;/, 'and a move off every row lets go again');
-  // Dimmed by the row's own head, not the box: opacity on the box would dim a
-  // lit row nested inside an unlit one.
+  // Dimmed by the row's own head, not the row: a box also holds what it
+  // builds, and opacity on the box would dim a lit row inside an unlit one.
   assert.match(html, /\.node:not\(\.lit\) > \.head/);
-  // What each row touches is written down as the wires are drawn, which is
-  // what lets a row be lit without re-deriving the picture in the DOM.
-  assert.match(html, /touch\(line\.from, wire, line\.to\)/);
-  assert.match(html, /touching\.get\(on\)/);
-});
-
-test('a redraw restores the focus instead of half-dimming the picture', () => {
-  // Expanding a row rebuilds every wire, and the pointer never leaves the row
-  // while you do it — so without this the focused row's own relations go dim
-  // along with everything else, during exactly the interaction the picture is
-  // built around.
-  const html = buildHtml(
-    picture(
-      graphOf({
-        nodes: [PAGE('logIn', '/login'), SUB('a', 'A')],
-        edges: [edge('page:logIn', 'substate:a', 'reads')],
-      }),
-    ),
-  );
-  const draw = html.slice(html.indexOf('function draw()'));
-  assert.match(
-    draw.slice(0, draw.indexOf('function ', 20)),
-    /applyFocus\(\)/,
-    'draw() re-applies the focus it just rebuilt the wires out of',
-  );
-  // And the ways the pointer can leave without a row saying so.
-  assert.match(html, /pointerleave/);
-  assert.match(html, /visibilitychange/);
 });
 
 const CONSUMER = (name: string): GraphNode => ({
@@ -740,10 +612,7 @@ test('a screen is ordered by what its regions read, not only by what it reads', 
 test('the shorter column is placed level with what it relates to', () => {
   // Thirty-four rows facing nine put every line on a long diagonal into a short
   // stack, bundled into a rope beside the taller column. The order was right;
-  // the heights were not. The placement is a drawing-time step — it needs the
-  // measured heights — so what can be pinned here is that the drawing has it,
-  // runs it before it measures the wires, and places by the mean of the rows
-  // across.
+  // the heights were not.
   const html = buildHtml(
     picture(
       graphOf({
@@ -752,26 +621,10 @@ test('the shorter column is placed level with what it relates to', () => {
       }),
     ),
   );
-  const draw = html.slice(html.indexOf('function draw()'));
-  assert.match(draw.slice(0, 40), /place\(\);/, 'placed before the wires are measured');
+  // The placement itself needs a layout engine and has none here; what the
+  // stylesheet promises it — rows taken out of flow inside their column —
+  // can be read.
   assert.match(html, /\.rows\.placed > \.node \{ position: absolute/);
-  assert.match(html, /ys\.reduce\(\(a, b\) => a \+ b, 0\) \/ ys\.length/, 'by the mean height across');
-  assert.match(html, /Math\.max\(cursor, /, 'kept in order and apart');
-});
-
-test('a line meets a column at the column edge, not the row edge', () => {
-  // A nested row is indented inside its builder's box; a line into its own
-  // edge would cut across the box that holds it.
-  const html = buildHtml(
-    picture(
-      graphOf({
-        nodes: [PAGE('a', '/a'), CONSUMER('Region'), SUB('s', 'S')],
-        edges: [edge('page:a', 'consumer:Region', 'builds'), edge('consumer:Region', 'substate:s', 'uses')],
-      }),
-    ),
-  );
-  assert.match(html, /const x1 = edgeX\(line\.from/);
-  assert.ok(!/ra\.right - board\.left/.test(html), 'no line starts at a row edge');
 });
 
 test('the page\'s script is JavaScript that actually parses', () => {
@@ -779,9 +632,10 @@ test('the page\'s script is JavaScript that actually parses', () => {
   // meant the build had *two* levels of escaping and TypeScript checked
   // neither: a lone `\n` in a string became a real newline in the emitted
   // script, inside a string literal, and the whole page stopped parsing — a
-  // blank map, with nothing anywhere saying why. It is a file now, and this
-  // parses the file the page loads; every other test here reads it as text
-  // and so could not see a break.
+  // blank map, with nothing anywhere saying why. It is TypeScript now
+  // (src/page/map.ts), compiled to the file the page loads, and this parses
+  // that file: the one thing a type check of the source cannot say about
+  // its output.
   assert.doesNotThrow(() => new vm.Script(CLIENT_JS), 'media/map/map.js must parse');
   // And the page reaches it: the data block it reads, and the script itself.
   const html = htmlOf(

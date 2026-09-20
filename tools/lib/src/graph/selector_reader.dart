@@ -9,7 +9,9 @@ library;
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 
+import '../flow/flow_model.dart';
 import '../model/selector_shape.dart';
+import 'state_reads.dart';
 
 /// One getter on a `Select<Pascal>` extension type.
 class SelectorGetter {
@@ -31,7 +33,18 @@ class SelectorGetter {
 
   /// Character offset of the getter's name, for the node's line/column.
   final int offset;
-  final readsFields = <String>{};
+
+  /// What the body reads off the state, down to the field: `session.token`,
+  /// or `session` alone when the whole substate is taken. The field is what
+  /// lets "who touches `session.token`" be answered on the reading side too —
+  /// recorded by substate alone, every selector on a slice read as reading
+  /// all of it, and focusing one field of a fifty-field slice returned the
+  /// slice.
+  final reads = <StateRead>{};
+
+  /// The substates [reads] names.
+  Set<String> get readsFields => {for (final r in reads) r.substate};
+
   final waitsForActions = <String>{};
 
   /// Bare identifiers in the body, some of which name a getter alongside it.
@@ -82,7 +95,7 @@ void _inheritFromSiblings(Map<String, SelectorGetter> group) {
         if (other == null || identical(other, s)) {
           continue;
         }
-        changed |= _merge(s.readsFields, other.readsFields);
+        changed |= _merge(s.reads, other.reads);
         changed |= _merge(s.waitsForActions, other.waitsForActions);
       }
     }
@@ -95,7 +108,7 @@ void _inheritFromSiblings(Map<String, SelectorGetter> group) {
 
 /// Adds [from] to [into], reporting whether anything was new — `Set.addAll`
 /// returns void, and the fixpoint loop needs to know when to stop.
-bool _merge(Set<String> into, Set<String> from) {
+bool _merge<T>(Set<T> into, Set<T> from) {
   final before = into.length;
   into.addAll(from);
   return into.length != before;
@@ -148,7 +161,8 @@ class _SelectorVisitor extends RecursiveAstVisitor<void> {
         continue;
       }
 
-      final s = SelectorGetter(type, decl.owner, m.name.lexeme, m.name.offset);
+      final s = SelectorGetter(type, decl.owner, m.name.lexeme, m.name.offset)
+        ..reads.addAll(stateReadsIn(m.body));
       m.body.accept(_BodyReader(s));
       s.body = m.body;
       selectors.add(s);
@@ -181,6 +195,9 @@ class _BodyReader extends RecursiveAstVisitor<void> {
   /// which is what a composite in `extension SelectComposites on Selectors`
   /// has to use — it has no `_state` to reach. The old pattern knew only the
   /// first, so every composite reading state directly was a blind spot.
+  ///
+  /// The reads themselves are [stateReadsIn]'s; what this reader keeps is
+  /// knowing the receiver is not a sibling.
   static const _stateReceivers = {'_state', 'state'};
 
   @override
@@ -191,9 +208,6 @@ class _BodyReader extends RecursiveAstVisitor<void> {
     // standing on its own. This is what the old "not preceded by a dot"
     // lookbehind expressed.
     if (parent is PrefixedIdentifier && parent.identifier == node) {
-      if (_stateReceivers.contains(parent.prefix.name)) {
-        _into.readsFields.add(node.name);
-      }
       return;
     }
 

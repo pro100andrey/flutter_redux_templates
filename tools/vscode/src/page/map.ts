@@ -1,35 +1,47 @@
 // FRX Map — the page's own script.
 //
-// Runs inside the webview, against the picture `map.ts` folded out of the
+// Runs inside the webview, against the picture `src/map.ts` folded out of the
 // wiring graph and handed over in the `#picture` JSON block. It used to live
 // inside a template literal in map.ts, which put it behind two levels of
 // escaping that TypeScript checked neither of: a lone `\n` in a string became
 // a real newline in the emitted script and the whole page stopped parsing,
-// with nothing anywhere saying why. As a file it is one level, and
-// `map.test.ts` parses it as JavaScript.
+// with nothing anywhere saying why. Then it was a JavaScript file, one level
+// out, that `map.test.ts` parsed — and that TypeScript still did not check,
+// so the picture's contract was typed on the side that builds it and taken
+// on trust on the side that draws it. Now it is this file, compiled by
+// `tsconfig.page.json` to `media/map/map.js`, against the same
+// `picture.d.ts` the extension uses.
 //
 // Plain script, no modules: the webview loads it by URI under a CSP that
-// allows exactly this file, by nonce.
+// allows exactly this file, by nonce. The types are reached by `import()` in
+// type position, which — unlike an `import` statement — leaves the file a
+// script.
+
+type Picture = import('./picture').Picture;
+type PictureNode = import('./picture').PictureNode;
+type PictureEdge = import('./picture').PictureEdge;
+type PageState = import('./picture').PageState;
+
 const vscode = acquireVsCodeApi();
 /** The picture, handed over as a JSON block so a value can never be code. */
-const DATA = JSON.parse(document.getElementById('picture').textContent);
+const DATA: Picture = JSON.parse(document.getElementById('picture')!.textContent!);
 /** What a relation does to state, by its kind. */
 const CHANGES = new Set(['dispatches', 'writes', 'restores']);
 const READS = new Set(['uses', 'reads']);
 /** A row with more of them than this starts folded — see fold(). */
 const FOLD_OVER = 3;
-const boxes = new Map();
+const boxes = new Map<string, HTMLElement>();
 /** Append `value` to the list under `key`, starting the list if there is none. */
-function pushInto(into, key, value) {
+function pushInto<K, V>(into: Map<K, V[]>, key: K, value: V): void {
   const list = into.get(key);
   if (list) list.push(value);
   else into.set(key, [value]);
 }
 /** Every node by id — rows, and the actions and selectors a row owns. */
-const nodes = new Map();
+const nodes = new Map<string, PictureNode>();
 /** A row's builder, by the nesting drawn. */
-const builderOf = new Map();
-(function index(list, builder) {
+const builderOf = new Map<string, string>();
+(function index(list: PictureNode[], builder: string | null): void {
   for (const n of list) {
     nodes.set(n.id, n);
     if (builder) builderOf.set(n.id, builder);
@@ -42,25 +54,26 @@ const builderOf = new Map();
 // which is pinned. Rebuilding the page is how it refreshes, and losing the
 // fold you just made to see the refreshed picture would be the page
 // undoing your last action.
-const remembered = vscode.getState() || {};
-const folded = new Set(remembered.folded || []);
-let pinned = remembered.pinned && nodes.has(remembered.pinned) ? remembered.pinned : null;
+const remembered: PageState = vscode.getState() || {};
+const folded = new Set<string>(remembered.folded || []);
+let pinned: string | null =
+  remembered.pinned && nodes.has(remembered.pinned) ? remembered.pinned : null;
 /**
  * Which column the last draw placed — 0 actors, 1 state, -1 neither yet.
  * Remembered with the folds: a refresh rebuilds the page, and the placement
  * a fold was allowed to keep (see place()) would otherwise be re-decided
  * from scratch on a refresh that changed nothing.
  */
-let placed = remembered.placed ?? -1;
-function remember() {
+let placed: number = remembered.placed ?? -1;
+function remember(): void {
   vscode.setState({ folded: [...folded], pinned, placed });
 }
 
-function open(n) {
+function open(n: PictureNode | null | undefined): void {
   if (n && n.file) vscode.postMessage({ type: 'open', file: n.file, line: n.line, column: n.column });
 }
 
-function nodeEl(n) {
+function nodeEl(n: PictureNode): HTMLElement {
   const el = document.createElement('div');
   el.className = 'node k-' + n.kind;
   el.dataset.id = n.id;
@@ -144,8 +157,16 @@ function nodeEl(n) {
   return el;
 }
 
-function fill(id, list) {
-  const rows = document.querySelector('#' + id + ' .rows');
+/** The two columns, by the id of the element that holds each. */
+type Column = 'actors' | 'state';
+
+/** The element with `id`, which the page's own HTML guarantees is there. */
+function byId(id: string): HTMLElement {
+  return document.getElementById(id)!;
+}
+
+function fill(id: Column, list: PictureNode[]): void {
+  const rows = document.querySelector<HTMLElement>('#' + id + ' .rows')!;
   if (!list.length) {
     const e = document.createElement('div');
     e.className = 'node empty';
@@ -176,12 +197,12 @@ function fill(id, list) {
  * lines itself, by a selector naming every element that can carry text,
  * and that selector is what the lists were missing from.
  */
-function fit() {
+function fit(): void {
   const wasFolded = [...document.querySelectorAll('.node.folded')];
   for (const el of wasFolded) el.classList.remove('folded');
-  const wasHidden = [...document.querySelectorAll('.owned ul')].filter((ul) => ul.hidden);
+  const wasHidden = [...document.querySelectorAll<HTMLElement>('.owned ul')].filter((ul) => ul.hidden);
   for (const ul of wasHidden) ul.hidden = false;
-  const cols = ['actors', 'state'].map((id) => document.getElementById(id));
+  const cols = (['actors', 'state'] as const).map(byId);
   for (const col of cols) col.style.width = 'max-content';
   const widths = cols.map((col) => col.getBoundingClientRect().width);
   cols.forEach((col, i) => {
@@ -194,7 +215,7 @@ function fit() {
 }
 
 /** The row an id is drawn on: itself, or the folded row it is under. */
-function shownAs(id) {
+function shownAs(id: string): string {
   let at = id;
   let builder = builderOf.get(at);
   while (builder !== undefined) {
@@ -204,6 +225,17 @@ function shownAs(id) {
   return at;
 }
 
+/** A line as drawn: the picture's edges between two shown rows, merged. */
+interface Line {
+  from: string;
+  to: string;
+  side: PictureEdge['side'];
+  kinds: Set<string>;
+  /** Whether any of it changes state: the colour, and what is drawn last. */
+  changes: boolean;
+  edges: PictureEdge[];
+}
+
 /**
  * The lines to draw: the picture's edges, each end moved to the row it is
  * shown on, and lines that now join the same two rows merged. What a folded
@@ -211,8 +243,8 @@ function shownAs(id) {
  * puts an action's edges on its substate. A line with both ends on one row
  * is a region relating to its own builder, which the fold has said already.
  */
-function lines() {
-  const byPair = new Map();
+function lines(): Line[] {
+  const byPair = new Map<string, Line>();
   for (const e of DATA.edges) {
     const from = shownAs(e.from), to = shownAs(e.to);
     if (from === to) continue;
@@ -225,11 +257,16 @@ function lines() {
     line.edges.push(e);
     for (const r of e.relations) {
       line.kinds.add(r.kind);
-      // Whether any of it changes state: the colour, and what is drawn last.
       if (CHANGES.has(r.kind)) line.changes = true;
     }
   }
   return [...byPair.values()];
+}
+
+/** Where along a row's edge a line end attaches: the `slot`th of `of`. */
+interface Slot {
+  slot: number;
+  of: number;
 }
 
 /**
@@ -240,17 +277,18 @@ function lines() {
  * cross itself. By the far end's height on the page rather than its row
  * number: the rows are placed, and a fold changes which rows there are.
  */
-function slotsOf(drawn, rectOf) {
-  const ends = new Map();
+function slotsOf(drawn: Line[], rectOf: (id: string) => DOMRect): { from: Slot; to: Slot }[] {
+  const ends = new Map<string, number[]>();
   drawn.forEach((line, index) => {
     pushInto(ends, line.from, index);
     pushInto(ends, line.to, index);
   });
-  const centre = (id) => {
+  const centre = (id: string) => {
     const r = rectOf(id);
     return r.top + r.height / 2;
   };
-  const slots = drawn.map(() => ({}));
+  // Every end is filled below: each line was listed under both its rows.
+  const slots = drawn.map(() => ({}) as { from: Slot; to: Slot });
   for (const [node, indices] of ends) {
     const ordered = indices
       .map((index, arrival) => {
@@ -267,7 +305,7 @@ function slotsOf(drawn, rectOf) {
 }
 
 /** The ids of a row and everything nested under it. */
-function idsUnder(n) {
+function idsUnder(n: PictureNode): string[] {
   return [n.id].concat((n.built || []).flatMap(idsUnder));
 }
 
@@ -287,9 +325,9 @@ function idsUnder(n) {
  * column's own row container, so the measured widths — and so the heights
  * — are those of the flow layout.
  */
-function place() {
-  const cols = ['actors', 'state'].map((id) => ({
-    rows: document.querySelector('#' + id + ' .rows'),
+function place(): void {
+  const cols = (['actors', 'state'] as const).map((id) => ({
+    rows: document.querySelector<HTMLElement>('#' + id + ' .rows')!,
     nodes: DATA[id],
   }));
   // Back to flow before measuring — the class *and* the height the last
@@ -324,18 +362,18 @@ function place() {
   const moving = cols[shorter];
   const facing = cols[1 - shorter].rows.getBoundingClientRect();
 
-  const centreOf = (id) => {
+  const centreOf = (id: string): number | null => {
     const box = boxes.get(shownAs(id));
     if (!box) return null;
     const r = box.getBoundingClientRect();
     return r.top + r.height / 2 - facing.top;
   };
-  const wanted = [];
+  const wanted: { box: HTMLElement; top: number; height: number }[] = [];
   const GAP = 10;
   let cursor = 0;
   for (const n of moving.nodes) {
     const ids = new Set(idsUnder(n));
-    const ys = [];
+    const ys: number[] = [];
     for (const e of DATA.edges) {
       if (e.side !== 'across') continue;
       const far = ids.has(e.from) ? e.to : ids.has(e.to) ? e.from : null;
@@ -343,7 +381,7 @@ function place() {
       const y = centreOf(far);
       if (y !== null) ys.push(y);
     }
-    const box = boxes.get(n.id);
+    const box = boxes.get(n.id)!;
     const height = box.getBoundingClientRect().height;
     // A row with nothing across from it follows the row before it, so the
     // edgeless tail the ordering sank stays a tail.
@@ -369,7 +407,7 @@ function place() {
  * boardTop is passed in rather than measured here: this runs twice per line,
  * inside a loop that is appending to the DOM, and reading a rect forces layout.
  */
-function anchorY(box, anchor, boardTop) {
+function anchorY(box: DOMRect, anchor: Slot, boardTop: number): number {
   const half = Math.max(0, box.height / 2 - 4);
   const step = anchor.of > 1 ? Math.min(12, (2 * half) / (anchor.of - 1)) : 0;
   const middle = box.top - boardTop + box.height / 2;
@@ -377,7 +415,7 @@ function anchorY(box, anchor, boardTop) {
 }
 
 /** The row the pointer is on, or null. Held, because a redraw has to restore it. */
-let focused = null;
+let focused: string | null = null;
 /** What the picture is about right now: the hovered row, else the pinned one. */
 const current = () => focused || pinned;
 
@@ -399,8 +437,8 @@ const current = () => focused || pinned;
  * it — so nothing would fire, and the picture would sit there with the
  * focused row's own relations dimmed along with the rest.
  */
-function applyFocus() {
-  const board = document.getElementById('board');
+function applyFocus(): void {
+  const board = byId('board');
   const on = current();
   for (const [id, box] of boxes) box.classList.toggle('pinned', id === pinned);
   if (!on) {
@@ -413,11 +451,20 @@ function applyFocus() {
   // What the row touches was written down when the wires were drawn; this
   // runs on every row the pointer crosses, and used to ask the DOM for every
   // wire each time to find the handful that matter.
-  const at = touching.get(on) || { wires: new Set(), rows: new Set() };
+  const at = touching.get(on) || { wires: new Set<SVGPathElement>(), rows: new Set<string>() };
   for (const wire of wires) wire.classList.toggle('lit', at.wires.has(wire));
   for (const [id, box] of boxes) box.classList.toggle('lit', id === on || at.rows.has(id));
   board.classList.add('focusing');
   describe(on);
+}
+
+/** One line of the pane: the row across, and what the line into it carries. */
+interface Entry {
+  far: PictureNode;
+  /** The action or selector the fold hid, when the relation ends on one. */
+  what: PictureNode | null;
+  via: string;
+  kind: string;
 }
 
 /**
@@ -430,18 +477,18 @@ function applyFocus() {
  * across, opening that row; under it, the actions and selectors the fold
  * hid, each opening its own, with the trigger beside it.
  */
-function describe(id) {
-  const pane = document.getElementById('pane');
+function describe(id: string | null): void {
+  const pane = byId('pane');
   pane.innerHTML = '';
   pane.classList.toggle('idle', !id);
-  if (!id) {
+  const n = id === null ? undefined : nodes.get(id);
+  if (!id || !n) {
     const hint = document.createElement('div');
     hint.className = 'hint';
     hint.textContent = 'Hover a row to see what its lines mean; click to pin it, Esc to let go.';
     pane.appendChild(hint);
     return;
   }
-  const n = nodes.get(id);
   const h = document.createElement('h3');
   h.textContent = n.title;
   h.addEventListener('click', () => open(n));
@@ -450,22 +497,27 @@ function describe(id) {
   kind.textContent = n.kind + (n.file ? ' · ' + n.file.split(/[\\/]/).slice(-2).join('/') : '');
   pane.append(h, kind);
 
-  const groups = new Map();
-  const add = (group, entry) => pushInto(groups, group, entry);
+  const groups = new Map<string, Entry[]>();
+  const add = (group: string, entry: Entry) => pushInto(groups, group, entry);
   for (const e of DATA.edges) {
-    const far = e.from === id ? e.to : e.to === id ? e.from : null;
-    if (far === null) continue;
+    const farId = e.from === id ? e.to : e.to === id ? e.from : null;
+    if (farId === null) continue;
+    // Every edge of the picture joins two drawn nodes; one that did not was
+    // reported as a gap and never drawn.
+    const far = nodes.get(farId);
+    if (!far) continue;
     for (const r of e.relations) {
       const out = (e.from === id) !== r.reversed;
-      const what = r.through ? nodes.get(r.through) : null;
-      const entry = { far: nodes.get(far), what, via: r.via, kind: r.kind };
+      const what = r.through ? nodes.get(r.through) ?? null : null;
+      const entry: Entry = { far, what, via: r.via, kind: r.kind };
       if (CHANGES.has(r.kind)) add(out ? 'Changes' : 'Changed by', entry);
       else if (READS.has(r.kind)) add(out ? 'Reads' : 'Read by', entry);
       else add(out ? r.kind : r.kind + ' ← from', entry);
     }
   }
   const builder = builderOf.get(id);
-  if (builder) add('Built by', { far: nodes.get(builder), what: null, via: '', kind: 'builds' });
+  const builtBy = builder === undefined ? undefined : nodes.get(builder);
+  if (builtBy) add('Built by', { far: builtBy, what: null, via: '', kind: 'builds' });
   for (const b of n.built || []) add('Builds', { far: b, what: null, via: '', kind: 'builds' });
 
   const order = ['Changed by', 'Changes', 'Read by', 'Reads'];
@@ -480,8 +532,8 @@ function describe(id) {
     // One entry per row across, and under it everything behind the line:
     // a connector that dispatches twenty actions into a substate is one
     // relation to read, not twenty lines that start with the same name.
-    const byFar = new Map();
-    for (const entry of groups.get(group)) pushInto(byFar, entry.far.id, entry);
+    const byFar = new Map<string, Entry[]>();
+    for (const entry of groups.get(group)!) pushInto(byFar, entry.far.id, entry);
     for (const entries of byFar.values()) {
       const far = entries[0].far;
       const li = document.createElement('li');
@@ -505,12 +557,13 @@ function describe(id) {
         for (const entry of items) {
           const item = document.createElement('span');
           item.className = 'item';
-          if (entry.what) {
-            const what = document.createElement('span');
-            what.className = 'what';
-            what.textContent = entry.what.title;
-            what.addEventListener('click', () => open(entry.what));
-            item.appendChild(what);
+          const what = entry.what;
+          if (what) {
+            const el = document.createElement('span');
+            el.className = 'what';
+            el.textContent = what.title;
+            el.addEventListener('click', () => open(what));
+            item.appendChild(el);
           }
           if (entry.via && !shared) item.appendChild(viaEl(entry.via));
           list.appendChild(item);
@@ -524,15 +577,22 @@ function describe(id) {
 }
 
 /** A trigger's name, in the pane's monospace: the callback, the field list. */
-function viaEl(via) {
+function viaEl(via: string): HTMLElement {
   const el = document.createElement('span');
   el.className = 'via';
   el.textContent = ' ' + via;
   return el;
 }
 
-function focusOnHover() {
-  const board = document.getElementById('board');
+/** The row an event landed on, by the id every row's element carries — or null. */
+function rowOf(target: EventTarget | null): string | null {
+  const row = target instanceof Element ? target.closest<HTMLElement>('.node') : null;
+  const id = row?.dataset.id;
+  return id !== undefined && boxes.has(id) ? id : null;
+}
+
+function focusOnHover(): void {
+  const board = byId('board');
   // One listener on the board, resolving to the innermost row under the
   // pointer — a row nested in another is inside its builder's box, and a
   // per-row enter/leave pair would light the builder on the way in and
@@ -541,9 +601,8 @@ function focusOnHover() {
   // which is what pinning is for. A line is not a row: crossing one keeps
   // the focus, so its own tooltip can be read.
   board.addEventListener('mouseover', (event) => {
-    if (event.target.closest('svg')) return;
-    const row = event.target.closest('.node');
-    const id = row && boxes.has(row.dataset.id) ? row.dataset.id : null;
+    if (event.target instanceof Element && event.target.closest('svg')) return;
+    const id = rowOf(event.target);
     if (id === focused) return;
     focused = id;
     applyFocus();
@@ -560,7 +619,7 @@ function focusOnHover() {
   // is by a mouseover on whatever is there now — which is not the board,
   // so the board's own listeners never hear of it.
   document.addEventListener('mouseover', (event) => {
-    if (focused && !board.contains(event.target)) {
+    if (focused && event.target instanceof Node && !board.contains(event.target)) {
       focused = null;
       applyFocus();
     }
@@ -575,9 +634,8 @@ function focusOnHover() {
   // goes, so the pane can be read and the picture scrolled with one row's
   // relations held lit. The title, counts and lists keep their own clicks.
   board.addEventListener('click', (event) => {
-    if (event.target.closest('.t, .count, .regions, .owned li, svg')) return;
-    const row = event.target.closest('.node');
-    const id = row && boxes.has(row.dataset.id) ? row.dataset.id : null;
+    if (event.target instanceof Element && event.target.closest('.t, .count, .regions, .owned li, svg')) return;
+    const id = rowOf(event.target);
     if (!id) return;
     pinned = pinned === id ? null : id;
     remember();
@@ -592,9 +650,9 @@ function focusOnHover() {
 }
 
 /** The wires as drawn, in order, for the focus to light without asking the DOM. */
-let wires = [];
+let wires: SVGPathElement[] = [];
 /** By row id: the wires that touch the row, and the rows at their far ends. */
-let touching = new Map();
+let touching = new Map<string, { wires: Set<SVGPathElement>; rows: Set<string> }>();
 
 /**
  * Redraw the wires against the current layout (expanding a node moves it).
@@ -606,10 +664,10 @@ let touching = new Map();
  * and then read the next line's two rects — a layout per line, on every
  * expand.
  */
-function draw() {
+function draw(): void {
   place();
-  const svg = document.getElementById('wires');
-  const boardEl = document.getElementById('board');
+  const svg = byId('wires');
+  const boardEl = byId('board');
   const board = boardEl.getBoundingClientRect();
   // How far a same-column line may bulge into the margin: the margin is
   // narrower on a narrow panel, and a line past it runs off the page.
@@ -617,26 +675,26 @@ function draw() {
   // A line meets a column at the column's edge, not the row's: a nested row
   // is indented inside its builder's box, and a line into its own edge would
   // cut across the box that holds it.
-  const colOf = (id) => document.getElementById(id).getBoundingClientRect();
+  const colOf = (id: Column) => byId(id).getBoundingClientRect();
   const actorsCol = colOf('actors'), stateCol = colOf('state');
-  const edgeX = (id, side) =>
+  const edgeX = (id: string, side: 'left' | 'right') =>
     (id.startsWith('substate:') ? stateCol : actorsCol)[side] - board.left;
-  const rects = new Map();
-  const rectOf = (id) => {
+  const rects = new Map<string, DOMRect>();
+  const rectOf = (id: string): DOMRect => {
     let r = rects.get(id);
-    if (!r) rects.set(id, (r = boxes.get(id).getBoundingClientRect()));
+    if (!r) rects.set(id, (r = boxes.get(id)!.getBoundingClientRect()));
     return r;
   };
   const drawn = lines();
   // Lines that change state are drawn last, so they lie on top: where the
   // bundle is dense a grey line over a blue one hid the answer to the
   // first question the picture is for. The order is otherwise kept.
-  drawn.sort((a, b) => a.changes - b.changes);
+  drawn.sort((a, b) => Number(a.changes) - Number(b.changes));
   const slots = slotsOf(drawn, rectOf);
   const fragment = document.createDocumentFragment();
   wires = [];
   touching = new Map();
-  const touch = (id, wire, far) => {
+  const touch = (id: string, wire: SVGPathElement, far: string) => {
     let at = touching.get(id);
     if (!at) touching.set(id, (at = { wires: new Set(), rows: new Set() }));
     at.wires.add(wire);
@@ -648,7 +706,7 @@ function draw() {
     const y1 = anchorY(ra, slots[i].from, board.top);
     const y2 = anchorY(rb, slots[i].to, board.top);
 
-    let d;
+    let d: string;
     if (line.side === 'across') {
       // A curve, not a chord: two relations that leave one row a few pixels
       // apart and land far apart stay apart the whole way, instead of
@@ -687,7 +745,7 @@ function draw() {
     title.textContent = line.edges
       .flatMap((e) => e.relations.map((r) =>
         (r.reversed ? '← ' : '') + r.kind +
-        (r.through && nodes.has(r.through) ? ' ' + nodes.get(r.through).title : '') +
+        (r.through && nodes.has(r.through) ? ' ' + nodes.get(r.through)!.title : '') +
         (r.via ? ' (' + r.via + ')' : '')))
       .join('\n');
     wire.appendChild(title);
@@ -696,8 +754,8 @@ function draw() {
     touch(line.from, wire, line.to);
     touch(line.to, wire, line.from);
   });
-  svg.setAttribute('width', board.width);
-  svg.setAttribute('height', board.height);
+  svg.setAttribute('width', String(board.width));
+  svg.setAttribute('height', String(board.height));
   svg.replaceChildren(fragment);
   applyFocus();
 }
@@ -720,7 +778,7 @@ if (DATA.gaps.length) {
   const h = document.createElement('h2');
   h.textContent = '⚠ ' + DATA.gaps.length + ' unresolved edge(s)';
   box.appendChild(h);
-  const byWhy = new Map();
+  const byWhy = new Map<string, Picture['gaps']>();
   for (const g of DATA.gaps) pushInto(byWhy, g.why, g);
   for (const [why, gaps] of byWhy) {
     const p = document.createElement('p');
@@ -742,7 +800,7 @@ if (DATA.gaps.length) {
       box.appendChild(row);
     }
   }
-  document.getElementById('gaps').appendChild(box);
+  byId('gaps').appendChild(box);
 }
 
-document.getElementById('refresh').addEventListener('click', () => vscode.postMessage({ type: 'refresh' }));
+byId('refresh').addEventListener('click', () => vscode.postMessage({ type: 'refresh' }));

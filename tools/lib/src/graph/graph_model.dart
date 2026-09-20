@@ -28,6 +28,16 @@ enum NodeKind {
   /// a route reaches, so a consumer outside it reads as nobody, and every
   /// selector it alone uses reads as dead.
   consumer,
+
+  /// One field of a substate — `session.token`.
+  ///
+  /// **Never among [AppGraph.nodes].** A field is a place on a substate, and
+  /// the graph draws it as the `via` of the edges into the substate rather
+  /// than as a node of its own: a fifty-field slice would be fifty nodes, and
+  /// every consumer of the graph would have to fold them back. The kind
+  /// exists so the orphan list can name one — [AppGraph.deadFields] — with
+  /// the same record every other orphan has.
+  field,
 }
 
 /// One artifact in the graph.
@@ -98,7 +108,9 @@ enum EdgeKind {
   /// A page reaches another page (`GoAction.push`/`pop`).
   navigates,
 
-  /// A selector or the persistor reads a substate.
+  /// A selector, an action, a connector or the persistor reads a substate.
+  /// `via` is the place read — `session.token`, or `session` for the whole
+  /// slice — which is what a focus on one field keeps or drops the edge by.
   reads,
 
   /// The persistor puts a substate back on boot, building it from storage
@@ -107,7 +119,7 @@ enum EdgeKind {
   restores,
 
   /// A page or connector constructs another connector — how a screen is
-  /// composed out of regions.
+  /// composed out of regions — or a file constructs a service dispatcher.
   ///
   /// The one edge that is about *existence* rather than behaviour, and the
   /// reason it is here: a connector nothing builds cannot dispatch anything, so
@@ -245,10 +257,15 @@ class GraphFocus {
     required this.direction,
     required this.depth,
     required this.truncated,
+    this.field,
   });
 
   final String node;
   final GraphDirection direction;
+
+  /// The one field of a substate [node] the walk was narrowed to, when it was
+  /// — see [AppGraph.focusOn].
+  final String? field;
 
   /// Hops followed, or null when unbounded.
   final int? depth;
@@ -259,6 +276,7 @@ class GraphFocus {
 
   Map<String, Object?> toJson() => {
     'node': node,
+    if (field != null) 'field': field,
     'direction': direction.name,
     'depth': depth,
     'truncated': truncated,
@@ -296,7 +314,7 @@ class AppGraph {
   /// Not an error by itself: either can be reached from somewhere frx does not
   /// read, and in a template a selector can be API offered to whoever builds on
   /// it. But in a repo where frx wrote the callers, it usually means dead code.
-  /// Connectors no file constructs.
+  /// Connectors and service dispatchers no file constructs.
   ///
   /// In-degree on [EdgeKind.builds], not reachability, and the difference is
   /// deliberate: "no file anywhere constructs this class" is a claim the source
@@ -305,6 +323,10 @@ class AppGraph {
   /// live screen as dead, which is the failure this whole list exists not to
   /// have. A chain of two connectors that only build each other is therefore
   /// not reported. That is the honest bound, and it errs the safe way.
+  ///
+  /// A dispatcher by the same rule: it is constructed where the app wires its
+  /// services, and one nothing constructs is dead with every action only it
+  /// dispatches — which the orphan list said one action at a time.
   List<({GraphNode node, String why})> get unbuiltConnectors {
     final built = {
       for (final e in edges)
@@ -312,12 +334,12 @@ class AppGraph {
     };
     return [
       for (final n in nodes)
-        // Connectors only. A [NodeKind.consumer] is any file frx read that
-        // turned out to dispatch, read a selector or compose a screen, and
-        // "nothing constructs `RunEnv`" is not a claim about dead code — it
-        // is a claim about a class that was never a widget.
-        if (n.kind == NodeKind.consumer &&
-            n.name.endsWith('Connector') &&
+        // Connectors and services only. A [NodeKind.consumer] is any file frx
+        // read that turned out to dispatch, read a selector or compose a
+        // screen, and "nothing constructs `RunEnv`" is not a claim about dead
+        // code — it is a claim about a class that was never a widget.
+        if ((n.kind == NodeKind.consumer && n.name.endsWith('Connector') ||
+                n.kind == NodeKind.service) &&
             !built.contains(n.id))
           (node: n, why: 'no file constructs it'),
     ];
@@ -335,6 +357,7 @@ class AppGraph {
           (node: n, why: 'no dispatcher found'),
       ...unbuiltConnectors,
       ...deadSelectors,
+      ...deadFields,
     ];
   }
 
@@ -394,6 +417,99 @@ class AppGraph {
     ];
   }
 
+  /// Fields of a substate nothing reads — written, often, and never looked
+  /// at.
+  ///
+  /// The question a dead selector could not settle. `SelectSetup.agentErrorOn`
+  /// on the dead list says the *getter* is unused; whether the field behind
+  /// it is, depends on every reducer and connector that might read the state
+  /// directly — which the `reads` edges now record, by field. So: a field is
+  /// live when something reads it that is not itself a dead selector, or
+  /// when anything live reads the whole slice — `state.session` handed on,
+  /// or a getter returning it — since that is a read of every field, and
+  /// guessing otherwise would report a live field as dead. The persistor's
+  /// reads do not count: it saves the slice, it does not use it.
+  ///
+  /// Only for a substate whose node lists its `fields`, which is one with a
+  /// state class of ours; a framework slice has nothing to list.
+  List<({GraphNode node, String why})> get deadFields {
+    final deadSelectorIds = {for (final d in deadSelectors) d.node.id};
+    final kindOf = {for (final n in nodes) n.id: n.kind};
+    bool live(String reader) => !deadSelectorIds.contains(reader);
+
+    final out = <({GraphNode node, String why})>[];
+    for (final n in nodes) {
+      if (n.kind != NodeKind.substate) {
+        continue;
+      }
+      final fields = n.fields['fields'];
+      if (fields is! List<String> || fields.isEmpty) {
+        continue;
+      }
+
+      final substate = n.name;
+      final readersOf = <String, Set<String>>{};
+      final wholeReaders = <String>{};
+      final written = <String>{};
+      var wholeWritten = false;
+      for (final e in edges) {
+        if (e.to != n.id) {
+          continue;
+        }
+        final via = e.via;
+        final whole = via == null || via == substate;
+        final field = whole ? null : _fieldOf(via, substate);
+        if (e.kind == .reads && kindOf[e.from] != NodeKind.persistor) {
+          if (whole) {
+            wholeReaders.add(e.from);
+          } else if (field != null) {
+            readersOf.putIfAbsent(field, () => {}).add(e.from);
+          }
+        } else if (e.kind == .writes) {
+          if (whole) {
+            wholeWritten = true;
+          } else if (field != null) {
+            written.add(field);
+          }
+        }
+      }
+
+      if (wholeReaders.any(live)) {
+        continue;
+      }
+      for (final field in fields) {
+        if ((readersOf[field] ?? const {}).any(live)) {
+          continue;
+        }
+        out.add((
+          node: GraphNode(
+            id: 'field:$substate.$field',
+            kind: NodeKind.field,
+            name: '$substate.$field',
+            substate: substate,
+            file: n.file,
+          ),
+          why: wholeWritten || written.contains(field)
+              ? 'written, nothing reads it'
+              : 'nothing reads it',
+        ));
+      }
+    }
+    return out;
+  }
+
+  /// `session.token` → `token`; `session.user.name` → `user`; anything not
+  /// under [substate] → null.
+  static String? _fieldOf(String via, String substate) {
+    final prefix = '$substate.';
+    if (!via.startsWith(prefix)) {
+      return null;
+    }
+    final rest = via.substring(prefix.length);
+    final dot = rest.indexOf('.');
+    return dot < 0 ? rest : rest.substring(0, dot);
+  }
+
   /// The subgraph within [depth] hops of [id] — "show me everything around the
   /// login screen", or, with [GraphDirection.inbound], "what breaks if I touch
   /// this".
@@ -402,11 +518,28 @@ class AppGraph {
   /// sensible default for an impact question and terminates for the same reason
   /// a bounded one does: the node set is finite and each pass either grows it
   /// or stops.
+  ///
+  /// [field] narrows a substate focus to one field of it — "who touches
+  /// `console.seq`", not "who touches `console`". A slice with fifty fields is
+  /// a hub: every selector on it reads it, every setter writes it, and an
+  /// inbound walk from the slice is the whole app. The edges at the focus are
+  /// kept when their `via` names the field, or names the whole slice — a flat
+  /// `copyWith(console: …)` and the persistor's restore change every field —
+  /// and the walk goes on from what is left. Edges elsewhere are untouched.
   AppGraph focusOn(
     String id, {
     int? depth = 1,
     GraphDirection direction = GraphDirection.both,
+    String? field,
   }) {
+    final edges = field == null
+        ? this.edges
+        : [
+            for (final e in this.edges)
+              if ((e.from != id && e.to != id) || _touchesField(e, id, field))
+                e,
+          ];
+
     Set<String> expand(Set<String> from) {
       final next = {...from};
       for (final e in edges) {
@@ -454,11 +587,26 @@ class AppGraph {
       ],
       focus: GraphFocus(
         node: id,
+        field: field,
         direction: direction,
         depth: depth,
         truncated: truncated,
       ),
     );
+  }
+
+  /// Whether an edge at `substate:<name>` concerns [field] of it.
+  ///
+  /// `via` on an edge into a substate is the place touched — `console.seq`,
+  /// or `console` for the whole slice — and an edge with no `via` at all
+  /// (the persistor's) touches the whole slice too.
+  static bool _touchesField(GraphEdge e, String id, String field) {
+    final substate = id.substring(id.indexOf(':') + 1);
+    final via = e.via;
+    return via == null ||
+        via == substate ||
+        via == '$substate.$field' ||
+        via.startsWith('$substate.$field.');
   }
 
   Map<String, Object?> toJson() => {

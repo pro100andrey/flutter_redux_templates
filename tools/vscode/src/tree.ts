@@ -127,11 +127,20 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
       );
     }
     if (element.substateOf) {
-      return this._rows(owned.get(element.substateOf) ?? [], (n) =>
+      const substate = graph.nodes.find((n) => n.id === `substate:${element.substateOf}`);
+      const rows = (owned.get(element.substateOf) ?? []).map((n) =>
         n.kind === 'action'
           ? this._actionItem(n, why.has(n.id))
           : this._selectorItem(n, why.get(n.id)),
       );
+      // The slice's own fields after what acts on it: a fifty-field slice
+      // would otherwise push every action off the screen. Each carries the
+      // graph's verdict on it — `field:setup.agentErrorOn  written, nothing
+      // reads it` — the one thing about a field the source cannot say.
+      for (const f of substate?.fields ?? []) {
+        rows.push(this._fieldItem(substate!, f, why.get(`field:${substate!.name}.${f}`)));
+      }
+      return rows.length === 0 ? [leaf('(none)', 'info')] : rows;
     }
     return [];
   }
@@ -168,6 +177,7 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
     return nodes.map(make);
   }
 
+
   private _group(
     label: string,
     groupKind: 'substates' | 'routes',
@@ -184,10 +194,11 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
   private _substateItem(n: GraphNode, owns: boolean): FrxTreeItem {
     // Collapsible only when something is actually under it — an expand arrow
     // that opens onto "(none)" is a promise the row cannot keep. async_redux's
-    // `wait` field owns nothing of ours and stays a leaf.
+    // `wait` field owns nothing of ours, lists no fields, and stays a leaf.
+    const expands = owns || (n.fields?.length ?? 0) > 0;
     const item = new FrxTreeItem(
       n.name,
-      owns
+      expands
         ? vscode.TreeItemCollapsibleState.Collapsed
         : vscode.TreeItemCollapsibleState.None,
     );
@@ -195,9 +206,22 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
     item.contextValue = 'frxSubstate';
     item.frxName = n.name;
     item.frxKind = 'substate';
-    item.substateOf = owns ? n.name : undefined;
+    item.substateOf = expands ? n.name : undefined;
     item.iconPath = new vscode.ThemeIcon('symbol-field');
     this._openOn(item, n);
+    return item;
+  }
+
+  /** One field of a substate, marked when the graph says nothing reads it. */
+  private _fieldItem(substate: GraphNode, field: string, dead?: string): FrxTreeItem {
+    const item = new FrxTreeItem(field, vscode.TreeItemCollapsibleState.None);
+    item.description = dead ?? '';
+    item.contextValue = 'frxField';
+    item.frxName = field;
+    item.frxKind = 'field';
+    item.iconPath = new vscode.ThemeIcon(dead ? 'warning' : 'symbol-variable');
+    // The state file: every field of the slice is declared in it.
+    this._openOn(item, { file: substate.file });
     return item;
   }
 
@@ -214,7 +238,7 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
   }
 
   private _actionItem(n: GraphNode, orphan: boolean): FrxTreeItem {
-    const item = new FrxTreeItem(n.name, vscode.TreeItemCollapsibleState.None);
+    const item = new FrxTreeItem(actionLabel(n), vscode.TreeItemCollapsibleState.None);
     item.description = actionDescription(n, orphan);
     item.contextValue = 'frxAction';
     // A warning icon, not a squiggle: an action nothing dispatches is a fact
@@ -276,6 +300,18 @@ export function selectionAt(
   if (!n.line) return undefined;
   const at = new vscode.Position(n.line - 1, Math.max(0, (n.column ?? 1) - 1));
   return { selection: new vscode.Range(at, at) };
+}
+
+/**
+ * What an action row is titled: the name, with whatever its id carries past
+ * the substate. A private step is `InstallSkillsAction._AgentWorking`, because
+ * two files in one substate can each declare an `_AgentWorking`, and two rows
+ * titled alike under one substate read as one artifact listed twice. The Map
+ * titles its rows by the same rule.
+ */
+export function actionLabel(n: GraphNode): string {
+  const prefix = `action:${n.substate ?? ''}.`;
+  return n.substate && n.id.startsWith(prefix) ? n.id.slice(prefix.length) : n.name;
 }
 
 /**

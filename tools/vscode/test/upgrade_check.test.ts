@@ -5,8 +5,6 @@ import * as assert from 'node:assert';
 import frx = require('../src/frx');
 import check = require('../src/upgrade_check');
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /// Asking the installed binary, once a day, whether a newer release exists.
 
 beforeEach(reset);

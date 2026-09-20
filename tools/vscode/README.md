@@ -85,9 +85,9 @@ item and no commands. `frx create <name>` writes a project that satisfies it.
 The Explorer gains an **FRX** view (monorepo only) with two groups:
 
 - **Substates** — every field composed into `AppState` (name + type), each
-  expanding into **what belongs to it**: its actions and its selectors. Click
-  any row to open its source. Inline on a substate: **Add action…** (pre-fills
-  it) and **Remove**.
+  expanding into **what belongs to it**: its actions, its selectors, and its
+  own fields. Click any row to open its source. Inline on a substate: **Add
+  action…** (pre-fills it) and **Remove**.
 - **Routes** — every route registered in `AppRouter`, with its path and what
   makes it special. Click → opens the page connector. Inline: **Remove**.
 
@@ -100,7 +100,9 @@ FRX
 │  │  └─ ƒ  isWaiting
 │  ├─ session                 SessionState
 │  │  ├─ ⚡ SetTokenAction         nothing dispatches
-│  │  └─ ƒ  token                  nothing reads it
+│  │  ├─ ƒ  token                  nothing reads it
+│  │  ├─ ▫  token
+│  │  └─ ▫  locale                 written, nothing reads it
 │  └─ wait                    Wait
 └─ Routes
    ├─ SplashRoute             /splash · initial
@@ -109,10 +111,22 @@ FRX
 ```
 
 An action row carries how it runs — `async`, its async_redux mixins, and
-whether it can throw a `UserException`. A selector sheds its `Select…` prefix,
-because the row above already says it. Clicking a selector lands **on the
-getter**, not at the top of `selectors.dart` — every selector in the app shares
-that one file, so the file alone answers "which file" and not "which one".
+whether it can throw a `UserException`. A private step declared beside the
+action that dispatches it is titled by that action — `InstallSkillsAction._AgentWorking`
+— because two files in one substate can each declare an `_AgentWorking`. A
+selector sheds its `Select…` prefix, because the row above already says it.
+Clicking a selector lands **on the getter**, not at the top of `selectors.dart`
+— every selector in the app shares that one file, so the file alone answers
+"which file" and not "which one". Clicking an action in a file that holds
+several lands on its class the same way.
+
+The slice's own fields come last — after what acts on them, so a fifty-field
+slice does not push its actions off the screen — and carry the one thing about
+a field the source cannot say: **`written, nothing reads it`** (or `nothing
+reads it`) when the graph finds no reducer, connector or live selector reading
+it. `SelectSession.token` marked dead beside a `token` field that is not means
+a dead getter over a live field — a reducer reads `state.session.token`
+directly; `locale` marked too is a field to remove with its selector.
 
 **`nothing dispatches`** and **`nothing reads it`** mark an action frx found no
 dispatcher for and a selector it found no reader for. Both are warning icons
@@ -992,6 +1006,10 @@ tools/vscode/
 │   ├── cursor.ts           # what artifact the cursor is on (F2 + the editor entry)
 │   ├── rename_provider.ts  # F2 → frx rename        code_actions.ts # doctor quick-fixes
 │   ├── map.ts              # FRX Map: the graph folded into a structural picture
+│   ├── page/               # the Map's page — the one code here that runs in a browser
+│   │   ├── map.ts          #   the page script → media/map/map.js (tsconfig.page.json)
+│   │   ├── picture.d.ts    #   the picture's shape, read by src/map.ts and the page alike
+│   │   └── webview.d.ts    #   acquireVsCodeApi, as the page sees it
 │   ├── flow_view.ts        # FRX Flow: diagram → markdown → the built-in preview
 │   ├── plan_view.ts        # a rename/removal plan → markdown → the same preview
 │   └── commands/           # command handlers on the shared `app` context
@@ -999,9 +1017,11 @@ tools/vscode/
 │       ├── artifact.ts     # rename / remove
 │       └── menu.ts         # the FRX action overlay
 ├── test/                   # node --test suite (see below)
+├── media/map/              # the Map page's stylesheet, and its compiled script (gitignored)
 ├── out/                    # compiled output — what the VSIX ships (gitignored)
 ├── validate-manifest.ts    # CI gate: declared ↔ registered ↔ invoked ↔ menus
-├── tsconfig.json
+├── tsconfig.json           # the extension (Node, CommonJS)
+├── tsconfig.page.json      # the Map page (browser, a plain script)
 ├── package.json
 └── README.md
 ```
@@ -1019,7 +1039,11 @@ symbol→artifact mapping, the doctor quick-fixes, the overlay's rows, the
 under jsdom in `test/map_page.test.ts` — the wires a picture yields, the focus,
 the pane, the folds, the gaps, what a refresh remembers — because the text-only
 tests over `map.js` let two regressions through that a DOM would have caught;
-jsdom lays nothing out, so the column placement stays a browser's to check.
+jsdom lays nothing out, so the column placement stays a browser's to check. The
+page is TypeScript (`src/page/map.ts`), checked against the same `Picture`
+types `src/map.ts` builds, so a field renamed on one side of the webview
+boundary fails to compile on the other; `map.test.ts` parses the compiled
+script, the one thing a type check of the source cannot say about its output.
 `npm run validate` runs the manifest gate; the palette ↔ overlay contract is
 pinned on the CLI side by `tools/test/extension_contract_test.dart`.
 
@@ -1053,11 +1077,11 @@ npm run install:vsix                     # reads the version out of package.json
 ```
 
 You can also install a `.vsix` from the UI: **Extensions** view → `…` menu →
-**Install from VSIX…**. From the monorepo, `dart run tool/xtask.dart ext
---profile <name>` (in `tools/`) does compile → package → install into a named
-VSCode profile in one step — which
-matters, because a VSIX installed into the Default profile is invisible while you
-work in another one.
+**Install from VSIX…**. From the monorepo, `dart run :xtask ext -- --profile
+<name>` (in `tools/`) does compile → package → install into a named VSCode
+profile in one step — which matters, because a VSIX installed into the Default
+profile is invisible while you work in another one. `$PROFILE` stands in for
+the flag, so `PROFILE=<name> dart run :xtask install` is the everyday spelling.
 
 ## Releasing
 

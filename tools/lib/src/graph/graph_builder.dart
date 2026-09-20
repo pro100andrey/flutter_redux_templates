@@ -72,8 +72,20 @@ class GraphBuilder {
   );
 }
 
-/// What to call the artifact in [file]: its first class, or the file's own
-/// name in Pascal case when it declares none.
-String artifactNameIn(CompilationUnit unit, File file) =>
-    firstClassNameIn(unit) ??
-    Casing.parse(p.basenameWithoutExtension(file.path)).pascal;
+/// What to call the artifact in [file]: its first public class, or the file's
+/// own name in Pascal case when it declares none.
+///
+/// Public, because a connector file that puts its `_Factory` above the
+/// widget is still the connector, and a node called `_Factory` names nothing
+/// anyone would look for — three files in a project all called that would be
+/// one node. A file of private classes only is named by the file, which by
+/// the convention is the artifact's name.
+String artifactNameIn(CompilationUnit unit, File file) {
+  for (final c in classesIn(unit)) {
+    final name = c.namePart.typeName.lexeme;
+    if (!name.startsWith('_')) {
+      return name;
+    }
+  }
+  return Casing.parse(p.basenameWithoutExtension(file.path)).pascal;
+}

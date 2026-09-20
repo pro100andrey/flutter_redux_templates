@@ -191,6 +191,23 @@ class StateSource extends FileSource {
     return names;
   }
 
+  /// The fields of [className], in declaration order — the parameters of its
+  /// redirecting factory, which for a `@freezed` class are the fields.
+  ///
+  /// Empty when the file holds no such class or the class has no factory: a
+  /// reader listing fields for the graph would rather show none than refuse
+  /// the whole read over one hand-written slice.
+  List<String> fieldNames({required String className}) {
+    final cls = classNamed(unit, className);
+    final ctor = cls == null ? null : redirectingFactoryOf(cls);
+    if (ctor == null) {
+      return const [];
+    }
+    return [
+      for (final param in ctor.parameters.parameters) ?param.name?.lexeme,
+    ];
+  }
+
   /// The source of field [name]'s declaration — `@Default(0) int count` — or
   /// null when the class has no such field.
   ///

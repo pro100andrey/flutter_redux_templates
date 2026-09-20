@@ -72,6 +72,20 @@ class DispatchStep {
   /// True when this dispatch navigates rather than mutating state.
   bool get isNavigation => route != null || target.startsWith('GoAction');
 
+  /// The class the dispatched expression constructs — [target] up to its
+  /// first `.`, so `RefreshConsoleAction.forOperator(…)` names
+  /// `RefreshConsoleAction`.
+  ///
+  /// [target] keeps the spelling the source has, because a diagram should say
+  /// which constructor was called. But a named constructor or a static factory
+  /// still makes an instance of the class in front of it, and it is the class
+  /// that has a file and a node: looked up by the full spelling, every
+  /// `X.named()` was a dispatch of something frx could not find.
+  String get className {
+    final dot = target.indexOf('.');
+    return dot < 0 ? target : target.substring(0, dot);
+  }
+
   Map<String, Object?> toJson() => {
     'kind': kind.name,
     'target': target,
@@ -140,15 +154,22 @@ class UseCase {
   };
 }
 
-/// One `copyWith` target: the substate, and the field inside it when the write
-/// names one.
+/// A place in `AppState`: a substate, and the field inside it when the
+/// reference names one.
 ///
-/// `field` is null for the flat shape `state.copyWith(logIn: …)`, which
-/// replaces a whole substate and so has no field to name.
-typedef StateWrite = ({String substate, String? field});
+/// `field` is null when the whole substate is meant — the flat write
+/// `state.copyWith(logIn: …)` replaces it, and `state.logIn` handed to a
+/// function reads all of it.
+typedef StateField = ({String substate, String? field});
 
-extension StateWriteLabel on StateWrite {
-  /// `logIn.email`, or just `logIn` for a whole-substate write.
+/// One `copyWith` target.
+typedef StateWrite = StateField;
+
+/// One `state.<substate>.<field>` read.
+typedef StateRead = StateField;
+
+extension StateFieldLabel on StateField {
+  /// `logIn.email`, or just `logIn` for the whole substate.
   String get label => field == null ? substate : '$substate.$field';
 }
 
@@ -163,9 +184,18 @@ class ActionInfo {
     this.throwsUserException = false,
     this.file,
     this.declaresClass = true,
+    this.line,
+    this.column,
   });
 
   final String className;
+
+  /// Where in [file] the class is declared, 1-based, when the reader had the
+  /// tree to say. Not part of the JSON: a file holding one action opens at the
+  /// top, and only the graph — where a file may hold several — needs to point
+  /// at the right one.
+  final int? line;
+  final int? column;
 
   /// Whether the file actually declared a class, or [className] is the file
   /// name standing in for one.
@@ -263,6 +293,7 @@ class PageFlow {
     required this.actions,
     this.connectorFile,
     this.regions = const [],
+    this.regionFiles = const {},
     this.untraced = const [],
   });
 
@@ -286,6 +317,14 @@ class PageFlow {
   /// which is what a reader needs to tell "this page dispatches nothing" from
   /// "the frame dispatches nothing and its six regions do".
   final List<String> regions;
+
+  /// The file each of [regions] was read from, by class name.
+  ///
+  /// So a reader attributing a use case can name the file that holds it: a
+  /// use case carries its region's class in [UseCase.owner], and a gap in one
+  /// region was reported against the page's own file — where the dispatch is
+  /// not — for want of this.
+  final Map<String, String> regionFiles;
 
   /// Connectors that dispatch more than this flow accounts for.
   ///

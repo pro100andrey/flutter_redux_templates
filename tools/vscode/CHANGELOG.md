@@ -7,6 +7,132 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## Unreleased
+
+### Fixed
+
+- **`graph` reads every action class, not every action file.** A file under
+  `actions/` holds its public action and, often, what it dispatches on the
+  way — a private `_ProbeStarted` beside `ProbeEmbedSpeedAction`, a
+  `CloseTaskAction` beside `OpenTaskAction`, a `ReopenAndCheckAction` that
+  dispatches the `ReopenAction` its file is named for. Keyed on the file, the
+  graph had one node per file and reported every dispatch of the others as
+  unresolved — seventeen on one project, each a class three lines under the
+  import that declared it — and the main action itself as reached by nobody
+  when its dispatcher was the second class in its own file. Read as one file,
+  it also blended them: the last `reduce()` answered `isAsync` for all, so
+  `frx flow` drew an async action as a plain arrow. Each class is now its own
+  node, read on its own, resolved through the file's import or from the file
+  itself; a private one is `action:<substate>.<MainAction>.<_Step>`, since two
+  files in one substate may each declare a `_Started`, and carries its line.
+  A named constructor (`RefreshAction.forOperator()`) and a `const`
+  construction resolve to the class. *(CLI; the Map titles a private step by
+  its file's action.)*
+
+- **A connector opened through a function is built by its callers.** A
+  dialog's connector is constructed in one place — the `openSettings(context)`
+  its own file declares — and the screens that open it call that. The graph
+  counted constructions and reported the connector as one no file constructs,
+  and with it every action only it dispatches. A file that calls a function an
+  imported file declares, where that function constructs a connector, now
+  builds it; `HelpConnector.show(context)` the same way. *(CLI)*
+
+- **A gap in a region is reported against the region.** A dispatch the graph
+  could not resolve inside a region connector was listed under the page's own
+  file, where the line is not. *(CLI)*
+
+- **A connector file that puts `_Factory` first is still the connector.** A
+  consumer node was named by the file's first class, so the node was
+  `_Factory` — three files in a project all called that, one node. It is
+  named by the first public class, or the file. *(CLI)*
+
+### Changed
+
+- **The repository's tasks are data.** `tools/tool/xtask.dart` — a
+  CommandRunner that had replaced the Makefile — is gone; the tasks are
+  `xtask.yaml` at the repository root, run by
+  [`package:xtask`](https://pub.dev/packages/xtask), and the seven with real
+  logic in them (the version bump, the profile check, the VSIX install, the
+  native build, the template pack, `profiles`, `uninstall`) are verbs in
+  `tools/bin/xtask.dart`. `cd tools && dart run :xtask check` is what CI's
+  `tools` and `extension` jobs run, `install` puts `frx` on PATH and the
+  extension into `$PROFILE`, `--dry-run` says what either would do first,
+  and `--list` groups every task by who runs it. Options a task took
+  (`--profile`, `--names`) come after `--`; the environment (`PROFILE`,
+  `CODE`) stands in for them as before. The schema beside the file
+  (`xtask.schema.json`) completes it in an editor.
+
+  CI names no command of its own any more: each job runs one gate set —
+  `ci-workspace`, `ci-tools`, `ci-installers`, `ci-extension`, and in the
+  release workflow `release-cli` and `release-vsix` — and what a job
+  provides (the checkout, the toolchain, `flutter pub get`, `npm ci`) is
+  marked as not a gate, with the reason. `xtask --check-ci` reads both
+  workflows and refuses a step that names a command without one; it runs
+  as the `ci-drift` task, in `check` and in CI's own `tools` job. The
+  release's smoke test of the compiled binary is the `dist` task now, so a
+  developer's `dist` and the release's build are one thing. *(repository)*
+
+- **The Map's page script is TypeScript.** It was the one untyped file in the
+  extension: the picture's shape was declared on the side that builds it
+  (`map.ts`) and taken on trust on the side that draws it (`media/map/map.js`),
+  so a field renamed in one place broke the other only where a jsdom test
+  happened to look. It is `src/page/map.ts` now, compiled by
+  `tsconfig.page.json` into the same `media/map/map.js` the webview loads,
+  against the same `picture.d.ts` the extension reads — the webview boundary
+  is a type-checked contract. The tests that grepped the script's source for
+  a line of code are gone with it (they would have been reading compiler
+  output); what they claimed is pinned in jsdom where a DOM can see it, and
+  the placement math, which needs a layout engine, stays a browser's to
+  check. `noUnusedLocals`/`noUnusedParameters` are on, and the `eslint`
+  directives that referred to a linter this project never ran are gone —
+  typescript-eslint does not yet support the TypeScript this builds with.
+
+- **Dev dependencies:** `@vscode/vsce` 4 — what CI and `xtask package` were
+  already running through `npx --yes`, so a local `npm run package` builds
+  the same VSIX; `@types/node` and `mocha` to their current patches; the
+  lock's transitive advisories (`brace-expansion`, `fast-uri`, `js-yaml`,
+  `qs`, `undici`) resolved — none of them ship, the extension has no
+  runtime dependencies. `@types/vscode` stays at 1.120.0: the highest
+  published at or under `engines.vscode`, which is where vsce requires it.
+
+### Added
+
+- **`graph --focus session.token` — one field, not the slice.** A slice with
+  fifty fields is a hub: every selector on it reads it, every setter writes
+  it, and an inbound walk from the slice was the whole app (106 of 234 nodes
+  for one `console`). Focused on a field, the edges at the slice are kept
+  when they name the field or the whole slice — a flat `copyWith` and the
+  persistor's restore change every field — and the walk goes on from what is
+  left: 26 nodes. Every `reads` edge now says which field (`via
+  session.token`), a substate node lists its `fields`, and a field the state
+  class does not have is refused with the ones it has. *(CLI)*
+
+- **`graph` records a direct read of the state.** `state.console.projectId`
+  in a reducer, `store.state.session` in an `onInit`, `state.memory.x` in a
+  connector callback that skipped the facade — the one reference no edge
+  recorded, so "what breaks if I touch `console.seq`" missed the reducer
+  reading it, and a selector on the dead list sat beside a reducer reading
+  the same field with no way to say *dead selector, live field*. A `reads`
+  edge from the action, page or connector, by field. *(CLI)*
+
+- **`graph` reports a service dispatcher nothing constructs**, by the rule
+  the connector verdict uses: it is built once, where the app wires its
+  services, and one nothing constructs is dead with every action only it
+  dispatches. `builds` edges reach `service:` nodes. *(CLI)*
+
+- **`graph` reports a field nothing reads.** The question a dead selector
+  could not settle: `SelectSetup.agentErrorOn` on the list says the getter is
+  unused, and whether the field behind it is depended on every reducer and
+  connector reading the state directly. Now that those reads are edges, by
+  field, the list says `field:setup.agentErrorOn  written, nothing reads it`
+  — four actions write it, nothing looks — and stays quiet about
+  `console.seq`, whose selector is dead and whose field a reducer reads. A
+  field is live when anything that is not a dead selector reads it, or when
+  anything live reads the whole slice; the persistor's reads do not count.
+  `--fail-on-orphans` gates on it. The FRX tree lists a slice's fields under
+  it, with the same mark; `--focus field:setup.agentErrorOn` is accepted as
+  the list spells it.
+
 ## 0.3.6
 
 ### Fixed

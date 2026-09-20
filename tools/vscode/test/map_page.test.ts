@@ -25,8 +25,6 @@ import type { AppGraph, GraphEdge, GraphNode } from '../src/queries';
 const MEDIA = path.join(__dirname, '..', '..', 'media', 'map');
 const CLIENT_JS = fs.readFileSync(path.join(MEDIA, 'map.js'), 'utf8');
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 function graphOf(partial: Partial<AppGraph>): AppGraph {
   return { nodes: [], edges: [], unresolved: [], orphans: [], ...partial };
 }
@@ -259,6 +257,41 @@ test('a row with many regions starts folded, and their lines land on it', () => 
   // Array is not this one's.
   assert.deepEqual(host.state.folded, [], 'the unfold is remembered');
   assert.strictEqual(wires(document).length, 1, 'the region now carries its own line');
+});
+
+test('a same-column line is a curve out into its own margin, not a chord', () => {
+  // An edge joining two nodes of one column has no business crossing the
+  // middle: drawn straight it leaves one row's right edge and enters a
+  // neighbour's left edge in the same column, looping across everything
+  // between. No layout here, so every rect is zero and the curve is flat —
+  // but it is still a curve, and still on its side.
+  const { document } = load(
+    graphOf({
+      nodes: [PAGE('logIn', '/login'), PAGE('home', '/home')],
+      edges: [edge('page:logIn', 'page:home', 'navigates', 'onDone')],
+    }),
+  );
+  const [wire] = wires(document);
+  assert.match(wire.getAttribute('d'), /^M [\d.-]+ [\d.-]+ C /, 'a cubic, not a chord');
+  assert.match(wire.getAttribute('class'), /navigates/);
+  assert.strictEqual(document.querySelectorAll('#wires line').length, 0, 'no straight chords remain');
+});
+
+test('a redraw restores the focus instead of half-dimming the picture', () => {
+  // Expanding a row rebuilds every wire, and the pointer never leaves the row
+  // while you do it — so without this the focused row's own relations go dim
+  // along with everything else, during exactly the interaction the picture is
+  // built around.
+  const { window, document } = load(typical());
+  const session = document.querySelector('[data-id="substate:session"]');
+  hover(window, session);
+  assert.strictEqual(document.querySelectorAll('path.wire.lit').length, 1);
+  session.querySelector('.count').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  assert.ok(session.classList.contains('lit'), 'the row under the pointer is still lit');
+  assert.strictEqual(document.querySelectorAll('path.wire.lit').length, 1, 'and so is its wire, rebuilt');
+  // The ways the pointer can leave without a row saying so.
+  document.dispatchEvent(new window.Event('visibilitychange'));
+  assert.ok(session.classList.contains('lit'), 'a visible page keeps its focus');
 });
 
 test('the gaps are grouped by reason, one line per edge', () => {

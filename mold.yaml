@@ -5,6 +5,11 @@ exclude:
   - pubspec.lock
   - mold.yaml
   - tools/**
+  # The repository's own tasks, and the schema beside them. Every task is about
+  # tools/ — the CLI and its extension — which a project made by `frx create`
+  # does not carry; it gets `frx` from a release.
+  - xtask.yaml
+  - xtask.schema.json
   - .github/**
   # This repository's own process config — the ticket tracker and its label
   # vocabulary. Excluded for the reason `tools/**` is: a project made by

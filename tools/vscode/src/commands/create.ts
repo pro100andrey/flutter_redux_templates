@@ -51,12 +51,10 @@ function picks<K extends string>(
 }
 
 
-/** @param uri the right-clicked folder (undefined from the palette) */
 export async function addSubstate(app: App): Promise<void> {
   const target = await ui.resolveTarget(app.context, undefined);
   if (!target) return;
   const { inv, targetDir } = target;
-  frx.output().appendLine(`FRX: using ${inv.label}`);
 
   const name = await ui.askName('Add Substate', 'myProfile');
   if (name === undefined) return;
@@ -91,12 +89,10 @@ export async function addSubstate(app: App): Promise<void> {
   });
 }
 
-/** @param uri the right-clicked folder (undefined from the palette) */
 export async function addPage(app: App): Promise<void> {
   const target = await ui.resolveTarget(app.context, undefined);
   if (!target) return;
   const { inv, targetDir } = target;
-  frx.output().appendLine(`FRX: using ${inv.label}`);
 
   const name = await ui.askName('Add Page', 'myProfile');
   if (name === undefined) return;
