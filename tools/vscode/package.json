@@ -442,7 +442,7 @@
   },
   "scripts": {
     "compile": "tsc -p . && tsc -p tsconfig.page.json",
-    "watch": "tsc -p . --watch",
+    "watch": "node -e \"for (const p of ['.', 'tsconfig.page.json']) require('child_process').spawn('tsc', ['-p', p, '--watch', '--preserveWatchOutput'], { stdio: 'inherit', shell: true })\"",
     "typecheck": "tsc -p . --noEmit && tsc -p tsconfig.page.json --noEmit",
     "pretest": "rm -rf out && npm run compile",
     "test": "node --test out/test/*.test.js",
