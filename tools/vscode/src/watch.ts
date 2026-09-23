@@ -33,6 +33,10 @@ const STOP_MS = 15_000;
 
 export class FrxWatch {
   private _child: cp.ChildProcess | null = null;
+  /** The start in progress, which a concurrent start joins (see `_start`). */
+  private _starting: Promise<void> | null = null;
+  /** The reap in progress, which a start waits out (see `_start`). */
+  private _reaping: Promise<void> | null = null;
   private _channel: vscode.OutputChannel | null = null;
   private readonly _item: vscode.StatusBarItem;
   private readonly _buildDiagnostics: vscode.DiagnosticCollection;
@@ -125,7 +129,14 @@ export class FrxWatch {
    * Failure is silent by design: there is usually nothing to stop, and a warning
    * on every activation would train the user to ignore the channel.
    */
-  async reapStaleWatch(): Promise<void> {
+  reapStaleWatch(): Promise<void> {
+    const reaping = this._reap().finally(() => {
+      if (this._reaping === reaping) this._reaping = null;
+    });
+    return (this._reaping = reaping);
+  }
+
+  private async _reap(): Promise<void> {
     const dart = await this._resolveDart();
     if (!dart) return;
     const ch = this.channel();
@@ -191,7 +202,27 @@ export class FrxWatch {
     }
   }
 
-  private async _start(): Promise<void> {
+  /**
+   * Start the watch, once however many times this is asked concurrently.
+   *
+   * **One start in flight, shared.** The check for a live child sits before an
+   * `await` — the persisted flag, then resolving `dart` — so two starts that
+   * overlapped (a double click on the overlay row; `resume()` at activation
+   * meeting a click on the chip) both passed it, both spawned, and the first
+   * child was overwritten in `_child` and orphaned: never stopped, still
+   * holding the build lock.
+   *
+   * **After the reap, never during it.** `build_runner stop` asks whoever holds
+   * the lock to exit, and it does not know which watch is the stale one — a
+   * watch started while it runs is the one it stops, which then read as
+   * "stopped unexpectedly".
+   */
+  private _start(): Promise<void> {
+    return (this._starting ??= this._startOnce().finally(() => (this._starting = null)));
+  }
+
+  private async _startOnce(): Promise<void> {
+    await this._reaping;
     if (this._child) return;
     const dart = await this._resolveDart();
     if (!dart) {

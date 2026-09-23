@@ -241,6 +241,53 @@ test('a wedged stop does not hang activation forever', async () => {
   await reaped;
 });
 
+// --- starts that overlap -----------------------------------------------------
+
+/** Spawns of the watch itself, not of `pkill` or `build_runner stop`. */
+const watches = (h: Harness): number => h.calls().filter((c) => c.includes('build_runner watch')).length;
+
+test('two overlapping starts spawn one watch, not one each and an orphan', async () => {
+  // A double click on the overlay row, or `resume()` at activation meeting a
+  // click on the chip: both passed the live-child check before the `await`.
+  const h = harness();
+
+  await Promise.all([h.watch.toggle(), h.watch.toggle()]);
+
+  assert.strictEqual(watches(h), 1);
+  assert.strictEqual(h.watch.running, true);
+});
+
+test('resume and a click at once start one watch', async () => {
+  const h = harness();
+  await h.watch.toggle();
+  die(h); // enabled, not running: what a reload resumes
+
+  await Promise.all([h.watch.resume(), h.watch.toggle()]);
+
+  assert.strictEqual(watches(h), 2, 'the restart spawned exactly one more');
+});
+
+test('a start asked for during the reap waits for it, so the reap cannot stop it', async () => {
+  // `build_runner stop` stops whoever holds the lock; a watch started while it
+  // runs is the one it stopped, and that read as "stopped unexpectedly".
+  const h = harness();
+  const reaped = h.watch.reapStaleWatch();
+  await tick();
+  const stop = h.child();
+  assert.ok(h.calls()[0].includes('build_runner stop'));
+
+  const started = h.watch.toggle();
+  await tick();
+  await tick();
+  assert.strictEqual(watches(h), 0, 'no watch while the stop is still running');
+
+  stop.emit('exit', 0);
+  await reaped;
+  await started;
+  assert.strictEqual(watches(h), 1);
+  assert.strictEqual(h.watch.running, true);
+});
+
 // --- a start that fails ------------------------------------------------------
 
 test('a watch whose start fails after spawn returned is not left "running"', async () => {
