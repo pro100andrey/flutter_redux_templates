@@ -161,7 +161,8 @@ class GraphCommand extends Command<int> {
     }
 
     // The gate reads the graph that was printed, so with `--focus` it answers
-    // for the subgraph on screen — what a reader would check by eye.
+    // for the subgraph on screen — what a reader would check by eye. Each
+    // verdict on it is still the whole app's: see `AppGraph.orphans`.
     if (results.flag('fail-on-orphans') && graph.orphans.isNotEmpty) {
       return 1;
     }

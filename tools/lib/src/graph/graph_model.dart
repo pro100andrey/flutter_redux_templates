@@ -283,6 +283,9 @@ class GraphFocus {
   };
 }
 
+/// One entry of [AppGraph.orphans]: the artifact, and why nothing reaches it.
+typedef Orphan = ({GraphNode node, String why});
+
 /// The joined graph.
 class AppGraph {
   const AppGraph({
@@ -290,7 +293,16 @@ class AppGraph {
     required this.edges,
     this.unresolved = const [],
     this.focus,
-  });
+  }) : _wholeOrphans = null;
+
+  /// A subgraph carrying the whole graph's verdicts — see [orphans].
+  const AppGraph._focused({
+    required this.nodes,
+    required this.edges,
+    required this.unresolved,
+    required this.focus,
+    required List<Orphan> wholeOrphans,
+  }) : _wholeOrphans = wholeOrphans;
 
   final List<GraphNode> nodes;
   final List<GraphEdge> edges;
@@ -327,7 +339,7 @@ class AppGraph {
   /// A dispatcher by the same rule: it is constructed where the app wires its
   /// services, and one nothing constructs is dead with every action only it
   /// dispatches — which the orphan list said one action at a time.
-  List<({GraphNode node, String why})> get unbuiltConnectors {
+  List<Orphan> get unbuiltConnectors {
     final built = {
       for (final e in edges)
         if (e.kind == EdgeKind.builds) e.to,
@@ -345,7 +357,23 @@ class AppGraph {
     ];
   }
 
-  List<({GraphNode node, String why})> get orphans {
+  ///
+  /// **Always the whole app's verdict, focused or not.** Whether anything
+  /// dispatches an action is a question about every edge into it, and a
+  /// focused subgraph holds only the ones inside its bound: focused on the
+  /// login slice, the actions writing it arrived without the page that
+  /// dispatches them, and `--fail-on-orphans` failed naming `SetEmailAction`
+  /// "no dispatcher found" — an action a screen dispatches on every keystroke,
+  /// on the one list whose advice is to delete what it names. The same held
+  /// for a selector whose reader sat one hop outside the bound, and for the
+  /// fields behind it. So a focus computes the list on the graph it came from
+  /// and keeps the entries about what it shows.
+  List<Orphan> get orphans => _wholeOrphans ?? _computeOrphans();
+
+  /// The whole graph's [orphans], when this is a focus of it.
+  final List<Orphan>? _wholeOrphans;
+
+  List<Orphan> _computeOrphans() {
     // Read once: `_dispatched` is a getter that rescans every edge, and inside
     // the comprehension it was rebuilt for each node in turn.
     final dispatched = _dispatched;
@@ -372,7 +400,7 @@ class AppGraph {
   /// nothing reads is dead just the same, and counting callers would report the
   /// chain as healthy. Live roots are the `uses` edges that come from something
   /// other than a selector — a connector, an action, a service.
-  List<({GraphNode node, String why})> get deadSelectors {
+  List<Orphan> get deadSelectors {
     final selectors = {
       for (final n in nodes)
         if (n.kind == NodeKind.selector) n.id,
@@ -433,12 +461,12 @@ class AppGraph {
   ///
   /// Only for a substate whose node lists its `fields`, which is one with a
   /// state class of ours; a framework slice has nothing to list.
-  List<({GraphNode node, String why})> get deadFields {
+  List<Orphan> get deadFields {
     final deadSelectorIds = {for (final d in deadSelectors) d.node.id};
     final kindOf = {for (final n in nodes) n.id: n.kind};
     bool live(String reader) => !deadSelectorIds.contains(reader);
 
-    final out = <({GraphNode node, String why})>[];
+    final out = <Orphan>[];
     for (final n in nodes) {
       if (n.kind != NodeKind.substate) {
         continue;
@@ -572,7 +600,7 @@ class AppGraph {
     // one.
     final truncated = !closed && expand(reached).length > reached.length;
 
-    return AppGraph(
+    return AppGraph._focused(
       nodes: [
         for (final n in nodes)
           if (reached.contains(n.id)) n,
@@ -596,7 +624,34 @@ class AppGraph {
         depth: depth,
         truncated: truncated,
       ),
+      wholeOrphans: [
+        for (final o in orphans)
+          if (_showsOrphan(o.node, reached, id, field)) o,
+      ],
     );
+  }
+
+  /// Whether a focus on [id], narrowed to [field] when it was, that [reached]
+  /// what it did shows the orphan [node].
+  ///
+  /// A field is never among the nodes, so it is shown with its substate — and,
+  /// with the focus narrowed to one field of that substate, only when it is
+  /// that field: the slice's other fields were left out of the answer on
+  /// purpose.
+  static bool _showsOrphan(
+    GraphNode node,
+    Set<String> reached,
+    String id,
+    String? field,
+  ) {
+    if (node.kind != NodeKind.field) {
+      return reached.contains(node.id);
+    }
+    final substate = 'substate:${node.substate}';
+    return reached.contains(substate) &&
+        (field == null ||
+            substate != id ||
+            node.name == '${node.substate}.$field');
   }
 
   /// Whether an edge at `substate:<name>` concerns [field] of it.
