@@ -1,7 +1,7 @@
 // The repository's task runner: `package:xtask` plus this project's verbs.
 //
 // The tasks are data, in ../xtask.yaml. What lives here is the handful with
-// real logic in them — a version bump across seven files, a VS Code profile
+// real logic in them — a version bump across six files, a VS Code profile
 // looked up in the editor's own storage — because the file cannot branch, and
 // a task that needs a condition becomes a verb. `dart run :xtask <task>`
 // resolves to this file by name; `dart install .` does not put it on PATH,
@@ -208,19 +208,19 @@ Future<int> dist(VerbContext context) async {
   return ExitCode.success;
 }
 
-/// One version, and seven files that carry it: the three declarations
+/// One version, and six files that carry it: the three declarations
 /// (pubspec.yaml, version.dart, package.json with its lock), the CHANGELOG
-/// heading the Marketplace shows, and two derived from the running CLI — the
-/// `.frx-owned` stamp `update-skills` writes, and the template that packs it.
-/// The release refuses a tag the declarations disagree with, but nothing
-/// failed on the other three: v0.3.0 and v0.3.1 both shipped a template
-/// stamped with the version before. So this does all seven, in the order they
-/// derive — the stamp from the constant, the template from the stamp.
+/// heading the Marketplace shows, and the `.frx-owned` stamp `update-skills`
+/// writes from the running CLI. The release refuses a tag the declarations
+/// disagree with, but nothing failed on the stamp: v0.3.0 and v0.3.1 both
+/// shipped the version before. So this does all six, the stamp last — it
+/// derives from the constant. The template needs no repack: the skills are
+/// not packed, `frx create` writes them.
 ///
 /// Everything that can refuse is asked before anything is written: the
 /// version's shape (no `+build`, which npm strips, so the three could never
-/// agree), both patterns, the CHANGELOG heading. What is left can fail only
-/// on a tool, and says which step to rerun.
+/// agree), both declarations, the CHANGELOG heading. What is left can fail
+/// only on a tool, and says which step to rerun.
 Future<int> version(VerbContext context) async {
   if (context.args.length != 1) {
     context.log('usage: dart run :xtask version -- 1.2.3');
@@ -290,30 +290,22 @@ Future<int> version(VerbContext context) async {
   }
 
   // `dart run` compiles version.dart as just written, so the stamp is $v.
-  for (final (task, what) in [
-    ('skills', 'the .frx-owned stamp'),
-    ('template', 'the template'),
-  ]) {
-    final ran = await context.run([
-      'dart',
-      'run',
-      ':xtask',
-      task,
-    ], workingDirectory: 'tools');
-    if (ran != ExitCode.success) {
-      context.log(
-        '$what is still the old version — '
-        'rerun `cd tools && dart run :xtask $task`',
-      );
-      return ran;
-    }
+  final stamped = await context.run([
+    'dart',
+    'run',
+    ':xtask',
+    'skills',
+  ], workingDirectory: 'tools');
+  if (stamped != ExitCode.success) {
+    context.log(
+      'the .frx-owned stamp is still the old version — '
+      'rerun `cd tools && dart run :xtask skills`',
+    );
+    return stamped;
   }
 
   context
-    ..log(
-      '✓ $v in all seven: the declarations, the CHANGELOG, the stamp, '
-      'the template',
-    )
+    ..log('✓ $v in all six: the declarations, the CHANGELOG, the stamp')
     ..log('')
     ..log("  git commit -am 'v$v' && git push origin main")
     ..log('  # once CI on that commit is green:')

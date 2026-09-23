@@ -1099,10 +1099,10 @@ git tag v1.2.3 && git push origin v1.2.3
 The verb writes every file that carries the version: the three declarations
 (`tools/pubspec.yaml`, `tools/lib/src/version.dart`, `tools/vscode/package.json`
 with its lock), the CHANGELOG's `## Unreleased` heading, renamed to the version,
-and the two the CLI derives — the `.claude/skills/.frx-owned` stamp and the
-template `frx create` unpacks, which packs that stamp. By hand, the last two are
-the ones forgotten: v0.3.0 and v0.3.1 each shipped a template stamped with the
-version before.
+and the `.claude/skills/.frx-owned` stamp the CLI derives. By hand, the stamp is
+the one forgotten: v0.3.0 and v0.3.1 each shipped the version before. The
+template needs no repack for a bump — the skills are not packed; `frx create`
+writes them from the binary.
 
 `.github/workflows/release.yml` refuses the tag unless those three already agree
 with it, then compiles `frx` for macOS (arm64, x64), Linux (x64, arm64) and

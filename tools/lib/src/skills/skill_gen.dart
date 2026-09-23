@@ -91,6 +91,16 @@ class SkillGen {
   /// [manifestName]'s content for what [generate] produces.
   String manifest() => _manifestOf(directories());
 
+  /// Every file a fresh `.claude/skills/` holds — the skills and the manifest
+  /// that records them — by path relative to the project root.
+  ///
+  /// What `frx create` writes into a new project: nothing there to sync
+  /// against or to delete, so none of [changesIn]'s reading applies.
+  Map<String, String> files() => {
+    ...generate(),
+    p.posix.join('.claude', 'skills', manifestName): manifest(),
+  };
+
   static String _manifestOf(Set<String> produced) {
     final b = StringBuffer()
       ..writeln('# Written by `frx update-skills`. Do not edit.')

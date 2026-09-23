@@ -22,13 +22,16 @@ changes are marked as such.
 
 - **A release carries its own version in the skills it writes.** `xtask
   version` bumped the three declarations and left the `.claude/skills/.frx-owned`
-  stamp and the template that packs it at the version before, with no test
+  stamp and the template that packed it at the version before, with no test
   failing — v0.3.0 and v0.3.1 each shipped that way, so `frx create` wrote
-  projects that `update-skills` then called out of date. The verb now writes
-  all seven files, renames the CHANGELOG's `## Unreleased` to the version, and
-  refuses before writing anything when the version has a `+build` (npm strips
-  it, so the declarations could never agree) or there are no notes to name.
-  The skills freshness test compares the stamp too. *(Repository)*
+  projects that `update-skills` then called out of date. The skills are no
+  longer packed: `frx create` writes them from the running binary, so a new
+  project's skills are always the ones its frx would write, and a bump no
+  longer rewrites the half-megabyte template for a one-line stamp. The verb
+  writes the declarations, renames the CHANGELOG's `## Unreleased` to the
+  version and regenerates the stamp; it refuses before writing anything when
+  the version has a `+build` (npm strips it) or there are no notes to name.
+  The skills freshness test compares the stamp too. *(CLI, Repository)*
 
 - **The release runs the CLI's test suite before it publishes.** Its `cli`
   job compiled and smoke-tested, and the release did not wait for CI — v0.3.6

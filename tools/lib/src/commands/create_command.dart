@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:mold/mold.dart';
@@ -7,6 +8,7 @@ import 'package:yaml/yaml.dart';
 
 import '../engine/changeset.dart';
 import '../scaffold/package_scaffold.dart';
+import '../skills/skill_gen.dart';
 import '../template/template.g.dart';
 import '../util/console.dart';
 import '../util/dart_names.dart';
@@ -230,6 +232,8 @@ class CreateCommand extends Command<int> {
         PackageKind.byName(name)!,
     ];
 
+    final skills = SkillGen().files();
+
     try {
       // Planned in both cases, and then applied. The plan is the unpack minus
       // the writes, so running it first costs one in-memory substitution pass
@@ -265,6 +269,7 @@ class CreateCommand extends Command<int> {
         if (!await _prune(without, target: target)) {
           return 70;
         }
+        _writeSkills(skills, target: target);
       }
 
       for (final warning in warnings) {
@@ -272,6 +277,7 @@ class CreateCommand extends Command<int> {
       }
       _report(
         UnpackPlan(_kept(plan, omitted: without)),
+        skills: skills.length,
         target: target,
         vars: vars,
         applied: applying,
@@ -286,6 +292,24 @@ class CreateCommand extends Command<int> {
         console.err.writeln('✗ $error');
       }
       return 70;
+    }
+  }
+
+  /// Writes the agent skills this frx generates into the new project.
+  ///
+  /// Not in the archive — see `.claude/skills/**` in `mold.yaml` — so a
+  /// project's skills describe the binary that made it, and a version bump no
+  /// longer has to repack the template for its one-line stamp. No mold
+  /// substitution to apply: the skills name commands and files, never the
+  /// template's identity tokens.
+  static void _writeSkills(
+    Map<String, String> skills, {
+    required String target,
+  }) {
+    for (final MapEntry(key: path, value: content) in skills.entries) {
+      File(p.join(target, path))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(content);
     }
   }
 
@@ -403,6 +427,7 @@ class CreateCommand extends Command<int> {
   /// Say what was (or would be) created.
   void _report(
     UnpackPlan plan, {
+    required int skills,
     required String target,
     required Map<String, String> vars,
     required bool applied,
@@ -415,7 +440,7 @@ class CreateCommand extends Command<int> {
           'command': name,
           'applied': applied,
           'target': target,
-          'files': plan.files.length,
+          'files': plan.files.length + skills,
           'replacements': plan.totalReplacements,
           'renamed': plan.renamed.length,
           'without': [for (final k in omitted) k.dir],
@@ -436,7 +461,8 @@ class CreateCommand extends Command<int> {
             : 'Dry run — nothing written to $where',
       )
       ..writeln(
-        '  ${plan.files.length} files · ${plan.totalReplacements} replacements '
+        '  ${plan.files.length + skills} files · '
+        '${plan.totalReplacements} replacements '
         '· ${plan.renamed.length} path(s) renamed',
       )
       ..writeln(

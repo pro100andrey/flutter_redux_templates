@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/command_runner.dart';
 import 'package:tools/src/scaffold/package_scaffold.dart';
+import 'package:tools/src/skills/skill_gen.dart';
 import 'package:tools/src/util/console.dart';
 import 'package:yaml/yaml.dart';
 
@@ -201,6 +202,29 @@ void main() {
     // http_client, … — which is a fact about the template and not one
     // `add-package` can re-derive. It appends, and pub does not care.
     expect(read(roundTrip.root, 'pubspec.yaml'), contains('- models'));
+  });
+
+  group('the agent skills', () {
+    test('are the ones this frx writes, stamped with its version', () async {
+      // Not in the archive: packed, they carried the version of the frx that
+      // packed them, and v0.3.0 and v0.3.1 each shipped the one before.
+      final r = await create('demo_skills', ['--without', 'http_client']);
+      expect(r.exitCode, 0, reason: r.stderr);
+      for (final MapEntry(key: path, value: content)
+          in SkillGen().files().entries) {
+        expect(read(r.root, path), content, reason: path);
+      }
+      expect(
+        read(r.root, '.claude/skills/${SkillGen.manifestName}'),
+        contains('version: ${SkillGen.version}'),
+      );
+    });
+
+    test('are counted, and not written by a dry run', () async {
+      final r = await create('demo_dry', ['--dry-run']);
+      expect(r.exitCode, 0, reason: r.stderr);
+      expect(Directory(p.join(r.root, '.claude')).existsSync(), isFalse);
+    });
   });
 }
 
