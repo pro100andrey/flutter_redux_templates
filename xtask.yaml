@@ -133,9 +133,9 @@ tasks:
     run: [dart, test]
 
   test-flutter:
-    desc: the business, ui and app suites
+    desc: the business, ui, app and storage suites
     gate: [ci-workspace]
-    run: [flutter, test, business, ui, app]
+    run: [flutter, test, business, ui, app, storage]
 
   codegen-drift:
     desc: the committed generated code is what its sources generate
