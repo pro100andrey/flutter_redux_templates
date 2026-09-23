@@ -181,9 +181,19 @@ tasks:
   installer-sh:
     # `-s sh`, matching the shebang: the script must run under dash, ash and
     # whatever else is /bin/sh, so bashisms are the defect being looked for.
-    desc: shellcheck install.sh as POSIX sh
+    desc: shellcheck install.sh, and its test, as POSIX sh
     gate: [ci-installers]
-    run: [shellcheck, -s, sh, tools/scripts/install.sh]
+    run: [shellcheck, -s, sh, tools/scripts/install.sh, tools/scripts/test/install_sh_test.sh]
+
+  installer-sh-run:
+    # What shellcheck cannot see: the script executed. A synthetic release
+    # served over localhost, a throwaway $HOME, and the installer run under
+    # every POSIX shell on the machine — the download, the checksum (and a
+    # tampered archive refused), the unpack, and which profile gets which line,
+    # once, on macOS and Linux alike (`uname` is faked for the former).
+    desc: run install.sh end to end against a synthetic release
+    gate: [ci-installers]
+    run: [sh, tools/scripts/test/install_sh_test.sh]
 
   installer-ps1:
     desc: parse and analyse install.ps1 with PSScriptAnalyzer

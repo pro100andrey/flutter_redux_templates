@@ -135,9 +135,9 @@ VERSION="${VERSION#v}"
 
 ASSET="frx-$VERSION-$OS-$ARCH.tar.gz"
 # Overridable so the script can be pointed at an internal mirror of the release
-# assets — and so its own test can serve a synthetic release over localhost,
-# which is the only way to exercise the download, checksum and unpack path
-# without publishing something.
+# assets — and so its own test, tools/scripts/test/install_sh_test.sh, can serve
+# a synthetic release over localhost, which is the only way to exercise the
+# download, checksum and unpack path without publishing something.
 BASE="${FRX_DOWNLOAD_BASE:-https://github.com/$REPO/releases/download/v$VERSION}"
 
 # --- download & verify ------------------------------------------------------

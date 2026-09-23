@@ -83,7 +83,8 @@ jobs:
     # executed on a machine that has never seen this repository, so a typo in
     # them is discovered by a stranger during their first minute with the tool.
     # Nothing else in CI reads them — the release workflow only publishes the
-    # assets they download. shellcheck and pwsh are on the runner image.
+    # assets they download. shellcheck, pwsh, dash and python3 (which serves
+    # install.sh's synthetic release over localhost) are on the runner image.
     defaults:
       run:
         working-directory: tools
