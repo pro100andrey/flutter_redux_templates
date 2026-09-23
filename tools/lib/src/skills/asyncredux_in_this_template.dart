@@ -83,9 +83,17 @@ message can be localised without `business` depending on the app's locale.
 
 `AppPersistor` (`business/lib/persistor.dart`) is a `Persistor<AppState>` over
 `KeyValueStorage` from `storage`. Boot goes through `createStore`: open storage,
-read the persisted state, fall back to `AppState.initial()`. The app layer never
-touches the storage backend. A persistor rebuilds state without dispatching,
-which is why `frx graph` gives it a node of its own.
+then `restoreState` — a value that does not read back as its type falls back to
+its `AppState.initial()` value, and a state that cannot be read at all boots
+from `AppState.initial()`. So a new persisted field is read through the
+persistor's own checked `_read`, never cast. The app layer never touches the
+storage backend. A persistor rebuilds state without dispatching, which is why
+`frx graph` gives it a node of its own.
+
+Saves are throttled. A change that must survive the app being closed a moment
+later — a log-out — calls `store.persistNow()` in its action's `after()`, not a
+`PersistAction`; `persistAcrossLifecycle(store)` (installed in `run_env.dart`)
+already saves when the app is hidden.
 
 ## Injected dependencies and environment
 
