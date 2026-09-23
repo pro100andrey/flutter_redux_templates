@@ -13,9 +13,15 @@ abstract class ConnectivityServiceListener {
 }
 
 class ConnectivityService extends DisposableServiceInterface {
-  ConnectivityService({required this._listener});
+  /// [connectivity] is the plugin, and a parameter only so a test can hand in
+  /// one that fails — `Connectivity()` is a singleton over a platform channel.
+  ConnectivityService({
+    required this._listener,
+    Connectivity? connectivity,
+  }) : _connectivity = connectivity ?? Connectivity();
 
   final ConnectivityServiceListener _listener;
+  final Connectivity _connectivity;
 
   var _isNetworkAvailable = true;
 
@@ -23,17 +29,43 @@ class ConnectivityService extends DisposableServiceInterface {
 
   StreamSubscription<dynamic>? _subscription;
 
+  /// Subscribes, then asks once for the current status.
+  ///
+  /// **A platform that cannot answer means online, not a crash.** On Linux the
+  /// plugin asks NetworkManager over D-Bus, and where there is none — WSL, a
+  /// container, a minimal desktop — `checkConnectivity()` throws. `warmUp()`
+  /// awaits this before `runApp`, so that exception used to end the launch:
+  /// the app would not start on a machine that was, in fact, online. Assuming
+  /// the network is there costs at most a request that fails the ordinary way;
+  /// assuming it is not would paint the no-internet overlay over a working
+  /// app. A stream that errors later is logged for the same reason — an
+  /// unhandled error on it reaches the zone and ends the app just the same.
   @override
   Future<void> start() async {
     super.start();
 
-    if (!kIsWeb) {
-      _subscription = Connectivity().onConnectivityChanged.listen(
-        _setNetworkStatus,
+    if (kIsWeb) {
+      _listener.onStatusChange(isAvailable: true);
+      return;
+    }
+
+    _subscription = _connectivity.onConnectivityChanged.listen(
+      _setNetworkStatus,
+      onError: (Object error, StackTrace stackTrace) => logger.warning(
+        'Connectivity updates failed; keeping the last known status',
+        error,
+        stackTrace,
+      ),
+    );
+
+    try {
+      _setNetworkStatus(await _connectivity.checkConnectivity());
+    } on Object catch (error, stackTrace) {
+      logger.warning(
+        'Connectivity status unavailable; assuming online',
+        error,
+        stackTrace,
       );
-      final status = await Connectivity().checkConnectivity();
-      _setNetworkStatus(status);
-    } else {
       _listener.onStatusChange(isAvailable: true);
     }
   }
