@@ -563,6 +563,44 @@ mixin WaitingAction on ReduxAction<AppState> {
     });
   });
 
+  group('a connector in a subfolder', () {
+    List<Finding> routeFindings() {
+      final into = <Finding>[];
+      checkRoutesAndConnectors(FrxWorkspace(fx.root), into);
+      return into;
+    }
+
+    test('is found through the router import that names it', () {
+      // Moved into `connectors/auth/` with its imports fixed, it compiles and
+      // `dart analyze` is clean; the flat path alone called it missing.
+      final flat = fx.file('app/lib/connectors/home_page_connector.dart');
+      fx.file('app/lib/connectors/auth/home_page_connector.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(flat.readAsStringSync());
+      flat.deleteSync();
+      final router = fx.file('app/lib/navigation/app_router.dart');
+      router.writeAsStringSync(
+        router.readAsStringSync().replaceFirst(
+          "'../connectors/home_page_connector.dart'",
+          "'../connectors/auth/home_page_connector.dart'",
+        ),
+      );
+
+      expect(
+        routeFindings().map((f) => f.message),
+        isNot(contains(contains('HomeRoute'))),
+      );
+    });
+
+    test('and one the router does not import is still missing', () {
+      fx.file('app/lib/connectors/home_page_connector.dart').deleteSync();
+      expect(
+        routeFindings().map((f) => f.message),
+        contains(contains('Route HomeRoute has no')),
+      );
+    });
+  });
+
   group('the registry', () {
     // The audit is a list it walks, so one check can be run — and read — on its
     // own. Before, every one of these answers cost a subprocess and arrived
