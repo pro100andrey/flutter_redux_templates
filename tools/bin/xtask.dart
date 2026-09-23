@@ -429,6 +429,10 @@ Future<int> codegenDrift(VerbContext context) async {
     '*.g.dart',
     '*.freezed.dart',
     '*.gr.dart',
+    // theme_extensions_builder and flutter_gen, both run by build_runner, and
+    // neither named like the rest: a stale ThemeExtension still compiles.
+    '*.g.theme.dart',
+    '*.gen.dart',
   ], workingDirectory: context.workingDirectory);
   if (status.exitCode != 0) {
     context.log('git status failed: ${status.stderr}');
