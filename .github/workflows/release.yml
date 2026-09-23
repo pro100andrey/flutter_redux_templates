@@ -12,8 +12,8 @@ name: Release
 #
 # `verify` refuses the tag unless three files already say that version:
 # tools/pubspec.yaml, tools/lib/src/version.dart and tools/vscode/package.json.
-# Bump them in the commit the tag points at, not after. `tools` runs CI's CLI
-# gate again, and the release waits for it.
+# Bump them in the commit the tag points at, not after. `tools` and `workspace`
+# run CI's CLI and template gates again, and the release waits for both.
 #
 # Nothing is published anywhere and no secrets are needed. The release is the
 # artifact: five archives, a `checksums.txt` and the `.vsix`. The extension goes
@@ -189,6 +189,34 @@ jobs:
         # and a stale template is in every binary `cli` builds.
         run: dart run :xtask ci-tools
 
+  workspace:
+    name: template gate
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # As ci.yml's `workspace` job: `stable` must satisfy the workspace's
+          # `sdk:` bound.
+          channel: stable
+          cache: true
+
+      - name: Resolve workspace
+        run: flutter pub get # xtask: not a gate — resolves the Flutter workspace the tasks then read
+
+      - name: ci-workspace
+        # The template is what `frx create` unpacks, and every binary `cli`
+        # builds carries it. `tools` holds the freshness test — the packed
+        # template matches the tree — but not whether that tree compiles, passes
+        # its own tests, and generates what is committed. A tag pushed at a
+        # commit whose workspace job never finished would ship a template that
+        # does not build, inside every archive of the release.
+        working-directory: tools
+        run: dart run :xtask ci-workspace
+
   vsix:
     name: VSIX
     needs: verify
@@ -224,7 +252,7 @@ jobs:
 
   release:
     name: GitHub release
-    needs: [verify, tools, cli, vsix]
+    needs: [verify, tools, workspace, cli, vsix]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
