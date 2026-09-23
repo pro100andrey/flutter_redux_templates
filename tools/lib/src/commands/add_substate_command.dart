@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/import_supply.dart' show declaredNamesIn;
+import '../ast/source_index.dart';
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
 import '../engine/write_path.dart';
@@ -73,6 +75,8 @@ class AddSubstateCommand extends WritingCommand {
     final scaffold = SubstateScaffold(name, kind: kind);
     final files = scaffold.files();
 
+    _refuseForeign(repo, source, a);
+
     // A dry run writes nothing, so it should still show the plan (with
     // `overwrite` actions) rather than failing — the exit-70 guard only applies
     // to a real run.
@@ -81,6 +85,17 @@ class AddSubstateCommand extends WritingCommand {
     // checks: a substate is regenerated as a unit, and `--force` here means
     // "replace the folder", which is why the plan below can delete it.
     final exists = Directory(substateDir).existsSync();
+    // `--force` replaces a *substate*. A folder of that name that holds no
+    // state file is something else — `add-substate common --force` deleted the
+    // folder the base `Action` lives in, 161 errors — and no flag makes
+    // deleting it what the user meant, so the refusal does not offer one.
+    if (exists && !a.stateFile(source.reduxDir).existsSync()) {
+      refuse(
+        '${p.relative(substateDir)} exists and is not a substate (it has no '
+        'models/${a.folder}_state.dart). frx will not replace it — pick '
+        'another name.',
+      );
+    }
     if (!(results['dry-run'] as bool) && exists && !force) {
       refuse(
         '${p.relative(substateDir)} already exists. $kOverwriteHint',
@@ -158,5 +173,94 @@ class AddSubstateCommand extends WritingCommand {
         nextHint: 'generate the freezed part for the new state',
       ),
     );
+  }
+
+  /// Refuses a name whose folder, field or classes already belong to
+  /// something that is not this substate.
+  ///
+  /// Three ways to collide, each of which the scaffold used to write straight
+  /// through:
+  ///
+  /// * the **folder** is one of `redux/`'s shared ones (`common`, `models`,
+  ///   `services`) — the infrastructure every action and service imports;
+  /// * the **field** is on `AppState` already and is not a substate —
+  ///   `add-substate wait` said "field wait already present — wiring skipped",
+  ///   then wrote a `SelectWait` over async_redux's `Wait` anyway;
+  /// * a **class** it generates is declared by the Redux layer already —
+  ///   `add-substate app` wrote a second `AppState`.
+  void _refuseForeign(
+    FrxWorkspace repo,
+    AppStateSource source,
+    SubstateArtifact a,
+  ) {
+    if (!FrxWorkspace.isSubstateDir(a.folder)) {
+      refuse(
+        "redux/${a.folder}/ is the Redux layer's shared folder, not a "
+        'substate. Pick another name.',
+      );
+    }
+
+    var wired = false;
+    for (final existing in source.readSubstates()) {
+      if (existing.field != a.field) {
+        continue;
+      }
+      if (existing.type != a.stateType) {
+        refuse(
+          'AppState already has a field "${a.field}" '
+          '(${existing.type}), which is not this substate. Pick another name.',
+        );
+      }
+      wired = true;
+    }
+
+    final generated = {
+      a.stateType,
+      // The facade holds every substate's selector type, so a substate being
+      // scaffolded again finds its own there.
+      if (!wired) a.selectorType,
+      a.waitingEnum,
+      a.actionClass,
+      a.addActionClass,
+      a.retrieveActionClass,
+    };
+    for (final (:file, :names) in _sharedDeclarations(source.reduxDir)) {
+      final clash = names.intersection(generated);
+      if (clash.isNotEmpty) {
+        refuse(
+          '${clash.first} is declared in ${p.relative(file.path)} already; a '
+          'substate named "${a.folder}" would declare it again. Pick another '
+          'name.',
+        );
+      }
+    }
+  }
+
+  /// The names the Redux layer declares outside any substate: `AppState`,
+  /// `Selectors`, the store's helpers, the shared `common/` and `models/`.
+  static Iterable<({File file, Set<String> names})> _sharedDeclarations(
+    Directory reduxDir,
+  ) sync* {
+    if (!reduxDir.existsSync()) {
+      return;
+    }
+    for (final entry in reduxDir.listSync()) {
+      final base = p.basename(entry.path);
+      final files = switch (entry) {
+        File() when base.endsWith('.dart') => [entry],
+        Directory() when !FrxWorkspace.isSubstateDir(base) =>
+          entry.listSync(recursive: true).whereType<File>(),
+        _ => const <File>[],
+      };
+      for (final file in files) {
+        if (file.path.endsWith('.dart') &&
+            !FrxWorkspace.isGenerated(file.path)) {
+          yield (
+            file: file,
+            names: declaredNamesIn(sourceIndex.unitFor(file)),
+          );
+        }
+      }
+    }
   }
 }

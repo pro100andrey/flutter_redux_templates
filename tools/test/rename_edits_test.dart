@@ -161,7 +161,6 @@ void main() {
           "import 'services/log_in/log_in.dart';\n"
           "import 'package:r/theme/log_in/x.dart';\n",
           moveOf: moveLogIn,
-          path: '/r/lib/redux/app_state.dart',
         ),
         "import 'services/log_in/log_in.dart';\n"
         "import 'package:r/theme/log_in/x.dart';\n",

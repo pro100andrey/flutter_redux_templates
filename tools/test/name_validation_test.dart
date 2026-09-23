@@ -125,6 +125,53 @@ void main() {
         containsAll(['Text', 'Widget', 'Padding']),
       );
     });
+
+    test("the Redux layer's shared folder is not a substate, even with "
+        '--force', () async {
+      // `--force` deleted the folder the base `Action` lives in.
+      fx.file('business/lib/redux/common/action.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('abstract class AppAction {}\n');
+      for (final args in [
+        ['add-substate', 'common'],
+        ['add-substate', 'common', '--force'],
+      ]) {
+        await refused(
+          args,
+          code: 70,
+          reason: allOf(contains('shared folder'), isNot(contains('--force'))),
+        );
+      }
+    });
+
+    test('a folder of that name that holds no state is not replaced', () async {
+      fx.file('business/lib/redux/legacy/thing.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('class Thing {}\n');
+      await refused(
+        ['add-substate', 'legacy', '--force'],
+        code: 70,
+        reason: allOf(contains('not a substate'), isNot(contains('--force'))),
+      );
+    });
+
+    test('a field AppState has that is not a substate', () async {
+      // `wait` is async_redux's; the scaffold said "wiring skipped" and wrote a
+      // `SelectWait` over `Wait` anyway.
+      await refused(
+        ['add-substate', 'wait'],
+        code: 70,
+        reason: contains('"wait" (Wait)'),
+      );
+    });
+
+    test('a name whose state class is AppState itself', () async {
+      await refused(
+        ['add-substate', 'app'],
+        code: 70,
+        reason: contains('AppState is declared'),
+      );
+    });
   });
 
   group('create refuses a project name that breaks the workspace', () {
