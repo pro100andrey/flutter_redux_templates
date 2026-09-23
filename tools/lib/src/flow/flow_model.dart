@@ -11,7 +11,12 @@ enum DispatchKind {
   dispatch,
   dispatchSync,
   dispatchAndWait,
-  dispatchAll;
+  dispatchAll,
+
+  /// async_redux's `dispatchAndWaitAll([...])`. Missing here, the call was
+  /// not a dispatch at all, and every action in its list read as reached by
+  /// nobody.
+  dispatchAndWaitAll;
 
   /// The kind called [name], or null for a method that is not a dispatch.
   ///
@@ -24,7 +29,14 @@ enum DispatchKind {
   };
 
   /// Whether the caller waits for a result (and can branch on the status).
-  bool get isRoundTrip => this == DispatchKind.dispatchAndWait;
+  bool get isRoundTrip =>
+      this == DispatchKind.dispatchAndWait ||
+      this == DispatchKind.dispatchAndWaitAll;
+
+  /// Whether the call takes a list of actions rather than one.
+  bool get takesList =>
+      this == DispatchKind.dispatchAll ||
+      this == DispatchKind.dispatchAndWaitAll;
 }
 
 /// A single `dispatch*(...)` call.
@@ -37,6 +49,7 @@ class DispatchStep {
     this.awaited = false,
     this.condition,
     this.trigger,
+    this.opaque = false,
   });
 
   /// How it was dispatched.
@@ -69,6 +82,17 @@ class DispatchStep {
   /// `email.onChanged` in the diagram.
   final String? trigger;
 
+  /// True when the dispatched expression is a value rather than a
+  /// construction — a parameter, a field, a call's result — so no class can
+  /// be read off it, and [target] is only the expression's source.
+  ///
+  /// Said rather than guessed at: read as a class name, `dispatch(action)`
+  /// was a dispatch of a class called `action`, which the graph either
+  /// invented a node for or dropped. Either way the action really dispatched
+  /// read as reached by nobody. A step marked opaque is a blind spot, and
+  /// the graph declares it as one.
+  final bool opaque;
+
   /// True when this dispatch navigates rather than mutating state.
   bool get isNavigation => route != null || target.startsWith('GoAction');
 
@@ -94,6 +118,7 @@ class DispatchStep {
     'awaited': awaited,
     if (condition != null) 'condition': condition,
     if (trigger != null) 'trigger': trigger,
+    if (opaque) 'opaque': true,
   };
 }
 

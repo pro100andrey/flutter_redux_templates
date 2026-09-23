@@ -193,12 +193,19 @@ class _GraphRead {
   ///
   /// [owner] is the node whose reading hit the gap — what makes the note
   /// attributable to a subgraph rather than only to the whole project.
-  String _dispatchTarget(
+  ///
+  /// Null for an [DispatchStep.opaque] step, which names no class to draw an
+  /// edge to — only the gap is recorded, see [_opaqueDispatch].
+  String? _dispatchTarget(
     DispatchStep step,
     File? file,
     String at, {
     required String owner,
   }) {
+    if (step.opaque) {
+      _opaqueDispatch(step, at, owner: owner);
+      return null;
+    }
     final className = step.className;
     final resolved =
         (file == null ? null : actions.at(file, className)) ??
@@ -236,6 +243,32 @@ class _GraphRead {
     return id;
   }
 
+  /// Records a dispatch of a value frx cannot trace to a class —
+  /// `dispatch(action)` with `action` a parameter — as the blind spot it is.
+  ///
+  /// Once per file and expression: the routed walk and the sweep of every
+  /// file both meet a page's dispatches, and one gap is one entry. The walk
+  /// runs first and names the page, which is the more useful owner.
+  void _opaqueDispatch(DispatchStep step, String at, {required String owner}) {
+    if (!_opaqueSeen.add('${p.canonicalize(at)}|${step.target}')) {
+      return;
+    }
+    graph.unresolved.add(
+      Unresolved(
+        kind: 'dispatch-target',
+        owner: owner,
+        at: at,
+        expr: step.target,
+        why:
+            'dispatches a value rather than a construction — a parameter, a '
+            'field or a call result — so which action it is cannot be read '
+            'here; whatever it holds may be dispatched from this file',
+      ),
+    );
+  }
+
+  final _opaqueSeen = <String>{};
+
   // ---- cascades: an action dispatching another ----------------------
   void _addCascades() {
     for (final a in actions.all) {
@@ -243,15 +276,19 @@ class _GraphRead {
         if (step.isNavigation) {
           continue;
         }
+        final to = _dispatchTarget(
+          step,
+          a.imports[step.className],
+          a.file,
+          owner: a.id,
+        );
+        if (to == null) {
+          continue;
+        }
         graph.addEdge(
           GraphEdge(
             from: a.id,
-            to: _dispatchTarget(
-              step,
-              a.imports[step.className],
-              a.file,
-              owner: a.id,
-            ),
+            to: to,
             kind: .dispatches,
             condition: step.condition,
           ),
@@ -341,15 +378,19 @@ class _GraphRead {
           // has no such line.
           final at =
               flow.regionFiles[useCase.owner] ?? flow.connectorFile ?? id;
+          final to = _dispatchTarget(
+            step,
+            file == null ? null : File(file),
+            at,
+            owner: id,
+          );
+          if (to == null) {
+            continue;
+          }
           graph.addEdge(
             GraphEdge(
               from: id,
-              to: _dispatchTarget(
-                step,
-                file == null ? null : File(file),
-                at,
-                owner: id,
-              ),
+              to: to,
               kind: .dispatches,
               via: useCase.label,
               condition: step.condition,
@@ -385,15 +426,19 @@ class _GraphRead {
         if (step.isNavigation) {
           continue;
         }
+        final to = _dispatchTarget(
+          step,
+          read.actionFiles[step.className],
+          file.path,
+          owner: id,
+        );
+        if (to == null) {
+          continue;
+        }
         graph.addEdge(
           GraphEdge(
             from: id,
-            to: _dispatchTarget(
-              step,
-              read.actionFiles[step.className],
-              file.path,
-              owner: id,
-            ),
+            to: to,
             kind: .dispatches,
             condition: step.condition,
           ),
@@ -507,6 +552,18 @@ class _GraphRead {
       final targets = <String>{};
       for (final step in read.steps) {
         if (step.isNavigation) {
+          continue;
+        }
+        // The one gap this pass does report: a dispatched value has no class
+        // to resolve or skip, and the routed walk never sees one written
+        // outside a `_Vm(...)`. Silent here, it was a live action on the
+        // orphan list with no word of why.
+        if (step.opaque) {
+          _opaqueDispatch(
+            step,
+            consumer.file.path,
+            owner: graph.nodeFor(consumer.file, consumer.unit),
+          );
           continue;
         }
         final file = read.actionFiles[step.className];

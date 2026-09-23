@@ -269,8 +269,8 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
     // a plain reference so that only something *named* like a store qualifies —
     // it keeps `whatever().dispatch(...)` out without needing to resolve types.
     final target = node.target;
-    if (kind != null && (target == null || target is SimpleIdentifier)) {
-      steps.add(_stepFrom(node, kind));
+    if (kind != null && (target == null || _isPlainReference(target))) {
+      steps.addAll(_stepsFrom(node, kind));
       callSites.add(node.offset);
     } else if (target == null) {
       // `_item(task)` — a helper on the factory, or a top-level one. Also the
@@ -330,11 +330,160 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
     return at < args.length ? args[at] : null;
   }
 
-  DispatchStep _stepFrom(MethodInvocation node, DispatchKind kind) {
+  /// Whether [e] names something rather than computing it — `store`,
+  /// `widget.store`, `this`, `this.store`. What a dispatch may be called on.
+  ///
+  /// Only a bare name used to qualify, so `widget.store.dispatch(…)` in a
+  /// `State` and `this.dispatch(…)` in a factory were not dispatches at all,
+  /// and what they dispatched read as reached by nobody. A chain of names is
+  /// still a reference; a call anywhere in it is not.
+  static bool _isPlainReference(Expression e) => switch (e) {
+    SimpleIdentifier() || PrefixedIdentifier() || ThisExpression() => true,
+    PropertyAccess(target: final t?) => _isPlainReference(t),
+    _ => false,
+  };
+
+  /// One step per action the call can dispatch.
+  ///
+  /// Usually one. `dispatchAll([A(), B()])` dispatches each element, and was
+  /// read as one dispatch of a class spelled `[A(), B()]`; `dispatch(x ? D()
+  /// : E())` dispatches either, and neither was seen; `final a = F();
+  /// dispatch(a);` dispatches what the local was built from. Each of those
+  /// left real actions on the orphan list — see [_actionsIn].
+  List<DispatchStep> _stepsFrom(MethodInvocation node, DispatchKind kind) {
     final arg = _actionArgumentOf(node);
+    if (arg == null) {
+      return [_stepFor(node, kind, null, null)];
+    }
+    return [
+      for (final (e, condition) in _actionsIn(arg, kind, null, {}))
+        _stepFor(node, kind, e, condition),
+    ];
+  }
+
+  /// The action expressions [e] stands for, each with the condition it is
+  /// dispatched under beyond the enclosing `if` — the branch of a `? :`.
+  ///
+  /// A local is followed to its initializer, found the way [_boundNearby]
+  /// finds a binding: on the ancestor chain, which is where anything in scope
+  /// is declared. A name bound any other way — a parameter, a field, a
+  /// pattern — is left as it is, and becomes an opaque step. [seen] stops a
+  /// local whose initializer names itself.
+  static Iterable<(Expression, String?)> _actionsIn(
+    Expression e,
+    DispatchKind kind,
+    String? condition,
+    Set<String> seen,
+  ) sync* {
+    switch (e) {
+      case ParenthesizedExpression(:final expression):
+        yield* _actionsIn(expression, kind, condition, seen);
+      case ConditionalExpression(
+        condition: final test,
+        :final thenExpression,
+        :final elseExpression,
+      ):
+        final src = test.toSource();
+        final otherwise = _and(condition, '!($src)');
+        yield* _actionsIn(thenExpression, kind, _and(condition, src), seen);
+        yield* _actionsIn(elseExpression, kind, otherwise, seen);
+      case ListLiteral(:final elements) when kind.takesList:
+        for (final element in elements) {
+          yield* _elementActions(element, kind, condition, seen);
+        }
+      case SimpleIdentifier(:final name) when !seen.contains(name):
+        final initializer = _localInitializer(name, e);
+        if (initializer == null) {
+          yield (e, condition);
+        } else {
+          yield* _actionsIn(initializer, kind, condition, {...seen, name});
+        }
+      default:
+        yield (e, condition);
+    }
+  }
+
+  /// The actions one element of a `dispatchAll` list stands for: an
+  /// expression, both arms of a collection `if`, the body of a collection
+  /// `for`, and whatever a spread spreads when that is written in reach.
+  static Iterable<(Expression, String?)> _elementActions(
+    CollectionElement element,
+    DispatchKind kind,
+    String? condition,
+    Set<String> seen,
+  ) sync* {
+    switch (element) {
+      case Expression():
+        yield* _actionsIn(element, kind, condition, seen);
+      case IfElement(
+        expression: final test,
+        :final thenElement,
+        :final elseElement,
+      ):
+        final src = test.toSource();
+        yield* _elementActions(thenElement, kind, _and(condition, src), seen);
+        if (elseElement != null) {
+          yield* _elementActions(
+            elseElement,
+            kind,
+            _and(condition, '!($src)'),
+            seen,
+          );
+        }
+      case ForElement(:final body):
+        yield* _elementActions(body, kind, condition, seen);
+      case SpreadElement(:final expression):
+        yield* _actionsIn(expression, kind, condition, seen);
+      case NullAwareElement(:final value):
+        yield* _actionsIn(value, kind, condition, seen);
+      default:
+      // A map entry: not something a list of actions can hold.
+    }
+  }
+
+  static String? _and(String? a, String b) => a == null ? b : '$a && $b';
+
+  /// The initializer of the local [name] as seen from [at], or null when the
+  /// nearest binding of it is not a local with one.
+  static Expression? _localInitializer(String name, AstNode at) {
+    for (var n = at.parent; n != null; n = n.parent) {
+      if (n is Block) {
+        for (final statement in n.statements) {
+          if (statement is! VariableDeclarationStatement) {
+            continue;
+          }
+          for (final v in statement.variables.variables) {
+            if (v.name.lexeme == name) {
+              return v.initializer;
+            }
+          }
+        }
+      }
+      // Anything else binding the name nearer in — a parameter, a loop or
+      // pattern variable — is what it means here, and it has no initializer
+      // to follow.
+      if (_bindsIn(n, name)) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  DispatchStep _stepFor(
+    MethodInvocation node,
+    DispatchKind kind,
+    Expression? arg,
+    String? branch,
+  ) {
     var target = arg?.toSource() ?? '?';
     String? route;
     String? routeArgs;
+    // A value rather than something built where it is dispatched — see
+    // [DispatchStep.opaque].
+    final opaque =
+        arg != null &&
+        arg is! MethodInvocation &&
+        arg is! InstanceCreationExpression;
 
     if (arg is MethodInvocation) {
       if (arg.target != null) {
@@ -368,8 +517,12 @@ class DispatchVisitor extends RecursiveAstVisitor<void> {
       route: route,
       routeArgs: routeArgs,
       awaited: node.parent is AwaitExpression,
-      condition: _enclosingCondition(node),
+      condition: switch ((_enclosingCondition(node), branch)) {
+        (final outer?, final inner?) => '$outer && $inner',
+        (final outer, final inner) => outer ?? inner,
+      },
       trigger: _enclosingTrigger(node),
+      opaque: opaque,
     );
   }
 

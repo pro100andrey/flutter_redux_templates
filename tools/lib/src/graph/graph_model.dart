@@ -301,8 +301,8 @@ class AppGraph {
     required this.edges,
     required this.unresolved,
     required this.focus,
-    required List<Orphan> wholeOrphans,
-  }) : _wholeOrphans = wholeOrphans;
+    required this._wholeOrphans,
+  });
 
   final List<GraphNode> nodes;
   final List<GraphEdge> edges;

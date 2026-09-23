@@ -140,7 +140,6 @@ void main() {
       final focused = whole.focusOn(
         'substate:logIn',
         direction: GraphDirection.inbound,
-        depth: 1,
       );
       // The dispatcher and the reader are outside the bound — and they still
       // dispatch and read.
@@ -154,7 +153,7 @@ void main() {
     });
 
     test('drops the verdicts about what it does not show', () {
-      final focused = whole.focusOn('consumer:EmailConnector', depth: 1);
+      final focused = whole.focusOn('consumer:EmailConnector');
       expect(_orphanIds(focused), isEmpty);
     });
 
@@ -175,6 +174,77 @@ void main() {
         {for (final o in json) (o as Map)['node']},
         _orphanIds(whole),
       );
+    });
+  });
+
+  group('a dispatch written', () {
+    const names = [
+      'AAction',
+      'BAction',
+      'CAction',
+      'DAction',
+      'EAction',
+      'FAction',
+      'GAction',
+      'HAction',
+      'IAction',
+      'JAction',
+    ];
+
+    AppGraph read() => _graphOf({
+      '$_redux/app_state.dart': _todosAppState,
+      for (final n in names)
+        '$_redux/todos/actions/${n[0].toLowerCase()}_action.dart': _action(n),
+      'app/lib/widgets/panel_connector.dart': '''
+${[for (final n in names) "import 'package:business/redux/todos/actions/${n[0].toLowerCase()}_action.dart';"].join('\n')}
+
+class PanelConnector extends StatelessWidget {
+  final Store<AppState> store;
+  void a() => store.dispatchAll([AAction(), BAction()]);
+  void c() => store.dispatchAndWaitAll([CAction()]);
+  void d(bool x) => store.dispatch(x ? DAction() : EAction());
+  void f() {
+    final act = FAction();
+    store.dispatch(act);
+  }
+  void g() => widget.store.dispatch(GAction());
+  void h() => this.dispatch(HAction());
+  void i() => this.store.dispatch(IAction());
+  void j(bool y) => dispatchAll([if (y) JAction()]);
+  void opaque(ReduxAction<AppState> given) => store.dispatch(given);
+}
+''',
+      'app/lib/app.dart': '''
+import 'widgets/panel_connector.dart';
+class App { Widget build() => PanelConnector(); }
+''',
+    });
+
+    test('in any of the ordinary shapes reaches its action', () {
+      final g = read();
+      expect(_orphanIds(g), isEmpty);
+      for (final n in names) {
+        expect(
+          _edges(g, from: 'consumer:PanelConnector', to: 'action:todos.$n'),
+          isNotEmpty,
+          reason: n,
+        );
+      }
+    });
+
+    test('as a value it cannot trace is a declared blind spot', () {
+      final g = read();
+      final gap = g.unresolved.where((u) => u.expr == 'given');
+      expect(gap, hasLength(1));
+      expect(gap.single.kind, 'dispatch-target');
+      expect(gap.single.owner, 'consumer:PanelConnector');
+      // And not a node for a class called `given`.
+      expect(g.node('action:given'), isNull);
+    });
+
+    test('a list is never read as a class name', () {
+      final g = read();
+      expect(g.nodes.where((n) => n.name.contains('[')), isEmpty);
     });
   });
 }
