@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:tools/src/version_files.dart';
 import 'package:xtask/xtask.dart';
 
 /// The repository root — where xtask.yaml is — found from the task's own
@@ -226,7 +227,7 @@ Future<int> version(VerbContext context) async {
     return ExitCode.invalidFile;
   }
   final v = context.args.single;
-  if (!RegExp(r'^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$').hasMatch(v)) {
+  if (!versionShape.hasMatch(v)) {
     context.log(
       '"$v" is not a version npm keeps as written — '
       'MAJOR.MINOR.PATCH, optionally -prerelease, no +build',
@@ -235,25 +236,14 @@ Future<int> version(VerbContext context) async {
   }
   final tools = toolsOf(context);
   final edits = <(File, String)>[];
-  for (final (path, pattern, replacement) in [
-    (
-      p.join(tools, 'pubspec.yaml'),
-      RegExp(r'^version: .*$', multiLine: true),
-      'version: $v',
-    ),
-    (
-      p.join(tools, 'lib', 'src', 'version.dart'),
-      RegExp("frxVersion = '[^']*'"),
-      "frxVersion = '$v'",
-    ),
-  ]) {
-    final file = File(path);
-    final before = file.readAsStringSync();
-    if (!pattern.hasMatch(before)) {
-      context.log('$path: nothing matched ${pattern.pattern}');
+  for (final declaration in [pubspecVersion, constantVersion]) {
+    final file = File(p.join(tools, declaration.path));
+    final after = declaration.writeTo(file.readAsStringSync(), v);
+    if (after == null) {
+      context.log('${file.path}: declares no version to replace');
       return ExitCode.taskFailed;
     }
-    edits.add((file, before.replaceFirst(pattern, replacement)));
+    edits.add((file, after));
   }
 
   // The notes accumulate under `## Unreleased`; the bump names them. A

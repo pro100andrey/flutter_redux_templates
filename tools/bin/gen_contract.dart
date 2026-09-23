@@ -7,8 +7,8 @@ import 'package:tools/src/contract/contract_gen.dart';
 ///
 /// A derived artifact, like `.claude/skills` and the embedded template:
 /// regenerate it with `dart run :xtask contract`, and
-/// `contract_freshness_test.dart` fails when it is stale, so `dart run :xtask check` and
-/// CI catch a `--kind` added on one side only.
+/// `contract_freshness_test.dart` fails when it is stale, so
+/// `dart run :xtask check` and CI catch a `--kind` added on one side only.
 void main(List<String> args) {
   final root = args.isNotEmpty
       ? args.first

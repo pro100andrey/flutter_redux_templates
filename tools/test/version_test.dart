@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/version.dart';
+import 'package:tools/src/version_files.dart';
 
 /// `frx --version` says what was installed.
 ///
@@ -23,16 +24,14 @@ void main() {
   final toolsRoot = Directory.current.absolute.path;
 
   test('the version constant matches the pubspec', () {
-    final pubspec = File(p.join(toolsRoot, 'pubspec.yaml')).readAsStringSync();
-    final declared = RegExp(
-      r'^version:\s*(\S+)\s*$',
-      multiLine: true,
-    ).firstMatch(pubspec);
+    final declared = pubspecVersion.readFrom(
+      File(p.join(toolsRoot, pubspecVersion.path)).readAsStringSync(),
+    );
 
     expect(declared, isNotNull, reason: 'no `version:` in tools/pubspec.yaml');
     expect(
       frxVersion,
-      declared!.group(1),
+      declared,
       reason:
           'frxVersion and pubspec.yaml disagree, so `frx --version` reports '
           'something the installed binary is not. Change both, in '
@@ -48,13 +47,9 @@ void main() {
     // an older binary offers kinds that binary rejects. The release workflow
     // refuses a tag the three disagree with; this catches the drift at the
     // commit that introduces it, which is where it is cheap to fix.
-    final manifest = File(
-      p.join(toolsRoot, 'vscode', 'package.json'),
-    ).readAsStringSync();
-    final declared = RegExp(
-      r'^\s*"version"\s*:\s*"([^"]+)"',
-      multiLine: true,
-    ).firstMatch(manifest);
+    final declared = extensionVersion.readFrom(
+      File(p.join(toolsRoot, extensionVersion.path)).readAsStringSync(),
+    );
 
     expect(
       declared,
@@ -62,7 +57,7 @@ void main() {
       reason: 'no `"version"` in vscode/package.json',
     );
     expect(
-      declared!.group(1),
+      declared,
       frxVersion,
       reason:
           'the extension and the CLI ship on one tag, and their versions have '
@@ -74,9 +69,9 @@ void main() {
   test('the version is a version', () {
     // Cheap, and it catches the paste that drops a digit or leaves a `^`.
     expect(
-      RegExp(r'^\d+\.\d+\.\d+(?:[-+].+)?$').hasMatch(frxVersion),
+      versionShape.hasMatch(frxVersion),
       isTrue,
-      reason: '"$frxVersion" is not a semantic version',
+      reason: '"$frxVersion" is not a version all three files can hold',
     );
   });
 }
