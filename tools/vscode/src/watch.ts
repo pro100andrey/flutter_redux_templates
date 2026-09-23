@@ -247,6 +247,21 @@ export class FrxWatch {
       }
       this._render();
     });
+    // The start failing *after* `spawn` returned — ENOENT for a `dart` that
+    // went away, EACCES — arrives only here, never as a throw above and never
+    // as `'exit'`. With no listener it was an uncaught exception in the
+    // extension host, and `_child` stayed set: the chip span forever, and every
+    // scaffolder skipped its build_runner step because a watch was "running".
+    child.on('error', (err) => {
+      ch.appendLine(`\n[watch could not run: ${err.message}]`);
+      if (this._child !== child) return; // one we already stopped
+      this._child = null;
+      this._buildDiagnostics.clear();
+      vscode.window.showErrorMessage(
+        `FRX: build_runner watch could not run — ${err.message}. See the FRX watch output.`,
+      );
+      this._render();
+    });
     this._render();
   }
 

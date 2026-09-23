@@ -44,16 +44,23 @@ interface Harness {
   persisted(): boolean;
 }
 
-function harness(): Harness {
-  const children: FakeChild[] = [];
+/** An extension context as far as the watch reads one: subscriptions and workspaceState. */
+function fakeContext() {
   const store = new Map<string, unknown>();
-  const context = {
+  return {
+    store,
     subscriptions: [] as { dispose(): void }[],
     workspaceState: {
       get: (k: string, d: boolean) => (store.has(k) ? store.get(k) : d),
       update: async (k: string, v: unknown) => void store.set(k, v),
     },
   };
+}
+
+function harness(): Harness {
+  const children: FakeChild[] = [];
+  const context = fakeContext();
+  const store = context.store;
   const calls: string[] = [];
   const spawn: SpawnFn = (command, args) => {
     calls.push([command, ...args].join(' '));
@@ -232,4 +239,47 @@ test('a wedged stop does not hang activation forever', async () => {
   assert.ok(h.calls().some((c) => c.includes('build_runner stop')));
   h.child().emit('exit', 0);
   await reaped;
+});
+
+// --- a start that fails ------------------------------------------------------
+
+test('a watch whose start fails after spawn returned is not left "running"', async () => {
+  // ENOENT/EACCES on the resolved `dart` arrives as the child's `'error'` event
+  // and never as `'exit'`. Unheard, it was an uncaught exception in the
+  // extension host and the chip span forever — and every scaffolder skipped
+  // build_runner, because a watch was "running".
+  const errors: string[] = [];
+  const original = vscode.window.showErrorMessage;
+  vscode.window.showErrorMessage = async (m: string) => void errors.push(m);
+  try {
+    const h = harness();
+    await h.watch.toggle();
+
+    assert.doesNotThrow(() =>
+      h.child().emit('error', Object.assign(new Error('spawn /usr/bin/dart ENOENT'), { code: 'ENOENT' })),
+    );
+
+    assert.strictEqual(h.watch.running, false);
+    assert.strictEqual(h.watch.enabled, true, 'the user did not turn it off — a click restarts it');
+    assert.match(errors[0] ?? '', /ENOENT/);
+  } finally {
+    vscode.window.showErrorMessage = original;
+  }
+});
+
+test('a real spawn of a missing dart settles into not running, with nothing uncaught', async () => {
+  const uncaught: unknown[] = [];
+  const onErr = (e: unknown) => uncaught.push(e);
+  process.on('uncaughtException', onErr);
+  try {
+    const watch = new FrxWatch(fakeContext() as never, __dirname, async () => '/nonexistent/dart');
+    await watch.toggle();
+    await new Promise((r) => setTimeout(r, 300));
+    assert.deepStrictEqual(
+      { running: watch.running, uncaught: uncaught.map(String) },
+      { running: false, uncaught: [] },
+    );
+  } finally {
+    process.off('uncaughtException', onErr);
+  }
 });
