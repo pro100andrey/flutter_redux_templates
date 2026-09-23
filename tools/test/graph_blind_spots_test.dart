@@ -411,6 +411,37 @@ class CartConnector {}
     });
   });
 
+  group('a composite read through `this`', () {
+    test('is a read of it', () {
+      final g = _graphOf({
+        '$_redux/app_state.dart': r'''
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({required Wait wait}) = _AppState;
+}
+''',
+        '$_redux/selectors.dart': '''
+mixin Selectors { AppState get state; }
+extension SelectComposites on Selectors {
+  bool get isBusy => state.wait.isWaitingAny;
+}
+''',
+        'app/lib/widgets/top_connector.dart': '''
+class _Factory extends VmFactory<AppState, TopConnector, _Vm> with Selectors {
+  _Vm fromStore() => _Vm(busy: this.isBusy);
+}
+class TopConnector {}
+''',
+        'app/lib/app.dart': 'class App { build() => TopConnector(); }',
+      });
+      expect(
+        _edges(g, to: 'selector:SelectComposites.isBusy').map((e) => e.from),
+        contains('consumer:TopConnector'),
+      );
+      expect(_orphanIds(g), isEmpty);
+    });
+  });
+
   group("an action's writes", () {
     AppGraph read() => _graphOf({
       '$_redux/app_state.dart': r'''

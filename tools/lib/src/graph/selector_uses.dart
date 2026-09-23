@@ -182,7 +182,10 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
 
   final used = <String>{};
 
-  bool _isFacade(String name) => name == 'select' || facades.contains(name);
+  /// `this` among them: inside a class mixing in `Selectors` it *is* the
+  /// facade — see [_segments].
+  bool _isFacade(String name) =>
+      name == 'select' || name == 'this' || facades.contains(name);
 
   @override
   void visitPrefixedIdentifier(PrefixedIdentifier node) {
@@ -260,10 +263,13 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
   /// reads frx cannot attribute, and guessing at them is what the graph's
   /// blind-spot discipline exists to avoid.
   List<String>? _segments(Expression node) => switch (node) {
-    // `this` is transparent: inside a class mixing in `Selectors`,
+    // `this` is the facade: inside a class mixing in `Selectors`,
     // `this.logIn.email` is the same read as the bare `logIn.email`, and
-    // refusing it would report a live selector as dead.
-    ThisExpression() => const [],
+    // refusing it would report a live selector as dead. A segment of its own
+    // rather than nothing, because a composite needs something in front of
+    // it to be judged at all — as nothing, `this.isBusy` was a chain of one
+    // name and `SelectComposites.isBusy` read as read by nobody.
+    ThisExpression() => const ['this'],
     SimpleIdentifier() => [node.name],
     PrefixedIdentifier() => [node.prefix.name, node.identifier.name],
     // `_Reader(state).chats.unreadTotal` — the facade built where it is read,
