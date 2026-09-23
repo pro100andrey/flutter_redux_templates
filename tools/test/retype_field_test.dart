@@ -114,6 +114,53 @@ void main() {
       },
     );
 
+    test('the Add action that fills the table follows it', () async {
+      // It built an `IMap<int, Object>` to `addAll` into the retyped
+      // `IMap<int, Task>` — not compiling, while doctor said ✓.
+      await tableSubstate();
+      await ok([
+        'add-field',
+        'tasks',
+        'table:IMap<String, Task>',
+        '-d',
+        'IMapConst<String, Task>({})',
+        '--force',
+        '--no-format',
+      ]);
+
+      final action = fx.read(
+        'business/lib/redux/tasks/actions/add_tasks_action.dart',
+      );
+      expect(action, contains('IList<Task> _items'));
+      expect(action, contains('IMap<String, Task>.fromValues'));
+      expect(action, contains('String _idOf(Task item)'));
+      expect(action, contains("import 'package:models/task.dart';"));
+      expect(action, isNot(contains('Object')));
+    });
+
+    test('a hand-written Add action is named, not rewritten', () async {
+      await tableSubstate();
+      const mine = 'class AddTasksAction {}\n';
+      fx
+          .file('business/lib/redux/tasks/actions/add_tasks_action.dart')
+          .writeAsStringSync(mine);
+      final res = await runFrx(fx, [
+        'add-field',
+        'tasks',
+        'table:IMap<int, Task>',
+        '-d',
+        'IMapConst<int, Task>({})',
+        '--force',
+        '--no-format',
+      ]);
+      expect(res.exitCode, 0, reason: '${res.stderr}');
+      expect(res.stdout.toString(), contains('left in place'));
+      expect(
+        fx.read('business/lib/redux/tasks/actions/add_tasks_action.dart'),
+        mine,
+      );
+    });
+
     test('and so does the doc line above it', () async {
       await tableSubstate();
       await ok([

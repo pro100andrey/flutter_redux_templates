@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
@@ -9,6 +11,7 @@ import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
 import '../redux/state_source.dart';
 import '../scaffold/artifact_templates.dart';
+import '../scaffold/table_add_action.dart';
 import '../scaffold/type_imports.dart';
 import '../util/console.dart';
 import '../util/dart_names.dart';
@@ -201,6 +204,10 @@ class AddFieldCommand extends WritingCommand {
           )
         : null;
 
+    final table = retype
+        ? _retypeTableAction(repo, artifact, field.camel, type)
+        : null;
+
     final state = Wiring.at(
       stateFile,
       result,
@@ -226,7 +233,8 @@ class AddFieldCommand extends WritingCommand {
               ? null
               : WriteFile(actionFile.path, setterContent),
         )
-        ..addIf(selector?.edit),
+        ..addIf(selector?.edit)
+        ..addIf(table?.edit),
       header: 'Add field "${field.camel}" ($type) to ${artifact.stateType}',
       // Not [WiringList.narrate]: the two blocks are not adjacent, because
       // two notes about what was *not* written can land between them.
@@ -254,6 +262,18 @@ class AddFieldCommand extends WritingCommand {
           console.out.writeln();
           selector.narrate();
         }
+        if (table != null) {
+          console.out
+            ..writeln()
+            ..writeln(
+              table.edit == null
+                  ? '  • ${p.relative(table.file.path)} no longer has the '
+                        "scaffold's Object placeholders — left in place; "
+                        'retype it to $type by hand.'
+                  : '${p.relative(table.file.path)}:\n'
+                        '  ~ retyped to $type',
+            );
+        }
         console.out.writeln();
       },
       build: (_) => BuildStep.build(
@@ -262,4 +282,45 @@ class AddFieldCommand extends WritingCommand {
       ),
     );
   }
+
+  /// The table substate's `Add<Pascal>Action`, retyped to follow its `table`
+  /// field — or null when this retype is not of a table, or the slice has no
+  /// such action. A non-null result with no edit is an action that no longer
+  /// has the scaffold's shape, which the plan names instead.
+  _TableAction? _retypeTableAction(
+    FrxWorkspace repo,
+    SubstateArtifact artifact,
+    String field,
+    String type,
+  ) {
+    final types = field == 'table' ? TableAddAction.tableTypes(type) : null;
+    final file = artifact.actionFile(
+      repo.businessRedux,
+      'add_${artifact.name.snake}',
+    );
+    if (types == null || !file.existsSync()) {
+      return null;
+    }
+
+    final before = file.readAsStringSync();
+    final after = TableAddAction.retype(
+      before,
+      key: types.key,
+      value: types.value,
+      imports: [
+        ...TypeImports.forAll([type]),
+        ...ProjectTypeImports.forAll(repo, [types.value]),
+      ],
+    );
+    return (
+      file: file,
+      edit: after == null || after == before
+          ? null
+          : EditFile(file.path, before: before, after: after),
+    );
+  }
 }
+
+/// The table action a retype touched, and the edit it makes (null when the
+/// action is not the scaffold's any more).
+typedef _TableAction = ({File file, EditFile? edit});
