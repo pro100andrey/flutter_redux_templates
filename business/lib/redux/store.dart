@@ -52,7 +52,7 @@ Future<Store<AppState>> createStore(
   await settings.setupStorage(dbFile: 'settings.db');
 
   final persistor = AppPersistor(settings);
-  final initialState = await persistor.readState() ?? AppState.initial();
+  final initialState = await restoreState(persistor);
 
   return newStore(
     environment: environment,
@@ -62,6 +62,39 @@ Future<Store<AppState>> createStore(
     userErrorWrapper: onError,
   );
 }
+
+/// The state the store starts from: what [persistor] saved, or
+/// `AppState.initial()` when nothing was saved — or when reading it failed.
+///
+/// The failure branch is the reason this is a function of its own. The read
+/// runs before `runApp`, so an exception from it escaped `runEnv` and the user
+/// got a blank window, on this launch and on every one after it, with nothing
+/// to tap. [AppPersistor.readState] already falls back key by key on a value it
+/// does not accept; this is the net under whatever it cannot anticipate — a
+/// corrupt database file, a storage that throws. What was saved is deleted,
+/// because a state that failed to load once fails the same way next time.
+///
+/// Losing the saved theme, language and session is the price, and it is the
+/// right one: the alternative is an app that cannot be opened.
+Future<AppState> restoreState(Persistor<AppState> persistor) async {
+  try {
+    return await persistor.readState() ?? AppState.initial();
+  } on Object catch (error, stackTrace) {
+    _bootLogger.severe(
+      'Persisted state unreadable; starting from AppState.initial()',
+      error,
+      stackTrace,
+    );
+    try {
+      await persistor.deleteState();
+    } on Object catch (error) {
+      _bootLogger.severe('Could not delete the unreadable state', error);
+    }
+    return AppState.initial();
+  }
+}
+
+final _bootLogger = Logger('Boot');
 
 void _waitReducer(
   dynamic state,

@@ -1,5 +1,7 @@
+import 'package:async_redux/async_redux.dart';
 import 'package:business/persistor.dart';
 import 'package:business/redux/app_state.dart';
+import 'package:business/redux/store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:storage/storage.dart';
@@ -50,6 +52,70 @@ void main() {
       expect(state?.language.locale, 'uk');
       expect(state?.theme.mode, ThemeMode.light, reason: 'falls back');
       expect(state?.session.token, isNull);
+    });
+  });
+
+  group('readState with a value it cannot use', () {
+    // Each of these threw before `runApp` and stopped the app on every launch
+    // until its data was cleared.
+
+    test('a theme index out of range falls back and is deleted', () async {
+      await storage.put('themeMode', ThemeMode.values.length);
+      await storage.put('locale', 'uk');
+
+      final state = await persistor.readState();
+
+      expect(state?.theme.mode, AppState.initial().theme.mode);
+      expect(state?.language.locale, 'uk', reason: 'the good key survives');
+      expect(storage.values.containsKey('themeMode'), isFalse);
+    });
+
+    test('a value of the wrong type falls back and is deleted', () async {
+      await storage.put('themeMode', 'dark');
+      await storage.put('locale', 42);
+      await storage.put('token', 'tok');
+
+      final state = await persistor.readState();
+
+      expect(state?.theme.mode, AppState.initial().theme.mode);
+      expect(state?.language.locale, AppState.initial().language.locale);
+      expect(state?.session.token, 'tok');
+      expect(storage.values.keys, ['token']);
+    });
+
+    test('a negative theme index falls back too', () async {
+      await storage.put('themeMode', -1);
+      await storage.put('locale', 'uk');
+
+      expect((await persistor.readState())?.theme.mode, ThemeMode.light);
+    });
+
+    test('a token of the wrong type is no session', () async {
+      await storage.put('token', 7);
+
+      expect(await persistor.readState(), isNull);
+      expect(storage.values, isEmpty);
+    });
+  });
+
+  group('restoreState', () {
+    test('a readState that throws boots from AppState.initial()', () async {
+      final failing = _FailingPersistor();
+
+      final state = await restoreState(failing);
+
+      expect(state, AppState.initial());
+      expect(failing.deleted, isTrue, reason: 'or it fails again next boot');
+    });
+
+    test('nothing persisted boots from AppState.initial()', () async {
+      expect(await restoreState(persistor), AppState.initial());
+    });
+
+    test('what was persisted is what the store starts from', () async {
+      await storage.put('token', 'tok');
+
+      expect((await restoreState(persistor)).session.token, 'tok');
     });
   });
 
@@ -129,4 +195,22 @@ void main() {
       expect(storage.values, isEmpty);
     });
   });
+}
+
+/// A storage the persistor cannot read at all — a corrupt file, say — which no
+/// per-key check inside `readState` can recover from.
+class _FailingPersistor extends Persistor<AppState> {
+  var deleted = false;
+
+  @override
+  Future<AppState?> readState() => throw const FormatException('corrupt');
+
+  @override
+  Future<void> deleteState() async => deleted = true;
+
+  @override
+  Future<void> persistDifference({
+    required AppState newState,
+    AppState? lastPersistedState,
+  }) async {}
 }
