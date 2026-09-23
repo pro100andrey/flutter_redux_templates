@@ -39,6 +39,95 @@ changes are marked as such.
   embedded template could ship in every binary. A `tools` job now runs CI's
   `ci-tools` gate, and the release needs it. *(Repository)*
 
+- **`graph` keeps live code off the "nothing reaches" list.** That list is
+  what an agent is told to `frx remove`, and it named live code in ordinary
+  shapes. `--focus` recomputed it on the subgraph, so every dispatcher outside
+  the focus vanished — `--focus substate:login` called the three login actions
+  dead on this very template; it is now always the whole app's verdict,
+  filtered to what the focus shows. Dispatches the graph now follows:
+  `dispatchAll([…])` and `dispatchAndWaitAll([…])` element by element, both
+  arms of `x ? A() : B()`, a local holding the action, `widget.store.dispatch`
+  and `this.dispatch`, an action imported through a barrel, and a dispatch in
+  an action file's top-level function; one it cannot trace is listed under
+  `unresolved` rather than dropped. Reads it now counts: selector methods
+  (`todos.byIndex(0)`), `this.<composite>`, a selector held in a local, and a
+  field read through an `AppState`-typed parameter or local. A connector built
+  by a named constructor, a tear-off (`X.new`) or an extension method, or
+  declared second in its file, counts as built; a slice named with a
+  one-letter word (`eCommerce`) keeps its selectors; and an action's writes
+  are all of them, not the first `copyWith` it meets. *(CLI)*
+
+- **`rename <substate>` renames the substate, not every word spelling it.**
+  `rename theme appearance` rewrote `ui/lib/theme/*` imports, `MaterialApp(
+  theme:)`, widget locals and generated files — 87 analyzer errors — and
+  `rename connectivity network` moved the imports of a service folder it did
+  not move. It rewrites an import only when the file it names moves, a field
+  only where it names the `AppState` slot, and it now reaches `test/`.
+  *(CLI)*
+
+- **A name that would break the project is refused before anything is
+  written.** Reserved words (`add-substate class` threw a stack trace),
+  members a field or parameter would clash with (`copyWith`, `hashCode`, a
+  page's `key`), enum values `values`/`index`/`name`, and a widget named after
+  a class its own template uses (`Text`), in every scaffolder. `add-substate`
+  refuses Redux's shared folders — `add-substate common --force` deleted
+  `redux/common/action.dart` — an `AppState` field that is not a substate
+  (`wait`) and a name whose classes exist (`app`). `create` refuses a name
+  that is a template package, a dependency, or a Dart or Java keyword.
+  *(CLI)*
+
+- **`remove` leaves nothing behind that it does not name.** A tab page leaves
+  the router's nested `children:` and its shell's `routes:` and bottom bar
+  together (a shell that would keep one tab is left for its author, and
+  named); every kind's preview lists the files still importing or naming what
+  it deletes, `add-nav` hops included; and `doctor` reports an import of a
+  project file that does not exist, which is what those left behind
+  otherwise looked like after it said ✓. *(CLI)*
+
+- **Smaller CLI fixes.** `doctor` and the flow docs find a route's connector
+  in a subfolder through the router's import; `add-field … 'table:IMap<K, V>'
+  --force` retypes the scaffolded `Add<X>Action` too; an edit keeps a CRLF
+  file's line endings under `--no-format`; `.frxrc` defaults go before a
+  `--` rather than after it, where they read as names. *(CLI)*
+
+- **The extension acts on the project you are in, and says why it refuses.**
+  "Overwrite?" is offered only for a real collision — a missing package or
+  an unknown substate used to ask it too, and retry with `--force`. Commands
+  use the edited file's project, else the tree's, so a multi-root workspace
+  whose project is not the first folder works. The tree, watch, audit and
+  code lenses move together when folders change. A `build_runner watch` that
+  fails to start says so instead of spinning forever; two quick starts spawn
+  one watch. The Map reports a failed `frx graph` instead of drawing an empty
+  app, and closing it mid-load no longer throws. On Windows, `dart` is found
+  on a Flutter-only install and a `frx.path` pointing at a `.bat` runs.
+  Refreshes run one at a time and ignore generated files. Typed names are
+  trimmed, and one starting with `-` is refused. *(extension)*
+
+- **Projects made by `frx create` keep their data to themselves and start
+  anyway.** Settings and the session token live in the app's own support
+  directory, not a shared `~/Documents/settings.db` on Linux and Windows. One
+  unreadable saved value (a theme index out of range) falls back to its
+  default instead of stopping the app on every launch. A log-out is saved at
+  once, and pending state when the app is hidden. The HTTP logger no longer
+  fails a JSON-array or plain-text response, and hides `Authorization`,
+  cookies, passwords and tokens. Release Android and every macOS build may
+  reach the network; `--wasm` web builds start; and a Linux desktop without
+  NetworkManager (WSL, containers) starts, assuming it is online.
+  *(template)*
+
+- **The installers.** `install.sh` refuses a musl system (Alpine) instead of
+  installing a glibc binary that fails with `not found`; writes bash's PATH
+  line where bash reads it (`.bash_profile` on macOS, never a new
+  `.bash_profile` that hides `.profile` on Linux); and makes `--dir`
+  absolute. `frx completions zsh` no longer prints `command not found:
+  compdef` in every new shell without `compinit`. `install.ps1` under
+  `irm | iex` leaves nothing in your session, keeps `%USERPROFILE%`-style
+  PATH entries unexpanded, and downloads without PowerShell 5.1's progress
+  bar. CI now runs `install.sh` end to end against a synthetic release under
+  sh, dash, bash and busybox ash, and `install.ps1` under `iex`; the release
+  runs the template's gate as well as the CLI's before it publishes.
+  *(CLI, Repository)*
+
 ### Changed
 
 - **Note for 0.3.7: `graph --fail-on-orphans` gates on more than it did.**
