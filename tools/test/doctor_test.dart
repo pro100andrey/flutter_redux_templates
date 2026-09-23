@@ -524,6 +524,45 @@ mixin WaitingAction on ReduxAction<AppState> {
     });
   });
 
+  group('an import of a project file that is gone', () {
+    // `remove theme --kind substate` left the persistor, a connector and the
+    // tests importing a deleted state file — seventeen analyzer errors — and
+    // doctor, which the removal's closing line sends you to, said ✓.
+    List<Finding> dangling() {
+      final into = <Finding>[];
+      checkDanglingImports(FrxWorkspace(fx.root), into);
+      return into;
+    }
+
+    test('a relative and a package import are both reported', () {
+      fx.file('business/lib/persistor.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          "import 'redux/theme/models/theme_state.dart';\n"
+          "import 'redux/app_state.dart';\n",
+        );
+      fx.file('app/test/x_test.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          "import 'package:business/redux/gone.dart';\n"
+          "import 'package:flutter/material.dart';\n",
+        );
+      final found = dangling();
+      expect(found.map((f) => f.message), [
+        contains('"redux/theme/models/theme_state.dart"'),
+        contains('"package:business/redux/gone.dart"'),
+      ]);
+      expect(found.first.line, 1);
+    });
+
+    test('a generated file not built yet is left to build_runner', () {
+      fx.file('ui/lib/x.dart')
+        ..createSync(recursive: true)
+        ..writeAsStringSync("import 'generated/assets.gen.dart';\n");
+      expect(dangling(), isEmpty);
+    });
+  });
+
   group('the registry', () {
     // The audit is a list it walks, so one check can be run — and read — on its
     // own. Before, every one of these answers cost a subprocess and arrived

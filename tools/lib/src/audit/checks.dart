@@ -24,6 +24,7 @@ import '../ast/source_index.dart';
 import '../workspace/frx_workspace.dart';
 import 'checks/action_mixin_order.dart';
 import 'checks/agent_hooks.dart';
+import 'checks/dangling_imports.dart';
 import 'checks/derived_artifacts.dart';
 import 'checks/duplicate_selectors.dart';
 import 'checks/generated_parts.dart';
@@ -37,6 +38,7 @@ import 'finding.dart';
 
 export 'checks/action_mixin_order.dart';
 export 'checks/agent_hooks.dart';
+export 'checks/dangling_imports.dart';
 export 'checks/derived_artifacts.dart';
 export 'checks/duplicate_selectors.dart';
 export 'checks/generated_parts.dart';
@@ -79,6 +81,7 @@ const auditChecks = <Check>[
   Check('change-log', checkChangeLog),
   Check('routes-and-connectors', checkRoutesAndConnectors),
   Check('generated-parts', checkGeneratedParts),
+  Check('dangling-imports', checkDanglingImports),
   Check('flow-docs', checkFlowDocs),
   Check('placement', checkPlacement),
   Check('view-model-equality', checkViewModels),

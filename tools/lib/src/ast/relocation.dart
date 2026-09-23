@@ -1,5 +1,7 @@
 import 'package:path/path.dart' as p;
 
+import '../workspace/workspace_uri.dart';
+
 /// Where files go in a rename, and what that does to the URIs naming them.
 ///
 /// `rename` used to rewrite URIs by *token*: every `/`- or `.`-separated
@@ -27,28 +29,21 @@ class Relocation {
   /// [uri], written in the file at [from], as it must read after the rename —
   /// or null when it reads the same.
   String? rewrite(String uri, {required String from}) {
+    final target = workspaceTarget(uri, from: from, packages: packages);
+    if (target == null) {
+      return null;
+    }
+
     if (uri.startsWith('package:')) {
-      final rest = uri.substring('package:'.length);
-      final slash = rest.indexOf('/');
-      final lib = slash <= 0 ? null : packages[rest.substring(0, slash)];
-      if (lib == null) {
-        return null;
-      }
-
-      final target = p.normalize(p.join(lib, rest.substring(slash + 1)));
+      // The same package, or nothing: a move never changes which package a
+      // file is in, and a URI that would have to is not this rule's to write.
+      final name = uri.substring('package:'.length).split('/').first;
       final moved = moveOf(target);
-      if (moved == null || !p.isWithin(lib, moved)) {
-        return null;
-      }
-      return 'package:${rest.substring(0, slash)}/'
-          '${_posix(p.relative(moved, from: lib))}';
+      return moved == null
+          ? null
+          : packageUriOf(moved, {name: packages[name]!});
     }
 
-    if (uri.contains(':')) {
-      return null; // dart:, or a scheme frx does not move files in
-    }
-
-    final target = p.normalize(p.join(p.dirname(from), uri));
     final newFrom = moveOf(from) ?? from;
     final newTarget = moveOf(target) ?? target;
     // Still naming the right file from where the directive now stands — the
@@ -57,9 +52,6 @@ class Relocation {
     if (p.equals(p.normalize(p.join(p.dirname(newFrom), uri)), newTarget)) {
       return null;
     }
-    return _posix(p.relative(newTarget, from: p.dirname(newFrom)));
+    return uriPath(p.relative(newTarget, from: p.dirname(newFrom)));
   }
-
-  /// A URI's path is `/`-separated whatever the platform's is.
-  static String _posix(String path) => p.split(path).join('/');
 }
