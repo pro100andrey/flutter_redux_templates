@@ -497,14 +497,19 @@ class _GraphRead {
         continue;
       }
       final id = 'persistor:${persistor.className}';
-      graph.addNode(
-        GraphNode(
-          id: id,
-          kind: NodeKind.persistor,
-          name: persistor.className,
-          file: file.path,
-        ),
-      );
+      graph
+        ..addNode(
+          GraphNode(
+            id: id,
+            kind: NodeKind.persistor,
+            name: persistor.className,
+            file: file.path,
+          ),
+        )
+        // Owned, so no sweep makes a consumer node for this file: read as a
+        // consumer, what `persistDifference` compares to save it counted as
+        // a use, and every persisted field stayed alive.
+        ..own(file.path, id);
       for (final (fields, kind) in [
         (persistor.restores, EdgeKind.restores),
         (persistor.reads, EdgeKind.reads),
@@ -660,8 +665,9 @@ class _GraphRead {
     final ownerOfType = <String, String>{
       for (final n in graph.nodes)
         if (n.kind == NodeKind.substate) ?_selectorTypeOf(n.name): n.name,
-      for (final MapEntry(key: type, value: field)
-          in spineHopsIn(parsed).entries)
+      for (final MapEntry(key: type, value: field) in spineHopsIn(
+        parsed,
+      ).entries)
         if (graph.hasSubstate(field)) type: field,
     };
 
@@ -909,7 +915,11 @@ class _GraphRead {
     for (final consumer in consumers.values) {
       if (consumer.path == facade ||
           p.isWithin(ui, consumer.path) ||
-          misplacedSelectorFiles.contains(consumer.path)) {
+          misplacedSelectorFiles.contains(consumer.path) ||
+          // Read by its own reader, which knows `persistDifference` compares
+          // slices to save them. Swept again here, `newState.session.token`
+          // read as a use of the field.
+          (graph.ownerOf(consumer.path)?.startsWith('persistor:') ?? false)) {
         continue;
       }
       _attribute(

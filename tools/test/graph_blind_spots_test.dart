@@ -597,6 +597,71 @@ class TopConnector {}
     });
   });
 
+  group('the state read under another name', () {
+    test('is a read of the fields behind it', () {
+      final g = _graphOf({
+        '$_redux/app_state.dart': _todosAppState,
+        '$_redux/todos/models/todos_state.dart': r'''
+@freezed
+abstract class TodosState with _$TodosState {
+  const factory TodosState({String? selected, int? count, String? query}) =
+      _TodosState;
+}
+''',
+        '$_redux/todos/actions/use_action.dart': '''
+class UseAction extends Action {
+  @override
+  AppState? reduce() {
+    final pick = (AppState s) => s.todos.selected;
+    print(pick(state));
+    final AppState st = state;
+    print(st.todos.count);
+    final copy = state;
+    print(copy.todos.query);
+    return null;
+  }
+}
+''',
+        'app/lib/widgets/todos_connector.dart': '''
+import 'package:business/redux/todos/actions/use_action.dart';
+class TodosConnector { void a() => dispatch(UseAction()); }
+''',
+        'app/lib/app.dart': 'class App { build() => TodosConnector(); }',
+      });
+      expect(
+        {
+          for (final e in _edges(g, from: 'action:todos.UseAction'))
+            if (e.kind == EdgeKind.reads) e.via,
+        },
+        {'todos.selected', 'todos.count', 'todos.query'},
+      );
+      expect(_orphanIds(g), isEmpty);
+    });
+
+    test('whole, by an observer comparing states, keeps no field alive', () {
+      // The template's own action logger: typed `AppState` parameters,
+      // compared slice by slice. Counted, every field of every slice would
+      // read as used, and the dead-field list could never say anything.
+      final g = _graphOf({
+        '$_redux/app_state.dart': _todosAppState,
+        '$_redux/todos/models/todos_state.dart': r'''
+@freezed
+abstract class TodosState with _$TodosState {
+  const factory TodosState({String? query}) = _TodosState;
+}
+''',
+        '$_redux/store.dart': '''
+class _Observer implements StateObserver<AppState> {
+  void observe(ReduxAction<AppState> a, AppState prev, AppState next) {
+    print(prev.todos != next.todos);
+  }
+}
+''',
+      });
+      expect(_orphanIds(g), contains('field:todos.query'));
+    });
+  });
+
   group("an action's writes", () {
     AppGraph read() => _graphOf({
       '$_redux/app_state.dart': r'''
