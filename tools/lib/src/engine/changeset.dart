@@ -66,6 +66,19 @@ final class EditFile extends Change {
   final String path;
   final String before;
   final String after;
+
+  /// [after] in [before]'s line endings — what is written to disk.
+  ///
+  /// Every editor splices with `\n`: an import, a list element, a field. Into
+  /// a file checked out with `\r\n` that wrote a file of mixed endings, which
+  /// `dart format` smoothed over and `--no-format` left for the next diff to
+  /// show as every touched line. The file's ending is a fact about the file,
+  /// so it is kept here, where every edit is written, rather than taught to
+  /// each editor.
+  String get written =>
+      before.contains('\r\n') ? after.replaceAll(_bareLf, '\r\n') : after;
+
+  static final _bareLf = RegExp('(?<!\r)\n');
 }
 
 /// Delete a single file.
@@ -425,7 +438,7 @@ class WriteTransaction {
         case EditFile():
           final file = File(c.path);
           _journal.capture(file);
-          file.writeAsStringSync(c.after);
+          file.writeAsStringSync(c.written);
           written.add(c.path);
         case MoveFile():
           final dest = File(c.path);

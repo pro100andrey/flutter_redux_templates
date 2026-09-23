@@ -121,6 +121,27 @@ void main() {
       expect(file('sub/stale.dart').existsSync(), isFalse);
     });
 
+    test('an edit keeps the line endings of the file it edits', () async {
+      // Every editor splices with `\n`; into a CRLF file, with `--no-format`,
+      // that wrote mixed endings.
+      const before = "import 'a.dart';\r\n\r\nclass A {}\r\n";
+      const after = "import 'a.dart';\nimport 'b.dart';\r\n\r\nclass A {}\r\n";
+      file('crlf.dart').writeAsStringSync(before);
+      file('lf.dart').writeAsStringSync('x\n');
+      await apply(
+        Changeset([
+          EditFile(at('crlf.dart'), before: before, after: after),
+          EditFile(at('lf.dart'), before: 'x\n', after: 'x\ny\n'),
+        ]),
+        format: false,
+      );
+      expect(
+        file('crlf.dart').readAsStringSync(),
+        "import 'a.dart';\r\nimport 'b.dart';\r\n\r\nclass A {}\r\n",
+      );
+      expect(file('lf.dart').readAsStringSync(), 'x\ny\n');
+    });
+
     test('an edit replaces contents in place', () async {
       file('a.dart').writeAsStringSync('was');
       await apply(
