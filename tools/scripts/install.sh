@@ -55,6 +55,15 @@ EOF
   esac
 done
 
+# Absolute before anything records it. The directory is written into a shell
+# profile, and `export PATH="relbin:$PATH"` there resolves against whatever
+# directory each new shell happens to start in — which is almost never the one
+# the installer ran from.
+case "$INSTALL_DIR" in
+  /*) ;;
+  *) INSTALL_DIR="$(pwd)/$INSTALL_DIR" ;;
+esac
+
 # --- platform ---------------------------------------------------------------
 
 # The names here are the ones the release workflow builds under; a platform that
@@ -161,6 +170,8 @@ tar -xzf "$TMP/$ASSET" -C "$TMP"
 [ -f "$TMP/frx" ] || err "the archive did not contain 'frx'"
 
 mkdir -p "$INSTALL_DIR"
+# `./bin` and `../x` made plain — the path is printed and written to a profile.
+INSTALL_DIR="$(CDPATH='' cd -- "$INSTALL_DIR" && pwd)"
 chmod 755 "$TMP/frx"
 # `mv` over a running binary fails on some filesystems and, worse, an in-place
 # overwrite corrupts a process that is mid-read. Replacing the directory entry
