@@ -34,11 +34,10 @@ class RouteMapReader {
         continue;
       }
       final page = artifact.name.camel;
-      final connector = artifact.connectorFile(routes.connectorsDir);
-      final exists = connector.existsSync();
+      final connector = routes.connectorFor(artifact, workspace);
 
       final PageFlow? flow;
-      if (exists) {
+      if (connector != null) {
         flow = reader.read(
           connectorFile: connector,
           page: page,
@@ -59,7 +58,7 @@ class RouteMapReader {
           parent: entry.parent,
           initial: entry.initial,
           public: authArea.contains(entry.routeType),
-          connectorFile: exists ? connector.path : null,
+          connectorFile: connector?.path,
           useCases: flow?.useCases.length ?? 0,
         ),
       );

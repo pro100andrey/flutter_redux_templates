@@ -7,10 +7,12 @@ import '../ast/construction.dart';
 import '../ast/directives.dart';
 import '../ast/file_source.dart';
 import '../ast/function_bodies.dart';
+import '../model/page_artifact.dart';
 import '../redux/app_state_source.dart' show AppStateSource;
 import '../redux/ast_edit.dart';
 import '../refusal.dart';
 import '../workspace/frx_workspace.dart';
+import '../workspace/workspace_uri.dart';
 import 'route_entry.dart';
 import 'route_results.dart';
 import 'router_ast.dart';
@@ -55,6 +57,30 @@ class RoutesSource extends FileSource {
   /// The `app/lib/connectors` directory that holds the page connectors.
   Directory get connectorsDir =>
       Directory(p.join(file.parent.parent.path, 'connectors'));
+
+  /// The file holding [page]'s connector, or null when there is none.
+  ///
+  /// Where `add-page` puts it, or else the file of that name the router
+  /// imports: a connector moved into `connectors/auth/` with its import fixed
+  /// compiles, and a check that looked only at the flat path called it
+  /// missing. One answer for doctor and for the route map, so the audit and
+  /// the flow docs cannot disagree about whether a page has a connector.
+  File? connectorFor(PageArtifact page, FrxWorkspace repo) {
+    final flat = page.connectorFile(connectorsDir);
+    if (flat.existsSync()) {
+      return flat;
+    }
+    final name = p.basename(flat.path);
+    final packages = repo.packageLibs();
+    for (final (:uri, offset: _) in directivesIn(content)) {
+      if (workspaceTarget(uri, from: file.absolute.path, packages: packages)
+          case final target?
+          when p.basename(target) == name && File(target).existsSync()) {
+        return File(target);
+      }
+    }
+    return null;
+  }
 
   /// The `ui/lib/pages` directory that holds the dumb pages.
   Directory get pagesDir =>

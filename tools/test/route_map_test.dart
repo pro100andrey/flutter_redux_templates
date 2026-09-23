@@ -125,6 +125,38 @@ void main() {
       );
     });
 
+    test('reads a connector the router imports from a subfolder', () {
+      // Moved into `connectors/account/` with its import fixed, it compiles
+      // and doctor finds it; the map looked only at the flat path, so the
+      // page lost its flow and its docs page read as describing nothing.
+      final ws = _workspace();
+      final root = ws.root.path;
+      final flat = File(
+        p.join(root, 'app/lib/connectors/settings_page_connector.dart'),
+      );
+      File(
+          p.join(
+            root,
+            'app/lib/connectors/account/settings_page_connector.dart',
+          ),
+        )
+        ..createSync(recursive: true)
+        ..writeAsStringSync(flat.readAsStringSync());
+      flat.deleteSync();
+      final router = File(p.join(root, 'app/lib/navigation/app_router.dart'));
+      router.writeAsStringSync(
+        "import '../connectors/account/settings_page_connector.dart';\n"
+        '${router.readAsStringSync()}',
+      );
+
+      final map = RouteMapReader(ws).read();
+      expect(
+        _node(map, 'settings').connectorFile,
+        endsWith(p.join('account', 'settings_page_connector.dart')),
+      );
+      expect(map.flows, contains('settings'));
+    });
+
     test('carries the routing facts the source states', () {
       final map = _map();
       expect(_node(map, 'splash').initial, isTrue);

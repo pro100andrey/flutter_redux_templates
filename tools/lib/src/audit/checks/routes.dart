@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:path/path.dart' as p;
 
@@ -9,7 +7,6 @@ import '../../model/page_artifact.dart';
 import '../../refusal.dart';
 import '../../routing/routes_source.dart';
 import '../../workspace/frx_workspace.dart';
-import '../../workspace/workspace_uri.dart';
 import '../finding.dart';
 
 /// Every route needs its connector; every page connector should be routed.
@@ -24,7 +21,6 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
 
   final entries = routes.readRoutes();
   final routedTypes = entries.map((r) => r.routeType).toSet();
-  final imported = _importedBy(routes.file, repo);
 
   // route → connector file
   final reported = <String>{};
@@ -35,13 +31,8 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
       continue;
     }
 
-    // Where `add-page` puts it, or wherever the router imports it from: a
-    // connector moved into `connectors/auth/` with its import fixed compiles,
-    // and the flat path alone called it missing.
-    final connector = page.connectorFile(routes.connectorsDir);
-    final name = p.basename(connector.path);
-    if (!connector.existsSync() &&
-        !imported.any((f) => p.basename(f) == name)) {
+    if (routes.connectorFor(page, repo) == null) {
+      final connector = page.connectorFile(routes.connectorsDir);
       final at = entry.offset == null
           ? null
           : positionIn(routes.unit, entry.offset!);
@@ -96,17 +87,4 @@ void checkRoutesAndConnectors(FrxWorkspace repo, List<Finding> into) {
       );
     }
   }
-}
-
-/// The project files [router] imports that exist.
-List<String> _importedBy(File router, FrxWorkspace repo) {
-  final packages = repo.packageLibs();
-  return [
-    for (final (:uri, offset: _) in directivesIn(
-      sourceIndex.sourceOf(router),
-    ))
-      if (workspaceTarget(uri, from: router.absolute.path, packages: packages)
-          case final target? when File(target).existsSync())
-        target,
-  ];
 }
