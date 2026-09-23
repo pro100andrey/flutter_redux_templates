@@ -59,24 +59,45 @@ Map<String, Set<String>> connectorBuildersIn(CompilationUnit unit) {
     }
   }
 
-  for (final d in unit.declarations) {
-    if (d is FunctionDeclaration) {
-      record(d.name.lexeme, d.functionExpression.body);
-    } else if (d is ClassDeclaration) {
-      for (final m in d.body.members.whereType<MethodDeclaration>()) {
-        if (m.isStatic) {
-          record('${d.namePart.typeName.lexeme}.${m.name.lexeme}', m.body);
-        }
+  // Instance and extension methods by their bare name: `context.openC()` is
+  // called on a value whose type a parse cannot know, so the name is all a
+  // caller holds. Missed, `extension on BuildContext { void openC() => … }`
+  // — the dialog idiom written as an extension — built its connector for
+  // nobody, and the connector read as constructed by no file.
+  void members(String? type, Iterable<ClassMember> body) {
+    for (final m in body.whereType<MethodDeclaration>()) {
+      if (m.isStatic && type != null) {
+        record('$type.${m.name.lexeme}', m.body);
+      } else if (!m.isStatic) {
+        record(m.name.lexeme, m.body);
       }
+    }
+  }
+
+  for (final d in unit.declarations) {
+    switch (d) {
+      case FunctionDeclaration():
+        record(d.name.lexeme, d.functionExpression.body);
+      case ClassDeclaration():
+        members(d.namePart.typeName.lexeme, d.body.members);
+      case MixinDeclaration():
+        members(d.name.lexeme, d.body.members);
+      case ExtensionDeclaration():
+        members(d.name?.lexeme, d.body.members);
+      case ExtensionTypeDeclaration():
+        members(d.namePart.typeName.lexeme, d.body.members);
+      default:
     }
   }
   return builders;
 }
 
 /// Every function [unit] invokes by a bare name or a `Type.name` — the
-/// spellings [connectorBuildersIn] keys on. Generous on purpose: a name is
-/// cheap to hold and means nothing until a builder by that name is found in a
-/// file this one imports.
+/// spellings [connectorBuildersIn] keys on — and the bare name of every
+/// method it invokes on something, which is how an instance or extension
+/// method is keyed there. Generous on purpose: a name is cheap to hold and
+/// means nothing until a builder by that name is found in a file this one
+/// imports.
 Set<String> callNamesIn(CompilationUnit unit) {
   final calls = <String>{};
   unit.accept(_CallVisitor(calls));
@@ -91,9 +112,8 @@ class _CallVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitMethodInvocation(MethodInvocation node) {
     final target = node.target;
-    if (target == null) {
-      into.add(node.methodName.name);
-    } else if (target is SimpleIdentifier) {
+    into.add(node.methodName.name);
+    if (target is SimpleIdentifier) {
       into.add('${target.name}.${node.methodName.name}');
     }
     super.visitMethodInvocation(node);
@@ -130,9 +150,38 @@ class _ConnectorVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitMethodInvocation(MethodInvocation node) {
-    if (node.target == null) {
+    final target = node.target;
+    if (target == null) {
       _record(node.methodName.name);
+    } else if (target is SimpleIdentifier && _isTypeName(target.name)) {
+      // `AConnector.dialog()` — a named constructor without `const` has the
+      // shape of a static call, and read as one it constructed nothing.
+      _record(target.name);
     }
     super.visitMethodInvocation(node);
   }
+
+  /// `BConnector.new`, `BConnector.dialog` handed on uncalled — a tear-off
+  /// constructs every time it is called, and `builder: BConnector.new` is
+  /// the whole construction.
+  @override
+  void visitConstructorReference(ConstructorReference node) {
+    _record(node.constructorName.type.name.lexeme);
+    super.visitConstructorReference(node);
+  }
+
+  /// A named constructor torn off without `.new` parses as a type-prefixed
+  /// identifier, which a parse cannot tell from a static field — so a
+  /// `SettingsConnector.routeName` counts too. That errs the safe way: a
+  /// connector wrongly counted as built stays off a list of things to delete.
+  @override
+  void visitPrefixedIdentifier(PrefixedIdentifier node) {
+    if (_isTypeName(node.prefix.name)) {
+      _record(node.prefix.name);
+    }
+    super.visitPrefixedIdentifier(node);
+  }
+
+  static bool _isTypeName(String name) =>
+      name.isNotEmpty && name[0] == name[0].toUpperCase() && name[0] != '_';
 }

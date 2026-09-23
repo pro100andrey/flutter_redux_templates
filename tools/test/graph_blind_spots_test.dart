@@ -411,6 +411,66 @@ class CartConnector {}
     });
   });
 
+  group('a connector', () {
+    String connector(String name) => '''
+class $name extends StatelessWidget {
+  $name();
+  $name.dialog();
+  Widget build(BuildContext context) => const Placeholder();
+}
+''';
+
+    test('built in any ordinary way is built', () {
+      final g = _graphOf({
+        '$_redux/app_state.dart': _todosAppState,
+        '$_redux/todos/actions/noop_action.dart': _action('NoopAction'),
+        for (final n in ['A', 'B', 'D', 'E', 'F'])
+          'app/lib/widgets/${n.toLowerCase()}_connector.dart':
+              '''
+import 'package:business/redux/todos/actions/noop_action.dart';
+${connector('${n}Connector')}
+void _touch() => dispatch(NoopAction());
+''',
+        'app/lib/widgets/c_connector.dart': '''
+import 'package:business/redux/todos/actions/noop_action.dart';
+${connector('CConnector')}
+void _touch() => dispatch(NoopAction());
+extension OpenC on BuildContext {
+  void openC() => showDialog(context: this, builder: (_) => CConnector());
+}
+''',
+        'app/lib/app.dart': '''
+import 'widgets/a_connector.dart';
+import 'widgets/b_connector.dart';
+import 'widgets/c_connector.dart';
+import 'widgets/d_connector.dart';
+import 'widgets/e_connector.dart';
+import 'widgets/f_connector.dart';
+class App {
+  // A named constructor, without `const`.
+  Widget a() => AConnector.dialog();
+  // Tear-offs, of the unnamed constructor and of a named one.
+  Widget b() => Builder(builder: BConnector.new);
+  Widget d() => showX(DConnector.dialog);
+  // An extension method whose body constructs it.
+  void c(BuildContext context) => context.openC();
+  // The control: a plain `const` construction.
+  Widget e() => const [EConnector()].first;
+  Widget f() => FConnector();
+}
+''',
+      });
+      final built = {
+        for (final e in g.edges)
+          if (e.kind == EdgeKind.builds) e.to,
+      };
+      for (final n in ['A', 'B', 'C', 'D', 'E', 'F']) {
+        expect(built, contains('consumer:${n}Connector'), reason: n);
+      }
+      expect(_orphanIds(g), isEmpty);
+    });
+  });
+
   group('a selector method', () {
     AppGraph read() => _graphOf({
       '$_redux/app_state.dart': _todosAppState,
