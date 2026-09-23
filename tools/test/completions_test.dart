@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:test/test.dart';
 
 import 'support/fixture.dart';
@@ -38,6 +40,42 @@ void main() {
         (await runFrxIn(fx, ['completions', 'fish'])).stdout,
         contains('complete -c frx'),
       );
+    });
+
+    // install.sh appends `eval "$(frx completions zsh)"` to ~/.zshrc, and a
+    // stock macOS zsh never runs compinit: an unguarded `compdef` printed
+    // `command not found: compdef` at every new shell. The script registers
+    // only where the completion system is loaded, and is silent elsewhere.
+    test('the zsh script registers only when compinit has run', () async {
+      final script =
+          (await runFrxIn(fx, ['completions', 'zsh'])).stdout as String;
+      expect(
+        script,
+        contains(r'if (( $+functions[compdef] )); then compdef _frx frx; fi'),
+      );
+
+      final zsh = _which('zsh');
+      if (zsh == null) {
+        markTestSkipped('zsh is not installed');
+        return;
+      }
+      // -f: no startup files, so no compinit — the stock macOS case.
+      final bare = await Process.run(zsh, ['-f', '-c', script]);
+      expect(bare.stderr, isEmpty);
+      expect(bare.exitCode, 0);
+
+      // And with the completion system loaded, `_frx` is what completes frx.
+      final loaded = await Process.run(zsh, [
+        '-f',
+        '-c',
+        [
+          'autoload -Uz compinit && compinit -u -D',
+          script,
+          r'print -r -- ${_comps[frx]}',
+        ].join('\n'),
+      ]);
+      expect(loaded.stderr, isEmpty);
+      expect((loaded.stdout as String).trim(), '_frx');
     });
 
     test('an unknown shell is a usage error', () async {
@@ -86,4 +124,19 @@ void main() {
       expect(names, isNot(contains('home'))); // a route is not a substate
     });
   });
+}
+
+/// [name]'s path on PATH, or null. Not on Windows, where no shell this file
+/// runs has a script to test.
+String? _which(String name) {
+  if (Platform.isWindows) {
+    return null;
+  }
+  for (final dir in (Platform.environment['PATH'] ?? '').split(':')) {
+    final file = File('$dir/$name');
+    if (dir.isNotEmpty && file.existsSync()) {
+      return file.path;
+    }
+  }
+  return null;
 }

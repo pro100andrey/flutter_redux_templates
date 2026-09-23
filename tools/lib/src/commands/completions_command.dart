@@ -41,14 +41,23 @@ _frx_complete() {
 complete -o default -F _frx_complete frx
 ''';
 
+  /// Registers only when the completion system is loaded. install.sh appends
+  /// `eval "$(frx completions zsh)"` to ~/.zshrc, and a stock macOS zsh never
+  /// runs `compinit`: an unguarded `compdef` printed `command not found:
+  /// compdef` at every new shell. Running `compinit` from here instead would
+  /// be the surprise — it rewrites ~/.zcompdump, may ask about insecure
+  /// directories, and a second one from the user's own setup slows startup.
+  /// So without it, frx is simply not completed, silently; the header says
+  /// what to add.
   static const _zsh = r'''
-# frx zsh completion. Add to ~/.zshrc:  source <(frx completions zsh)
+# frx zsh completion. Add to ~/.zshrc, after `autoload -Uz compinit && compinit`:
+#   source <(frx completions zsh)
 _frx() {
   local -a c
   c=(${(f)"$(frx __complete -- ${words[2,-1]} 2>/dev/null)"})
   compadd -- $c
 }
-compdef _frx frx
+if (( $+functions[compdef] )); then compdef _frx frx; fi
 ''';
 
   static const _fish = r'''

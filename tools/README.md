@@ -1306,7 +1306,7 @@ the profile it also put `PATH` into (zsh, bash), or `~/.config/fish/completions/
 ```bash
 # bash — add to ~/.bashrc:
 source <(frx completions bash)
-# zsh — add to ~/.zshrc:
+# zsh — add to ~/.zshrc, after `autoload -Uz compinit && compinit`:
 source <(frx completions zsh)
 # fish — save to ~/.config/fish/completions/frx.fish:
 frx completions fish > ~/.config/fish/completions/frx.fish
@@ -1315,6 +1315,11 @@ frx completions fish > ~/.config/fish/completions/frx.fish
 Completes commands, a command's flags, `--kind` values, and **live substate /
 route names** (resolved by a hidden `frx __complete`, so it can't drift from the
 CLI).
+
+zsh completes only once its completion system is loaded (`compinit`), which a
+stock macOS zsh never does. Without it the script registers nothing and says
+nothing — no `command not found: compdef` at every new shell; add the
+`compinit` line above it to get completions.
 
 ---
 
