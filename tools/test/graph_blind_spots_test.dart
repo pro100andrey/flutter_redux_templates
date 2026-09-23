@@ -411,6 +411,78 @@ class CartConnector {}
     });
   });
 
+  group('a selector method', () {
+    AppGraph read() => _graphOf({
+      '$_redux/app_state.dart': _todosAppState,
+      '$_redux/todos/models/todos_state.dart': r'''
+@freezed
+abstract class TodosState with _$TodosState {
+  const factory TodosState({
+    @Default([]) List<String> items,
+    String? query,
+  }) = _TodosState;
+}
+''',
+      '$_redux/selectors.dart': r'''
+mixin Selectors {
+  AppState get state;
+  SelectTodos get todos => SelectTodos(state);
+}
+extension type SelectTodos(AppState _state) {
+  String? byIndex(int i) => _state.todos.items[i];
+  String? get query => _state.todos.query;
+  String label(String p) => '$p ${query ?? ''}';
+}
+''',
+      '$_redux/todos/actions/use_action.dart': '''
+class UseAction extends Action {
+  @override
+  AppState? reduce() {
+    print(todos.byIndex(0));
+    return null;
+  }
+}
+''',
+      'app/lib/widgets/todos_connector.dart': '''
+import 'package:business/redux/todos/actions/use_action.dart';
+class _Factory extends VmFactory<AppState, TodosConnector, _Vm> with Selectors {
+  _Vm fromStore() => _Vm(
+    label: todos.label('x'),
+    onUse: () => dispatch(UseAction()),
+  );
+}
+class TodosConnector {}
+''',
+      'app/lib/app.dart': 'class App { build() => TodosConnector(); }',
+    });
+
+    test('is a selector, and a call of it is a use', () {
+      final g = read();
+      expect(g.node('selector:SelectTodos.byIndex'), isNotNull);
+      expect(
+        _edges(g, to: 'selector:SelectTodos.byIndex').map((e) => e.from),
+        contains('action:todos.UseAction'),
+      );
+      expect(
+        _edges(g, to: 'selector:SelectTodos.label').map((e) => e.from),
+        contains('consumer:TodosConnector'),
+      );
+    });
+
+    test('reads what its body reads, and uses its siblings', () {
+      final g = read();
+      expect(
+        _edges(g, from: 'selector:SelectTodos.byIndex').map((e) => e.via),
+        contains('todos.items'),
+      );
+      expect(
+        _edges(g, from: 'selector:SelectTodos.label').map((e) => e.to),
+        contains('selector:SelectTodos.query'),
+      );
+      expect(_orphanIds(g), isEmpty);
+    });
+  });
+
   group('a composite read through `this`', () {
     test('is a read of it', () {
       final g = _graphOf({

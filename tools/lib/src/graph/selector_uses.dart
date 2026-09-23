@@ -199,6 +199,23 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
     super.visitPropertyAccess(node);
   }
 
+  /// A selector *method* called through the facade — `todos.byIndex(0)`.
+  ///
+  /// The call is not a property access, so the chain rule never saw it, and
+  /// the method read as called by nobody. Judged exactly as the access would
+  /// be, with the method's name as the chain's last segment. A bare
+  /// `byIndex(0)` is a composite's shape and [visitSimpleIdentifier]'s.
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    final target = node.target;
+    if (target != null) {
+      if (_segments(target) case final head?) {
+        _judge([...head, node.methodName.name]);
+      }
+    }
+    super.visitMethodInvocation(node);
+  }
+
   @override
   void visitSimpleIdentifier(SimpleIdentifier node) {
     // A composite reached by its bare name — `if (canEnterApp)`. Skipped when
@@ -229,11 +246,13 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
         (parent is PrefixedIdentifier && parent.prefix == node)) {
       return;
     }
-    final parts = _segments(node);
-    if (parts == null) {
-      return;
+    if (_segments(node) case final parts?) {
+      _judge(parts);
     }
+  }
 
+  /// Records the selectors a chain of plain names reads — see [_chain].
+  void _judge(List<String> parts) {
     for (var i = 0; i + 1 < parts.length; i++) {
       // The receiver either heads the chain, or the facade is in front of it —
       // `…select.logIn.email`, `selectors.logIn.email`.

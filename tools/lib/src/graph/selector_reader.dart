@@ -13,7 +13,9 @@ import '../flow/flow_model.dart';
 import '../model/selector_shape.dart';
 import 'state_reads.dart';
 
-/// One getter on a `Select<Pascal>` extension type.
+/// One getter on a `Select<Pascal>` extension type — or one method, which is
+/// a selector taking arguments and is read the same way; [getter] is then the
+/// method's name.
 class SelectorGetter {
   SelectorGetter(this.type, this.ownerType, this.getter, this.offset);
 
@@ -176,8 +178,15 @@ class _SelectorVisitor extends RecursiveAstVisitor<void> {
       return;
     }
 
+    // Every getter **and method**. `String? byIndex(int i) =>
+    // _state.todos.items[i];` is a selector with an argument, and read as
+    // getters alone it was not there at all: the field only it reads was
+    // reported as read by nothing, and a getter only its body uses as dead —
+    // both with a live action calling `todos.byIndex(0)`. A setter or an
+    // operator is not a selector, and a static member is not reached through
+    // the facade.
     for (final m in decl.members.whereType<MethodDeclaration>()) {
-      if (!m.isGetter) {
+      if (m.isSetter || m.isOperator || m.isStatic) {
         continue;
       }
 
