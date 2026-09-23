@@ -295,30 +295,83 @@ class FlowReader {
   /// [from] is the directory holding the source, needed for relative imports:
   /// a connector lives in `app` and reaches actions by package uri, but a
   /// service lives *inside* `business` and reaches them by `../../`.
+  ///
+  /// **Through a barrel too.** An import of `package:business/todos.dart`
+  /// that `export`s the action files brings their classes in just as an
+  /// import of each would, and read by suffix alone every action dispatched
+  /// that way was one no import declares — an orphan, with the barrel three
+  /// lines up. So an import that does not end in [suffix] is followed through
+  /// its `export`s, transitively, honouring `show` and `hide`; each file once,
+  /// so two barrels exporting each other terminate.
   Iterable<(String, File)> _importedClasses(
     CompilationUnit unit,
     Directory from,
     String suffix,
   ) sync* {
+    final seen = <String>{};
     for (final directive in unit.directives.whereType<ImportDirective>()) {
       final uri = directive.uri.stringValue;
-      if (uri == null || !uri.endsWith(suffix)) {
+      if (uri == null) {
         continue;
       }
+      yield* _classesThrough(
+        uri,
+        from,
+        suffix,
+        _Combinators.of(directive),
+        seen,
+      );
+    }
+  }
 
-      final file = _resolveImport(uri, from);
-      if (file == null || !file.existsSync()) {
-        continue;
-      }
+  /// The public classes [uri] brings in that live in a file ending in
+  /// [suffix] — the file's own when it is one, else those its `export`s
+  /// reach. [visible] is what the directives on the way let through.
+  Iterable<(String, File)> _classesThrough(
+    String uri,
+    Directory from,
+    String suffix,
+    _Combinators visible,
+    Set<String> seen,
+  ) sync* {
+    final file = _resolveImport(uri, from);
+    if (file == null || !file.existsSync()) {
+      return;
+    }
 
+    if (uri.endsWith(suffix)) {
       for (final cls in classesIn(sourceIndex.unitFor(file))) {
         // A private class is the library's own: an import does not bring it
         // in, so a `_Started` here is not the `_Started` the importer names.
         final name = cls.namePart.typeName.lexeme;
-        if (!name.startsWith('_')) {
+        if (!name.startsWith('_') && visible.allows(name)) {
           yield (name, file);
         }
       }
+      return;
+    }
+
+    // Checked on the text before it is parsed: most imports are not barrels,
+    // and a file with no `export` in it has nothing to follow.
+    if (!seen.add(p.canonicalize(file.path))) {
+      return;
+    }
+    final unit = sourceIndex.unitIf(file, (s) => s.contains('export'));
+    if (unit == null) {
+      return;
+    }
+    for (final export in unit.directives.whereType<ExportDirective>()) {
+      final next = export.uri.stringValue;
+      if (next == null) {
+        continue;
+      }
+      yield* _classesThrough(
+        next,
+        file.parent,
+        suffix,
+        visible.then(_Combinators.of(export)),
+        seen,
+      );
     }
   }
 
@@ -383,4 +436,41 @@ class _VmVisitor extends RecursiveAstVisitor<void> {
     }
     super.visitMethodInvocation(node);
   }
+}
+
+/// What a chain of `import`/`export` directives lets through by name: the
+/// `show` lists intersect, the `hide` lists add up.
+class _Combinators {
+  const _Combinators(this._shown, this._hidden);
+
+  /// The combinators on one directive.
+  factory _Combinators.of(NamespaceDirective directive) {
+    Set<String>? shown;
+    final hidden = <String>{};
+    for (final c in directive.combinators) {
+      if (c is ShowCombinator) {
+        final names = {for (final n in c.shownNames) n.name};
+        shown = shown == null ? names : shown.intersection(names);
+      } else if (c is HideCombinator) {
+        hidden.addAll(c.hiddenNames.map((n) => n.name));
+      }
+    }
+    return _Combinators(shown, hidden);
+  }
+
+  /// Null when nothing on the way said `show`.
+  final Set<String>? _shown;
+  final Set<String> _hidden;
+
+  bool allows(String name) =>
+      (_shown?.contains(name) ?? true) && !_hidden.contains(name);
+
+  /// These, then [next] one directive further along.
+  _Combinators then(_Combinators next) => _Combinators(
+    switch ((_shown, next._shown)) {
+      (final a?, final b?) => a.intersection(b),
+      (final a, final b) => a ?? b,
+    },
+    {..._hidden, ...next._hidden},
+  );
 }

@@ -285,6 +285,83 @@ class App { build() => ListConnector(); }
     });
   });
 
+  group('an action imported', () {
+    AppGraph read() => _graphOf({
+      '$_redux/app_state.dart': r'''
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({
+    required TodosState todos,
+    required SessionState session,
+  }) = _AppState;
+}
+''',
+      '$_redux/todos/actions/load_action.dart': _action('LoadAction'),
+      '$_redux/todos/actions/hidden_action.dart': _action('HiddenAction'),
+      '$_redux/todos/actions/lonely_action.dart': _action('LonelyAction'),
+      '$_redux/todos/actions/twin_action.dart': _action('TwinAction'),
+      '$_redux/session/actions/twin_action.dart': _action('TwinAction'),
+      // A barrel re-exporting a barrel, which exports the action files — and
+      // exports itself back, which must not loop.
+      'business/lib/todos.dart': '''
+export 'redux/todos/barrel.dart' hide HiddenAction;
+''',
+      'business/lib/redux/todos/barrel.dart': '''
+export '../../todos.dart';
+export 'actions/load_action.dart';
+export 'actions/hidden_action.dart';
+''',
+      'app/lib/widgets/list_connector.dart': '''
+import 'package:business/todos.dart';
+
+class ListConnector {
+  void a() => dispatch(LoadAction());
+  // Not through the barrel, which hides it: reached by its unique name.
+  void b() => dispatch(HiddenAction());
+  // No import at all frx can follow — one substate declares it.
+  void c() => dispatch(LonelyAction());
+  // Two substates declare it: a name is not enough.
+  void d() => dispatch(TwinAction());
+}
+''',
+      'app/lib/app.dart': '''
+import 'widgets/list_connector.dart';
+class App { build() => ListConnector(); }
+''',
+    });
+
+    test('through a barrel reaches the action it exports', () {
+      final g = read();
+      final edge = _edges(
+        g,
+        from: 'consumer:ListConnector',
+        to: 'action:todos.LoadAction',
+      ).single;
+      expect(edge.inferred, isFalse);
+      expect(_orphanIds(g), isNot(contains('action:todos.LoadAction')));
+    });
+
+    test('by no import frx follows is matched by a unique name', () {
+      final g = read();
+      for (final name in ['HiddenAction', 'LonelyAction']) {
+        final edge = _edges(
+          g,
+          from: 'consumer:ListConnector',
+          to: 'action:todos.$name',
+        ).single;
+        expect(edge.inferred, isTrue, reason: name);
+      }
+    });
+
+    test('by a name two substates declare is not guessed at', () {
+      final g = read();
+      expect(
+        _edges(g, from: 'consumer:ListConnector').map((e) => e.to),
+        isNot(contains(endsWith('TwinAction'))),
+      );
+    });
+  });
+
   group("an action's writes", () {
     AppGraph read() => _graphOf({
       '$_redux/app_state.dart': r'''

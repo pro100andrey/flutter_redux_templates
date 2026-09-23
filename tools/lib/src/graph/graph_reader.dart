@@ -196,7 +196,7 @@ class _GraphRead {
   ///
   /// Null for an [DispatchStep.opaque] step, which names no class to draw an
   /// edge to — only the gap is recorded, see [_opaqueDispatch].
-  String? _dispatchTarget(
+  ({String id, bool inferred})? _dispatchTarget(
     DispatchStep step,
     File? file,
     String at, {
@@ -206,13 +206,10 @@ class _GraphRead {
       _opaqueDispatch(step, at, owner: owner);
       return null;
     }
-    final className = step.className;
-    final resolved =
-        (file == null ? null : actions.at(file, className)) ??
-        actions.at(File(at), className);
-    if (resolved != null) {
-      return resolved.id;
+    if (_resolve(step, file, at) case final known?) {
+      return (id: known.action.id, inferred: known.inferred);
     }
+    final className = step.className;
     final id = 'action:$className';
     graph
       ..addNode(
@@ -236,11 +233,45 @@ class _GraphRead {
               ? 'declared in this file, but not read as an action — it '
                     'extends nothing ending in `Action`, is not named '
                     '`…Action`, or is abstract'
-              : 'dispatched, but no imported `*_action.dart` declares it — a '
-                    'factory, an alias, or an action outside business/lib/redux',
+              : 'dispatched, but no imported `*_action.dart` (nor a barrel '
+                    're-exporting one) declares it, and no single action has '
+                    'that name — a factory, an alias, an action outside '
+                    'business/lib/redux, or one several substates declare',
         ),
       );
-    return id;
+    return (id: id, inferred: false);
+  }
+
+  /// The modelled action [step] dispatches, or null when there is none to
+  /// name — the one rule both the routed walk and the sweep of every file
+  /// resolve a dispatch by.
+  ///
+  /// [file] is where the dispatcher's imports say the class lives, then the
+  /// dispatcher's own file [at]. Failing both, a class name exactly one
+  /// substate declares is taken as that action, and the edge says it was
+  /// [inferred]: the import it came through was one frx does not follow —
+  /// a barrel it could not read, a `part`, a conditional import — and a
+  /// name only one action has is better evidence than no edge at all, which
+  /// reads as "nothing dispatches this". Two candidates stay unresolved;
+  /// picking one would be a guess.
+  ({GraphAction action, bool inferred})? _resolve(
+    DispatchStep step,
+    File? file,
+    String at,
+  ) {
+    final className = step.className;
+    final read =
+        (file == null ? null : actions.at(file, className)) ??
+        actions.at(File(at), className);
+    if (read != null) {
+      return (action: read, inferred: false);
+    }
+    // Never a private one: `_Started` is its own library's, and the one in
+    // another file is not the one this file names.
+    final named = className.startsWith('_')
+        ? const <GraphAction>[]
+        : actions.named(className);
+    return named.length == 1 ? (action: named.single, inferred: true) : null;
   }
 
   /// Records a dispatch of a value frx cannot trace to a class —
@@ -288,7 +319,8 @@ class _GraphRead {
         graph.addEdge(
           GraphEdge(
             from: a.id,
-            to: to,
+            to: to.id,
+            inferred: to.inferred,
             kind: .dispatches,
             condition: step.condition,
           ),
@@ -390,7 +422,8 @@ class _GraphRead {
           graph.addEdge(
             GraphEdge(
               from: id,
-              to: to,
+              to: to.id,
+              inferred: to.inferred,
               kind: .dispatches,
               via: useCase.label,
               condition: step.condition,
@@ -438,7 +471,8 @@ class _GraphRead {
         graph.addEdge(
           GraphEdge(
             from: id,
-            to: to,
+            to: to.id,
+            inferred: to.inferred,
             kind: .dispatches,
             condition: step.condition,
           ),
@@ -549,7 +583,7 @@ class _GraphRead {
         continue;
       }
 
-      final targets = <String>{};
+      final targets = <String, bool>{};
       for (final step in read.steps) {
         if (step.isNavigation) {
           continue;
@@ -566,10 +600,16 @@ class _GraphRead {
           );
           continue;
         }
-        final file = read.actionFiles[step.className];
-        final known = file == null ? null : actions.at(file, step.className);
+        final known = _resolve(
+          step,
+          read.actionFiles[step.className],
+          consumer.file.path,
+        );
         if (known != null) {
-          targets.add(known.id);
+          // Read through an import beats inferred by name, whichever came
+          // first.
+          targets[known.action.id] =
+              (targets[known.action.id] ?? true) && known.inferred;
         }
       }
       if (targets.isEmpty) {
@@ -577,11 +617,18 @@ class _GraphRead {
       }
 
       final from = graph.nodeFor(consumer.file, consumer.unit);
-      for (final to in targets) {
+      for (final MapEntry(key: to, value: inferred) in targets.entries) {
         if (!linked.add('$from|$to')) {
           continue;
         }
-        graph.addEdge(GraphEdge(from: from, to: to, kind: EdgeKind.dispatches));
+        graph.addEdge(
+          GraphEdge(
+            from: from,
+            to: to,
+            kind: EdgeKind.dispatches,
+            inferred: inferred,
+          ),
+        );
       }
     }
   }
