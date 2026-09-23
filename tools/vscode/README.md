@@ -357,7 +357,8 @@ and the first workspace folder yields the same answer, so in a single-root
 workspace (which is how this monorepo is opened) those entries carried no
 information at all. The only case where the click decided anything was a
 multi-root workspace holding two frx monorepos, and that is not worth two menu
-entries and two visibility conditions.
+entries and two visibility conditions. There, a command acts on the project of
+the file you are editing, and with no such file on the one the FRX tree shows.
 
 Two things went with them: the manifest no longer names the `redux`, `pages` or
 `connectors` folders in a visibility condition, and the extension no longer keeps

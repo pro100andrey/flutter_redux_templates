@@ -66,13 +66,30 @@ interface PickRow extends vscode.QuickPickItem {
   frxKind?: ListedKind;
 }
 
-/** The folder a command was invoked on: the clicked one, else the first workspace folder. */
-export function folderOf(uri: vscode.Uri | undefined): string | undefined {
-  const dir = uri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (!dir) {
-    vscode.window.showErrorMessage('FRX: open a folder (or right-click a target folder) first.');
+/**
+ * The project a command acts on, or null when the workspace holds none.
+ *
+ * In order: the one the command was invoked on (a clicked folder or file); the
+ * one the active editor's file belongs to; and otherwise the window's project —
+ * the one the tree, the audit and the watch are about (`findWorkspaceRoot`).
+ *
+ * **Never "the first workspace folder".** That was the fallback, and it is the
+ * one folder nothing else in the extension reads: with the folders `[other,
+ * mono]` every command failed "no frx project here" beside a tree that was
+ * showing `mono`, and with two projects open every command answered "right-click
+ * inside the one you mean" — a context menu the extension does not contribute.
+ * The active editor comes first because a command run while editing a file of
+ * one project is about that project; with no editor, a command acts on what the
+ * tree is showing, so the two cannot disagree about which app is "here".
+ */
+export function commandProject(uri: vscode.Uri | undefined): string | null {
+  if (uri) return paths.projectRootFor(uri.fsPath);
+  const editing = vscode.window.activeTextEditor?.document.uri;
+  if (editing?.scheme === 'file') {
+    const own = paths.projectRootFor(editing.fsPath);
+    if (own) return own;
   }
-  return dir;
+  return paths.findWorkspaceRoot();
 }
 
 /**
@@ -81,27 +98,21 @@ export function folderOf(uri: vscode.Uri | undefined): string | undefined {
  * to run, or null when there's no project or frx is unavailable (a message was
  * already shown).
  *
- * `targetDir` is the project root, not the folder the command was invoked on.
- * The CLI's `--root` only walks *up*, so the palette — which has no clicked
- * folder and falls back to the first workspace folder — handed it a directory
- * above the project in any repository where the template was unpacked into a
- * subdirectory, and every command failed with "not inside a frx project".
+ * `targetDir` is the project root, not a folder the command was invoked on.
+ * The CLI's `--root` only walks *up*, so a directory above the project — a
+ * repository where the template was unpacked into a subdirectory — failed every
+ * command with "not inside a frx project". See [commandProject] for which one.
  */
 export async function resolveTarget(
   context: vscode.ExtensionContext,
   uri: vscode.Uri | undefined,
 ): Promise<{ inv: Invocation; targetDir: string } | null> {
-  const invokedOn = folderOf(uri);
-  if (!invokedOn) return null;
-  const targetDir = paths.projectRootFor(invokedOn);
+  const targetDir = commandProject(uri);
   if (!targetDir) {
-    // Either nothing of ours is here, or several are and picking one would mean
-    // scaffolding into an app the user never named.
-    const roots = paths.findProjectRoots();
     vscode.window.showErrorMessage(
-      roots.length > 1
-        ? `FRX: ${roots.length} frx projects are open — right-click inside the one you mean.`
-        : 'FRX: no frx project here (looked for app/lib/navigation/app_router.dart).',
+      vscode.workspace.workspaceFolders?.length
+        ? 'FRX: no frx project here (looked for app/lib/navigation/app_router.dart).'
+        : 'FRX: open a folder with a frx project first.',
     );
     return null;
   }
