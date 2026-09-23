@@ -54,23 +54,61 @@ ArgumentList? pageRouteArgs(CollectionElement element) {
       : null;
 }
 
-/// The element of [list] that registers [routeType], with its arguments, or
-/// null when none does.
+/// One page-registering element of a routes list — top-level or nested in a
+/// shell's `children:` — with the shell it sits under.
+final class PageRouteNode {
+  PageRouteNode._(this.element, this.args, this.parent);
+
+  final CollectionElement element;
+  final ArgumentList args;
+
+  /// The shell whose `children:` hold this route, or null at the top level.
+  final PageRouteNode? parent;
+
+  /// The route type its `page:` names — `HomeRoute` for `HomeRoute.page`.
+  String get routeType =>
+      namedArgumentIn(args, 'page')?.toSource().replaceAll('.page', '') ??
+      '<unknown>';
+}
+
+/// Every page route [list] registers, nested `children:` included, in source
+/// order with each shell before its tabs.
+///
+/// **The one walk.** The readers saw nested routes and the editors did not:
+/// `readRoutes` descended into `children:`, while the lookup `remove` unwired
+/// through searched only the top-level list — so removing a tab page said
+/// "route FeedRoute not registered — nothing to unwire", deleted its connector,
+/// and left the route pointing at nothing. Both now ask this.
+Iterable<PageRouteNode> pageRoutesIn(
+  ListLiteral list, [
+  PageRouteNode? parent,
+]) sync* {
+  for (final element in list.elements) {
+    final args = pageRouteArgs(element);
+    if (args == null) {
+      continue;
+    }
+
+    final node = PageRouteNode._(element, args, parent);
+    yield node;
+    final children = namedArgumentIn(args, 'children');
+    if (children is ListLiteral) {
+      yield* pageRoutesIn(children, node);
+    }
+  }
+}
+
+/// The route in [list] — at any depth — that registers [routeType], or null
+/// when none does.
 ///
 /// Exact match on the `page:` argument — a substring `contains` would treat
 /// `ProfileRoute` as already-wired when `UserProfileRoute` is registered.
-({CollectionElement element, ArgumentList args})? registeredRoute(
-  ListLiteral list,
-  String routeType,
-) {
-  final pageExpr = '$routeType.page';
-  for (final element in list.elements) {
-    final args = pageRouteArgs(element);
-    if (args != null && namedArgumentIn(args, 'page')?.toSource() == pageExpr) {
-      return (element: element, args: args);
+PageRouteNode? registeredRoute(ListLiteral list, String routeType) {
+  for (final route in pageRoutesIn(list)) {
+    if (route.routeType == routeType) {
+      return route;
     }
   }
-
   return null;
 }
 
@@ -81,44 +119,32 @@ ArgumentList? pageRouteArgs(CollectionElement element) {
 /// as a top-level one, so every consumer (doctor's connector check, the
 /// navigation map) sees it.
 List<RouteEntry> routeEntriesOf(ListLiteral list) {
-  final entries = <RouteEntry>[];
-  _collectRoutes(list, null, null, entries);
-  return entries;
+  // A shell is yielded before its tabs, so its full path is known by the time
+  // a child asks for it.
+  final fullPaths = <PageRouteNode, String?>{};
+  return [
+    for (final route in pageRoutesIn(list)) _entryOf(route, fullPaths),
+  ];
 }
 
-void _collectRoutes(
-  ListLiteral list,
-  String? parent,
-  String? parentPath,
-  List<RouteEntry> into,
-) {
-  for (final element in list.elements) {
-    final args = pageRouteArgs(element);
-    if (args == null) {
-      continue;
-    }
-
-    final page = namedArgumentIn(args, 'page')?.toSource();
-    final path = namedArgumentIn(args, 'path');
-    final initial = namedArgumentIn(args, 'initial');
-    final routeType = page != null ? page.replaceAll('.page', '') : '<unknown>';
-    final own = path is SimpleStringLiteral ? path.value : path?.toSource();
-    final full = _joinPath(parentPath, own, nested: parent != null);
-    into.add(
-      RouteEntry(
-        routeType: routeType,
-        path: own,
-        fullPath: full,
-        initial: initial is BooleanLiteral && initial.value,
-        parent: parent,
-        offset: element.offset,
-      ),
-    );
-    final children = namedArgumentIn(args, 'children');
-    if (children is ListLiteral) {
-      _collectRoutes(children, routeType, full, into);
-    }
-  }
+RouteEntry _entryOf(PageRouteNode route, Map<PageRouteNode, String?> full) {
+  final path = namedArgumentIn(route.args, 'path');
+  final initial = namedArgumentIn(route.args, 'initial');
+  final own = path is SimpleStringLiteral ? path.value : path?.toSource();
+  final parent = route.parent;
+  final fullPath = full[route] = _joinPath(
+    parent == null ? null : full[parent],
+    own,
+    nested: parent != null,
+  );
+  return RouteEntry(
+    routeType: route.routeType,
+    path: own,
+    fullPath: fullPath,
+    initial: initial is BooleanLiteral && initial.value,
+    parent: parent?.routeType,
+    offset: route.element.offset,
+  );
 }
 
 /// Joins a child's path onto its shell's, the way auto_route resolves it: a
@@ -150,23 +176,25 @@ String? _joinPath(String? parentPath, String? own, {required bool nested}) {
   return '$base/$own';
 }
 
-/// Whether any page route among [elements] (or its nested `children`) has a
-/// `path` with a `:` param segment — the sole reason `app_router.dart` imports
-/// Flutter, so it gates pruning that import on removal.
-bool anyParamPath(Iterable<CollectionElement> elements) {
-  for (final element in elements) {
-    final args = pageRouteArgs(element);
-    if (args == null) {
-      continue;
+/// Whether any page route in [list] (or its nested `children`) other than
+/// [except] and what it nests has a `path` with a `:` param segment — the sole
+/// reason `app_router.dart` imports Flutter, so it gates pruning that import
+/// on removal.
+bool anyParamPath(ListLiteral list, {PageRouteNode? except}) {
+  bool leaving(PageRouteNode route) {
+    for (PageRouteNode? at = route; at != null; at = at.parent) {
+      if (except != null && identical(at.element, except.element)) {
+        return true;
+      }
     }
+    return false;
+  }
 
-    final path = namedArgumentIn(args, 'path');
-    if (path is SimpleStringLiteral && path.value.contains(':')) {
-      return true;
-    }
-
-    final children = namedArgumentIn(args, 'children');
-    if (children is ListLiteral && anyParamPath(children.elements)) {
+  for (final route in pageRoutesIn(list)) {
+    final path = namedArgumentIn(route.args, 'path');
+    if (!leaving(route) &&
+        path is SimpleStringLiteral &&
+        path.value.contains(':')) {
       return true;
     }
   }

@@ -265,7 +265,7 @@ class RoutesSource extends FileSource {
     final materialImport = importNamed(imports, _material);
     if (materialImport != null &&
         !identical(materialImport, imp) &&
-        !anyParamPath(list.elements.where((e) => !identical(e, entry)))) {
+        !anyParamPath(list, except: registered)) {
       edits.add(removeDirective(content, materialImport));
       changes.add("import '$_material'");
     }

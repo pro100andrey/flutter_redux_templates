@@ -296,5 +296,33 @@ $routes
       expect(unwired.source, isNot(contains('SettingsRoute')));
       expectParses(unwired.source);
     });
+
+    test('a tab nested in a shell unwires, and a nested one is registered', () {
+      // `readRoutes` saw the tab and the unwiring did not: `remove feed` said
+      // "route FeedRoute not registered — nothing to unwire", deleted the
+      // connector and left the route naming it.
+      final source = sourceOf('''
+    AutoRoute(page: MainRoute.page, path: '/main', children: [
+      AutoRoute(page: FeedRoute.page, path: 'feed'),
+      AutoRoute(page: ProfileRoute.page, path: 'profile'),
+    ]),
+''');
+      final wired = source.wirePage(
+        routeType: 'FeedRoute',
+        connectorImport: '../connectors/feed_page_connector.dart',
+        path: '/feed',
+        public: false,
+      );
+      expect(wired.alreadyWired, isTrue);
+
+      final unwired = source.unwirePage(
+        routeType: 'FeedRoute',
+        connectorImport: '../connectors/feed_page_connector.dart',
+      );
+      expect(unwired.found, isTrue);
+      expect(unwired.source, isNot(contains('FeedRoute')));
+      expect(unwired.source, contains('ProfileRoute.page'));
+      expectParses(unwired.source);
+    });
   });
 }
