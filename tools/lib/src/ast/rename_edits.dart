@@ -3,6 +3,8 @@ import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 
 import '../redux/ast_edit.dart';
+import 'field_rename.dart';
+import 'relocation.dart';
 
 /// Renaming one file's contents: identifiers off the parse tree, URIs off the
 /// directives that hold them, and the few whole strings a rename owns.
@@ -16,7 +18,9 @@ import '../redux/ast_edit.dart';
 ///
 /// **What a rename genuinely reaches that the tree does not** is the names of
 /// the *files*, and those are moves rather than edits — the whole of what the
-/// sweep was really for.
+/// sweep was really for. The URIs naming them follow the files through
+/// [Relocation], and the substate's camel field — a common word, unlike its
+/// types — through [FieldRename].
 ///
 /// **Comments are renamed, deliberately.** They are the one place the old sweep
 /// reached that a token walk would not, and dropping them would leave
@@ -25,7 +29,8 @@ import '../redux/ast_edit.dart';
 class RenameEdits {
   const RenameEdits({
     required this.identifiers,
-    this.paths = const {},
+    this.field,
+    this.relocation,
     this.literals = const {},
   });
 
@@ -33,15 +38,21 @@ class RenameEdits {
   ///
   /// Whole tokens, so `LogInState` never matches inside `MyLogInStateThing` —
   /// which is what the old `\b…\b` was approximating. Generated-code prefixes
-  /// are understood rather than listed; see [_rename].
+  /// are understood rather than listed; see [_rename]. Only names distinctive
+  /// enough that spelling one *is* being one belong here — a substate's field
+  /// is not, and goes in [field].
   final Map<String, String> identifiers;
 
-  /// Old path token → new, applied inside `import`, `export` and `part` URIs.
+  /// The substate field, renamed where it names the `AppState` slot only.
+  final FieldRename? field;
+
+  /// The files that move, applied inside `import`, `export` and `part` URIs.
   ///
   /// A URI is a string literal, and a string literal is exactly what a rename
   /// must not touch in general — a persistence key has to survive one. This is
-  /// not general: it is the URI of a file that moved.
-  final Map<String, String> paths;
+  /// not general: it is the URI of a file that moved, or of a file that moved
+  /// away from what it names.
+  final Relocation? relocation;
 
   /// Whole string literals a rename owns, matched entire or by a `/`-segmented
   /// prefix.
@@ -63,8 +74,11 @@ class RenameEdits {
   final Map<String, String> literals;
 
   /// The edits [unit] needs, in no particular order — `applyEdits` sorts.
-  List<Edit> of(CompilationUnit unit) {
-    final edits = <Edit>[];
+  ///
+  /// [path] is the file [unit] was read from, which its relative URIs start
+  /// from; without one, no URI is rewritten.
+  List<Edit> of(CompilationUnit unit, {String? path}) {
+    final edits = <Edit>[...?field?.of(unit)];
     for (var token = unit.beginToken; ; token = token.next!) {
       _comments(token, edits);
       if (token.isEof) {
@@ -103,8 +117,8 @@ class RenameEdits {
       }
 
       uris.add(uri.offset);
-      final now = _rewritePath(was);
-      if (now != was) {
+      final now = path == null ? null : relocation?.rewrite(was, from: path);
+      if (now != null && now != was) {
         edits.add(_replaceContents(uri, now));
       }
     }
@@ -136,16 +150,6 @@ class RenameEdits {
   static Edit _replaceContents(SingleStringLiteral literal, String text) =>
       Edit.replace(literal.contentsOffset, literal.contentsEnd, text);
 
-  /// [uri] with every path token replaced — a directory segment or a basename.
-  ///
-  /// Split on `/` and `.` so a token matches a whole segment: renaming `log_in`
-  /// must not touch `log_input/`, and the old sweep needed one regex per shape
-  /// to say the same thing.
-  String _rewritePath(String uri) => uri
-      .split('/')
-      .map((segment) => segment.split('.').map((t) => paths[t] ?? t).join('.'))
-      .join('/');
-
   /// [value] when it *is* one of [literals], or begins with one as a whole
   /// `/`-segment — `'/home'` and `'/home/:id'`, never `'/homepage'`.
   String _rewriteLiteral(String value) {
@@ -174,18 +178,21 @@ class RenameEdits {
   /// Every word goes through the same [_rename] the tokens do, rather than one
   /// `\b<name>\b` pass per entry: `\b` is what put `_LogInState` and
   /// `_$LogInState` on different footings in the first place, and a comment
-  /// should not be the one place that accident survives. Path tokens are tried
-  /// too — a doc comment naming a moved folder is naming the folder.
+  /// should not be the one place that accident survives. The field is renamed
+  /// only as a `[reference]`: a comment saying "like connectivity" is prose,
+  /// and the old sweep renaming it — along with every folder name a comment
+  /// happened to share with the substate — was the same over-reach as in code.
   void _comments(Token token, List<Edit> into) {
     for (
       Token? c = token.precedingComments;
       c != null;
       c = c.next as CommentToken?
     ) {
-      final text = c.lexeme.replaceAllMapped(
+      var text = c.lexeme.replaceAllMapped(
         _word,
-        (m) => _rename(m[0]!) ?? paths[m[0]!] ?? m[0]!,
+        (m) => _rename(m[0]!) ?? m[0]!,
       );
+      text = field?.inComment(text) ?? text;
       if (text != c.lexeme) {
         into.add(Edit.replace(c.offset, c.end, text));
       }

@@ -4,6 +4,8 @@ import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
+import '../ast/field_rename.dart';
+import '../ast/relocation.dart';
 import '../ast/rename_edits.dart';
 import '../model/page_artifact.dart';
 import '../model/substate_artifact.dart';
@@ -21,12 +23,13 @@ import 'rename/rename_plan.dart';
 
 /// Renames a substate or page — files, classes, and every wiring reference.
 ///
-/// The mechanics are textual but scoped: a fixed set of *identifier* renames
-/// (`OldState` → `NewState`, `OldRoute` → `NewRoute`, the camel field, …) is
-/// applied with word boundaries across the `business`/`app`/`ui` lib trees,
-/// plus the snake path tokens in imports/parts. Distinctive identifiers make
-/// this safe in practice; previews by default, applies with `--force`, and
-/// `dart analyze` after is the definitive check.
+/// The mechanics are scoped: a fixed set of distinctive *identifier* renames
+/// (`OldState` → `NewState`, `OldRoute` → `NewRoute`, …) is applied to whole
+/// tokens across the `business`/`app`/`ui` lib and test trees, the camel field
+/// only where it names the `AppState` slot ([FieldRename]), and a URI only
+/// when the file it names — or the file holding it — moves ([Relocation]).
+/// Previews by default, applies with `--apply`, and `dart analyze` after is the
+/// definitive check.
 ///
 /// The two kinds decide a [RenamePlan] each; carrying one out — the preview,
 /// the pre-flight, the apply, the codegen — is `rename/rename_execution.dart`.
@@ -152,16 +155,21 @@ class RenameCommand extends Command<int> with NameArg {
   ) {
     final oldA = PageArtifact(oldN);
     final newA = PageArtifact(newN);
+    // Only the files that are there. A tab shell has a connector and no ui
+    // page — `add-tabs` writes an `AutoTabsRouter` host, not a screen — and a
+    // move of a file that does not exist was previewed as though it would
+    // happen, then aborted the apply in the pre-flight.
     final moves = <Move>[
-      (
-        from: oldA.pageFile(routes.pagesDir).path,
-        to: newA.pageFile(routes.pagesDir).path,
-      ),
-      (
-        from: oldA.connectorFile(routes.connectorsDir).path,
-        to: newA.connectorFile(routes.connectorsDir).path,
-      ),
+      for (final (from, to) in [
+        (oldA.pageFile(routes.pagesDir), newA.pageFile(routes.pagesDir)),
+        (
+          oldA.connectorFile(routes.connectorsDir),
+          newA.connectorFile(routes.connectorsDir),
+        ),
+      ])
+        if (from.existsSync()) (from: from.path, to: to.path),
     ];
+    final moved = {for (final m in moves) p.normalize(m.from): m.to};
 
     final rename = RenameEdits(
       identifiers: {
@@ -169,11 +177,11 @@ class RenameCommand extends Command<int> with NameArg {
         oldA.pageClass: newA.pageClass,
         oldA.routeType: newA.routeType,
       },
-      // The two files that moved, by basename.
-      paths: {
-        '${oldN.snake}_page_connector': '${newN.snake}_page_connector',
-        '${oldN.snake}_page': '${newN.snake}_page',
-      },
+      // The files that moved: URIs naming them follow.
+      relocation: Relocation(
+        moveOf: (path) => moved[p.normalize(path)],
+        packages: FrxWorkspace(Directory(repoRoot)).packageLibs(),
+      ),
       // The two strings a page rename owns: the route path auto_route derives
       // from the page name (a custom one does not match and is kept), and the
       // placeholder the page scaffold writes.
@@ -235,20 +243,34 @@ class RenameCommand extends Command<int> with NameArg {
     // regenerates them under the new name. One listing sorts the folder into
     // the two.
     final renamableBases = oldA.renamableBasenames(newA);
+    // Where a path under the old folder lands: the folder renamed, and a
+    // frx-generated basename with it. Asked of a file on disk (to plan its
+    // move) and of a URI's target (to rewrite it) — a `part` naming
+    // `old_state.freezed.dart` follows the same rule the file it belongs to
+    // does, though the part itself is not moved but regenerated.
+    String? moveOf(String path) {
+      if (!p.isWithin(oldDir.path, path)) {
+        return null;
+      }
+      final rel = p.relative(path, from: oldDir.path);
+      final base = p.basename(rel);
+      final dot = base.indexOf('.');
+      final stem = dot < 0 ? base : base.substring(0, dot);
+      final renamed = renamableBases['$stem.dart'];
+      final newBase = renamed == null
+          ? base
+          : p.basenameWithoutExtension(renamed) + base.substring(stem.length);
+      return p.join(newDir, p.dirname(rel), newBase);
+    }
+
     final moves = <Move>[];
     final staleGenerated = <String>[];
     for (final f in oldDir.listSync(recursive: true).whereType<File>()) {
       if (FrxWorkspace.isGenerated(f.path)) {
         staleGenerated.add(f.path);
-        continue;
+      } else {
+        moves.add((from: f.path, to: moveOf(f.path)!));
       }
-
-      final rel = p.relative(f.path, from: oldDir.path);
-      final base = p.basename(rel);
-      moves.add((
-        from: f.path,
-        to: p.join(newDir, p.dirname(rel), renamableBases[base] ?? base),
-      ));
     }
 
     final rename = RenameEdits(
@@ -262,23 +284,22 @@ class RenameCommand extends Command<int> with NameArg {
         oldA.actionClass: newA.actionClass,
         oldA.addActionClass: newA.addActionClass,
         oldA.retrieveActionClass: newA.retrieveActionClass,
-        // The camel field and facade getter (`state.copyWith.old(…)`,
-        // `old.query`). A common word, and the old sweep kept it out of `ui`
-        // wholesale because its hits there are l10n keys — the token walk skips
-        // `current.<name>` exactly instead, so a connector holding one is safe
-        // too and the package exclusion is not needed.
-        oldN.camel: newN.camel,
       },
-      paths: {
-        // The folder the substate lives in, and every moved file whose *name*
-        // changed — imports naming either must follow.
-        oldN.snake: newN.snake,
-        for (final m in moves)
-          if (p.basename(m.from) != p.basename(m.to))
-            p.basenameWithoutExtension(m.from): p.basenameWithoutExtension(
-              m.to,
-            ),
-      },
+      // The camel field and facade getter (`state.copyWith.old(…)`,
+      // `old.query`) — a common word, so renamed only where it names the slot.
+      field: FieldRename(
+        from: oldN.camel,
+        to: newN.camel,
+        ownerTypes: {oldA.stateType, oldA.selectorType},
+      ),
+      // The folder the substate lives in, and every moved file whose *name*
+      // changed — imports naming either must follow, and nothing else: the
+      // service folder `redux/services/connectivity/` shares the word and does
+      // not move.
+      relocation: Relocation(
+        moveOf: moveOf,
+        packages: FrxWorkspace(Directory(repoRoot)).packageLibs(),
+      ),
     );
 
     return executeRename(

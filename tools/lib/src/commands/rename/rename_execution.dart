@@ -13,13 +13,17 @@ import '../../util/console.dart';
 import '../../workspace/frx_workspace.dart';
 import 'rename_plan.dart';
 
+/// The packages a rename reaches: the three a substate or a page is wired
+/// through.
+const _swept = ['business', 'app', 'ui'];
+
 /// One rewritten file: what it said, what it will say, and how many edits
 /// that took.
 typedef _Rewrite = ({String before, String after, int count});
 
 /// Previews (or with `--apply` applies) [plan]: its moves, plus its rewrite
 /// applied to every non-generated `.dart` under the `business`/`app`/`ui` lib
-/// trees.
+/// and test trees.
 ///
 /// [command] is the name the machine report carries.
 Future<int> executeRename(
@@ -43,13 +47,21 @@ Future<int> executeRename(
   // Each file is read once, here: the text the edits were computed against is
   // the `before` the changeset carries, so reading it again for the plan
   // would only offer a chance for the two to differ.
+  //
+  // The tests are swept too. They import the moved files and read the renamed
+  // field exactly as `lib/` does, and a rename that left `business/test`
+  // naming `.connectivity` reported success over a package whose tests no
+  // longer compiled.
   final edits = <String, _Rewrite>{};
-  for (final dir in ['business', 'app', 'ui']) {
-    final lib = Directory(p.join(repoRoot, dir, 'lib'));
-    if (!lib.existsSync()) {
+  for (final (package, tree) in [
+    for (final package in _swept)
+      for (final tree in const ['lib', 'test']) (package, tree),
+  ]) {
+    final dir = Directory(p.join(repoRoot, package, tree));
+    if (!dir.existsSync()) {
       continue;
     }
-    for (final f in lib.listSync(recursive: true).whereType<File>()) {
+    for (final f in dir.listSync(recursive: true).whereType<File>()) {
       if (!f.path.endsWith('.dart') || FrxWorkspace.isGenerated(f.path)) {
         continue;
       }
@@ -57,6 +69,7 @@ Future<int> executeRename(
       final original = f.readAsStringSync();
       final planned = plan.rename.of(
         parseString(content: original, throwIfDiagnostics: false).unit,
+        path: p.normalize(f.absolute.path),
       );
       var content = applyEdits(original, planned);
       var count = planned.length;

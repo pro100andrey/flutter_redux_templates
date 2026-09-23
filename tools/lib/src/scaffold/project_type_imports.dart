@@ -171,7 +171,7 @@ final class ImportablePackages {
 
     final packages = <ImportablePackage>[];
     for (final lib in dirs.values) {
-      final name = _packageName(lib.parent);
+      final name = FrxWorkspace.packageNameIn(lib.parent);
       if (name != null) {
         packages.add(ImportablePackage(name, lib));
       }
@@ -219,18 +219,5 @@ final class ImportablePackages {
       }
     }
     return deps;
-  }
-
-  static final _pubspecName = RegExp(r'^name:\s*(\S+)', multiLine: true);
-
-  /// The `name:` of the pubspec in [dir], or null when there is none to read.
-  /// Read rather than assumed: `models` is what the template calls it, and a
-  /// project that renamed the package is not wrong.
-  static String? _packageName(Directory dir) {
-    final pubspec = File(p.join(dir.path, 'pubspec.yaml'));
-    if (!pubspec.existsSync()) {
-      return null;
-    }
-    return _pubspecName.firstMatch(pubspec.readAsStringSync())?.group(1);
   }
 }

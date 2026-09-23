@@ -326,13 +326,41 @@ class FrxWorkspace {
   Directory get claudeSkills => _dir(['.claude', 'skills']);
 
   /// Whether [path] is build_runner output (freezed / json_serializable /
-  /// theme_extensions / auto_route). The one place the generated-file suffixes
-  /// are listed — sweeps, deletions and part-checks all defer to it.
+  /// theme_extensions / auto_route / flutter_gen). The one place the
+  /// generated-file suffixes are listed — sweeps, deletions and part-checks all
+  /// defer to it.
+  ///
+  /// `.gen.dart` is flutter_gen's `assets.gen.dart`, and it was missing: a
+  /// `rename theme` rewrote the generated asset table as though it were
+  /// somebody's source, and the next build put it back.
   static bool isGenerated(String path) =>
       path.endsWith('.freezed.dart') ||
       path.endsWith('.g.dart') ||
       path.endsWith('.g.theme.dart') ||
-      path.endsWith('.gr.dart');
+      path.endsWith('.gr.dart') ||
+      path.endsWith('.gen.dart');
+
+  static final _pubspecName = RegExp(r'^name:\s*(\S+)', multiLine: true);
+
+  /// The `name:` of the pubspec in [dir], or null when there is none to read.
+  /// Read rather than assumed: `models` is what the template calls it, and a
+  /// project that renamed the package is not wrong.
+  static String? packageNameIn(Directory dir) {
+    final pubspec = File(p.join(dir.path, 'pubspec.yaml'));
+    if (!pubspec.existsSync()) {
+      return null;
+    }
+    return _pubspecName.firstMatch(pubspec.readAsStringSync())?.group(1);
+  }
+
+  /// Package name → absolute `lib/` directory, for every one of
+  /// [sourcePackages] that is there — what a `package:` URI into the project
+  /// resolves against without a `package_config.json` to hand.
+  Map<String, String> packageLibs() => {
+    for (final (:package, :lib) in sourceLibs())
+      packageNameIn(Directory(p.join(root.path, package))) ?? package: p
+          .normalize(lib.absolute.path),
+  };
 
   /// Walks up from [filePath] to the nearest directory containing a
   /// `pubspec.yaml` — the package root where build_runner must run. Falls back

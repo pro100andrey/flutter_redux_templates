@@ -32,8 +32,8 @@ class RenamePlan {
   /// The files that change path.
   final List<Move> moves;
 
-  /// The identifier, path-token and literal rewrites, applied to every
-  /// non-generated `.dart` under the `business`/`app`/`ui` lib trees.
+  /// The identifier, field, URI and literal rewrites, applied to every
+  /// non-generated `.dart` under the `business`/`app`/`ui` lib and test trees.
   final RenameEdits rename;
 
   /// The codegen that remakes what the old name generated.
