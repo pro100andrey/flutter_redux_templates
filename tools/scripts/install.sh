@@ -13,8 +13,12 @@
 #
 # Environment equivalents: FRX_VERSION, FRX_INSTALL_DIR, FRX_NO_MODIFY_PATH=1.
 #
-# POSIX sh, not bash: this runs on whatever /bin/sh is, including Alpine's ash
-# inside a CI container. No arrays, no `local`, no `[[`.
+# Linux means a glibc one: the binary is built against glibc, and a musl system
+# (Alpine) is refused up front rather than handed a binary that cannot start.
+#
+# POSIX sh, not bash: this runs on whatever /bin/sh is — dash on Debian and
+# Ubuntu, busybox ash in a slim image. No arrays, no `local`, no `[[`.
+# tools/scripts/test/install_sh_test.sh runs it end to end under each of them.
 set -eu
 
 REPO='pro100andrey/flutter_redux_templates'
@@ -69,6 +73,27 @@ case "$(uname -m)" in
   x86_64|amd64)  ARCH=x64 ;;
   *) err "unsupported architecture: $(uname -m)" ;;
 esac
+
+# The Linux binary links glibc — it is compiled in Dart's Debian image, and
+# `dart compile exe` has no static or musl target. On a musl system (Alpine, and
+# the slim CI images built on it) the loader it names does not exist, so it
+# installs, prints ✓, and then every run fails with `frx: not found` — about a
+# file that is plainly there. Refused here, before anything is downloaded.
+#
+# Two probes, because either can be absent: the musl loader under /lib is what
+# the binary would actually be missing the counterpart of, and `ldd --version`
+# names its libc (on stderr, with a nonzero exit, when it is musl's).
+is_musl() {
+  for loader in /lib/ld-musl-*; do
+    [ -e "$loader" ] && return 0
+  done
+  command -v ldd >/dev/null 2>&1 && ldd --version 2>&1 | grep -qi musl
+}
+
+if [ "$OS" = linux ] && is_musl; then
+  err "this system uses musl libc (Alpine?), and frx's Linux build needs glibc — it would install and then fail to start.
+  Use a glibc-based system or image (Debian, Ubuntu, Fedora, ...)."
+fi
 
 need curl
 need tar
