@@ -267,6 +267,7 @@ class RemoveCommand extends WritingCommand
         name,
         resolver.routes ??
             refuse('Could not locate app_router.dart to remove a page.'),
+        repo,
         apply: apply,
       ),
     };

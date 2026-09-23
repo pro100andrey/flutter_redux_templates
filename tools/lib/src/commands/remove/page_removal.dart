@@ -5,8 +5,10 @@ import '../../engine/changeset.dart';
 import '../../engine/write_path.dart';
 import '../../model/page_artifact.dart';
 import '../../routing/routes_source.dart';
+import '../../routing/tab_shell_source.dart';
 import '../../util/casing.dart';
 import '../../util/console.dart';
+import '../../workspace/frx_workspace.dart';
 import '../wiring.dart';
 import '../writing_command.dart';
 
@@ -18,7 +20,8 @@ import '../writing_command.dart';
 mixin PageRemoval on WritingCommand {
   WritePlan removePage(
     Casing name,
-    RoutesSource routes, {
+    RoutesSource routes,
+    FrxWorkspace repo, {
     required bool apply,
   }) {
     final a = PageArtifact(name);
@@ -39,6 +42,16 @@ mixin PageRemoval on WritingCommand {
         skipped: 'route ${a.routeType} not registered — nothing to unwire.',
         way: WiringWay.unwired,
       ),
+      if (_shellOf(a, routes, repo) case final shell?)
+        Wiring.of(
+          'Tab shell',
+          shell.file,
+          shell.withoutTab(a.routeType),
+          skipped:
+              '${a.routeType} is not a tab it can drop — left in place, '
+              'with its bar item.',
+          way: WiringWay.unwired,
+        ),
     ];
 
     return WritePlan(
@@ -69,5 +82,21 @@ mixin PageRemoval on WritingCommand {
         nextHint: 'regenerate the router (drop the ${a.routeType} class)',
       ),
     );
+  }
+
+  /// The connector of the tab shell [page] is a tab of, when it is one.
+  TabShellSource? _shellOf(
+    PageArtifact page,
+    RoutesSource routes,
+    FrxWorkspace repo,
+  ) {
+    final parent = routes
+        .readRoutes()
+        .where((r) => r.routeType == page.routeType)
+        .firstOrNull
+        ?.parent;
+    final shell = parent == null ? null : PageArtifact.fromRouteType(parent);
+    final file = shell == null ? null : routes.connectorFor(shell, repo);
+    return file == null ? null : TabShellSource(file);
   }
 }
