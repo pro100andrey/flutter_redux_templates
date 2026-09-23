@@ -652,13 +652,23 @@ class _GraphRead {
     final parsed = sourceIndex.unitFor(file);
     final selectors = readSelectorGetters(parsed);
 
+    // Selector type → the substate it belongs to, matched in the direction
+    // that cannot lose a letter: each substate AppState composes names its
+    // selector type, and the facade's spine states the pairing outright —
+    // which wins where the two disagree. Casing a type name back into a field
+    // made `SelectECommerce` belong to an `ecommerce` nothing composes.
+    final ownerOfType = <String, String>{
+      for (final n in graph.nodes)
+        if (n.kind == NodeKind.substate) ?_selectorTypeOf(n.name): n.name,
+      for (final MapEntry(key: type, value: field)
+          in spineHopsIn(parsed).entries)
+        if (graph.hasSubstate(field)) type: field,
+    };
+
     /// Which substate [s] *belongs to* — from the facade type, and only when
-    /// `AppState` composes one by that name — not which ones it reads: a
-    /// composite selector reads several.
-    String? substateOf(SelectorGetter s) {
-      final owner = SubstateArtifact.substateOfSelectorType(s.ownerType);
-      return owner != null && graph.hasSubstate(owner) ? owner : null;
-    }
+    /// `AppState` composes one for it — not which ones it reads: a composite
+    /// selector reads several.
+    String? substateOf(SelectorGetter s) => ownerOfType[s.ownerType];
 
     // How each selector is *called*, which is not how it is declared: one
     // hanging off a substate is reached as `<field>.<getter>`, a composite on
@@ -1109,6 +1119,16 @@ class _Consumer {
 
   /// The files this one imports, by canonical path, for the files frx read.
   late final Set<String> imports = _reader.importedFilesOf(unit, file.parent);
+}
+
+/// The `Select<Pascal>` type the substate [field] is given, or null for a
+/// field no casing can parse.
+String? _selectorTypeOf(String field) {
+  try {
+    return SubstateArtifact.parse(field).selectorType;
+  } on FormatException {
+    return null;
+  }
 }
 
 /// Whether the file at [path] declares a class called [className].

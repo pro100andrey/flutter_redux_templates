@@ -77,6 +77,26 @@ List<SelectorGetter> readSelectorGetters(CompilationUnit unit) {
   return v.selectors;
 }
 
+/// The `Select<Pascal>` type each hop on the facade's spine returns, and the
+/// name of the hop — `SelectLogIn get logIn => …` on `mixin Selectors` is
+/// `SelectLogIn` → `logIn`.
+///
+/// Where a selector type's substate is *stated*. Casing the type name back
+/// into a field cannot be trusted to agree with how the field is spelled:
+/// `SelectECommerce` read back as `ecommerce`, not `eCommerce`, and every
+/// selector on the slice belonged to no substate — reached as a bare name no
+/// consumer writes, and reported as read by nothing.
+Map<String, String> spineHopsIn(CompilationUnit unit) => {
+  for (final d in unit.declarations.whereType<MixinDeclaration>())
+    if (d.name.lexeme == SelectorShape.mixinType)
+      for (final m in d.body.members.whereType<MethodDeclaration>())
+        if (m.isGetter)
+          if (m.returnType case NamedType(:final name)
+              when SelectorShape.isSelectorType(name.lexeme) &&
+                  !SelectorShape.isFacadeSpine(name.lexeme))
+            name.lexeme: m.name.lexeme,
+};
+
 /// Folds a sibling getter's reads into the one that calls it.
 ///
 /// `bool get isAvailable => token != null;` reads no state of its own, but

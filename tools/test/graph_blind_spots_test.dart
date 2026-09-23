@@ -362,6 +362,55 @@ class App { build() => ListConnector(); }
     });
   });
 
+  group('a substate named with a one-letter word', () {
+    AppGraph read() => _graphOf({
+      '$_redux/app_state.dart': r'''
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({
+    required ECommerceState eCommerce,
+    required ABTestState aBTest,
+  }) = _AppState;
+}
+''',
+      '$_redux/e_commerce/models/e_commerce_state.dart': r'''
+@freezed
+abstract class ECommerceState with _$ECommerceState {
+  const factory ECommerceState({String? cart}) = _ECommerceState;
+}
+''',
+      '$_redux/selectors.dart': '''
+mixin Selectors {
+  AppState get state;
+  SelectECommerce get eCommerce => SelectECommerce(state);
+  SelectABTest get aBTest => SelectABTest(state);
+}
+extension type SelectECommerce(AppState _state) {
+  String? get cart => _state.eCommerce.cart;
+}
+extension type SelectABTest(AppState _state) {
+  bool get arm => _state.aBTest.arm;
+}
+''',
+      'app/lib/widgets/cart_connector.dart': '''
+class _Factory extends VmFactory<AppState, CartConnector, _Vm> with Selectors {
+  _Vm fromStore() => _Vm(cart: eCommerce.cart, arm: aBTest.arm);
+}
+class CartConnector {}
+''',
+      'app/lib/app.dart': 'class App { build() => CartConnector(); }',
+    });
+
+    test('keeps its selectors, and they are read', () {
+      final g = read();
+      expect(g.node('selector:SelectECommerce.cart')?.substate, 'eCommerce');
+      // Not derivable by casing — `aBTest` round-trips as `aBtest` — and
+      // stated by the facade's spine.
+      expect(g.node('selector:SelectABTest.arm')?.substate, 'aBTest');
+      expect(_orphanIds(g), isEmpty);
+    });
+  });
+
   group("an action's writes", () {
     AppGraph read() => _graphOf({
       '$_redux/app_state.dart': r'''
