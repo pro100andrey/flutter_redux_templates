@@ -250,9 +250,11 @@ export async function addField(app: App, presetState?: string): Promise<void> {
     placeHolder: 'email:String?',
     ignoreFocusOut: true,
     validateInput: (v) => {
-      const i = v.indexOf(':');
-      if (i <= 0 || i === v.trim().length - 1) return 'Use name:type.';
-      return undefined;
+      const t = v.trim();
+      const i = t.indexOf(':');
+      if (i <= 0 || i === t.length - 1) return 'Use name:type.';
+      // A positional: a leading `-` would be read as an option (see ui.nameError).
+      return /^[A-Za-z_]/.test(t) ? undefined : 'The field name starts with a letter.';
     },
   });
   if (spec === undefined) return;
@@ -260,7 +262,7 @@ export async function addField(app: App, presetState?: string): Promise<void> {
   const base = ['add-field', state.trim(), spec.trim(), '--root', targetDir];
 
   // A non-nullable type needs a @Default(<expr>) — a state is built with no args.
-  const type = spec.slice(spec.indexOf(':') + 1).trim();
+  const type = spec.trim().slice(spec.trim().indexOf(':') + 1).trim();
   if (!type.endsWith('?')) {
     const def = await vscode.window.showInputBox({
       title: `FRX — Default for "${type}"`,

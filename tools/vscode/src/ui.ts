@@ -156,6 +156,36 @@ export async function resolveOrExplain(
   return null;
 }
 
+/**
+ * Why a typed name for something to create cannot be used, or undefined.
+ *
+ * Every name typed into a prompt is handed to the CLI as a positional, so the
+ * rule is also what keeps one from being read as an option: a name that
+ * started with `-` was parsed as a flag — `-b` asked for a build — and the
+ * command then complained about a missing name that had been typed.
+ */
+export function nameError(v: string, what = 'Name'): string | undefined {
+  const t = v.trim();
+  if (!t) return `${what} is required.`;
+  return /^[A-Za-z][A-Za-z0-9 _-]*$/.test(t)
+    ? undefined
+    : 'Start with a letter; use only letters, digits, spaces, _ or -.';
+}
+
+/**
+ * Why a typed reference to something that already exists cannot be used, or
+ * undefined — the wider shape `remove` resolves: a class (`_Private`,
+ * `SetValueAction`), a field (`profile.email`). Still never a leading `-`, for
+ * the reason [nameError] gives.
+ */
+export function referenceError(v: string): string | undefined {
+  const t = v.trim();
+  if (!t) return 'Name is required.';
+  return /^[A-Za-z_$][\w$. -]*$/.test(t)
+    ? undefined
+    : 'Start with a letter or _; use only letters, digits, _, $, . or spaces.';
+}
+
 /** Prompt for a name with the shared validation. Returns the trimmed name, or undefined if cancelled. */
 export async function askName(title: string, placeHolder: string): Promise<string | undefined> {
   const value = await vscode.window.showInputBox({
@@ -163,13 +193,7 @@ export async function askName(title: string, placeHolder: string): Promise<strin
     prompt: 'Name — any casing (myProfile, my_profile, MyProfile)',
     placeHolder,
     ignoreFocusOut: true,
-    validateInput: (v) => {
-      const t = v.trim();
-      if (!t) return 'Name is required.';
-      return /^[A-Za-z][A-Za-z0-9 _-]*$/.test(t)
-        ? undefined
-        : 'Start with a letter; use only letters, digits, spaces, _ or -.';
-    },
+    validateInput: (v) => nameError(v),
   });
   return value === undefined ? undefined : value.trim();
 }
@@ -201,13 +225,14 @@ export async function pickSubstate(
     );
     return pick === undefined ? undefined : pick.label;
   }
-  return vscode.window.showInputBox({
+  const typed = await vscode.window.showInputBox({
     title: `FRX — ${title}`,
     prompt: 'Substate name (its folder under redux, any casing)',
     placeHolder: 'profile',
     ignoreFocusOut: true,
-    validateInput: (v) => (v.trim() ? undefined : 'Substate is required.'),
+    validateInput: (v) => nameError(v, 'Substate'),
   });
+  return typed?.trim();
 }
 
 /**
@@ -262,9 +287,9 @@ export async function pickArtifact(
     prompt: 'Substate or page name (any casing)',
     placeHolder: 'myProfile',
     ignoreFocusOut: true,
-    validateInput: (v) => (v.trim() ? undefined : 'Name is required.'),
+    validateInput: referenceError,
   });
-  return typed === undefined ? undefined : { name: typed, kind: undefined };
+  return typed === undefined ? undefined : { name: typed.trim(), kind: undefined };
 }
 
 /**
