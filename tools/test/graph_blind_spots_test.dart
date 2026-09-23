@@ -284,4 +284,58 @@ class App { build() => ListConnector(); }
       expect(g.nodes.where((n) => n.name.contains('[')), isEmpty);
     });
   });
+
+  group("an action's writes", () {
+    AppGraph read() => _graphOf({
+      '$_redux/app_state.dart': r'''
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({
+    required TodosState todos,
+    required SessionState session,
+  }) = _AppState;
+}
+''',
+      '$_redux/todos/models/todos_state.dart': r'''
+@freezed
+abstract class TodosState with _$TodosState {
+  const factory TodosState({String? query, String? filter}) = _TodosState;
+}
+''',
+      '$_redux/todos/actions/toggle_action.dart': '''
+class ToggleAction extends Action {
+  ToggleAction(this.payload, this.flag);
+  final Payload payload;
+  final bool flag;
+  @override
+  AppState? reduce() {
+    // A local value built first: not a write of AppState.
+    final t = payload.todo.copyWith(done: true);
+    if (flag) {
+      return state.copyWith.session(token: null);
+    }
+    return state.copyWith.todos(query: t.title);
+  }
+}
+''',
+    });
+
+    test('are every write, not the first copyWith met', () {
+      final g = read();
+      final writes = {
+        for (final e in _edges(g, from: 'action:todos.ToggleAction'))
+          if (e.kind == EdgeKind.writes) e.via,
+      };
+      expect(writes, {'session.token', 'todos.query'});
+    });
+
+    test('mark the field written, and nothing else', () {
+      final dead = {
+        for (final o in read().orphans)
+          if (o.node.kind == NodeKind.field) o.node.id: o.why,
+      };
+      expect(dead['field:todos.query'], 'written, nothing reads it');
+      expect(dead['field:todos.filter'], 'nothing reads it');
+    });
+  });
 }

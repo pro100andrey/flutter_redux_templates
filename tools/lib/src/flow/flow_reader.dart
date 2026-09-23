@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 
 import '../ast/declarations.dart';
 import '../ast/source_index.dart';
+import '../redux/app_state_source.dart';
+import '../refusal.dart';
 import '../workspace/frx_workspace.dart';
 import 'action_reader.dart';
 import 'connector_visitor.dart';
@@ -241,10 +243,23 @@ class FlowReader {
   readActionsWithImports(File file) {
     final unit = sourceIndex.unitFor(file);
     return (
-      infos: readActionsIn(unit, file),
+      infos: readActionsIn(unit, file, composed: _composed),
       actionFiles: _actionFilesFrom(unit, file.parent),
     );
   }
+
+  /// The substates `AppState` composes, so a `copyWith` on anything else is
+  /// not read as a write — or null when there is no `AppState` to ask, and
+  /// every write the shapes match is kept.
+  late final Set<String>? _composed = () {
+    try {
+      return {
+        for (final s in AppStateSource.of(workspace).readSubstates()) s.field,
+      };
+    } on FrxRefusal {
+      return null;
+    }
+  }();
 
   /// Map of `ActionClassName` → file, built from the unit's `_action.dart`
   /// imports. A `package:business/redux/x/actions/y_action.dart` import maps to

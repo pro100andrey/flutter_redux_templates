@@ -43,7 +43,16 @@ ActionInfo readActionInfo(CompilationUnit unit, File file) =>
 /// false so a caller can skip it.
 ///
 /// The list is never empty.
-List<ActionInfo> readActionsIn(CompilationUnit unit, File file) {
+///
+/// [composed] is the substates `AppState` composes, when the caller knows
+/// them: a `copyWith` on anything else — `payload.todo.copyWith(done: true)`
+/// — is a local value being built, not a write, and is left out. Null keeps
+/// every write the shapes match.
+List<ActionInfo> readActionsIn(
+  CompilationUnit unit,
+  File file, {
+  Set<String>? composed,
+}) {
   final classes = classesIn(unit).toList();
   var actions = [
     for (final c in classes)
@@ -64,7 +73,9 @@ List<ActionInfo> readActionsIn(CompilationUnit unit, File file) {
   }
 
   final actionSet = actions.toSet();
-  return [for (final c in actions) _readClass(c, actionSet, unit, file)];
+  return [
+    for (final c in actions) _readClass(c, actionSet, unit, file, composed),
+  ];
 }
 
 /// Whether [c] is an action by shape — see [readActionsIn].
@@ -92,6 +103,7 @@ ActionInfo _readClass(
   Set<ClassDeclaration> actions,
   CompilationUnit unit,
   File file,
+  Set<String>? composed,
 ) {
   // Off the declaration, not the visitor: a helper class read along with
   // this one has a `with` clause of its own, and it is not this action's.
@@ -100,7 +112,7 @@ ActionInfo _readClass(
       m.toSource(),
   ];
 
-  final v = _ActionVisitor();
+  final v = _ActionVisitor(composed);
   c.accept(v);
   for (final d in unit.declarations) {
     if (d == c || actions.contains(d)) {
@@ -129,9 +141,31 @@ ActionInfo _readClass(
 /// Reads one action class: async-ness, the field it writes, cascading
 /// dispatches, and whether it throws a `UserException`.
 class _ActionVisitor extends RecursiveAstVisitor<void> {
+  _ActionVisitor(this._composed);
+
+  /// See [readActionsIn].
+  final Set<String>? _composed;
+
   var isAsync = false;
-  List<StateWrite> writes = const [];
   List<DispatchStep> dispatches = const [];
+
+  /// Every write found, in source order, once each.
+  final _writes = <StateWrite>{};
+
+  /// What the action writes: every write found, except a field write of a
+  /// substate the action also replaces whole — `state.copyWith(todos:
+  /// state.todos.copyWith(query: q))` replaces `todos`, and saying
+  /// `todos.query` beside it adds nothing.
+  List<StateWrite> get writes {
+    final whole = {
+      for (final w in _writes)
+        if (w.field == null) w.substate,
+    };
+    return [
+      for (final w in _writes)
+        if (w.field == null || !whole.contains(w.substate)) w,
+    ];
+  }
   var throwsUserException = false;
 
   @override
@@ -175,10 +209,18 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitMethodInvocation(MethodInvocation node) {
-    // First write wins: an action that branches still writes one substate, and
-    // the outermost call is visited first, so a nested copy cannot shadow it.
-    if (writes.isEmpty) {
-      writes = _writesOf(node);
+    // Every write, not the first. "First write wins" assumed an action writes
+    // one substate, and it hid real writes twice over: a local
+    // `payload.todo.copyWith(done: true)` ahead of the
+    // `state.copyWith.todos(…)` was taken as the write and the real one was
+    // dropped, and an action whose branches write different slices kept only
+    // the first branch's. A `copyWith` on a value `AppState` does not
+    // compose is building a local, and is left out when that is known.
+    final composed = _composed;
+    for (final w in _writesOf(node)) {
+      if (composed == null || composed.contains(w.substate)) {
+        _writes.add(w);
+      }
     }
     super.visitMethodInvocation(node);
   }
@@ -233,9 +275,9 @@ List<StateWrite> _writesOf(MethodInvocation node) {
   // this one did not: a reducer's `task.copyWith(title: t, done: true)` was
   // read as a write of two AppState substates called `title` and `done`.
   // Harmless while the branch kept one argument and wrong twice over once it
-  // kept all of them — and `visitMethodInvocation` takes the first `copyWith`
-  // it sees, so a local one earlier in the body shadowed the real write
-  // entirely.
+  // kept all of them — and while `visitMethodInvocation` took the first
+  // `copyWith` it saw, a local one earlier in the body shadowed the real
+  // write entirely.
   if (target is! SimpleIdentifier || target.name != 'state') {
     return const [];
   }
