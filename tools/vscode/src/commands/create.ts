@@ -80,7 +80,6 @@ export async function addSubstate(app: App): Promise<void> {
   const stateFile = queries.createdStateFile(res.stdout, targetDir);
   await ui.open(stateFile);
   await scaffold.maybeRunBuildRunner({
-    inv,
     packageRoot: stateFile && paths.findPackageRoot(stateFile),
     kind: 'substate',
     name,
@@ -127,7 +126,6 @@ export async function addPage(app: App): Promise<void> {
   // connector frx just wrote.
   const connectorFile = queries.createdFile(res.stdout, targetDir, '_page_connector.dart');
   await scaffold.maybeRunBuildRunner({
-    inv,
     packageRoot: connectorFile && paths.findPackageRoot(connectorFile),
     kind: 'page',
     name,
@@ -377,7 +375,6 @@ export async function addTabs(app: App): Promise<void> {
   await ui.open(queries.createdFile(res.stdout, targetDir, '_page.dart'));
   const connectorFile = queries.createdFile(res.stdout, targetDir, '_page_connector.dart');
   await scaffold.maybeRunBuildRunner({
-    inv,
     packageRoot: connectorFile && paths.findPackageRoot(connectorFile),
     kind: 'tabs',
     name,
@@ -607,7 +604,6 @@ async function runSimpleScaffold(app: App, spec: ScaffoldSpec): Promise<void> {
   await ui.open(created);
   if (spec.buildRunner) {
     await scaffold.maybeRunBuildRunner({
-      inv,
       packageRoot: created && paths.findPackageRoot(created),
       kind: spec.cmd,
       name,

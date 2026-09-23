@@ -21,6 +21,7 @@ import * as vscode from 'vscode';
 
 import * as config from './config';
 import { findInstalledFrx } from './discover';
+import * as proc from './proc';
 
 let _channel: vscode.OutputChannel | undefined;
 
@@ -79,14 +80,15 @@ export async function resolveFrx(
   }
 
   const frxDart = findFrxDart(context, targetDir);
-  if (frxDart && (await dartSpawns())) {
+  const dart = frxDart ? await resolveDartCmd() : null;
+  if (frxDart && dart) {
     warnAboutDartRun();
     // Pass the script as an absolute path and let the run's cwd be the target
     // folder: Dart resolves the tools/ package config from the script's own
     // location, while frx sees Directory.current = targetDir (so its printed
     // relative paths are relative to targetDir, like the installed binary).
     return {
-      cmd: 'dart',
+      cmd: dart,
       baseArgs: ['run', frxDart],
       label: `dart run ${path.relative(path.dirname(frxDart), frxDart)}`,
     };
@@ -254,7 +256,7 @@ function frxVersion(cmd: string, baseArgs: string[]): Promise<string | null> {
   return new Promise((resolve) => {
     let child: cp.ChildProcess;
     try {
-      child = cp.spawn(cmd, [...baseArgs, '--version'], { shell: false });
+      child = proc.spawn(cmd, [...baseArgs, '--version']);
     } catch {
       return resolve(null);
     }
@@ -317,28 +319,34 @@ function warnAboutDartRun(): void {
   );
 }
 
-/** `'dart'` if it can be spawned, else null (a Dock-launched VSCode may lack it). */
-export async function resolveDartCmd(): Promise<string | null> {
-  return (await dartSpawns()) ? 'dart' : null;
+/**
+ * The command that runs `dart` here — see `proc.findDart` for what that is on
+ * Windows — or null when nothing does (a Dock-launched VSCode may lack it).
+ */
+export function resolveDartCmd(): Promise<string | null> {
+  return dartSpawns();
 }
 
-/** The probe that said `dart` spawns, once it has. */
-let _dart: Promise<boolean> | null = null;
+/** The probe that found a `dart` that spawns, once it has. */
+let _dart: Promise<string | null> | null = null;
 
 /**
- * Whether `dart` can be spawned — asked once per session, once the answer is
- * yes. A yes stays true (the SDK does not vanish under a window), and every
- * resolve on the zero-install path asked again: three at activation in one
- * tick, two per change after. A no is not kept: the user may be installing
- * it right now, and the next command should find it.
+ * The `dart` command, once it has been shown to spawn — asked once per
+ * session, once the answer is yes. A yes stays true (the SDK does not vanish
+ * under a window), and every resolve on the zero-install path asked again:
+ * three at activation in one tick, two per change after. A no is not kept: the
+ * user may be installing it right now, and the next command should find it.
  */
-function dartSpawns(): Promise<boolean> {
+function dartSpawns(): Promise<string | null> {
   if (_dart) return _dart;
-  const probe = canSpawn('dart', ['--version']);
+  const cmd = proc.findDart(proc.hostEnv());
+  const probe = cmd
+    ? canSpawn(cmd, ['--version']).then((ok) => (ok ? cmd : null))
+    : Promise.resolve(null);
   _dart = probe;
-  return probe.then((ok) => {
-    if (!ok && _dart === probe) _dart = null;
-    return ok;
+  return probe.then((found) => {
+    if (!found && _dart === probe) _dart = null;
+    return found;
   });
 }
 
@@ -354,7 +362,7 @@ function canSpawn(cmd: string, args: string[]): Promise<boolean> {
     };
     let child: cp.ChildProcess;
     try {
-      child = cp.spawn(cmd, args, { shell: false });
+      child = proc.spawn(cmd, args);
     } catch {
       return done(false);
     }
@@ -432,7 +440,7 @@ export function run(
   return new Promise((resolve) => {
     let child: cp.ChildProcessWithoutNullStreams;
     try {
-      child = cp.spawn(inv.cmd, full, { cwd, shell: false });
+      child = proc.spawn(inv.cmd, full, { cwd }) as cp.ChildProcessWithoutNullStreams;
     } catch (err) {
       out.appendLine(String(err));
       return resolve({ code: -1, stdout: '', stderr: String(err) });
@@ -471,16 +479,4 @@ export function runWithProgress(
     { location: vscode.ProgressLocation.Notification, title, cancellable: false },
     () => run(inv, args, cwd, options),
   );
-}
-
-/**
- * How to invoke `dart` for build_runner. The `dart run` fallback already found
- * `dart` on PATH, so reuse it; otherwise probe PATH. Returns null when `dart`
- * can't be found — the caller should say so instead of spawning a bare `dart`
- * that ENOENTs (the exact PATH assumption resolveFrx exists to avoid).
- */
-export async function resolveDart(inv: Invocation): Promise<string | null> {
-  if (inv.cmd === 'dart') return 'dart';
-  if (await dartSpawns()) return 'dart';
-  return null;
 }

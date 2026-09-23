@@ -12,6 +12,10 @@ import * as vscode from 'vscode';
 
 import { BuildLogParser } from './buildlog';
 import * as diag from './diagnostics';
+import * as proc from './proc';
+import type { SpawnFn } from './proc';
+
+export type { SpawnFn } from './proc';
 
 const STATE_KEY = 'frx.watchEnabled';
 
@@ -27,20 +31,6 @@ const DRAIN_MS = 10_000;
  */
 const STOP_MS = 15_000;
 
-/**
- * The `child_process.spawn` seam.
- *
- * Injected so the state machine below can be tested without a real
- * `build_runner` — the transitions it owns (and the one it used to get wrong)
- * are decided by whether a process is alive, which is otherwise only observable
- * by starting one.
- */
-export type SpawnFn = (
-  command: string,
-  args: string[],
-  options: cp.SpawnOptions,
-) => cp.ChildProcess;
-
 export class FrxWatch {
   private _child: cp.ChildProcess | null = null;
   private _channel: vscode.OutputChannel | null = null;
@@ -51,13 +41,16 @@ export class FrxWatch {
   /**
    * @param root monorepo root (the dir whose pubspec declares `workspace:`)
    * @param _resolveDart resolves the `dart` command, or null
-   * @param _spawn the process seam; defaults to the real one
+   * @param _spawn the process seam — injected so the state machine below can
+   *   be tested without a real `build_runner`: every transition it owns is
+   *   decided by whether a process is alive, which is otherwise only observable
+   *   by starting one
    */
   constructor(
     private readonly _context: vscode.ExtensionContext,
     private readonly _root: string,
     private readonly _resolveDart: () => Promise<string | null>,
-    private readonly _spawn: SpawnFn = cp.spawn,
+    private readonly _spawn: SpawnFn = proc.spawn,
   ) {
     this._item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     // Clicking opens the FRX action overlay (watch toggle, add substate, add
@@ -148,7 +141,6 @@ export class FrxWatch {
       try {
         stop = this._spawn(dart, ['run', 'build_runner', 'stop', '--workspace'], {
           cwd: this._root,
-          shell: false,
           stdio: 'ignore',
         });
       } catch {
@@ -219,7 +211,6 @@ export class FrxWatch {
     try {
       child = this._spawn(dart, ['run', 'build_runner', 'watch', '--workspace'], {
         cwd: this._root,
-        shell: false,
       });
     } catch (err) {
       ch.appendLine(String(err));
@@ -292,7 +283,7 @@ export class FrxWatch {
       // Node's `kill()` ignores the signal on Windows and kills one process;
       // `/T` is what takes the build script with it.
       try {
-        if (pid !== undefined) this._spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {});
+        if (pid !== undefined) proc.spawnAndForget(this._spawn, 'taskkill', ['/pid', String(pid), '/T', '/F']);
         else child.kill();
       } catch {
         /* nothing left to kill */
@@ -302,7 +293,7 @@ export class FrxWatch {
 
     try {
       child.kill('SIGINT');
-      if (pid !== undefined) this._spawn('pkill', ['-INT', '-P', String(pid)], {});
+      if (pid !== undefined) proc.spawnAndForget(this._spawn, 'pkill', ['-INT', '-P', String(pid)]);
     } catch {
       /* already gone */
     }
@@ -315,7 +306,7 @@ export class FrxWatch {
         // killing the launcher first leaves the build script reparented to init
         // and holding the build lock — a fresh orphan made by the guard against
         // orphans.
-        this._spawn('pkill', ['-KILL', '-P', String(pid)], {});
+        proc.spawnAndForget(this._spawn, 'pkill', ['-KILL', '-P', String(pid)]);
         process.kill(pid, 'SIGKILL');
       } catch {
         /* drained in time */

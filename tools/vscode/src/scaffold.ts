@@ -82,7 +82,6 @@ export function isCollision(res: RunResult): boolean {
 }
 
 export interface BuildRunnerOptions {
-  inv: Invocation;
   packageRoot: string | null;
   kind: string;
   name: string;
@@ -96,7 +95,6 @@ export interface BuildRunnerOptions {
  * the prompt entirely. Otherwise honour the `frx.runBuildRunner` mode.
  */
 export async function maybeRunBuildRunner({
-  inv,
   packageRoot,
   kind,
   name,
@@ -128,7 +126,7 @@ export async function maybeRunBuildRunner({
 
   // Resolve `dart` the same way we resolve `frx` — don't assume it's on PATH
   // (the Dock-launched-VSCode case). If it isn't reachable, say so.
-  const dartCmd = await frx.resolveDart(inv);
+  const dartCmd = await frx.resolveDartCmd();
   if (!dartCmd) {
     vscode.window.showWarningMessage(
       'FRX: `dart` is not on PATH, so build_runner can\'t run here. ' +
