@@ -15,13 +15,31 @@ import '../../util/console.dart';
 /// ".isWaiting"`. Silent when [files] is empty, so the block after it is not
 /// followed by a gap where nothing was said.
 void narrateLeftInPlace(String still, List<String> files) {
-  if (files.isEmpty) {
+  _narrate('$still (left in place, will not compile):', [
+    for (final f in files) p.relative(f),
+  ]);
+}
+
+/// The block `leftoversOf` found: each file a removal leaves importing what it
+/// deletes, or naming what that declared, with what it names.
+///
+/// The same block [narrateLeftInPlace] prints, because it is the same
+/// statement — "these files will not compile, and they are yours" — made about
+/// every kind of removal rather than two.
+void narrateLeftovers(List<({String path, List<String> names})> leftovers) {
+  _narrate('Still names what is removed (left in place, will not compile):', [
+    for (final l in leftovers) '${p.relative(l.path)} — ${l.names.join(', ')}',
+  ]);
+}
+
+void _narrate(String heading, List<String> lines) {
+  if (lines.isEmpty) {
     return;
   }
 
-  console.out.writeln('$still (left in place, will not compile):');
-  for (final f in files) {
-    console.out.writeln('  ! ${p.relative(f)}');
+  console.out.writeln(heading);
+  for (final line in lines) {
+    console.out.writeln('  ! $line');
   }
   console.out.writeln();
 }

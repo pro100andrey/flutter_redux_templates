@@ -80,6 +80,19 @@ class WritePlan {
     this.previewNotice = 'Dry run — nothing written.',
   });
 
+  /// This plan with [narrate] replaced — for a caller that says more about a
+  /// plan it did not build.
+  WritePlan withNarration(void Function() narrate) => WritePlan(
+    changes: changes,
+    header: header,
+    narrate: narrate,
+    build: build,
+    closing: closing,
+    relativeTo: relativeTo,
+    previewOnly: previewOnly,
+    previewNotice: previewNotice,
+  );
+
   /// The whole change, applied together or not at all.
   final Changeset changes;
 

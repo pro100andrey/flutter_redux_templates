@@ -8,6 +8,7 @@ import '../util/casing.dart';
 import '../workspace/frx_workspace.dart';
 import 'remove/field_removal.dart';
 import 'remove/file_removal.dart';
+import 'remove/leftovers.dart';
 import 'remove/page_removal.dart';
 import 'remove/selector_removal.dart';
 import 'remove/substate_removal.dart';
@@ -127,7 +128,7 @@ class RemoveCommand extends WritingCommand
       // whether it declares the name, then the failure path asks again; and
       // the resolvers list `redux/` and `ui/lib` for each kind they try.
       // Outside a scope each of those lookups reads and parses on its own.
-      inSourceIndex(() => _plan(repo, results));
+      inSourceIndex(() => withLeftovers(_plan(repo, results), repo));
 
   WritePlan _plan(FrxWorkspace repo, ArgResults results) {
     final forced = results['kind'] as String?;

@@ -41,5 +41,23 @@ String? packageUriOf(String path, Map<String, String> packages) {
   return null;
 }
 
+/// Each `import`/`export` directive in [source], with where its URI starts,
+/// read as text.
+///
+/// For a sweep over every file, where parsing each one to find its imports
+/// costs what the audit is budgeted not to spend; a directive is one line of a
+/// known shape. `part` is not among them — a missing part is build_runner's.
+Iterable<({String uri, int offset})> directivesIn(String source) => _directive
+    .allMatches(source)
+    .map(
+      (m) => (uri: m[2]!, offset: m.start + m[0]!.lastIndexOf(m[2]!)),
+    );
+
+/// An `import` or `export` directive at the start of a line, and its URI.
+final _directive = RegExp(
+  r'''^\s*(import|export)\s+r?['"]([^'"]+)['"]''',
+  multiLine: true,
+);
+
 /// A platform path as a URI path: `/`-separated whatever the platform's is.
 String uriPath(String path) => p.split(path).join('/');

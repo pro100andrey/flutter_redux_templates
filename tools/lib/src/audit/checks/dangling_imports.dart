@@ -38,8 +38,7 @@ void checkDanglingImports(FrxWorkspace repo, List<Finding> into) {
         // Read as text, not parsed: the audit parses only what it has to, and
         // every file has imports. A directive is one line of a known shape.
         final source = sourceIndex.sourceOf(file);
-        for (final m in _directive.allMatches(source)) {
-          final value = m.group(2)!;
+        for (final (uri: value, :offset) in directivesIn(source)) {
           final target = workspaceTarget(
             value,
             from: file.absolute.path,
@@ -52,10 +51,7 @@ void checkDanglingImports(FrxWorkspace repo, List<Finding> into) {
             continue;
           }
 
-          final at = positionInSource(
-            source,
-            m.start + m[0]!.lastIndexOf(value),
-          );
+          final at = positionInSource(source, offset);
           into.add(
             Finding.error(
               '${p.relative(file.path, from: repo.root.path)} imports '
@@ -70,9 +66,3 @@ void checkDanglingImports(FrxWorkspace repo, List<Finding> into) {
     }
   }
 }
-
-/// An `import` or `export` directive at the start of a line, and its URI.
-final _directive = RegExp(
-  r'''^\s*(import|export)\s+r?['"]([^'"]+)['"]''',
-  multiLine: true,
-);
