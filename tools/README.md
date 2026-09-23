@@ -45,7 +45,7 @@ release assets. The rest of this section is for working **on** frx.
 cd tools
 dart run :xtask --list                     # what you can run, grouped by who runs it
 PROFILE=Flutter dart run :xtask install    # the CLI on PATH + the extension in that profile
-dart run :xtask check                      # everything CI runs, locally
+dart run :xtask check                      # the gates a person runs before calling work done
 dart run :xtask --dry-run install          # what that would do, without doing it
 ```
 
@@ -1512,7 +1512,7 @@ tail, which is why the machine result is assembled from the same
 
 ```bash
 dart run :xtask test    # dart test + the extension suite
-dart run :xtask check   # everything CI runs
+dart run :xtask check   # the local gates; CI runs the ci-* gate sets
 
 dart test                    # unit + command + E2E + reality (960 tests, ~45s)
 ```

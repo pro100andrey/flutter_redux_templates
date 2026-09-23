@@ -65,8 +65,9 @@ changes are marked as such.
   itself; a private one is `action:<substate>.<MainAction>.<_Step>`, since two
   files in one substate may each declare a `_Started`, and carries its line.
   A named constructor (`RefreshAction.forOperator()`) and a `const`
-  construction resolve to the class. *(CLI; the Map titles a private step by
-  its file's action.)*
+  construction resolve to the class. *(CLI; the FRX tree and the Map title a
+  private step by its file's action — `InstallSkillsAction._AgentWorking`
+  where the tree said `_AgentWorking`.)*
 
 - **A connector opened through a function is built by its callers.** A
   dialog's connector is constructed in one place — the `openSettings(context)`
@@ -90,15 +91,19 @@ changes are marked as such.
 - **The repository's tasks are data.** `tools/tool/xtask.dart` — a
   CommandRunner that had replaced the Makefile — is gone; the tasks are
   `xtask.yaml` at the repository root, run by
-  [`package:xtask`](https://pub.dev/packages/xtask), and the seven with real
-  logic in them (the version bump, the profile check, the VSIX install, the
-  native build, the template pack, `profiles`, `uninstall`) are verbs in
-  `tools/bin/xtask.dart`. `cd tools && dart run :xtask check` is what CI's
-  `tools` and `extension` jobs run, `install` puts `frx` on PATH and the
+  [`package:xtask`](https://pub.dev/packages/xtask), and the nine with real
+  logic in them (`version`, `dist`, `cli-verify`, `pack-template`,
+  `install-ext`, `profiles`, `uninstall`, `format-workspace`,
+  `codegen-drift`) are verbs in `tools/bin/xtask.dart`. `cd tools && dart
+  run :xtask check` is what a person runs before calling work done — CI's
+  jobs run the gate sets below, which add what needs a display or a
+  toolchain `check` does not assume — `install` puts `frx` on PATH and the
   extension into `$PROFILE`, `--dry-run` says what either would do first,
-  and `--list` groups every task by who runs it. Options a task took
-  (`--profile`, `--names`) come after `--`; the environment (`PROFILE`,
-  `CODE`) stands in for them as before. The schema beside the file
+  and `--list` groups every task by who runs it. The options a task took
+  (`--profile`, `--code`, `--names`) go after `--` to the task that reads
+  them — `ext -- --profile Flutter`, `profiles -- --names`; `install` is a
+  gate set and takes none, so the environment (`PROFILE`, `CODE`) is how it
+  gets them, as before. The schema beside the file
   (`xtask.schema.json`) completes it in an editor.
 
   CI names no command of its own any more: each job runs one gate set —
@@ -126,9 +131,9 @@ changes are marked as such.
   directives that referred to a linter this project never ran are gone —
   typescript-eslint does not yet support the TypeScript this builds with.
 
-- **Dev dependencies:** `@vscode/vsce` 4 — what CI and `xtask package` were
-  already running through `npx --yes`, so a local `npm run package` builds
-  the same VSIX; `@types/node` and `mocha` to their current patches; the
+- **Dev dependencies:** `@vscode/vsce` 4, a major version — 0.3.7 is the
+  first VSIX it packaged (`npx --yes @vscode/vsce` had run the locked 3.9.2);
+  the file list and manifest came out as 0.3.6's but for the version; `@types/node` and `mocha` to their current patches; the
   lock's transitive advisories (`brace-expansion`, `fast-uri`, `js-yaml`,
   `qs`, `undici`) resolved — none of them ship, the extension has no
   runtime dependencies. `@types/vscode` stays at 1.120.0: the highest
