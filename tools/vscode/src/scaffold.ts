@@ -1,6 +1,6 @@
 // The shared scaffolding engine. Every "create & wire" command (substate, page,
 // action, tabs, the single-file scaffolders) repeats the same pipeline — run frx,
-// offer an overwrite retry on exit 70, surface failures, refresh — and then
+// offer an overwrite retry on a collision, surface failures, refresh — and then
 // generates the code the new files depend on. This module owns both steps so each
 // command is just "gather args → run → post".
 //
@@ -21,7 +21,7 @@ import * as frx from './frx';
 import type { Invocation, RunResult } from './frx';
 import * as ui from './ui';
 import type { FrxWatch } from './watch';
-import { EXIT } from './generated/contract';
+import { EXIT, OVERWRITE_HINT } from './generated/contract';
 
 export interface ScaffoldOptions {
   inv: Invocation;
@@ -30,7 +30,7 @@ export interface ScaffoldOptions {
   afterChange: () => void;
   title: string;
   /**
-   * Prompt + progress title for the exit-70 retry. Omitted by commands that
+   * Prompt + progress title for the collision retry. Omitted by commands that
    * cannot collide: `add-nav` only edits files that must already exist, and is
    * idempotent — it reports "already has" and stops.
    */
@@ -48,7 +48,7 @@ export interface ScaffoldOptions {
 export async function runScaffold(opts: ScaffoldOptions): Promise<RunResult | null> {
   const { inv, args, cwd, afterChange } = opts;
   let res = await frx.runWithProgress(opts.title, inv, args, cwd);
-  if (res.code === EXIT.failure && opts.overwritePrompt !== undefined) {
+  if (isCollision(res) && opts.overwritePrompt !== undefined) {
     if (!(await ui.confirmOverwrite(opts.overwritePrompt))) return null;
     res = await frx.runWithProgress(
       opts.overwriteTitle ?? opts.title,
@@ -63,6 +63,22 @@ export async function runScaffold(opts: ScaffoldOptions): Promise<RunResult | nu
   }
   afterChange();
   return res;
+}
+
+/**
+ * Whether a run was refused because what it would write already exists — the
+ * one refusal `--force` answers.
+ *
+ * **Not the exit code alone.** 70 is every refusal: "Create it with `frx
+ * add-package models`", "Substate … not found", a changeset rolled back. Keyed
+ * on the code, each of those was offered as "already exists. Overwrite?", and
+ * answering yes re-ran the same refusal with `--force` before its real reason
+ * surfaced — or never did, on a No. The CLI says [OVERWRITE_HINT] only where
+ * `--force` is the remedy, and the sentence is generated from its source, so
+ * this reads the CLI's own words rather than a copy of them.
+ */
+export function isCollision(res: RunResult): boolean {
+  return res.code === EXIT.failure && res.stderr.includes(OVERWRITE_HINT);
 }
 
 export interface BuildRunnerOptions {

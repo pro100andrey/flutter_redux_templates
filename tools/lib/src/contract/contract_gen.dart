@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../audit/finding.dart';
 import '../command_runner.dart';
 import '../commands/frx_command.dart';
+import '../engine/write_path.dart';
 import '../model/page_artifact.dart';
 import '../scaffold/package_scaffold.dart';
 import '../util/casing.dart';
@@ -134,13 +135,23 @@ export type FixId = (typeof FIX_IDS)[number];
  * What a non-zero `frx` exit means.
  *
  * The editor keys on both: `scaffold.ts` offers an overwrite
- * on FAILURE, `artifact.ts` raises a disambiguation picker on
- * USAGE. sysexits.h values, as a shell expects.
+ * on a FAILURE that says [OVERWRITE_HINT], `artifact.ts` raises
+ * a disambiguation picker on USAGE. sysexits.h values, as a
+ * shell expects.
  */
 export const EXIT = {
   usage: ${FrxRunner.exitUsage},
   failure: ${FrxRunner.exitFailure},
 } as const;
+
+/**
+ * The stderr line that marks an exit-70 refusal as a collision.
+ *
+ * FAILURE is every refusal — a missing package, an unknown
+ * substate, a rolled-back changeset — and only this one is
+ * answered by `--force`.
+ */
+export const OVERWRITE_HINT = '${_escape(kOverwriteHint)}';
 ''';
 
   /// The optional workspace members `add-package` knows how to create.

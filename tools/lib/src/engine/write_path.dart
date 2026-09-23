@@ -37,6 +37,16 @@ bool _flag(ArgResults results, String name, {bool orElse = false}) =>
 /// three chances for the flag it names to stop being the flag it takes.
 const kPreviewNotice = 'Preview only — re-run with --apply to apply.';
 
+/// The line that says a refusal was a collision, and nothing else.
+///
+/// Exit 70 is every refusal — "not inside a project", "create it with
+/// `frx add-package models`", a changeset rolled back — so the editor cannot
+/// read "already exists" off the code; it offered an overwrite for all of them,
+/// and answering yes re-ran the same refusal with `--force`. This sentence is
+/// said only where `--force` is the remedy, and it travels into the generated
+/// `contract.ts` so the editor keys on the CLI's own words rather than a copy.
+const kOverwriteHint = 'Use --force to overwrite.';
+
 /// Whether a destructive command was told to go through with it.
 ///
 /// Two spellings, because `--force` is the retired one and still answers.
@@ -129,7 +139,7 @@ Future<int> runChangeset(
     for (final f in collisions) {
       console.err.writeln('✗ ${p.relative(f)} already exists.');
     }
-    console.err.writeln('Use --force to overwrite.');
+    console.err.writeln(kOverwriteHint);
     return 70;
   }
 

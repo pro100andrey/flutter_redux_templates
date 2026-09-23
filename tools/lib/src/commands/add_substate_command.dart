@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../engine/build_step.dart';
 import '../engine/changeset.dart';
+import '../engine/write_path.dart';
 import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
@@ -74,7 +75,7 @@ class AddSubstateCommand extends WritingCommand {
     final exists = Directory(substateDir).existsSync();
     if (!(results['dry-run'] as bool) && exists && !force) {
       refuse(
-        '${p.relative(substateDir)} already exists. Use --force to overwrite.',
+        '${p.relative(substateDir)} already exists. $kOverwriteHint',
       );
     }
 

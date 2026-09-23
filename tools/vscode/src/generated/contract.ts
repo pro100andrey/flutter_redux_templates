@@ -43,13 +43,23 @@ export type FixId = (typeof FIX_IDS)[number];
  * What a non-zero `frx` exit means.
  *
  * The editor keys on both: `scaffold.ts` offers an overwrite
- * on FAILURE, `artifact.ts` raises a disambiguation picker on
- * USAGE. sysexits.h values, as a shell expects.
+ * on a FAILURE that says [OVERWRITE_HINT], `artifact.ts` raises
+ * a disambiguation picker on USAGE. sysexits.h values, as a
+ * shell expects.
  */
 export const EXIT = {
   usage: 64,
   failure: 70,
 } as const;
+
+/**
+ * The stderr line that marks an exit-70 refusal as a collision.
+ *
+ * FAILURE is every refusal — a missing package, an unknown
+ * substate, a rolled-back changeset — and only this one is
+ * answered by `--force`.
+ */
+export const OVERWRITE_HINT = 'Use --force to overwrite.';
 
 /**
  * The optional workspace members `add-package` creates.
