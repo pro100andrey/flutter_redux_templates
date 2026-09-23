@@ -1,6 +1,4 @@
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:sembast/sembast_io.dart';
+import 'package:sembast/sembast.dart';
 
 import 'sembast.dart';
 
@@ -16,32 +14,18 @@ mixin SembastSetupMixin {
 
   StoreRef get mainStore => StoreRef.main();
 
+  /// Opens [dbFile] where this platform keeps an app's private data.
+  ///
+  /// Holds no platform logic of its own: [databasePath] and [databaseFactory]
+  /// come from `sembast.dart`, whose one conditional export picks the io or
+  /// the web implementation of both. The platform test used to live here, as
+  /// a second opinion that disagreed with the export under `--wasm`.
   Future<void> setupStorage({
     String dbFile = 'database.db',
     String? password,
   }) async {
-    final getPath = () async {
-      //
-      // ignore: do_not_use_environment
-      const isWeb = bool.fromEnvironment('dart.library.js_util');
-
-      if (!isWeb) {
-        final dir = await getApplicationDocumentsDirectory();
-        await dir.create(recursive: true);
-        final dbPath = p.join(dir.path, dbFile);
-
-        return dbPath;
-      }
-
-      return '/assets/db';
-    }();
-
-    final dbPath = await getPath;
-
-    final dbFactory = getDatabaseFactory();
-
-    _db = await dbFactory.openDatabase(
-      dbPath,
+    _db = await databaseFactory.openDatabase(
+      await databasePath(dbFile),
       codec: password != null
           ? getEncryptSembastCodec(password: password)
           : null,

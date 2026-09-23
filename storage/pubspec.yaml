@@ -15,6 +15,10 @@ dependencies:
   path_provider: ^2.1.6
   sembast: ^3.8.9
   sembast_web: ^2.4.5
-  
+
 dev_dependencies:
+  flutter:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
   pro_lints: ^6.1.0

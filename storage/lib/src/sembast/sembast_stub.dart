@@ -1,8 +1,10 @@
 import 'package:sembast/sembast.dart';
 
-DatabaseFactory getDatabaseFactory({String? packageName, String? rootPath}) =>
-    _stub('getDatabaseFactory(packageName: $packageName, rootPath: $rootPath)');
+DatabaseFactory get databaseFactory => _stub('databaseFactory');
 
-T _stub<T>(String message) {
-  throw UnimplementedError(message);
-}
+Future<String> databasePath(String dbFile) => _stub('databasePath($dbFile)');
+
+Never _stub(String member) => throw UnimplementedError(
+  '$member: no sembast backend for this platform — it has neither '
+  'dart:io nor dart:js_interop.',
+);
