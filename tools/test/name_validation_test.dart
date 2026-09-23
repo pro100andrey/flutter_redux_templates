@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:tools/src/command_runner.dart';
 import 'package:tools/src/scaffold/widget_scaffold.dart';
 import 'package:tools/src/util/casing.dart';
+import 'package:tools/src/util/console.dart';
 import 'package:tools/src/util/dart_names.dart';
 
 import 'support/fixture.dart';
@@ -122,6 +124,42 @@ void main() {
         WidgetScaffold.referencedClasses(WidgetKind.view),
         containsAll(['Text', 'Widget', 'Padding']),
       );
+    });
+  });
+
+  group('create refuses a project name that breaks the workspace', () {
+    late Directory tmp;
+
+    setUp(() => tmp = Directory.systemTemp.createTempSync('frx_create_name_'));
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    Future<({int code, String err})> create(String name) async {
+      final captured = CapturedConsole();
+      final code = await withConsole(
+        captured,
+        () => FrxRunner().runFrx([
+          'create',
+          name,
+          '--target',
+          p.join(tmp.path, name),
+          '--dry-run',
+        ]),
+      );
+      return (code: code, err: captured.errors);
+    }
+
+    test('a member, a dependency, a keyword', () async {
+      for (final (name, why) in [
+        ('business', 'workspace members need unique names'),
+        ('async_redux', 'cannot depend on itself'),
+        ('class', 'reserved word'),
+        ('int', 'Java keyword'),
+      ]) {
+        final r = await create(name);
+        expect(r.code, 64, reason: name);
+        expect(r.err, contains(why), reason: name);
+      }
+      expect((await create('my_shop')).code, 0);
     });
   });
 }

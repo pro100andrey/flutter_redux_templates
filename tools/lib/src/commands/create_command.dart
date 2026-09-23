@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'package:args/command_runner.dart';
 import 'package:mold/mold.dart';
 import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 
 import '../engine/changeset.dart';
 import '../scaffold/package_scaffold.dart';
 import '../template/template.g.dart';
 import '../util/console.dart';
+import '../util/dart_names.dart';
 import 'options.dart';
 
 /// Materialises this monorepo under a new name.
@@ -88,6 +90,102 @@ class CreateCommand extends Command<int> {
   /// A Dart package name — and the stem every platform identifier derives from.
   static final _projectName = RegExp(r'^[a-z][a-z0-9_]*$');
 
+  /// Why [name] would break the project it names, or null when it would not.
+  ///
+  /// The shape check above is pub's; these are the ones it cannot make, each
+  /// of which `create` used to accept and hand to `flutter pub get` or a
+  /// platform build to reject:
+  ///
+  /// * the name of a **package the template carries** — the root pubspec is a
+  ///   workspace whose members are `business`, `app`, `ui` …, and "Workspace
+  ///   members must have unique names";
+  /// * the name of a **dependency** they declare (`flutter`, `async_redux`) —
+  ///   a package cannot depend on itself;
+  /// * a **keyword** — the name is the last segment of the Android
+  ///   application id and the Kotlin/Java package, so `class` wrote
+  ///   `com.example.class`, which no Android build accepts.
+  ///
+  /// Read off the template's own pubspecs rather than listed, so a package
+  /// the template gains is refused the day it ships.
+  static String? _nameProblem(String name, Map<String, List<int>> template) {
+    if (DartNames.problem(name) case final problem?) {
+      return problem;
+    }
+    if (_javaKeywords.contains(name)) {
+      return '"$name" is a Java keyword, and the Android application id ends '
+          'in it';
+    }
+
+    // Package names first: `business` is both a member and a dependency of
+    // `app`, and the member is the answer that says what is wrong.
+    final members = <String, String>{};
+    final dependencies = <String, String>{};
+    for (final MapEntry(key: path, value: content) in template.entries) {
+      if (p.posix.basename(path) != 'pubspec.yaml') {
+        continue;
+      }
+      final Object? doc;
+      try {
+        doc = loadYaml(utf8.decode(content));
+      } on Object {
+        continue; // a templated pubspec that is not YAML until rendered
+      }
+      if (doc is! YamlMap) {
+        continue;
+      }
+
+      if (doc['name'] case final String member) {
+        members[member] = p.posix.dirname(path);
+      }
+      for (final section in const [
+        'dependencies',
+        'dev_dependencies',
+        'dependency_overrides',
+      ]) {
+        if (doc[section] case final YamlMap deps) {
+          for (final dep in deps.keys.whereType<String>()) {
+            dependencies[dep] ??= path;
+          }
+        }
+      }
+    }
+
+    if (members[name] case final dir?) {
+      return 'the template already has a package called "$name" ($dir/), and '
+          'workspace members need unique names';
+    }
+    if (dependencies[name] case final pubspec?) {
+      return 'the template depends on a package called "$name" ($pubspec), '
+          'and a package cannot depend on itself';
+    }
+    return null;
+  }
+
+  /// Java's keywords that Dart does not reserve too — an Android package
+  /// segment may be neither.
+  static const _javaKeywords = {
+    'boolean',
+    'byte',
+    'char',
+    'double',
+    'float',
+    'goto',
+    'instanceof',
+    'int',
+    'long',
+    'native',
+    'package',
+    'private',
+    'protected',
+    'public',
+    'short',
+    'strictfp',
+    'synchronized',
+    'throws',
+    'transient',
+    'volatile',
+  };
+
   @override
   Future<int> run() async {
     final results = argResults!;
@@ -101,6 +199,15 @@ class CreateCommand extends Command<int> {
         'with a letter: it becomes the Dart package name, and every platform '
         'identifier is derived from it.',
       );
+    }
+
+    // Decoded once and handed to every reader below. Two of them used to
+    // decode it themselves, which is half a megabyte of base64 per call.
+    final bytes = base64Decode(kFrxTemplateBase64);
+
+    if (_nameProblem(name, const ArchiveReader().read(bytes).files)
+        case final problem?) {
+      usageException('"$name" cannot name a project: $problem.');
     }
 
     final target = p.absolute(results.option('target') ?? name);
@@ -122,10 +229,6 @@ class CreateCommand extends Command<int> {
       for (final name in results.multiOption('without'))
         PackageKind.byName(name)!,
     ];
-
-    // Decoded once and handed to all three readers below. Two of them used to
-    // decode it themselves, which is half a megabyte of base64 per call.
-    final bytes = base64Decode(kFrxTemplateBase64);
 
     try {
       // Planned in both cases, and then applied. The plan is the unpack minus
