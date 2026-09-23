@@ -961,11 +961,30 @@ class _GraphRead {
   // a dispatcher is constructed where the app wires its services, and one
   // nothing constructs is dead with every action only it dispatches.
   void _addComposition() {
-    final connectorNodes = <String, String>{
-      for (final n in graph.nodes)
-        if (n.kind == NodeKind.consumer || n.kind == NodeKind.service)
-          n.name: n.id,
-    };
+    // By every public class the node's file declares, not by the node's name
+    // alone. A node is named after its file's first public class, and a file
+    // declaring `TabHeaderConnector` above `TabsConnector` became
+    // `consumer:TabHeaderConnector` — so the page constructing
+    // `TabsConnector` matched no node, and the file that is the tab bar read
+    // as constructed by nothing. A construction of any class in the file is
+    // a construction of what the file is.
+    final connectorNodes = <String, String>{};
+    for (final n in graph.nodes) {
+      if (n.kind != NodeKind.consumer && n.kind != NodeKind.service) {
+        continue;
+      }
+      connectorNodes[n.name] = n.id;
+      final file = n.file;
+      if (file == null) {
+        continue;
+      }
+      for (final cls in classesIn(_consumerAt(File(file)).unit)) {
+        final name = cls.namePart.typeName.lexeme;
+        if (!name.startsWith('_')) {
+          connectorNodes.putIfAbsent(name, () => n.id);
+        }
+      }
+    }
     for (final consumer in consumers.values) {
       final built = {...consumer.builds};
       for (final path in consumer.imports) {

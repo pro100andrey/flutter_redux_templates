@@ -469,6 +469,29 @@ class App {
       }
       expect(_orphanIds(g), isEmpty);
     });
+
+    test('second in its file is built with the file', () {
+      final g = _graphOf({
+        '$_redux/app_state.dart': _todosAppState,
+        '$_redux/todos/actions/noop_action.dart': _action('NoopAction'),
+        'app/lib/widgets/tabs_connector.dart': '''
+import 'package:business/redux/todos/actions/noop_action.dart';
+class TabHeaderConnector { void t() => dispatch(NoopAction()); }
+class TabsConnector { build() => TabHeaderConnector(); }
+''',
+        'app/lib/app.dart': '''
+import 'widgets/tabs_connector.dart';
+class App { build() => TabsConnector(); }
+''',
+      });
+      // The file's node is named after its first class; building the second
+      // is building the file.
+      expect(
+        _edges(g, from: 'consumer:App', to: 'consumer:TabHeaderConnector'),
+        isNotEmpty,
+      );
+      expect(_orphanIds(g), isEmpty);
+    });
   });
 
   group('a selector method', () {
