@@ -23,3 +23,26 @@ $found = Invoke-ScriptAnalyzer -Path $script
 if ($found) { $found | Format-Table -AutoSize | Out-String | Write-Host }
 if ($found | Where-Object Severity -eq 'Error') { exit 1 }
 Write-Host "install.ps1 parses and analyses clean"
+
+# Run the way the README runs it — `irm … | iex` — and check what it leaves in
+# the calling session. iex evaluates in the caller's scope, so a top-level
+# `$ErrorActionPreference = 'Stop'` used to outlive the install and change how
+# the user's next command failed, along with every variable and function the
+# script defined. The mirror is unreachable on purpose: the script gets far
+# enough to set everything up, then fails on the first download, which also
+# checks that a failure throws rather than `exit`ing the user's session.
+$env:FRX_VERSION = '0.0.0'
+$env:FRX_DOWNLOAD_BASE = 'http://127.0.0.1:1/unreachable'
+if (-not $env:LOCALAPPDATA) { $env:LOCALAPPDATA = [IO.Path]::GetTempPath() }
+$ErrorActionPreference = 'Continue'
+$threw = $null
+try { Get-Content $script -Raw | Invoke-Expression } catch { $threw = "$_" }
+$problems = @()
+if ($threw -notlike 'frx: *') { $problems += "a failed download should throw 'frx: …', got: $threw" }
+if ($ErrorActionPreference -ne 'Continue') { $problems += "`$ErrorActionPreference leaked as $ErrorActionPreference" }
+foreach ($name in 'Repo', 'tmp', 'asset', 'base') {
+  if (Get-Variable $name -ErrorAction SilentlyContinue) { $problems += "`$$name leaked into the session" }
+}
+if (Get-Command Fail -ErrorAction SilentlyContinue) { $problems += 'function Fail leaked into the session' }
+if ($problems) { $problems | ForEach-Object { Write-Host "FAIL: $_" }; exit 1 }
+Write-Host "install.ps1 under iex leaves the session as it found it"

@@ -196,7 +196,7 @@ tasks:
     run: [sh, tools/scripts/test/install_sh_test.sh]
 
   installer-ps1:
-    desc: parse and analyse install.ps1 with PSScriptAnalyzer
+    desc: parse and analyse install.ps1, and run it under iex to see it leaves the session alone
     gate: [ci-installers]
     run: [pwsh, -NoProfile, -File, tools/scripts/check-install.ps1]
 
