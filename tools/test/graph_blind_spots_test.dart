@@ -45,7 +45,8 @@ AppGraph _graphOf(Map<String, String> files) {
 }
 
 /// A do-nothing action class called [name].
-String _action(String name) => '''
+String _action(String name) =>
+    '''
 class $name extends Action {
   @override
   AppState? reduce() => null;
@@ -195,7 +196,8 @@ void main() {
       '$_redux/app_state.dart': _todosAppState,
       for (final n in names)
         '$_redux/todos/actions/${n[0].toLowerCase()}_action.dart': _action(n),
-      'app/lib/widgets/panel_connector.dart': '''
+      'app/lib/widgets/panel_connector.dart':
+          '''
 ${[for (final n in names) "import 'package:business/redux/todos/actions/${n[0].toLowerCase()}_action.dart';"].join('\n')}
 
 class PanelConnector extends StatelessWidget {
@@ -412,7 +414,8 @@ class CartConnector {}
   });
 
   group('a connector', () {
-    String connector(String name) => '''
+    String connector(String name) =>
+        '''
 class $name extends StatelessWidget {
   $name();
   $name.dialog();
@@ -431,7 +434,8 @@ import 'package:business/redux/todos/actions/noop_action.dart';
 ${connector('${n}Connector')}
 void _touch() => dispatch(NoopAction());
 ''',
-        'app/lib/widgets/c_connector.dart': '''
+        'app/lib/widgets/c_connector.dart':
+            '''
 import 'package:business/redux/todos/actions/noop_action.dart';
 ${connector('CConnector')}
 void _touch() => dispatch(NoopAction());

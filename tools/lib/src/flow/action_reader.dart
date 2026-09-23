@@ -166,6 +166,7 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
         if (w.field == null || !whole.contains(w.substate)) w,
     ];
   }
+
   var throwsUserException = false;
 
   @override
