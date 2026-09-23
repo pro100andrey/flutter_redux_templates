@@ -242,6 +242,43 @@ class App { Widget build() => PanelConnector(); }
       expect(g.node('action:given'), isNull);
     });
 
+    test('in a top-level function of an action file cascades', () {
+      final g = _graphOf({
+        '$_redux/app_state.dart': _todosAppState,
+        '$_redux/todos/actions/refresh_action.dart': _action('RefreshAction'),
+        '$_redux/todos/actions/toggle_action.dart': '''
+import 'refresh_action.dart';
+
+class ToggleAction extends Action {
+  @override
+  AppState? reduce() {
+    _kick(this);
+    return null;
+  }
+}
+
+void _kick(Action a) => a.dispatch(RefreshAction());
+''',
+        'app/lib/widgets/list_connector.dart': '''
+import 'package:business/redux/todos/actions/toggle_action.dart';
+class ListConnector { void a() => dispatch(ToggleAction()); }
+''',
+        'app/lib/app.dart': '''
+import 'widgets/list_connector.dart';
+class App { build() => ListConnector(); }
+''',
+      });
+      expect(
+        _edges(
+          g,
+          from: 'action:todos.ToggleAction',
+          to: 'action:todos.RefreshAction',
+        ),
+        isNotEmpty,
+      );
+      expect(_orphanIds(g), isNot(contains('action:todos.RefreshAction')));
+    });
+
     test('a list is never read as a class name', () {
       final g = read();
       expect(g.nodes.where((n) => n.name.contains('[')), isEmpty);

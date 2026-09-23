@@ -148,12 +148,29 @@ class _ActionVisitor extends RecursiveAstVisitor<void> {
     // left the dispatched action looking like one nothing reaches — reported
     // in the orphan list, which is the one place frx says "you can delete
     // this".
+    _collectDispatches(node.body);
+    super.visitMethodDeclaration(node);
+  }
+
+  /// A top-level function of the file, by the same reasoning one step out:
+  /// `void _kick(Action a) => a.dispatch(RefreshAction());` called from
+  /// `reduce()` cascades exactly as the call it replaces, and read only off
+  /// methods it left `RefreshAction` on the orphan list. A function nested in
+  /// a method is already inside that method's body.
+  @override
+  void visitFunctionDeclaration(FunctionDeclaration node) {
+    if (node.parent is CompilationUnit) {
+      _collectDispatches(node.functionExpression.body);
+    }
+    super.visitFunctionDeclaration(node);
+  }
+
+  void _collectDispatches(FunctionBody body) {
     final v = DispatchVisitor();
-    node.body.accept(v);
+    body.accept(v);
     if (v.steps.isNotEmpty) {
       dispatches = [...dispatches, ...v.steps];
     }
-    super.visitMethodDeclaration(node);
   }
 
   @override
