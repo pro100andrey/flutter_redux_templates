@@ -30,6 +30,12 @@ changes are marked as such.
   it, so the declarations could never agree) or there are no notes to name.
   The skills freshness test compares the stamp too. *(Repository)*
 
+- **The release runs the CLI's test suite before it publishes.** Its `cli`
+  job compiled and smoke-tested, and the release did not wait for CI — v0.3.6
+  and v0.3.7 were both public before CI on their commit reported — so a stale
+  embedded template could ship in every binary. A `tools` job now runs CI's
+  `ci-tools` gate, and the release needs it. *(Repository)*
+
 ### Changed
 
 - **Note for 0.3.7: `graph --fail-on-orphans` gates on more than it did.**

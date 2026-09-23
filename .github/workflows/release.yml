@@ -7,11 +7,13 @@ name: Release
 # drift is a pair that will, and the symptom is an editor offering a kind the
 # installed binary rejects.
 #
-#   git tag v0.3.0 && git push origin v0.3.0
+#   cd tools && dart run :xtask version -- 1.2.3   # every file, one commit
+#   git tag v1.2.3 && git push origin v1.2.3        # once CI on it is green
 #
 # `verify` refuses the tag unless three files already say that version:
 # tools/pubspec.yaml, tools/lib/src/version.dart and tools/vscode/package.json.
-# Bump them in the commit the tag points at, not after.
+# Bump them in the commit the tag points at, not after. `tools` runs CI's CLI
+# gate again, and the release waits for it.
 #
 # Nothing is published anywhere and no secrets are needed. The release is the
 # artifact: five archives, a `checksums.txt` and the `.vsix`. The extension goes
@@ -168,6 +170,25 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  tools:
+    name: frx gate
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tools
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - name: ci-tools
+        # CI's own gate, repeated for the reason `vsix` repeats the extension's:
+        # a tag can be pushed at a commit CI never finished, and `cli` only
+        # compiles and smoke-tests. The suite holds the freshness tests — the
+        # embedded template, the skills and their version stamp, the contract —
+        # and a stale template is in every binary `cli` builds.
+        run: dart run :xtask ci-tools
+
   vsix:
     name: VSIX
     needs: verify
@@ -203,7 +224,7 @@ jobs:
 
   release:
     name: GitHub release
-    needs: [verify, cli, vsix]
+    needs: [verify, tools, cli, vsix]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
