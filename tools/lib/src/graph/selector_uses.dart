@@ -38,8 +38,38 @@ Set<String> selectorUsesIn(
   Set<String> facades = const {},
 }) {
   final visitor = _SelectorUseVisitor(index, facades);
-  node.accept(visitor);
+  node
+    ..accept(_HopAliases(visitor))
+    ..accept(visitor);
   return visitor.used;
+}
+
+/// The locals holding one substate's selectors — `final t = todos;` — so
+/// `t.filter` is judged as `todos.filter`.
+///
+/// Without it the read had a head that was neither a hop nor the facade, was
+/// refused, and `SelectTodos.filter` was reported as read by nothing beside
+/// the line reading it. Bound by what the initializer *is*, a hop reached the
+/// way the chain rule accepts one, never by the local's name.
+class _HopAliases extends RecursiveAstVisitor<void> {
+  _HopAliases(this._uses);
+
+  final _SelectorUseVisitor _uses;
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    final initializer = node.initializer;
+    if (initializer != null) {
+      final parts = _uses._segments(initializer);
+      if (parts != null &&
+          parts.isNotEmpty &&
+          _uses._hops.contains(parts.last) &&
+          (parts.length == 1 || _uses._isFacade(parts[parts.length - 2]))) {
+        _uses._aliases[node.name.lexeme] = parts.last;
+      }
+    }
+    super.visitVariableDeclaration(node);
+  }
 }
 
 /// The names in [unit] that hold a selector facade — a variable, a field, a
@@ -182,6 +212,16 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
 
   final used = <String>{};
 
+  /// The substate hops the index reaches selectors through — `logIn` for
+  /// `logIn.email`.
+  late final Set<String> _hops = {
+    for (final key in index.keys)
+      if (key.contains('.')) key.substring(0, key.indexOf('.')),
+  };
+
+  /// Local → the hop it holds — see [_HopAliases].
+  final _aliases = <String, String>{};
+
   /// `this` among them: inside a class mixing in `Selectors` it *is* the
   /// facade — see [_segments].
   bool _isFacade(String name) =>
@@ -289,8 +329,12 @@ class _SelectorUseVisitor extends RecursiveAstVisitor<void> {
     // it to be judged at all — as nothing, `this.isBusy` was a chain of one
     // name and `SelectComposites.isBusy` read as read by nobody.
     ThisExpression() => const ['this'],
-    SimpleIdentifier() => [node.name],
-    PrefixedIdentifier() => [node.prefix.name, node.identifier.name],
+    // A local holding a hop stands for the hop — see [_HopAliases].
+    SimpleIdentifier() => [_aliases[node.name] ?? node.name],
+    PrefixedIdentifier() => [
+      _aliases[node.prefix.name] ?? node.prefix.name,
+      node.identifier.name,
+    ],
     // `_Reader(state).chats.unreadTotal` — the facade built where it is read,
     // which the tray does twice. Only a facade type roots a chain this way;
     // `of(context).logIn.email` stays unreadable, since what `of` returns is

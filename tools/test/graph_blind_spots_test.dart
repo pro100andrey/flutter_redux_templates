@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:tools/src/graph/graph_model.dart';
@@ -567,6 +568,38 @@ class TodosConnector {}
         contains('selector:SelectTodos.query'),
       );
       expect(_orphanIds(g), isEmpty);
+    });
+  });
+
+  group("a substate's selectors held in a local", () {
+    test('are read through it', () {
+      final uses = selectorUsesIn(
+        parseString(
+          content: '''
+class _T {
+  void f() {
+    final t = todos;
+    final s = this.todos;
+    final v = vm.todos;
+    print(t.filter);
+    print(s.query);
+    print(v.label);
+  }
+}
+''',
+          throwIfDiagnostics: false,
+        ).unit,
+        const {
+          'todos.filter': 'selector:SelectTodos.filter',
+          'todos.query': 'selector:SelectTodos.query',
+          'todos.label': 'selector:SelectTodos.label',
+        },
+      );
+      // `vm.todos` is a view-model field, not the hop: refused as before.
+      expect(uses, {
+        'selector:SelectTodos.filter',
+        'selector:SelectTodos.query',
+      });
     });
   });
 
