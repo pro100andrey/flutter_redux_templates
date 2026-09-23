@@ -7,6 +7,7 @@ import '../routing/routes_source.dart';
 import '../scaffold/page_scaffold.dart';
 import '../util/casing.dart';
 import '../util/console.dart';
+import '../util/dart_names.dart';
 import '../workspace/frx_workspace.dart';
 import 'frx_command.dart';
 import 'wiring.dart';
@@ -152,6 +153,14 @@ class AddPageCommand extends WritingCommand {
       if (split == null) {
         usageException('Invalid --param "$entry": expected name:type.');
       }
+      // A param becomes a field of the page widget and of the route's args,
+      // beside the `key` every widget has: `-p key:String` wrote nine errors,
+      // two of them in generated code.
+      requireWritable(
+        split.$1,
+        what: 'name in --param "$entry"',
+        taken: DartNames.widgetMembers,
+      );
       params.add((name: split.$1.camel, type: split.$2));
     }
     return params;

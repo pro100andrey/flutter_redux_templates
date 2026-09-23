@@ -41,6 +41,11 @@ class RemoveCommand extends WritingCommand
         FieldRemoval,
         SubstateRemoval,
         PageRemoval {
+  /// The name is looked up, not written: whatever the artifact is called
+  /// already, it is called.
+  @override
+  bool get createsNames => false;
+
   @override
   String get name => 'remove';
 

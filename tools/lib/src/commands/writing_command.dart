@@ -221,6 +221,11 @@ abstract class WritingCommand extends Command<int> with NameArg {
     }
   }
 
+  /// A command that writes files writes the names it is given into them.
+  /// `remove` is the one that does not, and says so.
+  @override
+  bool get createsNames => true;
+
   @override
   Future<int> run() async {
     final results = argResults!;

@@ -4,6 +4,7 @@ import '../engine/changeset.dart';
 import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
 import '../scaffold/package_scaffold.dart';
+import '../util/dart_names.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
 
@@ -62,7 +63,11 @@ class AddModelCommand extends WritingCommand {
     if (caseArgs.length == 1) {
       usageException('A union needs at least two --case values.');
     }
-    final cases = requireCasings(caseArgs);
+    final cases = requireCasings(
+      caseArgs,
+      what: 'case',
+      taken: DartNames.freezedMembers,
+    );
 
     final file = modelFile(repo, name);
     final serializable = results['serializable'] as bool;

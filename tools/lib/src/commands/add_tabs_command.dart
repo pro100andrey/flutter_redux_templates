@@ -49,7 +49,7 @@ class AddTabsCommand extends WritingCommand {
       usageException('Provide at least two --tab options.');
     }
 
-    final tabs = requireCasings(tabArgs);
+    final tabs = requireCasings(tabArgs, what: 'tab');
 
     final source = RoutesSource.of(repo);
 

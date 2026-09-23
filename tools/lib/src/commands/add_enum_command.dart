@@ -3,6 +3,7 @@ import 'package:args/args.dart';
 import '../engine/changeset.dart';
 import '../model/artifact_files.dart';
 import '../scaffold/artifact_templates.dart';
+import '../util/dart_names.dart';
 import '../workspace/frx_workspace.dart';
 import 'writing_command.dart';
 
@@ -37,7 +38,13 @@ class AddEnumCommand extends WritingCommand {
       usageException('Provide at least one --value.');
     }
 
-    final values = requireCasings(valueArgs);
+    // `values`, `index` and `name` are members every enum already has; a value
+    // spelled like one wrote `values_declaration_in_enum`.
+    final values = requireCasings(
+      valueArgs,
+      what: 'value',
+      taken: DartNames.enumMembers,
+    );
 
     final file = modelFile(repo, name);
 

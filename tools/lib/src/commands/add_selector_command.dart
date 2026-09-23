@@ -6,6 +6,7 @@ import '../model/substate_artifact.dart';
 import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
 import '../scaffold/type_imports.dart';
+import '../util/dart_names.dart';
 import '../workspace/frx_workspace.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
@@ -54,7 +55,11 @@ class AddSelectorCommand extends WritingCommand {
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
     final substate = requireCasing(0);
-    final getter = requireCasing(1);
+    final getter = requireCasing(
+      1,
+      creates: true,
+      taken: DartNames.objectMembers,
+    );
 
     final artifact = SubstateArtifact(substate);
     final appState = AppStateSource.of(repo);

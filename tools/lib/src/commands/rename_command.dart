@@ -97,7 +97,9 @@ class RenameCommand extends Command<int> with NameArg {
   Future<int> run() async {
     final results = argResults!;
     final oldName = requireCasing(0);
-    final newName = requireCasing(1);
+    // The new name is written, into every place the old one was: a field, a
+    // getter, a class.
+    final newName = requireCasing(1, creates: true);
     if (oldName.snake == newName.snake) {
       usageException('Old and new names are the same.');
     }

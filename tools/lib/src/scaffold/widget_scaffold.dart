@@ -1,3 +1,6 @@
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/token.dart';
+
 import '../util/casing.dart';
 
 /// The shapes a widget in the `ui` package comes in.
@@ -121,6 +124,37 @@ class WidgetScaffold {
   /// widget folder sits one level under `lib/`, so a sibling is `../<target>/`.
   String _sibling(String target, String file) =>
       dir == target ? file : '../$target/$file';
+
+  /// The class names [widget]'s body uses that it does not declare — the
+  /// Flutter and `ui` classes it is built from — each with the kind that uses
+  /// it.
+  ///
+  /// A widget named after one of them shadows it inside its own file:
+  /// `add-widget text` wrote a `class Text` whose `build` returned
+  /// `Text(vm.title, …)`, calling itself with arguments it does not take. Read
+  /// off the rendered body rather than listed, so a template that starts using
+  /// another class is covered the day it does.
+  static Set<String> referencedClasses(WidgetKind kind) {
+    // A name no template can contain, so every capitalised identifier left is
+    // the template's own.
+    final probe = WidgetScaffold(
+      name: Casing(const ['frx', 'probe']),
+      kind: kind,
+      dir: 'probe',
+    );
+    final own = {probe.className, probe.vmClassName};
+    final unit = parseString(
+      content: probe.widget(),
+      throwIfDiagnostics: false,
+    ).unit;
+    return {
+      for (Token token = unit.beginToken; !token.isEof; token = token.next!)
+        if (token.type == TokenType.IDENTIFIER &&
+            token.lexeme.startsWith(RegExp('[A-Z]')) &&
+            !own.contains(token.lexeme))
+          token.lexeme,
+    };
+  }
 
   String widget() => switch (kind) {
     WidgetKind.field => _fieldWidget(),

@@ -11,6 +11,7 @@ import '../redux/app_state_source.dart';
 import '../redux/selectors_source.dart';
 import '../redux/store_source.dart';
 import '../scaffold/substate_scaffold.dart';
+import '../util/dart_names.dart';
 import '../workspace/frx_workspace.dart';
 import 'wiring.dart';
 import 'writing_command.dart';
@@ -53,9 +54,16 @@ class AddSubstateCommand extends WritingCommand {
     );
   }
 
+  /// What a substate's field sits beside: the members freezed gives
+  /// `AppState`, and the facade's own `state` getter its getter would join.
+  static const Map<String, String> _taken = {
+    ...DartNames.freezedMembers,
+    'state': "the Selectors mixin's `state` getter",
+  };
+
   @override
   Future<WritePlan> planFor(FrxWorkspace repo, ArgResults results) async {
-    final name = requireName();
+    final name = requireName(taken: _taken);
     final force = results['force'] as bool;
     final kind = SubstateKind.parse(results['kind'] as String);
     final source = AppStateSource.of(repo);

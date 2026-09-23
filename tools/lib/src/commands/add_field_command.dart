@@ -11,6 +11,7 @@ import '../redux/state_source.dart';
 import '../scaffold/artifact_templates.dart';
 import '../scaffold/type_imports.dart';
 import '../util/console.dart';
+import '../util/dart_names.dart';
 import '../workspace/frx_workspace.dart';
 import 'substate_target.dart';
 import 'wiring.dart';
@@ -97,7 +98,7 @@ class AddFieldCommand extends WritingCommand {
   /// builds its own index, so that directory was walked once per question.
   WritePlan _plan(FrxWorkspace repo, ArgResults results) {
     final substate = requireCasing(0);
-    final (field, type) = requireSpec(1);
+    final (field, type) = requireSpec(1, taken: DartNames.freezedMembers);
 
     final defaultExpr = results['default'] as String?;
     // A freezed state is constructed with no args (`XState()`), so every field

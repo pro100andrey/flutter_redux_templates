@@ -1,6 +1,7 @@
 import 'package:args/command_runner.dart';
 
 import '../util/casing.dart';
+import '../util/dart_names.dart';
 
 /// The kind an `add-<kind>` command creates — `add-substate` → `substate` —
 /// or null when [command] is not one.
@@ -25,6 +26,13 @@ String? createdKindOf(String command) =>
 /// The names are the ones [Command.invocation] already prints, so the message
 /// cannot drift from the usage line: `frx_command_test` asserts the two agree.
 mixin NameArg on Command<int> {
+  /// Whether this command's names become new Dart — a class, a field, a
+  /// value — and so must be names Dart accepts ([DartNames]).
+  ///
+  /// True for the scaffolders; false for a command that only *looks up* a
+  /// name, which is whatever the thing it names is already called.
+  bool get createsNames => false;
+
   /// The positional arguments this command takes, in order, spelled as
   /// [invocation] spells them — `['substate', 'name:type']`.
   ///
@@ -54,12 +62,37 @@ mixin NameArg on Command<int> {
   /// An invalid one is a usage error naming the argument and quoting what was
   /// given, because "invalid name" without the text is a message the user
   /// cannot act on.
-  Casing requireCasing(int at) {
+  ///
+  /// With [creates], the name is also one this command is about to write, and
+  /// is refused when Dart would not take it — or when [taken] says the context
+  /// already owns it.
+  Casing requireCasing(
+    int at, {
+    bool creates = false,
+    Map<String, String> taken = const {},
+  }) {
     final raw = requireArgs()[at];
+    final Casing name;
     try {
-      return Casing.parse(raw);
+      name = Casing.parse(raw);
     } on FormatException catch (e) {
       usageException('Invalid ${positionals[at]} "$raw": ${e.message}');
+    }
+    if (creates) {
+      requireWritable(name, what: positionals[at], taken: taken);
+    }
+    return name;
+  }
+
+  /// Refuses [name] as a usage error when Dart would not accept it where this
+  /// command writes it, naming [what] it was given as and why.
+  void requireWritable(
+    Casing name, {
+    required String what,
+    Map<String, String> taken = const {},
+  }) {
+    if (DartNames.problemWith(name, taken: taken) case final problem?) {
+      usageException('Invalid $what: $problem.');
     }
   }
 
@@ -68,19 +101,37 @@ mixin NameArg on Command<int> {
   /// What the thirteen one-argument commands call. A command taking something
   /// other than `<name>` says so in [positionals] rather than here — `flow`
   /// takes a `<page>` — so the messages and the usage line have one source.
-  Casing requireName() => requireCasing(0);
+  ///
+  /// A scaffolder's name is checked as a Dart name ([createsNames]); [taken]
+  /// adds what the context already owns.
+  Casing requireName({Map<String, String> taken = const {}}) =>
+      requireCasing(0, creates: createsNames, taken: taken);
 
   /// Every value of a repeatable option, parsed to a [Casing].
   ///
   /// `add-enum -v`, `add-model -c` and `add-tabs -t` each take a list of names
   /// and each had the same four-line `try` around `Casing.parse`. The message
   /// is the parser's own, as it was at all three.
-  List<Casing> requireCasings(List<String> raw) {
+  ///
+  /// Each is a name the command writes when [createsNames] — an enum value, a
+  /// union case, a tab — so each is checked as one, against [taken] too.
+  List<Casing> requireCasings(
+    List<String> raw, {
+    String what = 'name',
+    Map<String, String> taken = const {},
+  }) {
+    final List<Casing> names;
     try {
-      return raw.map(Casing.parse).toList();
+      names = raw.map(Casing.parse).toList();
     } on FormatException catch (e) {
       usageException(e.message);
     }
+    if (createsNames) {
+      for (final name in names) {
+        requireWritable(name, what: what, taken: taken);
+      }
+    }
+    return names;
   }
 
   /// The positional argument at [at], split on its single `:` into a name and
@@ -91,20 +142,30 @@ mixin NameArg on Command<int> {
   /// stay separate calls — one is an argument and the other is a flag, and the
   /// second must name *which* `--param` was wrong — but they split it the same
   /// way and refuse the same halves.
-  (Casing, String) requireSpec(int at) {
+  ///
+  /// The name half is one this command writes, checked like [requireName]'s.
+  (Casing, String) requireSpec(
+    int at, {
+    Map<String, String> taken = const {},
+  }) {
     final raw = requireArgs()[at];
+    final (Casing, String) split;
     try {
-      final split = splitSpec(raw);
-      if (split == null) {
+      final parsed = splitSpec(raw);
+      if (parsed == null) {
         usageException('Expected <${positionals[at]}>, got "$raw".');
       }
-      return split;
+      split = parsed;
     } on FormatException catch (e) {
       // The two failures are different and were one message: `nope` is not this
       // shape at all, while `2bad:String?` is — and its name half is what is
       // wrong. Collapsing them costs the reader the sentence that says why.
       usageException('Invalid name in "$raw": ${e.message}');
     }
+    if (createsNames) {
+      requireWritable(split.$1, what: 'name in "$raw"', taken: taken);
+    }
+    return split;
   }
 
   /// `name:rest` as a parsed name and the text after the colon, or null when it

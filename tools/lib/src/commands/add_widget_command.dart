@@ -53,6 +53,14 @@ class AddWidgetCommand extends WritingCommand {
     final dir = _requireDir(results['dir'] as String?, kind, repo);
 
     final scaffold = WidgetScaffold(name: name, kind: kind, dir: dir);
+    if (WidgetScaffold.referencedClasses(kind).contains(scaffold.className)) {
+      usageException(
+        'Invalid name "${name.snake}": a ${kind.name} widget is built from '
+        '`${scaffold.className}`, and a class of that name would shadow it in '
+        'its own file. Name it for what it shows — e.g. '
+        '"${name.snake}_${kind == WidgetKind.container ? 'box' : 'tile'}".',
+      );
+    }
     final widgetFile = p.join(repo.uiLib.path, dir, scaffold.fileName);
 
     return WritePlan(
