@@ -1879,6 +1879,47 @@ class SnapshotAction extends Action {
       expect(g.deadFields, isEmpty);
     });
 
+    test('a live read through a getter keeps every field alive', () {
+      // `state.session.hasToken` names a getter, not a field, and which
+      // fields its body reads is not followed — so it counts as a read of
+      // the whole slice rather than of a field called `hasToken`.
+      final root = Directory.systemTemp.createTempSync('frx_graph_getter_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      void put(String rel, String content) {
+        File(p.join(root.path, rel))
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content);
+      }
+
+      put('app/lib/navigation/app_router.dart', _emptyRouter);
+      put('business/lib/redux/app_state.dart', r'''
+@freezed
+abstract class AppState with _$AppState {
+  const factory AppState({required SessionState session}) = _AppState;
+}
+''');
+      put('business/lib/redux/session/models/session_state.dart', r'''
+@freezed
+abstract class SessionState with _$SessionState {
+  const factory SessionState({String? token}) = _SessionState;
+  const SessionState._();
+
+  bool get hasToken => token != null;
+}
+''');
+      put('business/lib/redux/session/actions/check_action.dart', '''
+class CheckAction extends Action {
+  @override
+  AppState? reduce() {
+    _log(state.session.hasToken);
+    return null;
+  }
+}
+''');
+      final g = GraphReader(FrxWorkspace.locate(startDir: root.path)).read();
+      expect(g.deadFields, isEmpty);
+    });
+
     test('a slice with no state class lists nothing', () {
       final g = _read();
       expect(

@@ -426,7 +426,8 @@ class AppGraph {
   /// directly — which the `reads` edges now record, by field. So: a field is
   /// live when something reads it that is not itself a dead selector, or
   /// when anything live reads the whole slice — `state.session` handed on,
-  /// or a getter returning it — since that is a read of every field, and
+  /// or a getter returning it, or a getter *on* it (`session.hasToken`) — since
+  /// that is a read of every field, and
   /// guessing otherwise would report a live field as dead. The persistor's
   /// reads do not count: it saves the slice, it does not use it.
   ///
@@ -460,7 +461,10 @@ class AppGraph {
         final whole = via == null || via == substate;
         final field = whole ? null : _fieldOf(via, substate);
         if (e.kind == .reads && kindOf[e.from] != NodeKind.persistor) {
-          if (whole) {
+          // A name that is not a field is a getter or an extension on the
+          // slice — `session.hasToken` — and which fields its body reads is
+          // not followed, so it reads the whole slice.
+          if (whole || (field != null && !fields.contains(field))) {
             wholeReaders.add(e.from);
           } else if (field != null) {
             readersOf.putIfAbsent(field, () => {}).add(e.from);

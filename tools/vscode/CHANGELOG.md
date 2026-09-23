@@ -7,6 +7,29 @@ editor reads the CLI's contract out of generated constants, so a version pair
 that can drift will. Entries here therefore cover both halves, and CLI-only
 changes are marked as such.
 
+## Unreleased
+
+### Fixed
+
+- **`graph` no longer reports a field read through a getter as unread.**
+  `state.session.hasToken` — a getter on the state class, or an extension on
+  it — was recorded as a read of a field called `hasToken`, which the slice
+  does not have, so the `token` behind it was listed `written, nothing reads
+  it` and `--fail-on-orphans` failed on a live field. The frx-graph skill
+  sends an agent to `frx remove` whatever that list names. A read of a name
+  that is not a field now counts as a read of the whole slice, as a getter
+  returning the slice already did. *(CLI)*
+
+### Changed
+
+- **Note for 0.3.7: `graph --fail-on-orphans` gates on more than it did.**
+  0.3.7 added fields nothing reads and service dispatchers nothing constructs
+  to the orphan list, and the flag fails on every entry of it — so a CI step
+  that passed on 0.3.6 can fail on 0.3.7 with no change to the project. The
+  0.3.7 notes filed both under *Added* without saying so. Each entry names
+  what to remove; `frx graph` without the flag prints the same list and
+  exits 0. *(CLI)*
+
 ## 0.3.7
 
 ### Fixed
