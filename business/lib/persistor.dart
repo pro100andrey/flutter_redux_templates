@@ -115,3 +115,19 @@ class AppPersistor extends Persistor<AppState> {
     _storage.delete(_tokenKey),
   ]);
 }
+
+/// Writing the state now, past [AppPersistor.throttle], for the few changes
+/// that cannot wait for it.
+///
+/// async_redux's own way is dispatching a `PersistAction`, and it works; it is
+/// not used because it is a dispatch of an action no file in this project
+/// declares, which `frx graph` can only report as a target it cannot resolve.
+/// [Store.persistAndPausePersistor] starts the write at once, ignoring the
+/// throttle, and [Store.resumePersistor] straight after puts saving back as it
+/// was — the write already running finishes, and anything newer follows it.
+extension PersistNow on Store<AppState> {
+  void persistNow() {
+    persistAndPausePersistor();
+    resumePersistor();
+  }
+}

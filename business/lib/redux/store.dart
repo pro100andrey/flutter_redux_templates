@@ -1,4 +1,5 @@
 import 'package:async_redux/async_redux.dart';
+import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
 import 'package:storage/storage.dart';
 
@@ -95,6 +96,29 @@ Future<AppState> restoreState(Persistor<AppState> persistor) async {
 }
 
 final _bootLogger = Logger('Boot');
+
+/// Saves the state as the app leaves the screen, and holds further saves until
+/// it is back.
+///
+/// The persistor writes at most once a second, and a process that is killed in
+/// the background — swiped away, reclaimed by the OS — never runs the write it
+/// was waiting to make: whatever changed in the last second before the app was
+/// hidden was lost. `onHide` is the callback every platform reaches on the way
+/// out (`paused` and `detached` come after it on mobile; a minimised desktop
+/// window stops at it), so that is where the store flushes.
+/// [Store.persistAndPausePersistor] writes at once, ignoring the throttle, and
+/// then holds; `onShow` hands back to [Store.resumePersistor], which saves
+/// whatever changed in between. `onDetach` flushes again for an engine torn
+/// down without being hidden first — a second call with nothing new is a no-op.
+///
+/// Returns the listener so its owner can [AppLifecycleListener.dispose] it;
+/// `run_env` keeps it for the life of the process.
+AppLifecycleListener persistAcrossLifecycle(Store<AppState> store) =>
+    AppLifecycleListener(
+      onHide: store.persistAndPausePersistor,
+      onDetach: store.persistAndPausePersistor,
+      onShow: store.resumePersistor,
+    );
 
 void _waitReducer(
   dynamic state,

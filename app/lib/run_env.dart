@@ -40,6 +40,10 @@ Future<void> runEnv(Environment env) async {
 
   await (store.dependencies! as AppDependencies).warmUp();
 
+  // Flushes the throttled persistor when the app is hidden, so a change made
+  // in the last second before it was killed is not lost.
+  persistAcrossLifecycle(store);
+
   final appRouter = createAppRouter(store);
 
   // ExceptionDialog sits above the router's Navigator (in the MaterialApp

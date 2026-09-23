@@ -1,3 +1,4 @@
+import '../../../persistor.dart';
 import '../../app_state.dart';
 import '../../common/action.dart';
 
@@ -18,4 +19,19 @@ class SetTokenAction extends Action {
 
   @override
   AppState reduce() => state.copyWith.session(token: value);
+
+  /// Saves the new token now, not when the persistor's throttle next allows.
+  ///
+  /// `AppPersistor` batches writes into one a second, which is right for a
+  /// theme toggle and wrong here: a user who logged out and closed the app
+  /// within that second came back logged in, because the write that removed
+  /// the token never ran. `after()` runs once the token is in the state, so
+  /// [PersistNow.persistNow] here writes the state this action produced.
+  /// Leaving the app is covered separately, in `run_env`, by
+  /// `persistAcrossLifecycle`.
+  @override
+  void after() {
+    super.after();
+    store.persistNow();
+  }
 }
