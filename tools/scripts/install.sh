@@ -196,11 +196,39 @@ shell_name() {
   printf '%s' "${name##*/}"
 }
 
+# The one file this user's shell reads at startup, and the only file the
+# installer writes to — the PATH line and the completions line both go here.
+#
+# bash is the case with a wrong answer in each direction. It reads .bashrc only
+# in an interactive shell that is *not* a login shell, and in a login shell
+# reads the first of .bash_profile, .bash_login and .profile that exists — that
+# one alone. So:
+#   - macOS: Terminal.app and iTerm open login shells, which never read .bashrc.
+#     A line there is a line nobody runs.
+#   - Linux: terminals open non-login shells, which read .bashrc; the
+#     distributions' login files source it. Without a .bashrc, the login file
+#     bash already reads — and never a new .bash_profile, which would take
+#     precedence over the user's .profile and silently drop every PATH entry in
+#     it.
+# Either way a login file is created only when there is none at all: the
+# platform's own default, .bash_profile on macOS, .profile elsewhere.
 profile_for_shell() {
   case "$(shell_name)" in
     zsh)  printf '%s' "${ZDOTDIR:-$HOME}/.zshrc" ;;
-    bash) [ -f "$HOME/.bashrc" ] && printf '%s' "$HOME/.bashrc" || printf '%s' "$HOME/.bash_profile" ;;
     fish) printf '%s' "$HOME/.config/fish/config.fish" ;;
+    bash)
+      if [ "$OS" = linux ] && [ -f "$HOME/.bashrc" ]; then
+        printf '%s' "$HOME/.bashrc"
+        return
+      fi
+      for login in .bash_profile .bash_login .profile; do
+        [ -f "$HOME/$login" ] && { printf '%s' "$HOME/$login"; return; }
+      done
+      if [ "$OS" = macos ]; then
+        printf '%s' "$HOME/.bash_profile"
+      else
+        printf '%s' "$HOME/.profile"
+      fi ;;
     *)    printf '%s' "$HOME/.profile" ;;
   esac
 }
