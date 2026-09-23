@@ -86,18 +86,26 @@ class FrxConfig {
   /// Returns [args] with this config's defaults injected for the command
   /// [cmdName], skipping any the user already set or the command doesn't
   /// accept. [options] is the command's option-name set.
+  ///
+  /// Injected before a `--`, and only what precedes it is asked whether a
+  /// flag was set: after `--` every argument is a positional, so a default
+  /// appended there would be read as a name — which is why a caller could
+  /// not pass `--` to keep a name like `-x` from being read as an option.
   List<String> applyTo(List<String> args, String cmdName, Set<String> options) {
     if (isEmpty) {
       return args;
     }
-    final out = [...args];
+    final end = args.indexOf('--');
+    final rest = end < 0 ? const <String>[] : args.sublist(end);
+    final head = end < 0 ? args : args.sublist(0, end);
+    final out = [...head];
 
     void injectFlag(String name, String? abbr, bool? value) {
       if (value == null || !options.contains(name)) {
         return;
       }
 
-      if (_present(args, name, abbr)) {
+      if (_present(head, name, abbr)) {
         return;
       }
 
@@ -111,12 +119,12 @@ class FrxConfig {
     if (substateKind != null &&
         cmdName == 'add-substate' &&
         options.contains('kind') &&
-        !_present(args, 'kind', 'k')) {
+        !_present(head, 'kind', 'k')) {
       out
         ..add('--kind')
         ..add(substateKind!);
     }
-    return out;
+    return [...out, ...rest];
   }
 
   /// Whether the user already passed `--name` / `--no-name` / `--name=…`, or

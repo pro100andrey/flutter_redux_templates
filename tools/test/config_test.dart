@@ -61,6 +61,16 @@ void main() {
       expect(out2.where((a) => a == '--no-format'), hasLength(1));
     });
 
+    test('defaults go before `--`, and nothing after it counts as set', () {
+      // After `--` every argument is a positional: a default appended there
+      // would become a second name, and a name spelled `-b` is not the flag.
+      const c = FrxConfig(buildRunner: true, substateKind: 'table');
+      expect(
+        c.applyTo(['add-substate', '--', '-b'], 'add-substate', options),
+        ['add-substate', '--build-runner', '--kind', 'table', '--', '-b'],
+      );
+    });
+
     test('substateKind only defaults add-substate, not add-action', () {
       const c = FrxConfig(substateKind: 'table');
       expect(
