@@ -99,7 +99,8 @@ class RenameCommand extends Command<int> with NameArg {
     final oldName = requireCasing(0);
     // The new name is written, into every place the old one was: a field, a
     // getter, a class.
-    final newName = requireCasing(1, creates: true);
+    final newName = requireCasing(1);
+    requireWritable(newName, what: 'new name');
     if (oldName.snake == newName.snake) {
       usageException('Old and new names are the same.');
     }
