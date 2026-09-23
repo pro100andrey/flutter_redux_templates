@@ -69,44 +69,86 @@ export async function showMap(context: vscode.ExtensionContext): Promise<void> {
     return;
   }
 
-  if (!panel) {
-    panel = vscode.window.createWebviewPanel(
-      'frxMap',
-      'FRX Map',
-      vscode.ViewColumn.Active,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        // The page's stylesheet and script live under media/; nothing else of
-        // the extension's is the webview's to read.
-        localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
-      },
-    );
-    panel.onDidDispose(() => (panel = null));
-    panel.webview.onDidReceiveMessage((m) => {
-      if (m?.type === 'open' && m.file) {
-        vscode.commands.executeCommand(
-          'vscode.open',
-          vscode.Uri.file(m.file),
-          selectionAt({ line: m.line, column: m.column }),
-        );
-      } else if (m?.type === 'refresh') {
-        showMap(context);
-      }
-    });
-  }
+  const view = (panel ??= openPanel(context));
 
   // One read. The two list reads it replaces carried strictly less: no edges, no
   // ownership, and nothing about what frx could not follow.
+  //
+  // What the read comes back to is checked, not assumed. The panel can be
+  // closed while `frx graph` runs — seconds on the `dart run` fallback — and
+  // drawing into it threw "Cannot read properties of null"; and a ↻ clicked
+  // twice starts two reads, of which the older may land last.
+  const read = ++_reads;
   const graph = await queries.graph(inv, root);
+  if (panel !== view || read !== _reads) return;
+
+  if (!graph) {
+    // A failed read used to be drawn as an app with nothing in it — the one
+    // picture that is certainly wrong, and indistinguishable from an empty
+    // project. The last picture stays; the first read has none to keep.
+    if (!view.webview.html) view.webview.html = unreadableHtml();
+    frx.output().show(true);
+    vscode.window.showErrorMessage(
+      'FRX: the Map could not read the app graph (`frx graph` failed) — see the FRX output.',
+    );
+    return;
+  }
+
   const asset = (name: string) =>
-    panel!.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'map', name)).toString();
-  panel.webview.html = buildHtml(picture(graph, root), {
+    view.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'map', name)).toString();
+  view.webview.html = buildHtml(picture(graph, root), {
     css: asset('map.css'),
     js: asset('map.js'),
-    cspSource: panel.webview.cspSource,
+    cspSource: view.webview.cspSource,
   });
-  panel.reveal();
+  view.reveal();
+}
+
+/** Bumped per graph read, so only the newest one draws. */
+let _reads = 0;
+
+function openPanel(context: vscode.ExtensionContext): vscode.WebviewPanel {
+  const created = vscode.window.createWebviewPanel(
+    'frxMap',
+    'FRX Map',
+    vscode.ViewColumn.Active,
+    {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+      // The page's stylesheet and script live under media/; nothing else of
+      // the extension's is the webview's to read.
+      localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
+    },
+  );
+  created.onDidDispose(() => {
+    if (panel === created) panel = null;
+  });
+  created.webview.onDidReceiveMessage((m) => {
+    if (m?.type === 'open' && m.file) {
+      vscode.commands.executeCommand(
+        'vscode.open',
+        vscode.Uri.file(m.file),
+        selectionAt({ line: m.line, column: m.column }),
+      );
+    } else if (m?.type === 'refresh') {
+      showMap(context);
+    }
+  });
+  return created;
+}
+
+/** What a Map whose first read failed shows: a sentence, and nothing to run. */
+function unreadableHtml(): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';" />
+</head>
+<body>
+  <p>frx could not read the app graph, so there is no picture to draw. The FRX output says why; run “FRX: Map” again once it is fixed.</p>
+</body>
+</html>`;
 }
 
 /**
