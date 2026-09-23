@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The app is built to talk to a server (http_client, the login request
+         that replaces the placeholder), and a release build gets only what
+         this manifest asks for. Flutter's own
+         template grants INTERNET in the debug and profile manifests alone, so
+         everything worked under `flutter run` and every request failed in the
+         build that shipped. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="flutter_application_1"
         android:name="${applicationName}"
