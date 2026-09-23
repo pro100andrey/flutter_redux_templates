@@ -64,7 +64,7 @@ function provider(graph: AppGraph | null): {
     reads++;
     return graph;
   };
-  return { p: new tree.FrxTreeProvider({} as any), reads: () => reads };
+  return { p: new tree.FrxTreeProvider({} as any, '/repo'), reads: () => reads };
 }
 
 const groups = (p: tree.FrxTreeProvider) => p.getChildren();

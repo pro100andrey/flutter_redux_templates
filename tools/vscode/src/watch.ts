@@ -38,6 +38,8 @@ export class FrxWatch {
   /** The reap in progress, which a start waits out (see `_start`). */
   private _reaping: Promise<void> | null = null;
   private _channel: vscode.OutputChannel | null = null;
+  /** Set by [dispose]; a start still resolving `dart` then spawns nothing. */
+  private _disposed = false;
   private readonly _item: vscode.StatusBarItem;
   private readonly _buildDiagnostics: vscode.DiagnosticCollection;
   private readonly _log: BuildLogParser;
@@ -80,13 +82,35 @@ export class FrxWatch {
         d.source = 'frx build';
         return d;
       });
+      this.onBuilt?.();
     });
 
-    _context.subscriptions.push(this._item, this._buildDiagnostics, {
-      dispose: () => this._kill(),
-    });
     this._render();
     this._item.show();
+  }
+
+  /**
+   * Called at the end of every build cycle the watch reports.
+   *
+   * What codegen changes for the audit — a "missing part" finding cleared —
+   * is picked up here, once per cycle, rather than from the dozens of
+   * generated files the cycle writes (see `refresh.isGenerated`).
+   */
+  onBuilt: (() => void) | null = null;
+
+  /**
+   * Stop the process and drop everything this owns — the status item, the
+   * build findings, the channel. The persisted enabled state stays: a window
+   * closing, or the project changing under it, is not the user turning the
+   * watch off, and the next one resumes it.
+   */
+  dispose(): void {
+    this._disposed = true;
+    this._kill();
+    this._item.dispose();
+    this._buildDiagnostics.dispose();
+    this._channel?.dispose();
+    this._channel = null;
   }
 
   /** Whether the user has the watch toggled on (persisted across reloads). */
@@ -103,7 +127,6 @@ export class FrxWatch {
   channel(): vscode.OutputChannel {
     if (!this._channel) {
       this._channel = vscode.window.createOutputChannel('FRX watch');
-      this._context.subscriptions.push(this._channel);
     }
     return this._channel;
   }
@@ -223,8 +246,9 @@ export class FrxWatch {
 
   private async _startOnce(): Promise<void> {
     await this._reaping;
-    if (this._child) return;
+    if (this._child || this._disposed) return;
     const dart = await this._resolveDart();
+    if (this._disposed) return;
     if (!dart) {
       vscode.window.showErrorMessage(
         'FRX: `dart` is not reachable, so `build_runner watch` cannot start. ' +

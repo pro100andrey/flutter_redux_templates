@@ -10,6 +10,7 @@ const MODULES = [
   'src/config', 'src/naming', 'src/paths', 'src/queries', 'src/ui', 'src/diagnostics',
   'src/scaffold', 'src/doctor', 'src/frx', 'src/buildlog', 'src/code_actions', 'src/codelens',
   'src/map', 'src/flow_view', 'src/rename_provider', 'src/tree', 'src/watch',
+  'src/proc', 'src/refresh', 'src/session',
   'src/commands/create', 'src/commands/artifact', 'src/commands/menu', 'extension',
 ];
 

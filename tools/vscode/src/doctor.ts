@@ -7,7 +7,6 @@ import * as vscode from 'vscode';
 
 import * as diag from './diagnostics';
 import * as frx from './frx';
-import * as paths from './paths';
 import * as queries from './queries';
 import type { DoctorFinding } from './queries';
 import * as ui from './ui';
@@ -18,10 +17,15 @@ export class FrxDoctor {
   /** Monotonic token so an out-of-order refresh can't clobber a newer one. */
   private _token = 0;
 
-  /** @param _onChange full refresh (tree + this) to run after a --fix */
+  /**
+   * @param _root the project this audits — the session's, fixed for its life
+   *   (see `session.ts`)
+   * @param _onChange the full refresh (tree + this) — after a run, a --fix
+   */
   constructor(
     private readonly _context: vscode.ExtensionContext,
-    private readonly _onChange: () => void,
+    private readonly _root: string,
+    private readonly _onChange: () => unknown,
   ) {
     this._collection = vscode.languages.createDiagnosticCollection('frx');
     this._status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
@@ -51,8 +55,7 @@ export class FrxDoctor {
    * chip. Silent — a resolve/parse failure just leaves the previous set in place.
    */
   async refresh(): Promise<void> {
-    const root = paths.findWorkspaceRoot();
-    if (!root) return;
+    const root = this._root;
 
     // Tag this run at entry; if a newer refresh starts before we finish, drop our
     // result so a slower stale audit can't overwrite a fresher one.
@@ -141,7 +144,7 @@ export class FrxDoctor {
     const res = await frx.runWithProgress('FRX: doctor…', inv, ['doctor', '--root', targetDir], targetDir);
     frx.output().show(true); // findings streamed here; exit 1 just means "issues found"
     if (res.code > 1) ui.fail(res);
-    this.refresh(); // mirror the same findings into the Problems panel
+    this._onChange(); // mirror the same findings into the Problems panel
   }
 
   /** Run `frx doctor --fix` (from a Problems-panel quick-fix), then re-audit. */

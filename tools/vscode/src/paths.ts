@@ -130,9 +130,9 @@ function scan(dir: string, depth: number, into: string[]): void {
  * The project this window is working in — what the tree, the watch, the audit
  * and the code lenses are all about. Null when the workspace holds none.
  *
- * **One answer per window, resolved once.** Six call sites ask this
- * independently (`extension.ts`, `tree.ts`, `doctor.ts`, `watch.ts`, `map.ts`,
- * `flow_view.ts`), and it used to resolve through `activeTextEditor` — so with
+ * **One answer per window, resolved once.** The project session (the tree, the
+ * audit, the watch — `session.ts`), the Map, the Flow view and the commands'
+ * fallback all ask this, and it used to resolve through `activeTextEditor` — so with
  * two projects open they could disagree *at the same moment*: the watch
  * regenerating one while the Problems panel audited another and the tree showed
  * a third state, changing under you as you moved between files. A view that

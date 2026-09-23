@@ -16,7 +16,6 @@ import * as vscode from 'vscode';
 import { pushInto } from './collections';
 import * as frx from './frx';
 import * as naming from './naming';
-import * as paths from './paths';
 import * as queries from './queries';
 import type { AppGraph, GraphNode } from './queries';
 import type { ArtifactKind } from './ui';
@@ -65,8 +64,6 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
   /** Fired to make VSCode re-query the tree. */
   readonly onDidChangeTreeData = this._emitter.event;
 
-  private readonly root: string | null;
-
   /**
    * The in-flight or resolved graph for this refresh cycle, or null until the
    * first refresh. Holding the promise (not the value) means the several
@@ -74,9 +71,14 @@ export class FrxTreeProvider implements vscode.TreeDataProvider<FrxTreeItem> {
    */
   private _graph: Promise<Read | null> | null = null;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
-    this.root = paths.findWorkspaceRoot();
-  }
+  /**
+   * @param root the project the tree shows — the session's, fixed for its life
+   *   (see `session.ts`); null draws nothing
+   */
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly root: string | null,
+  ) {}
 
   /**
    * Re-read the graph now, and tell VSCode the tree has changed.
