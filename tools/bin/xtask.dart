@@ -1,7 +1,7 @@
 // The repository's task runner: `package:xtask` plus this project's verbs.
 //
 // The tasks are data, in ../xtask.yaml. What lives here is the handful with
-// real logic in them — a version bump across three files, a VS Code profile
+// real logic in them — a version bump across seven files, a VS Code profile
 // looked up in the editor's own storage — because the file cannot branch, and
 // a task that needs a condition becomes a verb. `dart run :xtask <task>`
 // resolves to this file by name; `dart install .` does not put it on PATH,
@@ -207,21 +207,34 @@ Future<int> dist(VerbContext context) async {
   return ExitCode.success;
 }
 
-/// One version, declared in three files, and the release refuses a tag they
-/// disagree with — so bumping them by hand is three chances to publish a
-/// binary that reports a version it is not. `version_test.dart` is what
-/// catches that; this is what avoids it.
+/// One version, and seven files that carry it: the three declarations
+/// (pubspec.yaml, version.dart, package.json with its lock), the CHANGELOG
+/// heading the Marketplace shows, and two derived from the running CLI — the
+/// `.frx-owned` stamp `update-skills` writes, and the template that packs it.
+/// The release refuses a tag the declarations disagree with, but nothing
+/// failed on the other three: v0.3.0 and v0.3.1 both shipped a template
+/// stamped with the version before. So this does all seven, in the order they
+/// derive — the stamp from the constant, the template from the stamp.
+///
+/// Everything that can refuse is asked before anything is written: the
+/// version's shape (no `+build`, which npm strips, so the three could never
+/// agree), both patterns, the CHANGELOG heading. What is left can fail only
+/// on a tool, and says which step to rerun.
 Future<int> version(VerbContext context) async {
   if (context.args.length != 1) {
-    context.log('usage: dart run :xtask version -- 0.3.7');
+    context.log('usage: dart run :xtask version -- 1.2.3');
     return ExitCode.invalidFile;
   }
   final v = context.args.single;
-  if (!RegExp(r'^[0-9]+\.[0-9]+\.[0-9]+([-+].+)?$').hasMatch(v)) {
-    context.log('"$v" is not a semantic version');
+  if (!RegExp(r'^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$').hasMatch(v)) {
+    context.log(
+      '"$v" is not a version npm keeps as written — '
+      'MAJOR.MINOR.PATCH, optionally -prerelease, no +build',
+    );
     return ExitCode.invalidFile;
   }
   final tools = toolsOf(context);
+  final edits = <(File, String)>[];
   for (final (path, pattern, replacement) in [
     (
       p.join(tools, 'pubspec.yaml'),
@@ -240,8 +253,26 @@ Future<int> version(VerbContext context) async {
       context.log('$path: nothing matched ${pattern.pattern}');
       return ExitCode.taskFailed;
     }
-    file.writeAsStringSync(before.replaceFirst(pattern, replacement));
+    edits.add((file, before.replaceFirst(pattern, replacement)));
   }
+
+  // The notes accumulate under `## Unreleased`; the bump names them. A
+  // rerun finds them named already. Neither is a release with no notes.
+  final changelog = File(p.join(tools, 'vscode', 'CHANGELOG.md'));
+  final notes = changelog.readAsStringSync();
+  final unreleased = RegExp(r'^## Unreleased$', multiLine: true);
+  if (unreleased.hasMatch(notes)) {
+    edits.add((changelog, notes.replaceFirst(unreleased, '## $v')));
+  } else if (!notes.contains(
+    RegExp('^## ${RegExp.escape(v)}\$', multiLine: true),
+  )) {
+    context.log(
+      '${changelog.path}: no `## Unreleased` to name $v, '
+      'and no `## $v` already — the release would have no notes',
+    );
+    return ExitCode.taskFailed;
+  }
+
   final bumped = await context.run([
     'npm',
     'version',
@@ -252,6 +283,10 @@ Future<int> version(VerbContext context) async {
   if (bumped != ExitCode.success) {
     return bumped;
   }
+  for (final (file, content) in edits) {
+    file.writeAsStringSync(content);
+  }
+
   final verified = await context.run([
     'dart',
     'test',
@@ -263,10 +298,36 @@ Future<int> version(VerbContext context) async {
     );
     return ExitCode.taskFailed;
   }
+
+  // `dart run` compiles version.dart as just written, so the stamp is $v.
+  for (final (task, what) in [
+    ('skills', 'the .frx-owned stamp'),
+    ('template', 'the template'),
+  ]) {
+    final ran = await context.run([
+      'dart',
+      'run',
+      ':xtask',
+      task,
+    ], workingDirectory: 'tools');
+    if (ran != ExitCode.success) {
+      context.log(
+        '$what is still the old version — '
+        'rerun `cd tools && dart run :xtask $task`',
+      );
+      return ran;
+    }
+  }
+
   context
-    ..log('✓ pubspec, version.dart and package.json all say $v')
+    ..log(
+      '✓ $v in all seven: the declarations, the CHANGELOG, the stamp, '
+      'the template',
+    )
     ..log('')
-    ..log("  git commit -am 'v$v' && git tag v$v && git push origin main v$v");
+    ..log("  git commit -am 'v$v' && git push origin main")
+    ..log('  # once CI on that commit is green:')
+    ..log('  git tag v$v && git push origin v$v');
   return ExitCode.success;
 }
 

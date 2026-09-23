@@ -63,6 +63,18 @@ void main() {
       final actual = File(p.join(repoRoot, entry.key)).readAsStringSync();
       expect(actual, entry.value, reason: '${entry.key} is stale. $regen');
     }
+
+    // The manifest too, and above all its `version:` stamp — the one line a
+    // version bump changes and no SKILL.md does. Doctor skips manifest-only
+    // drift on purpose, so this is the only check that sees it; v0.3.0 and
+    // v0.3.1 each shipped the version before.
+    expect(
+      File(
+        p.join(repoRoot, '.claude', 'skills', SkillGen.manifestName),
+      ).readAsStringSync(),
+      SkillGen().manifest(),
+      reason: '.claude/skills/${SkillGen.manifestName} is stale. $regen',
+    );
   });
 
   test('every command an agent reaches for has a skill', () {

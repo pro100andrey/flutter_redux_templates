@@ -4,7 +4,7 @@
 #   cd tools && dart run :xtask --list             what you can run, by who runs it
 #   cd tools && dart run :xtask check              what a person runs before calling work done
 #   cd tools && dart run :xtask install            frx on PATH + the extension
-#   cd tools && dart run :xtask version -- 0.3.7   bump the three declarations
+#   cd tools && dart run :xtask version -- 1.2.3   bump every file that carries it
 #
 # From `tools/`, because that is the package whose bin/xtask.dart carries the
 # verbs — the tasks below with real logic in them (a version bump across three
@@ -96,7 +96,7 @@ tasks:
     do: dist
 
   version:
-    desc: "bump the three version declarations at once: `version -- 0.3.7`"
+    desc: "bump every file that carries the version — declarations, CHANGELOG, skills stamp, template: `version -- 1.2.3`"
     do: version
 
   # ---- the workspace: the template itself, in the root ---------------------

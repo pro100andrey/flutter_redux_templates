@@ -1089,12 +1089,19 @@ One tag ships the CLI and the extension together, because the extension reads th
 CLI's contract out of generated constants and a version pair that can drift will:
 
 ```bash
-# bump all three, in one commit:
-#   tools/pubspec.yaml            version:
-#   tools/lib/src/version.dart    frxVersion
-#   tools/vscode/package.json     version
-git tag v0.3.0 && git push origin v0.3.0
+cd tools && dart run :xtask version -- 1.2.3
+git commit -am 'v1.2.3' && git push origin main
+# once CI on that commit is green:
+git tag v1.2.3 && git push origin v1.2.3
 ```
+
+The verb writes every file that carries the version: the three declarations
+(`tools/pubspec.yaml`, `tools/lib/src/version.dart`, `tools/vscode/package.json`
+with its lock), the CHANGELOG's `## Unreleased` heading, renamed to the version,
+and the two the CLI derives — the `.claude/skills/.frx-owned` stamp and the
+template `frx create` unpacks, which packs that stamp. By hand, the last two are
+the ones forgotten: v0.3.0 and v0.3.1 each shipped a template stamped with the
+version before.
 
 `.github/workflows/release.yml` refuses the tag unless those three already agree
 with it, then compiles `frx` for macOS (arm64, x64), Linux (x64, arm64) and
