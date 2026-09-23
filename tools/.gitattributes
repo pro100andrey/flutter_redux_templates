@@ -1,0 +1,9 @@
+# The packed template is one base64 string literal half a megabyte long: a
+# textual diff of it is the whole line, twice, and says nothing a reader can use
+# — a version bump's commit was 99.7% base64. `-diff` shows it as "Binary files
+# differ" in `git diff`/`git show`/`git log -p`; it stays a text file for
+# checkout, so the root file's `eol=lf` still holds.
+#
+# Here and not in the root .gitattributes, because that one is packed into the
+# template and would ship this rule into every project `frx create` makes.
+lib/src/template/template.g.dart -diff
