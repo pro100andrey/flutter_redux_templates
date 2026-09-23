@@ -433,6 +433,9 @@ Future<int> codegenDrift(VerbContext context) async {
     // neither named like the rest: a stale ThemeExtension still compiles.
     '*.g.theme.dart',
     '*.gen.dart',
+    // The packed template is a `.g.dart` too, but mold writes it, not
+    // build_runner — and its own freshness test is what gates it.
+    ':!tools/**',
   ], workingDirectory: context.workingDirectory);
   if (status.exitCode != 0) {
     context.log('git status failed: ${status.stderr}');
